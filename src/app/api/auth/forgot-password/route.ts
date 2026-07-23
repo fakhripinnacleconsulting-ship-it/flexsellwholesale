@@ -21,7 +21,14 @@ export async function POST(req: Request) {
     const validatedData = forgotPasswordSchema.parse(body);
     const { email } = validatedData;
 
-    const customer = await Customer.findOne({ email: email.toLowerCase() });
+    const targetEmail = email.trim().toLowerCase();
+    const customer = await Customer.findOne({
+      $or: [
+        { email: targetEmail },
+        { email: { $regex: new RegExp(`^${targetEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, "i") } }
+      ]
+    });
+
 
     if (!customer) {
       return NextResponse.json(
