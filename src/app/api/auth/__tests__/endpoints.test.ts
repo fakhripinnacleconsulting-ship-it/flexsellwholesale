@@ -49,6 +49,12 @@ vi.mock("@/lib/dbConnect", () => {
   };
 });
 
+// Mock webhookDispatcher
+vi.mock("@/lib/webhookDispatcher", () => ({
+  dispatchWebhook: vi.fn().mockResolvedValue({}),
+}));
+
+
 // Mock rateLimit
 vi.mock("@/lib/rateLimit", () => {
   return {
@@ -63,12 +69,19 @@ vi.mock("@/lib/webhookDispatcher", () => {
   };
 });
 
-// Mock idGenerator
+// Mock idGenerator & idGeneratorServer
 vi.mock("@/lib/idGenerator", () => {
   return {
     generateNextId: vi.fn().mockResolvedValue("FSW-0005"),
   };
 });
+
+vi.mock("@/lib/idGeneratorServer", () => {
+  return {
+    generateNextId: vi.fn().mockResolvedValue("FSW-0005"),
+  };
+});
+
 
 vi.mock("@/models/Customer", () => {
   class MockCustomer {
@@ -289,7 +302,7 @@ describe("Authentication API Routes", () => {
       expect(body.message).toContain("email");
     });
 
-    it("should return secure success message even if email is not found", async () => {
+    it("should return 404 error when email is not found", async () => {
       (Customer.findOne as any).mockResolvedValue(null);
 
       const request = new Request("http://localhost/api/auth/forgot-password", {
@@ -298,9 +311,9 @@ describe("Authentication API Routes", () => {
       });
 
       const response = await forgotPasswordPOST(request);
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(404);
       const body = await response.json();
-      expect(body.message).toContain("If that email is registered");
+      expect(body.message).toContain("Customer account does not exist");
       expect(nodemailerCreateTransportMock).not.toHaveBeenCalled();
     });
 
@@ -324,10 +337,11 @@ describe("Authentication API Routes", () => {
       expect(response.status).toBe(200);
       
       const body = await response.json();
-      expect(body.message).toContain("If that email is registered");
+      expect(body.message).toContain("Password reset link sent successfully");
       expect(mockCustomer.resetPasswordToken).toBeDefined();
       expect(mockCustomer.resetPasswordExpires).toBeDefined();
       expect(mockCustomer.save).toHaveBeenCalled();
+
       
       // Verify SMTP transport call details
       expect(nodemailerCreateTransportMock).toHaveBeenCalledWith(expect.objectContaining({
