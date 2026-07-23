@@ -3,7 +3,7 @@ import { productService } from "@/services/productService";
 import { categoryService } from "@/services/categoryService";
 import { ProductCatalog } from "@/components/storefront/ProductCatalog";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export default async function ProductsPage() {
   let products: any[] = [];

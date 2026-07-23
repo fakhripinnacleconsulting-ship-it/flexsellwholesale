@@ -3,7 +3,7 @@ import { collectionService } from "@/services/collectionService";
 import { CollectionCard } from "@/components/storefront/CollectionCard";
 import { Layers } from "lucide-react";
 
-export const revalidate = 3600; // ISR revalidation every hour
+export const revalidate = 60; // ISR revalidation every 60s
 
 export default async function CollectionsPage() {
   const collections = await collectionService.getCollections();

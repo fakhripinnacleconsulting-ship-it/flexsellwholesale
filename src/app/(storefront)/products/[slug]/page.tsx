@@ -4,7 +4,7 @@ import { ProductDetailView } from "@/components/storefront/ProductDetailView";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

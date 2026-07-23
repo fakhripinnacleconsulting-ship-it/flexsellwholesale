@@ -8,7 +8,7 @@ import { ExportCatalogButton } from "@/components/storefront/ExportCatalogButton
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Layers, AlertCircle, ShoppingBag } from "lucide-react";
 
-export const revalidate = 3600; // ISR revalidation every hour
+export const revalidate = 60; // ISR revalidation every 60s
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

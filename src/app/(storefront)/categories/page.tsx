@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { categoryService } from "@/services/categoryService";
 import { productService } from "@/services/productService";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export default async function CategoriesPage() {
   const categories = await categoryService.getCategories();

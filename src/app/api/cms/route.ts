@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import CmsContent from "@/models/CmsContent";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { revalidateCms } from "@/lib/revalidate";
 
 export async function GET() {
   try {
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       { upsert: true, new: true }
     );
 
+    revalidateCms();
     return NextResponse.json(updated);
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to update CMS content" }, { status: 500 });

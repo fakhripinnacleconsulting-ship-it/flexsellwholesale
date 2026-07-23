@@ -7,7 +7,7 @@ interface CollectionStoreState {
   collections: Collection[];
   isLoading: boolean;
   error: string | null;
-  initializeCollections: (initial?: Collection[]) => Promise<void>;
+  initializeCollections: (initial?: Collection[], force?: boolean) => Promise<void>;
   addCollection: (collection: Omit<Collection, "_id" | "createdAt">) => Promise<Collection>;
   updateCollection: (id: string, updatedFields: Partial<Collection>) => Promise<Collection>;
   deleteCollection: (id: string) => Promise<void>;
@@ -18,12 +18,12 @@ export const useCollectionStore = create<CollectionStoreState>()((set, get) => (
   isLoading: false,
   error: null,
 
-  initializeCollections: async (initial) => {
-    if (initial && initial.length > 0) {
+  initializeCollections: async (initial, force = false) => {
+    if (!force && initial && initial.length > 0) {
       set({ collections: initial, isLoading: false });
       return;
     }
-    if (get().collections.length > 0) return;
+    if (!force && get().collections.length > 0) return;
     set({ isLoading: true, error: null });
     try {
       const data = await collectionService.getCollections();

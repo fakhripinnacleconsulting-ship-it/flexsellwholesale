@@ -4,6 +4,7 @@ import Product from "@/models/Product";
 import { requireAuth } from "@/lib/authGuard";
 import { productSchema } from "@/lib/validators";
 import { ZodError } from "zod";
+import { revalidateProducts } from "@/lib/revalidate";
 
 export async function GET(
   request: Request,
@@ -48,6 +49,7 @@ export async function PUT(
       return NextResponse.json({ message: "Product not found" }, { status: 404 });
     }
     
+    revalidateProducts();
     return NextResponse.json(updatedProduct);
   } catch (error: unknown) {
     if (error instanceof ZodError) {
@@ -74,6 +76,7 @@ export async function DELETE(
       return NextResponse.json({ message: "Product not found" }, { status: 404 });
     }
     
+    revalidateProducts();
     return NextResponse.json({ message: "Product deleted successfully" });
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to delete product" }, { status: 500 });

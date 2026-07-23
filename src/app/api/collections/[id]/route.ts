@@ -4,6 +4,7 @@ import Collection from "@/models/Collection";
 import { requireAuth } from "@/lib/authGuard";
 import { collectionSchema } from "@/lib/validators";
 import { ZodError } from "zod";
+import { revalidateCollections } from "@/lib/revalidate";
 
 export async function GET(
   request: Request,
@@ -48,6 +49,7 @@ export async function PUT(
       return NextResponse.json({ message: "Collection not found" }, { status: 404 });
     }
     
+    revalidateCollections();
     return NextResponse.json(updatedCollection);
   } catch (error: any) {
     if (error instanceof ZodError) {
@@ -73,6 +75,7 @@ export async function DELETE(
       return NextResponse.json({ message: "Collection not found" }, { status: 404 });
     }
     
+    revalidateCollections();
     return NextResponse.json({ message: "Collection deleted successfully" });
   } catch (error: any) {
     return NextResponse.json({ message: error.message || "Failed to delete collection" }, { status: 500 });

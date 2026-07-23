@@ -48,6 +48,8 @@ export async function GET(request: Request) {
   }
 }
 
+import { revalidateProducts } from "@/lib/revalidate";
+
 export async function POST(request: Request) {
   try {
     const auth = await requireAuth("admin");
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
     }
     
     const newProduct = await Product.create(validatedData);
+    revalidateProducts();
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error: unknown) {
     if (error instanceof ZodError) {

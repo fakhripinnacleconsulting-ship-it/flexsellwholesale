@@ -4,6 +4,7 @@ import Category from "@/models/Category";
 import { requireAuth } from "@/lib/authGuard";
 import { categorySchema } from "@/lib/validators";
 import { ZodError } from "zod";
+import { revalidateCategories } from "@/lib/revalidate";
 
 export async function PUT(
   request: Request,
@@ -29,6 +30,7 @@ export async function PUT(
       return NextResponse.json({ message: "Category not found" }, { status: 404 });
     }
     
+    revalidateCategories();
     return NextResponse.json(updatedCategory);
   } catch (error: unknown) {
     if (error instanceof ZodError) {
@@ -55,6 +57,7 @@ export async function DELETE(
       return NextResponse.json({ message: "Category not found" }, { status: 404 });
     }
     
+    revalidateCategories();
     return NextResponse.json({ message: "Category deleted successfully" });
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to delete category" }, { status: 500 });

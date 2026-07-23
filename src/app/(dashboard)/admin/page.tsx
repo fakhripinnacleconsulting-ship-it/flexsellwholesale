@@ -5,6 +5,8 @@ import Product from "@/models/Product";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import { Order as OrderType } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
   let orders: any[] = [];
   let productsCount = 0;

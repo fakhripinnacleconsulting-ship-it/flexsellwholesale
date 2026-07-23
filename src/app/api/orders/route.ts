@@ -17,6 +17,7 @@ import nodemailer from "nodemailer";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 import { rateLimit } from "@/lib/rateLimit";
 import { runInTransaction } from "@/lib/transactionHelper";
+import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
 
 async function generateInvoiceId(type: "invoice" | "receipt", session?: any): Promise<string> {
   const prefix = type === "invoice" ? "INV" : "RCP";
@@ -607,6 +608,8 @@ export async function POST(request: Request) {
       data: newOrder,
     });
 
+    revalidateAdminDashboard();
+    revalidateProducts();
     return NextResponse.json(newOrder, { status: 201 });
   } catch (error: any) {
     console.error("Orders API POST error details:", error);

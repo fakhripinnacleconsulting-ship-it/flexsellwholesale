@@ -4,6 +4,7 @@ import Collection from "@/models/Collection";
 import { requireAuth } from "@/lib/authGuard";
 import { collectionSchema } from "@/lib/validators";
 import { ZodError } from "zod";
+import { revalidateCollections } from "@/lib/revalidate";
 
 export async function GET(request: Request) {
   try {
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
     }
 
     const newCollection = await Collection.create(validatedData);
+    revalidateCollections();
     return NextResponse.json(newCollection, { status: 201 });
   } catch (error: any) {
     if (error instanceof ZodError) {

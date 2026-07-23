@@ -6,6 +6,7 @@ import { requireAuth } from "@/lib/authGuard";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
+import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
 
 interface RouteProps {
   params: Promise<{ id: string }>;
@@ -183,6 +184,8 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
     });
 
     await order.save();
+    revalidateAdminDashboard();
+    revalidateProducts();
 
     return NextResponse.json(order);
   } catch (error: unknown) {
@@ -256,6 +259,8 @@ export async function DELETE(request: NextRequest, { params }: RouteProps) {
     }
 
     await Order.findByIdAndDelete(id);
+    revalidateAdminDashboard();
+    revalidateProducts();
 
     return NextResponse.json({ message: "Order cancelled and deleted successfully" });
   } catch (error: unknown) {

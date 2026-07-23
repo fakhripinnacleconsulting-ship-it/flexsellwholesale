@@ -18,7 +18,7 @@ import { TestimonialsSection } from "@/components/storefront/TestimonialsSection
 import { BrandPartnersBar } from "@/components/storefront/BrandPartnersBar";
 import { FeaturedCollections } from "@/components/storefront/FeaturedCollections";
 
-export const revalidate = 3600; // ISR revalidation every hour
+export const revalidate = 60; // ISR revalidation every 60s
 
 export default async function HomePage() {
   let cmsHeroBanners: any = null;

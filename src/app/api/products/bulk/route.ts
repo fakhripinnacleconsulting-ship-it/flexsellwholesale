@@ -5,6 +5,7 @@ import Category from "@/models/Category";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import HsnRecord from "@/models/HsnRecord";
 import { requireAuth } from "@/lib/authGuard";
+import { revalidateProducts } from "@/lib/revalidate";
 
 // Helper to generate a slug from title
 function generateSlug(title: string): string {
@@ -266,6 +267,10 @@ export async function POST(request: Request) {
       }
     }
 
+    if (results.inserted > 0 || results.updated > 0) {
+      revalidateProducts();
+    }
+
     return NextResponse.json({
       success: true,
       summary: results,
@@ -294,6 +299,7 @@ export async function DELETE(request: Request) {
     }
 
     const deleteResult = await Product.deleteMany({ _id: { $in: ids } });
+    revalidateProducts();
     return NextResponse.json({
       success: true,
       message: `Successfully deleted ${deleteResult.deletedCount} products in bulk.`,

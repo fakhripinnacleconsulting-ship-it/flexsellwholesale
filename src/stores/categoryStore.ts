@@ -7,7 +7,7 @@ interface CategoryStoreState {
   categories: Category[];
   isLoading: boolean;
   error: string | null;
-  initializeCategories: (initial?: Category[]) => Promise<void>;
+  initializeCategories: (initial?: Category[], force?: boolean) => Promise<void>;
   addCategory: (category: Omit<Category, "_id" | "createdAt">) => Promise<void>;
   updateCategory: (id: string, updatedFields: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -18,12 +18,12 @@ export const useCategoryStore = create<CategoryStoreState>()((set, get) => ({
   isLoading: false,
   error: null,
 
-  initializeCategories: async (initial) => {
-    if (initial && initial.length > 0) {
+  initializeCategories: async (initial, force = false) => {
+    if (!force && initial && initial.length > 0) {
       set({ categories: initial, isLoading: false });
       return;
     }
-    if (get().categories.length > 0) return;
+    if (!force && get().categories.length > 0) return;
     set({ isLoading: true, error: null });
     try {
       const data = await categoryService.getCategories();

@@ -4,6 +4,7 @@ import Category from "@/models/Category";
 import { requireAuth } from "@/lib/authGuard";
 import { categorySchema } from "@/lib/validators";
 import { ZodError } from "zod";
+import { revalidateCategories } from "@/lib/revalidate";
 
 export async function GET() {
   try {
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     }
     
     const newCategory = await Category.create(validatedData);
+    revalidateCategories();
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error: unknown) {
     if (error instanceof ZodError) {

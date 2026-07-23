@@ -8,7 +8,7 @@ interface HsnStoreState {
   supplierState: string; // Default: "Madhya Pradesh"
   isLoading: boolean;
   error: string | null;
-  initializeHsns: () => Promise<void>;
+  initializeHsns: (force?: boolean) => Promise<void>;
   addHsn: (hsn: Omit<HsnRecord, "_id" | "createdAt" | "updatedAt">) => Promise<void>;
   updateHsn: (id: string, updatedFields: Partial<HsnRecord>) => Promise<void>;
   deleteHsn: (id: string) => Promise<void>;
@@ -21,8 +21,8 @@ export const useHsnStore = create<HsnStoreState>()((set, get) => ({
   isLoading: false,
   error: null,
 
-  initializeHsns: async () => {
-    if (get().hsns.length > 0) return;
+  initializeHsns: async (force = false) => {
+    if (!force && get().hsns.length > 0) return;
     set({ isLoading: true, error: null });
     try {
       const data = await hsnService.getHsnRecords();
