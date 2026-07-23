@@ -31,39 +31,55 @@ export function logEmailToStorage(emailOpt: EmailOptions): void {
 }
 
 function getSmtpConfig() {
-  let host = process.env.SMTP_HOST || "smtp.gmail.com";
-  let port = parseInt(process.env.SMTP_PORT || "465", 10);
-  let user = process.env.SMTP_USER || "mauryatech7@gmail.com";
-  let pass = process.env.SMTP_PASS || "qfxgglqfymjhbksy";
+  // Pre-defined ZeptoMail Configuration
+  const zeptoConfig = {
+    host: "smtp.zeptomail.in",
+    port: 465,
+    user: "emailapikey",
+    pass: "PHtE6r1fE+7piGUp+hFR4/G4QpWkZoMq/7tmKggWtIdLCPRRTE0H+Y8oxj+2rxgqUaIQFaHKnI8+tezNuumNIznkYGkdDWqyqK3sx/VYSPOZsbq6x00asFwYcULVU4PmdNFj1CTRu93TNA==",
+    from: process.env.SMTP_FROM || `"FlexSell Wholesale Support" <noreply@flexsellwholesale.com>`,
+    provider: "ZeptoMail"
+  };
 
-  try {
-    const fs = require("fs");
-    const path = require("path");
-    const envPath = path.resolve(process.cwd(), ".env");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf8");
-      const hostMatch = content.match(/^SMTP_HOST=(.*)$/m);
-      if (hostMatch && hostMatch[1]) host = hostMatch[1].trim();
+  // Pre-defined Gmail Configuration
+  const gmailConfig = {
+    host: "smtp.gmail.com",
+    port: 465,
+    user: "mauryatech7@gmail.com",
+    pass: "qfxgglqfymjhbksy",
+    from: process.env.SMTP_FROM || `"FlexSell Wholesale Support" <mauryatech7@gmail.com>`,
+    provider: "Gmail"
+  };
 
-      const portMatch = content.match(/^SMTP_PORT=(.*)$/m);
-      if (portMatch && portMatch[1]) port = parseInt(portMatch[1].trim(), 10);
-
-      const userMatch = content.match(/^SMTP_USER=(.*)$/m);
-      if (userMatch && userMatch[1]) user = userMatch[1].trim();
-
-      const passMatch = content.match(/^SMTP_PASS=(.*)$/m);
-      if (passMatch && passMatch[1]) pass = passMatch[1].trim();
-    }
-  } catch {
-    // fallback
+  // 1. Explicit Environment Override
+  if (process.env.SMTP_HOST) {
+    const host = process.env.SMTP_HOST.trim();
+    const isZepto = host.includes("zeptomail");
+    return {
+      host,
+      port: parseInt(process.env.SMTP_PORT || "465", 10),
+      user: process.env.SMTP_USER || (isZepto ? zeptoConfig.user : gmailConfig.user),
+      pass: process.env.SMTP_PASS || (isZepto ? zeptoConfig.pass : gmailConfig.pass),
+      from: process.env.SMTP_FROM || (isZepto ? zeptoConfig.from : gmailConfig.from),
+      provider: isZepto ? "ZeptoMail" : "Custom/Gmail"
+    };
   }
 
-  const cleanHost = host.replace(/["'\s]/g, "") || "smtp.gmail.com";
-  const cleanPort = isNaN(port) ? 465 : port;
-  const cleanUser = user.replace(/["'\s]/g, "") || "mauryatech7@gmail.com";
-  const cleanPass = pass.replace(/["'\s]/g, "") || "qfxgglqfymjhbksy";
+  // 2. Domain / Site URL Auto Detection
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || "").toLowerCase();
+  const providerEnv = (process.env.SMTP_PROVIDER || "").toLowerCase();
 
-  return { host: cleanHost, port: cleanPort, user: cleanUser, pass: cleanPass };
+  const isZeptoDomain =
+    providerEnv === "zeptomail" ||
+    siteUrl.includes("flexsellwholesale.com") ||
+    siteUrl.includes("flexsellwholesale.vercel.app");
+
+  if (isZeptoDomain) {
+    return zeptoConfig;
+  }
+
+  // Default fallback for localhost and flexsell.vercel.app -> Gmail
+  return gmailConfig;
 }
 
 export const emailService = {
@@ -73,12 +89,13 @@ export const emailService = {
     const smtpUser = config.user;
     const smtpPass = config.pass;
     const smtpPort = config.port;
+    const fromAddress = config.from;
 
     // Logging for dev / mock environment
     console.log("\n=======================================================");
     console.log(`[EMAIL DISPATCH] To: ${options.to}`);
     console.log(`[SUBJECT]: ${options.subject}`);
-    console.log(`[SMTP CONFIG]: host=${smtpHost}, port=${smtpPort}, user=${smtpUser}, passLength=${smtpPass.length}`);
+    console.log(`[SMTP PROVIDER]: ${config.provider} (host=${smtpHost}, port=${smtpPort}, from=${fromAddress})`);
     console.log("=======================================================\n");
 
     logEmailToStorage(options);
@@ -103,21 +120,22 @@ export const emailService = {
       });
 
       await transporter.sendMail({
-        from: `"FlexSell Wholesale Support" <${smtpUser}>`,
+        from: fromAddress,
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text || options.subject,
       });
 
-      console.log(`[EMAIL SUCCESS] Dispatched email successfully to ${options.to}`);
+      console.log(`[EMAIL SUCCESS - ${config.provider}] Dispatched email successfully to ${options.to}`);
       return true;
     } catch (err: any) {
-      console.error(`[EMAIL DISPATCH ERROR] Failed to send email to ${options.to}:`, err.message);
+      console.error(`[EMAIL DISPATCH ERROR - ${config.provider}] Failed to send email to ${options.to}:`, err.message);
       // Return true so business transactions don't fail due to mail server timeouts
       return false;
     }
   },
+
 
   // Get Admin recipient email
   getAdminEmail(): string {
