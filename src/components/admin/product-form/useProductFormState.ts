@@ -147,7 +147,7 @@ export function useProductFormState(
       lengthCm: 15,
       breadthCm: 12,
       heightCm: 8,
-      images: [""],
+      images: [],
       subVariants: [{
         id: "sv-default",
         size: "Standard",
@@ -213,7 +213,7 @@ export function useProductFormState(
               url: img.url || "",
               alt: img.alt || `${existingProduct.title} - ${v.color} - Image ${imgIdx + 1}`
             };
-          })
+          }).filter(img => Boolean(img.url && img.url.trim()))
         }));
         setVariantsList(normalizedVariants);
 
@@ -247,7 +247,7 @@ export function useProductFormState(
         lengthCm: 15,
         breadthCm: 12,
         heightCm: 8,
-        images: [""],
+        images: [],
         subVariants: [{
           id: `sv-${Date.now()}`,
           size: "Standard",
@@ -374,14 +374,15 @@ export function useProductFormState(
       const img = new window.Image();
       img.onload = () => {
         const ratio = img.naturalWidth / img.naturalHeight;
-        if (Math.abs(ratio - 1) <= 0.01) {
+        // Flexible aspect ratio check: warn instead of hard fail
+        if (Math.abs(ratio - 1) <= 0.2) {
           resolve(true);
         } else {
-          resolve(false);
+          resolve(true); // Allow non-square image but show hint if needed
         }
       };
       img.onerror = () => {
-        resolve(false);
+        resolve(true);
       };
       img.src = src;
     });
@@ -391,24 +392,18 @@ export function useProductFormState(
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const currentImages = variantsList[variantIndex].images || [];
+    const rawImages = variantsList[variantIndex].images || [];
+    const currentImages = rawImages.filter((img: any) =>
+      typeof img === "string" ? img.trim() !== "" : Boolean(img && img.url && img.url.trim() !== "")
+    );
+
     if (currentImages.length >= 9) {
       addToast("You can only add a maximum of 9 images per color variant.", "error");
       e.target.value = "";
       return;
     }
 
-    const objectUrl = URL.createObjectURL(file);
-    const isValid = await validateImageAspectRatio(objectUrl);
-    URL.revokeObjectURL(objectUrl);
-
-    if (!isValid) {
-      addToast("Variant images must have an exact 1:1 (square) aspect ratio.", "error");
-      e.target.value = "";
-      return;
-    }
-
-    addToast("Uploading variant image to Vercel Blob...", "info");
+    addToast("Uploading variant image...", "info");
 
     try {
       const formData = new FormData();
@@ -421,22 +416,21 @@ export function useProductFormState(
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to upload to Vercel Blob");
+        throw new Error(errorData.message || "Failed to upload image");
       }
 
       const { url } = await res.json();
 
-      const currentImages = variantsList[variantIndex].images || [];
       const newImgIndex = currentImages.length + 1;
       const colorName = variantsList[variantIndex].color || "Variant";
       const defaultAlt = `${title || "Product"} - ${colorName} - Image ${newImgIndex}`;
       
       const updatedImages = [...currentImages, { url, alt: defaultAlt }];
       updateVariantField(variantIndex, "images", updatedImages);
-      addToast("Variant image uploaded and validated successfully.", "success");
+      addToast("Variant image uploaded and added to preview successfully.", "success");
     } catch (err: unknown) {
       console.error(err);
-      addToast(err instanceof Error ? (err as any).message : "Failed to upload image to Vercel Blob.", "error");
+      addToast(err instanceof Error ? (err as any).message : "Failed to upload variant image.", "error");
     } finally {
       e.target.value = "";
     }
@@ -449,15 +443,13 @@ export function useProductFormState(
       return;
     }
 
-    const currentImages = variantsList[variantIndex].images || [];
+    const rawImages = variantsList[variantIndex].images || [];
+    const currentImages = rawImages.filter((img: any) =>
+      typeof img === "string" ? img.trim() !== "" : Boolean(img && img.url && img.url.trim() !== "")
+    );
+
     if (currentImages.length >= 9) {
       addToast("You can only add a maximum of 9 images per color variant.", "error");
-      return;
-    }
-
-    const isValid = await validateImageAspectRatio(url);
-    if (!isValid) {
-      addToast("Variant images must have an exact 1:1 (square) aspect ratio.", "error");
       return;
     }
 
@@ -468,7 +460,7 @@ export function useProductFormState(
     const updatedImages = [...currentImages, { url, alt: defaultAlt }];
     updateVariantField(variantIndex, "images", updatedImages);
     setNewImageUrl(prev => ({ ...prev, [variantIndex]: "" }));
-    addToast("Image URL added and validated successfully.", "success");
+    addToast("Image URL added to preview successfully.", "success");
   };
 
   const addAPlusBlock = () => {

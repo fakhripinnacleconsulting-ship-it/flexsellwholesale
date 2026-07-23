@@ -241,74 +241,82 @@ export function VariantCard({
         <div className="space-y-3 pt-4 border-t">
           <label className="text-xs font-semibold uppercase text-muted-foreground block">Variant Images (1:1 Ratio Only)</label>
 
-          {item.images && item.images.length > 0 && item.images[0] !== "" ? (
-            <div className="border rounded-lg overflow-hidden bg-background">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-secondary/20 border-b">
-                    <th className="p-2 font-bold w-16 text-center">Preview</th>
-                    <th className="p-2 font-bold">Image URL / Data String</th>
-                    <th className="p-2 font-bold">Alt Tag (Editable)</th>
-                    <th className="p-2 font-bold w-12 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {item.images.map((img: any, imgIdx: number) => {
-                    const imgUrl = typeof img === "string" ? img : img.url || "";
-                    const imgAlt = typeof img === "string" ? `${title || 'Product'} - ${item.color || 'Variant'} - Image ${imgIdx + 1}` : img.alt || "";
-                    return (
-                      <tr key={imgIdx} className="border-b last:border-0 hover:bg-secondary/5">
-                        <td className="p-2 text-center">
-                          <img
-                            src={imgUrl}
-                            alt={imgAlt}
-                            className="h-10 w-10 object-cover rounded border bg-secondary mx-auto"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80";
-                            }}
-                          />
-                        </td>
-                        <td className="p-2 font-mono truncate max-w-[220px]" title={imgUrl}>
-                          {imgUrl}
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            className="h-8 text-xs w-full"
-                            value={imgAlt}
-                            onChange={(e) => {
-                              const updated = [...item.images];
-                              if (typeof updated[imgIdx] === "string") {
-                                updated[imgIdx] = { url: updated[imgIdx], alt: e.target.value };
-                              } else {
-                                updated[imgIdx] = { ...updated[imgIdx], alt: e.target.value };
-                              }
-                              updateVariantField(idx, "images", updated);
-                            }}
-                          />
-                        </td>
-                        <td className="p-2 text-center">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-                            onClick={() => {
-                              const updated = item.images.filter((_: any, i: number) => i !== imgIdx);
-                              updateVariantField(idx, "images", updated);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground italic">No images added yet. Add an image or upload one below.</p>
-          )}
+          {(() => {
+            const validImages = (item.images || []).filter((img: any) =>
+              typeof img === "string" ? img.trim() !== "" : Boolean(img && img.url && img.url.trim() !== "")
+            );
+
+            if (validImages.length === 0) {
+              return <p className="text-xs text-muted-foreground italic">No images added yet. Add an image or upload one below.</p>;
+            }
+
+            return (
+              <div className="border rounded-lg overflow-hidden bg-background">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-secondary/20 border-b">
+                      <th className="p-2 font-bold w-16 text-center">Preview</th>
+                      <th className="p-2 font-bold">Image URL / Data String</th>
+                      <th className="p-2 font-bold">Alt Tag (Editable)</th>
+                      <th className="p-2 font-bold w-12 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {validImages.map((img: any, imgIdx: number) => {
+                      const imgUrl = typeof img === "string" ? img : img.url || "";
+                      const imgAlt = typeof img === "string" ? `${title || 'Product'} - ${item.color || 'Variant'} - Image ${imgIdx + 1}` : img.alt || "";
+                      return (
+                        <tr key={imgIdx} className="border-b last:border-0 hover:bg-secondary/5">
+                          <td className="p-2 text-center">
+                            <img
+                              src={imgUrl}
+                              alt={imgAlt}
+                              className="h-10 w-10 object-cover rounded border bg-secondary mx-auto"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80";
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 font-mono truncate max-w-[220px]" title={imgUrl}>
+                            {imgUrl}
+                          </td>
+                          <td className="p-2">
+                            <Input
+                              className="h-8 text-xs w-full"
+                              value={imgAlt}
+                              onChange={(e) => {
+                                const updated = [...validImages];
+                                if (typeof updated[imgIdx] === "string") {
+                                  updated[imgIdx] = { url: updated[imgIdx], alt: e.target.value };
+                                } else {
+                                  updated[imgIdx] = { ...updated[imgIdx], alt: e.target.value };
+                                }
+                                updateVariantField(idx, "images", updated);
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                              onClick={() => {
+                                const updated = validImages.filter((_: any, i: number) => i !== imgIdx);
+                                updateVariantField(idx, "images", updated);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
 
           {/* Add Image Control Panel */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">

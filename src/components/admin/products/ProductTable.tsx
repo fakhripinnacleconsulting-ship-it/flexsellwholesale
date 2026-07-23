@@ -74,8 +74,18 @@ export function ProductTable({
                 </tr>
               ) : (
                 paginatedProducts.map((product) => {
-                  const defaultVariant = product.colorVariants?.[0] || { price: 0, mrp: 0, stock: 0, sku: "NO SKU", images: [] };
-                  const firstImg = defaultVariant.images?.[0];
+                  let firstImg: any = null;
+                  if (product.colorVariants && product.colorVariants.length > 0) {
+                    for (const cv of product.colorVariants) {
+                      const found = (cv.images || []).find((img: any) =>
+                        typeof img === "string" ? img.trim() !== "" : Boolean(img && img.url && img.url.trim() !== "")
+                      );
+                      if (found) {
+                        firstImg = found;
+                        break;
+                      }
+                    }
+                  }
                   const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
                   const variantsCount = product.colorVariants?.length || 0;
                   const isSelected = selectedProductIds.includes(product._id);
