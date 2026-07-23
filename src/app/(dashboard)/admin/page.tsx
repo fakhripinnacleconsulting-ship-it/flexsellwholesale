@@ -6,17 +6,32 @@ import { AdminOverview } from "@/components/admin/AdminOverview";
 import { Order as OrderType } from "@/types";
 
 export default async function AdminDashboardPage() {
-  await dbConnect();
+  let orders: any[] = [];
+  let productsCount = 0;
+  let lowStockCount = 0;
+  let recentOrders: any[] = [];
+  let totalOrders = 0;
 
-  const [orders, productsCount, lowStockCount, recentOrders] = await Promise.all([
-    Order.find({ status: { $ne: "Cancelled" } }).select("amount createdAt").lean(),
-    Product.countDocuments({ isActive: true }),
-    Product.countDocuments({ totalStock: { $lt: 15 }, isActive: true }),
-    Order.find().sort({ createdAt: -1 }).limit(5).lean()
-  ]);
+  try {
+    await dbConnect();
 
-  const totalRevenue = (orders as any[]).reduce((sum, order) => sum + (order.amount || 0), 0);
-  const totalOrders = await Order.countDocuments(); // count all orders including cancelled
+    const [ordersRes, pCount, lsCount, rOrders, tOrders] = await Promise.all([
+      Order.find({ status: { $ne: "Cancelled" } }).select("amount createdAt").lean(),
+      Product.countDocuments({ isActive: true }),
+      Product.countDocuments({ totalStock: { $lt: 15 }, isActive: true }),
+      Order.find().sort({ createdAt: -1 }).limit(5).lean(),
+      Order.countDocuments()
+    ]);
+    orders = ordersRes;
+    productsCount = pCount;
+    lowStockCount = lsCount;
+    recentOrders = rOrders;
+    totalOrders = tOrders;
+  } catch (err) {
+    console.error("AdminDashboardPage DB fetch notice:", (err as any)?.message || err);
+  }
+
+  const totalRevenue = orders.reduce((sum, order) => sum + (order.amount || 0), 0);
 
   // Generate 7-day revenue trend
   const chartDataMap: Record<string, number> = {};

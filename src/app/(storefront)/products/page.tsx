@@ -6,7 +6,13 @@ import { ProductCatalog } from "@/components/storefront/ProductCatalog";
 export const revalidate = 3600;
 
 export default async function ProductsPage() {
-  const products = await productService.getProducts();
-  const categories = await categoryService.getCategories();
+  let products: any[] = [];
+  let categories: any[] = [];
+  try {
+    products = await productService.getProducts();
+    categories = await categoryService.getCategories();
+  } catch (err) {
+    console.error("ProductsPage DB fetch notice:", (err as any)?.message || err);
+  }
   return <ProductCatalog initialProducts={products} initialCategories={categories} />;
 }

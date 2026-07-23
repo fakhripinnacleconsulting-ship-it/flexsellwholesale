@@ -123,11 +123,16 @@ function evaluateSmartRulesInClient(product: Product, rules: CollectionRules | n
 export const collectionService = {
   async getCollections(): Promise<Collection[]> {
     if (typeof window === "undefined") {
-      const dbConnect = (await import("@/lib/dbConnect")).default;
-      await dbConnect();
-      const CollectionModel = (await import("@/models/Collection")).default;
-      const collections = await CollectionModel.find({}).sort({ order: 1 }).lean();
-      return JSON.parse(JSON.stringify(collections));
+      try {
+        const dbConnect = (await import("@/lib/dbConnect")).default;
+        await dbConnect();
+        const CollectionModel = (await import("@/models/Collection")).default;
+        const collections = await CollectionModel.find({}).sort({ order: 1 }).lean();
+        return JSON.parse(JSON.stringify(collections));
+      } catch (err) {
+        console.error("collectionService.getCollections server notice:", (err as any)?.message || err);
+        return [];
+      }
     }
 
     if (isMockMode) {

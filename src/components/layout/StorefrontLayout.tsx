@@ -12,12 +12,20 @@ interface StorefrontLayoutProps {
 }
 
 export async function StorefrontLayout({ children }: StorefrontLayoutProps) {
-  await dbConnect();
+  let allCategories: any[] = [];
+  let collections: any[] = [];
+  let cmsAnnouncements: any = null;
+  let cmsFooter: any = null;
 
-  const allCategories = await categoryService.getCategories();
-  const collections = await collectionService.getCollections();
-  const cmsAnnouncements = await CmsContent.findOne({ key: "announcements" });
-  const cmsFooter = await CmsContent.findOne({ key: "footer" });
+  try {
+    await dbConnect();
+    allCategories = await categoryService.getCategories();
+    collections = await collectionService.getCollections();
+    cmsAnnouncements = await CmsContent.findOne({ key: "announcements" });
+    cmsFooter = await CmsContent.findOne({ key: "footer" });
+  } catch (err) {
+    console.error("StorefrontLayout DB fetch notice (using fallback UI):", (err as any)?.message || err);
+  }
 
   const messages = cmsAnnouncements?.value || [
     "🎉 Mega B2B Monsoon Sale! Flat 12% OFF on Bulk orders above ₹20,000. Use Code: MEGAMONSOON"

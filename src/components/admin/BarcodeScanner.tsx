@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Barcode } from "@/components/ui/Barcode";
 import { formatPrice } from "@/lib/utils";
 import { resolvePrice } from "@/lib/priceTierHelper";
-import { X, Search, QrCode, Minus, Plus, Camera, CameraOff } from "lucide-react";
+import { X, Search, QrCode, Minus, Plus, Camera, CameraOff, Upload, Lock } from "lucide-react";
 import { useBarcodeScanner } from "./useBarcodeScanner";
 
 interface BarcodeScannerProps {
@@ -25,17 +25,49 @@ export function BarcodeScanner({ isOpen, onClose }: BarcodeScannerProps) {
     errorMsg,
     isScanning,
     inputRef,
+    scanHistory,
+    continuousScan,
+    setContinuousScan,
+    availableCameras,
+    selectedCameraId,
+    setSelectedCameraId,
     handleScanSearch,
+    handleFileUploadScan,
     startCamera,
     stopCamera,
     handleStockChange,
     getWarehouseLocation
   } = useBarcodeScanner(isOpen);
 
+  // Handle Escape key & body scroll locking
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const originalStyle = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalStyle;
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm text-foreground">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Barcode Scanner Modal"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm text-foreground"
+    >
       <div className="relative w-full max-w-2xl bg-background rounded-xl border border-border shadow-lg flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
@@ -43,7 +75,7 @@ export function BarcodeScanner({ isOpen, onClose }: BarcodeScannerProps) {
             <QrCode className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-bold">Simulated Barcode Scanner (FSI-SKU lookup)</h2>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -52,7 +84,18 @@ export function BarcodeScanner({ isOpen, onClose }: BarcodeScannerProps) {
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
           {/* Scanner Input field */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold">Laser Scan Input (Paste barcode value)</label>
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-semibold">Laser Scan Input (Paste barcode value)</label>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={continuousScan}
+                  onChange={(e) => setContinuousScan(e.target.checked)}
+                  className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                />
+                Continuous Camera Mode
+              </label>
+            </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -71,7 +114,7 @@ export function BarcodeScanner({ isOpen, onClose }: BarcodeScannerProps) {
               <Button
                 type="button"
                 variant={isScanning ? "destructive" : "secondary"}
-                onClick={isScanning ? stopCamera : startCamera}
+                onClick={() => (isScanning ? stopCamera() : startCamera())}
                 className="flex items-center gap-2"
               >
                 {isScanning ? (
@@ -84,38 +127,102 @@ export function BarcodeScanner({ isOpen, onClose }: BarcodeScannerProps) {
                   </>
                 )}
               </Button>
+              <label className="cursor-pointer inline-flex items-center justify-center rounded-md text-xs font-semibold h-10 px-3 border border-border bg-secondary/30 hover:bg-secondary/60 text-foreground transition-colors gap-1.5">
+                <Upload className="h-4 w-4 text-primary" /> Scan Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUploadScan(file);
+                  }}
+                />
+              </label>
             </div>
-            {errorMsg && <p className="text-xs text-destructive font-medium">{errorMsg}</p>}
+            
+            {availableCameras.length > 1 && (
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-muted-foreground font-semibold">Active Camera:</span>
+                <select
+                  value={selectedCameraId}
+                  onChange={(e) => {
+                    setSelectedCameraId(e.target.value);
+                    if (isScanning) startCamera(e.target.value);
+                  }}
+                  className="text-xs bg-background border rounded px-2 py-1 text-foreground"
+                >
+                  {availableCameras.map(cam => (
+                    <option key={cam.id} value={cam.id}>{cam.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {errorMsg && (
+              <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs space-y-1.5">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <Lock className="h-4 w-4 shrink-0" /> Camera Access Issue Detected
+                </p>
+                <p>{errorMsg}</p>
+                <div className="pt-1 text-[11px] text-muted-foreground border-t border-destructive/20 space-y-1">
+                  <p className="font-bold text-foreground">Quick Steps to Fix Camera Permission:</p>
+                  <ol className="list-decimal list-inside space-y-0.5">
+                    <li>Look at your browser address bar at the top (where it says <code className="bg-background px-1 rounded">http://localhost:3000</code>).</li>
+                    <li>Click the <strong>Lock 🔒 / Tune 🎛️</strong> icon on the left side of the URL.</li>
+                    <li>Find <strong>Camera</strong> and switch it from <em>Block</em> to <strong>Allow</strong>.</li>
+                    <li>Click <strong>Live Camera Scan</strong> again above or upload a barcode image file.</li>
+                  </ol>
+                </div>
+              </div>
+            )}
           </div>
 
           {isScanning && (
-            <div className="relative w-full max-w-lg mx-auto aspect-[4/3] rounded-xl overflow-hidden border border-primary/30 bg-black flex flex-col items-center justify-center">
+            <div className="relative w-full max-w-lg mx-auto aspect-[4/3] rounded-xl overflow-hidden border-2 border-primary/40 bg-black shadow-inner flex flex-col items-center justify-center">
               <div id="scanner-video-feed" className="w-full h-full"></div>
-              <div className="absolute inset-x-0 h-0.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-bounce top-1/2"></div>
-              <div className="absolute bottom-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded">
-                Align barcode inside the central window
+              <div className="absolute inset-x-4 h-0.5 bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9)] animate-pulse top-1/2 pointer-events-none"></div>
+              <div className="absolute bottom-3 bg-black/75 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-md pointer-events-none flex items-center gap-2 border border-white/10">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span className="font-medium">Camera active - Continuous scanning enabled</span>
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Left Column: Quick Simulation Dropdown */}
-            <div className="md:col-span-1 space-y-2 border-r pr-4">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select Product to Scan</label>
-              <div className="space-y-1 max-h-48 overflow-y-auto border rounded-md p-2 bg-secondary/15">
-                {products.slice(0, 10).map((prod) => {
-                  const bcValue = prod.colorVariants?.[0]?.subVariants?.[0]?.sku || prod._id;
-                  return (
-                    <button
-                      key={prod._id}
-                      onClick={() => handleScanSearch(bcValue)}
-                      className="w-full text-left p-1.5 text-xs rounded hover:bg-primary/10 transition-colors truncate font-mono text-foreground"
-                    >
-                      {prod.title}
-                    </button>
-                  );
-                })}
+            {/* Left Column: Quick Simulation Dropdown & Scan History */}
+            <div className="md:col-span-1 space-y-4 border-r pr-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select Product to Scan</label>
+                <div className="space-y-1 max-h-40 overflow-y-auto border rounded-md p-2 bg-secondary/15">
+                  {products.slice(0, 10).map((prod) => {
+                    const bcValue = prod.colorVariants?.[0]?.subVariants?.[0]?.sku || prod._id;
+                    return (
+                      <button
+                        key={prod._id}
+                        onClick={() => handleScanSearch(bcValue)}
+                        className="w-full text-left p-1.5 text-xs rounded hover:bg-primary/10 transition-colors truncate font-mono text-foreground"
+                      >
+                        {prod.title}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {scanHistory.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Recent Scan History</label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto border rounded-md p-2 bg-secondary/10 text-[11px] font-mono">
+                    {scanHistory.map((item, index) => (
+                      <div key={index} className="flex justify-between items-center text-muted-foreground border-b last:border-0 pb-1">
+                        <span className="truncate max-w-[110px]" title={item.productTitle}>{item.productTitle}</span>
+                        <span className="text-[9px] text-primary">{item.timestamp}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Columns: Scanned Details */}
@@ -200,3 +307,4 @@ export function BarcodeScanner({ isOpen, onClose }: BarcodeScannerProps) {
     </div>
   );
 }
+

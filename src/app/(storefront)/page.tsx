@@ -21,23 +21,42 @@ import { FeaturedCollections } from "@/components/storefront/FeaturedCollections
 export const revalidate = 3600; // ISR revalidation every hour
 
 export default async function HomePage() {
-  await dbConnect();
+  let cmsHeroBanners: any = null;
+  let cmsTrustStats: any = null;
+  let cmsWholesaleBiz: any = null;
+  let cmsDropshipBiz: any = null;
+  let cmsTestimonialsWholesale: any = null;
+  let cmsTestimonialsDropshipper: any = null;
+  let cmsTestimonialsClient: any = null;
+  let cmsBrandPartners: any = null;
 
-  // Fetch CMS sections
-  const cmsHeroBanners = await CmsContent.findOne({ key: "hero_banners" });
-  const cmsTrustStats = await CmsContent.findOne({ key: "trust_stats" });
-  const cmsWholesaleBiz = await CmsContent.findOne({ key: "wholesale_business_details" });
-  const cmsDropshipBiz = await CmsContent.findOne({ key: "dropshipping_business_details" });
-  const cmsTestimonialsWholesale = await CmsContent.findOne({ key: "testimonials_wholesale" });
-  const cmsTestimonialsDropshipper = await CmsContent.findOne({ key: "testimonials_dropshipper" });
-  const cmsTestimonialsClient = await CmsContent.findOne({ key: "testimonials_client" });
-  const cmsBrandPartners = await CmsContent.findOne({ key: "brand_partners" });
+  let categories: any[] = [];
+  let products: any[] = [];
+  let trendingProducts: any[] = [];
+  let newArrivals: any[] = [];
+  let collections: any[] = [];
 
-  const categories = await categoryService.getCategories();
-  const products = await productService.getProducts();
-  const trendingProducts = await productService.getTrendingProducts();
-  const newArrivals = await productService.getNewArrivals();
-  const collections = await collectionService.getCollections();
+  try {
+    await dbConnect();
+
+    // Fetch CMS sections
+    cmsHeroBanners = await CmsContent.findOne({ key: "hero_banners" });
+    cmsTrustStats = await CmsContent.findOne({ key: "trust_stats" });
+    cmsWholesaleBiz = await CmsContent.findOne({ key: "wholesale_business_details" });
+    cmsDropshipBiz = await CmsContent.findOne({ key: "dropshipping_business_details" });
+    cmsTestimonialsWholesale = await CmsContent.findOne({ key: "testimonials_wholesale" });
+    cmsTestimonialsDropshipper = await CmsContent.findOne({ key: "testimonials_dropshipper" });
+    cmsTestimonialsClient = await CmsContent.findOne({ key: "testimonials_client" });
+    cmsBrandPartners = await CmsContent.findOne({ key: "brand_partners" });
+
+    categories = await categoryService.getCategories();
+    products = await productService.getProducts();
+    trendingProducts = await productService.getTrendingProducts();
+    newArrivals = await productService.getNewArrivals();
+    collections = await collectionService.getCollections();
+  } catch (err) {
+    console.error("HomePage DB fetch notice (using fallback content):", (err as any)?.message || err);
+  }
 
   // Resolve product counts for each featured collection
   const productCounts: Record<string, number> = {};

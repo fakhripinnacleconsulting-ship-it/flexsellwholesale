@@ -1,4 +1,4 @@
-const CODE39_MAP: Record<string, string> = {
+export const CODE39_MAP: Record<string, string> = {
   "0": "101001101101",
   "1": "110100101011",
   "2": "101100101011",
@@ -42,14 +42,11 @@ const CODE39_MAP: Record<string, string> = {
   "$": "100100100101",
   "/": "100100101001",
   "+": "100101001001",
-  "%": "100100100101"
+  "%": "101001001001"
 };
 
 export function getBarcodeSvgString(rawVal: string, width = 0.8, height = 30): string {
-  let val = rawVal || "";
-  if (val.length > 8 && !val.startsWith("FX")) {
-    val = val.slice(-6);
-  }
+  const val = rawVal || "";
   const cleanVal = val.toUpperCase().split("").filter(char => char in CODE39_MAP).join("");
   if (!cleanVal) return "<div style='color:red; font-size:10px;'>Invalid</div>";
 
