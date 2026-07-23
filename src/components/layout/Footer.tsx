@@ -75,7 +75,9 @@ export function Footer({ data }: FooterProps) {
             <li><Link href="/quote" className="hover:text-primary transition-colors">Get Bulk Sourcing Quote</Link></li>
             <li><Link href="/about" className="hover:text-primary transition-colors">About FlexSell B2B</Link></li>
             <li><Link href="/contact" className="hover:text-primary transition-colors">Warehouse Sourcing Contact</Link></li>
+            <li><Link href="/system-diagnostics" className="hover:text-primary transition-colors text-emerald-600 font-bold">System Diagnostics</Link></li>
           </ul>
+
         </div>
 
         {/* Dropshipping Hub */}
