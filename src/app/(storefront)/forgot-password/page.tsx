@@ -60,8 +60,9 @@ export default function ForgotPasswordPage() {
             </div>
             <CardTitle className="text-xl font-bold">Check Your Email</CardTitle>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              If an account exists for <strong>{email}</strong>, we have sent a secure link to reset your password.
+              We have sent a secure link to reset your password to <strong>{email}</strong>.
             </p>
+
             <p className="text-xs text-muted-foreground italic">
               Please check your spam or junk folder if you don't receive it within a few minutes.
             </p>

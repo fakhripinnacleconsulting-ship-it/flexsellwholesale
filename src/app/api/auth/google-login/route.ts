@@ -57,13 +57,14 @@ export async function POST(req: Request) {
         email: email,
         role: "customer",
         company: "",
-        address: "Please update your address",
-        city: "Please update your city",
-        state: "Please update your state",
-        pinCode: "000000",
-        phone: "Please update your phone",
+        address: "",
+        city: "",
+        state: "",
+        pinCode: "",
+        phone: "",
         initials: finalInitials,
         gstin: "",
+
       });
 
       await customer.save();

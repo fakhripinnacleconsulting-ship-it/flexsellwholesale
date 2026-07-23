@@ -30,7 +30,7 @@ const CustomerSchema = new Schema<CustomerType & Document>(
     city: { type: String, required: false },
     state: { type: String, required: false },
     pinCode: { type: String, required: false },
-    phone: { type: String, required: true },
+    phone: { type: String, required: false },
     initials: { type: String, required: true },
     gstin: { type: String },
     customerTypes: {

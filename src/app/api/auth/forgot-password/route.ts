@@ -23,14 +23,13 @@ export async function POST(req: Request) {
 
     const customer = await Customer.findOne({ email: email.toLowerCase() });
 
-    // Success response for security (prevents user enumeration)
-    const successResponse = {
-      message: "If that email is registered, we have sent a password reset link."
-    };
-
     if (!customer) {
-      return NextResponse.json(successResponse);
+      return NextResponse.json(
+        { message: "Customer account does not exist with this email address." },
+        { status: 404 }
+      );
     }
+
 
     // Generate token
     const token = crypto.randomBytes(32).toString("hex");
@@ -56,7 +55,10 @@ export async function POST(req: Request) {
       }, { status: 500 });
     }
 
-    return NextResponse.json(successResponse);
+    return NextResponse.json({
+      message: "Password reset link sent successfully to your email."
+    });
+
   } catch (error: unknown) {
     if (error instanceof ZodError) {
       const firstError = error.issues[0]?.message || "Validation failed";
