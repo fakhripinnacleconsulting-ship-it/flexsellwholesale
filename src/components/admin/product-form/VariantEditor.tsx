@@ -88,17 +88,15 @@ export function VariantEditor() {
                       >
                         <Edit2 className="h-3 w-3 mr-1" /> Edit Variant
                       </Button>
-                      {variantsList.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
-                          onClick={() => removeVariant(idx)}
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" /> Delete
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
+                        onClick={() => removeVariant(idx)}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" /> Delete
+                      </Button>
                     </td>
                   </tr>
                 );

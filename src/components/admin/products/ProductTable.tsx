@@ -87,6 +87,7 @@ export function ProductTable({
                     }
                   }
                   const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+                  const defaultVariant = product.colorVariants?.[0];
                   const variantsCount = product.colorVariants?.length || 0;
                   const isSelected = selectedProductIds.includes(product._id);
 

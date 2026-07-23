@@ -140,30 +140,7 @@ export function useProductFormState(
     showImages: true,
   });
 
-  const [variantsList, setVariantsList] = React.useState<ColorVariant[]>([
-    {
-      color: "Default",
-      dimensions: "15x12x8 cm",
-      lengthCm: 15,
-      breadthCm: 12,
-      heightCm: 8,
-      images: [],
-      subVariants: [{
-        id: "sv-default",
-        size: "Standard",
-        weight: "250g",
-        weightGrams: 250,
-        mrp: 0,
-        b2cPrice: 0,
-        b2bPrice: 0,
-        dropshippingPrice: 0,
-        b2bMoq: null,
-        discount: 0,
-        stock: 100,
-        sku: ""
-      }]
-    }
-  ]);
+  const [variantsList, setVariantsList] = React.useState<ColorVariant[]>([]);
 
   const [variantSizes, setVariantSizes] = React.useState<Record<number, string>>({});
   const [variantWeights, setVariantWeights] = React.useState<Record<number, string>>({});
@@ -267,7 +244,7 @@ export function useProductFormState(
   };
 
   const removeVariant = (index: number) => {
-    if (variantsList.length <= 1) return;
+    if (variantsList.length === 0) return;
     setVariantsList(prev => prev.filter((_, i) => i !== index));
 
     const shiftKeys = (prev: Record<number, any>) => {
@@ -638,6 +615,17 @@ export function useProductFormState(
 
     if (!title) {
       addToast("Product Title is required.", "error");
+      return;
+    }
+
+    if (!variantsList || variantsList.length === 0) {
+      addToast("At least one color variant is required to save the product.", "error");
+      return;
+    }
+
+    const hasEmptySubVariants = variantsList.some(v => !v.subVariants || v.subVariants.length === 0);
+    if (hasEmptySubVariants) {
+      addToast("Each color variant must have at least one sub-variant combination.", "error");
       return;
     }
 
