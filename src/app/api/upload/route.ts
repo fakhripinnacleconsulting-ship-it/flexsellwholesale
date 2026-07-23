@@ -73,14 +73,15 @@ export async function POST(request: Request): Promise<NextResponse> {
     const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
     // 1. If Vercel Blob Token is configured, attempt upload to Vercel Blob store
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (blobToken) {
       try {
-        const blob = await put(safeName, file, { access: "public" });
+        const blob = await put(safeName, file, { access: "public", token: blobToken });
         if (blob?.url) {
           return NextResponse.json({ url: blob.url });
         }
-      } catch (blobError) {
-        console.warn("Vercel Blob upload failed, falling back to local file storage:", blobError);
+      } catch (blobError: any) {
+        console.warn("Vercel Blob upload failed, falling back:", blobError?.message || blobError);
       }
     }
 

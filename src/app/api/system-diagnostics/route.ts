@@ -138,6 +138,7 @@ export async function GET() {
     RAZORPAY_KEY_ID: maskSecret(process.env.RAZORPAY_KEY_ID, 12),
     RAZORPAY_KEY_SECRET: maskSecret(process.env.RAZORPAY_KEY_SECRET, 8),
     UPSTASH_REDIS_REST_URL: maskSecret(process.env.UPSTASH_REDIS_REST_URL, 20),
+    BLOB_STORE_ID: process.env.BLOB_STORE_ID || "NOT CONFIGURED ❌",
     BLOB_READ_WRITE_TOKEN: maskSecret(process.env.BLOB_READ_WRITE_TOKEN, 16),
   };
 
