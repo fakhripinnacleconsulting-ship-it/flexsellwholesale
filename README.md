@@ -4,7 +4,7 @@ FlexSell Wholesale is a next-generation, enterprise-grade B2B e-commerce platfor
 
 --- 
   
-## 🎯 Platform Purpose & Architectural Core
+## 🎯 Platform Purpose & Architectural Core 
 
 FlexSell Wholesale bridges the gap between manufacturers/distributors and wholesale retailers or dropshippers. The platform enables multi-tier pricing models, high-volume bulk variant purchases, automated commercial tax invoices, and real-time inventory synchronization.
 
