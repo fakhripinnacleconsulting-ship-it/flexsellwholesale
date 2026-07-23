@@ -1,4 +1,4 @@
-# FlexSell Wholesale - Enterprise B2B & Dropshipping Market Platform 
+# FlexSell Wholesale - Enterprise B2B & Dropshipping Market Platform  
  
 FlexSell Wholesale is a next-generation, enterprise-grade B2B e-commerce platform designed for direct manufacturer-to-retailer supply chain networks, bulk ordering, dropshipping fulfillment, and regional tax/logistics distribution. It features advanced variant matrix logic, SKU-first search algorithms, real-time inventory controls with camera barcode scanning, and an integrated Indian GST taxation engine. 
 
