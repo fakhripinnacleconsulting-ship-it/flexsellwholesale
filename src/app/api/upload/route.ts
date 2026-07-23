@@ -84,15 +84,33 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     }
 
-    // 2. Fallback: Save file locally in public/uploads for local development & self-hosted servers
+    // 2. Fallback: Try saving file locally in public/uploads (works in local dev & self-hosted servers)
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadDir, { recursive: true });
-    const filePath = path.join(uploadDir, safeName);
-    await fs.writeFile(filePath, buffer);
 
-    return NextResponse.json({ url: `/uploads/${safeName}` });
+    try {
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      await fs.mkdir(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, safeName);
+      await fs.writeFile(filePath, buffer);
+
+      return NextResponse.json({ url: `/uploads/${safeName}` });
+    } catch (fsError: any) {
+      console.warn("Local disk write failed (read-only serverless environment):", fsError);
+
+      // Fallback: Convert images to base64 Data URL so uploads work seamlessly on Vercel even without Blob storage configured
+      if (!isVideo) {
+        const base64Data = buffer.toString("base64");
+        const mimeType = file.type || "image/jpeg";
+        const dataUrl = `data:${mimeType};base64,${base64Data}`;
+        return NextResponse.json({ url: dataUrl });
+      }
+
+      return NextResponse.json(
+        { message: "Serverless filesystem is read-only. Please configure BLOB_READ_WRITE_TOKEN in Vercel environment variables to enable video uploads." },
+        { status: 500 }
+      );
+    }
   } catch (error: unknown) {
     console.error("File upload failed:", error);
     return NextResponse.json(
