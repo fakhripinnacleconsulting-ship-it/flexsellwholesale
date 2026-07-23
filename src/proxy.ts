@@ -11,9 +11,12 @@ export async function proxy(request: NextRequest) {
   // CSRF validation for state-changing API routes
   const isApiRoute = pathname.startsWith("/api");
   const isStateChanging = ["POST", "PUT", "DELETE"].includes(request.method);
-  const isExcludedAuth = pathname.startsWith("/api/auth/");
+  const isExcludedCsrf =
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/system-diagnostics") ||
+    pathname.startsWith("/api/shiprocket/webhook");
 
-  if (isApiRoute && isStateChanging && !isExcludedAuth) {
+  if (isApiRoute && isStateChanging && !isExcludedCsrf) {
     if (!validateCsrf(request)) {
       return new NextResponse(
         JSON.stringify({ message: "Invalid or missing CSRF token" }),

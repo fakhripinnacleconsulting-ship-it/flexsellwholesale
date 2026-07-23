@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/stores/toastStore";
 import { Database, Mail, ShieldCheck, RefreshCw, Send, CheckCircle2, XCircle, AlertTriangle, Key, Cpu, Activity, Server, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { apiClient, handleApiError } from "@/lib/apiClient";
 
 export default function SystemDiagnosticsPage() {
   const [data, setData] = React.useState<any>(null);
@@ -22,14 +23,10 @@ export default function SystemDiagnosticsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/system-diagnostics", { cache: "no-store" });
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.message || "Failed to fetch diagnostics");
-      }
+      const result = await apiClient.get<any>("/system-diagnostics");
       setData(result);
     } catch (err: any) {
-      setError(err.message || "Failed to connect to diagnostics endpoint");
+      setError(handleApiError(err, "Failed to connect to diagnostics endpoint"));
     } finally {
       setLoading(false);
     }
@@ -48,20 +45,10 @@ export default function SystemDiagnosticsPage() {
 
     setSendingEmail(true);
     try {
-      const res = await fetch("/api/system-diagnostics", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ testEmail }),
-      });
-
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.message || "Failed to send test email");
-      }
-
+      const result = await apiClient.post<{ message: string }>("/system-diagnostics", { testEmail });
       addToast(result.message, "success");
     } catch (err: any) {
-      addToast(err.message || "Test email dispatch failed", "error");
+      addToast(handleApiError(err, "Test email dispatch failed"), "error");
     } finally {
       setSendingEmail(false);
     }
