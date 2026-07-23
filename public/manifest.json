@@ -1,0 +1,17 @@
+{
+  "name": "FlexSell Wholesale",
+  "short_name": "FlexSell",
+  "description": "Premium B2B Wholesale Commerce Platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0F172A",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
