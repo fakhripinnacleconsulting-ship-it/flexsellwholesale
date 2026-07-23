@@ -54,7 +54,7 @@ FlexSell Wholesale bridges the gap between manufacturers/distributors and wholes
 - **Notifications & Webhooks (`notificationService.ts`):** Real-time activity alerts and webhook integrations under mock keys `"flexsell-notifications-storage"` and `"flexsell-webhooks-storage"`.
 - **Inquiries (`inquiryService.ts`):** B2B wholesale bulk quote request handling under mock key `"flexsell-inquiries-storage"`.
 - **HSN Records (`hsnService.ts`):** Master HSN tax slab management under mock key `"flexsell-hsn-storage"`.
-
+ 
 ---
 
 ## 🗄️ Database Schemas & Data Models
