@@ -4,14 +4,20 @@ import { apiClient } from "@/lib/apiClient";
 export const categoryService = {
   async getCategories(): Promise<Category[]> {
     if (typeof window === "undefined") {
-      const dbConnect = (await import("@/lib/dbConnect")).default;
-      await dbConnect();
-      const CategoryModel = (await import("@/models/Category")).default;
-      const categories = await CategoryModel.find({}).sort({ order: 1 }).lean();
-      return JSON.parse(JSON.stringify(categories));
+      try {
+        const dbConnect = (await import("@/lib/dbConnect")).default;
+        await dbConnect();
+        const CategoryModel = (await import("@/models/Category")).default;
+        const categories = await CategoryModel.find({}).sort({ order: 1 }).lean();
+        return JSON.parse(JSON.stringify(categories));
+      } catch (err) {
+        console.error("Failed to fetch categories on server:", err);
+        return [];
+      }
     }
     return apiClient.get<Category[]>("/categories");
   },
+
 
   async createCategory(
     categoryData: Omit<Category, "_id" | "createdAt">
