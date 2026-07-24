@@ -73,6 +73,7 @@ export function Footer({ data }: FooterProps) {
             <li><Link href="/products" className="hover:text-primary transition-colors">Wholesale Bulk Catalog</Link></li>
             <li><Link href="/categories" className="hover:text-primary transition-colors">Factory Direct Categories</Link></li>
             <li><Link href="/quote" className="hover:text-primary transition-colors">Get Bulk Sourcing Quote</Link></li>
+            <li><Link href="/documentation" className="hover:text-primary transition-colors text-primary font-bold">App Documentation</Link></li>
             <li><Link href="/about" className="hover:text-primary transition-colors">About FlexSell B2B</Link></li>
             <li><Link href="/contact" className="hover:text-primary transition-colors">Warehouse Sourcing Contact</Link></li>
             <li><Link href="/system-diagnostics" className="hover:text-primary transition-colors text-emerald-600 font-bold">System Diagnostics</Link></li>
