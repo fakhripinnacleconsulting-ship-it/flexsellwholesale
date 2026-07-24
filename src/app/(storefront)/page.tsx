@@ -50,18 +50,20 @@ export default async function HomePage() {
     cmsBrandPartners = await CmsContent.findOne({ key: "brand_partners" });
 
     categories = await categoryService.getCategories();
-    products = await productService.getProducts();
     trendingProducts = await productService.getTrendingProducts();
     newArrivals = await productService.getNewArrivals();
     collections = await collectionService.getCollections();
+    // Fetch limited active products for recently viewed fallback
+    products = await productService.getProducts({ limit: 10 });
   } catch (err) {
     console.error("HomePage DB fetch notice (using fallback content):", (err as any)?.message || err);
   }
 
-  // Resolve product counts for each featured collection
+  // Batch resolve product counts for featured collections concurrently
   const productCounts: Record<string, number> = {};
-  for (const col of collections) {
-    if (col.isActive && col.isFeatured) {
+  const featuredCols = collections.filter(c => c.isActive && c.isFeatured);
+  await Promise.all(
+    featuredCols.map(async (col) => {
       try {
         const colProducts = await collectionService.getCollectionProducts(col._id);
         productCounts[col._id] = colProducts.length;
@@ -69,8 +71,8 @@ export default async function HomePage() {
         console.error(`Failed to load product count for collection ${col._id}`, err);
         productCounts[col._id] = 0;
       }
-    }
-  }
+    })
+  );
 
   const heroBanners = cmsHeroBanners?.value || [
     {

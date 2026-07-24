@@ -2,13 +2,17 @@ import { Product } from "@/types";
 import { apiClient } from "@/lib/apiClient";
 
 export const productService = {
-  async getProducts(): Promise<Product[]> {
+  async getProducts(options?: { limit?: number }): Promise<Product[]> {
     if (typeof window === "undefined") {
       try {
         const dbConnect = (await import("@/lib/dbConnect")).default;
         await dbConnect();
         const ProductModel = (await import("@/models/Product")).default;
-        const products = await ProductModel.find({}).sort({ createdAt: -1 }).lean();
+        let query = ProductModel.find({}).sort({ createdAt: -1 });
+        if (options?.limit) {
+          query = query.limit(options.limit);
+        }
+        const products = await query.lean();
         return JSON.parse(JSON.stringify(products));
       } catch (err) {
         console.error("productService.getProducts server notice:", (err as any)?.message || err);
@@ -16,7 +20,8 @@ export const productService = {
       }
     }
     
-    return apiClient.get<Product[]>("/products");
+    const url = options?.limit ? `/products?limit=${options.limit}` : "/products";
+    return apiClient.get<Product[]>(url);
   },
 
   async getProductById(id: string): Promise<Product> {

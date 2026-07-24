@@ -10,18 +10,17 @@ import { customerService } from "@/services/customerService";
 import { Customer } from "@/types";
 import { formatPrice } from "@/lib/utils";
 
+import { useDashboardViewStore } from "@/stores/dashboardViewStore";
+
 export default function ClientDashboardPage() {
   const { orders, initializeOrders } = useOrderStore();
   const [activeCustomer, setActiveCustomer] = React.useState<Customer | null>(null);
+  const { activeView } = useDashboardViewStore();
 
   React.useEffect(() => {
     initializeOrders();
     customerService.getActiveCustomer().then(setActiveCustomer).catch(console.error);
   }, [initializeOrders]);
-
-  // Filter orders by active customer's email and active dashboard view
-  const { useDashboardViewStore } = require("@/stores/dashboardViewStore");
-  const { activeView } = useDashboardViewStore();
 
   const customerOrders = React.useMemo(() => {
     if (!activeCustomer) return [];

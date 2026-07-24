@@ -297,6 +297,8 @@ export interface Customer {
   customerTypes: ("B2C" | "B2B" | "Dropshipping")[];
   addresses?: SavedAddress[];
   wishlist?: string[];
+  failedLoginAttempts?: number;
+  lockUntil?: string | Date | null;
 }
 
 export interface Review extends BaseDocument {

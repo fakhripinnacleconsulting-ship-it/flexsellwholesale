@@ -33,10 +33,18 @@ function cleanupExpired() {
   }
 }
 
-export async function rateLimit(identifier: string) {
+export async function rateLimit(identifier: string, tier: "auth" | "general" | "search" = "auth") {
+  const maxRequestsMap = {
+    auth: 5,
+    general: 30,
+    search: 60,
+  };
+  const maxRequests = maxRequestsMap[tier] || 10;
+  const key = `${tier}:${identifier}`;
+
   if (ratelimit) {
     try {
-      const { success } = await ratelimit.limit(identifier);
+      const { success } = await ratelimit.limit(key);
       if (!success) {
         throw new Error("Rate limit exceeded");
       }
@@ -52,9 +60,8 @@ export async function rateLimit(identifier: string) {
   cleanupExpired();
   const now = Date.now();
   const windowMs = 60000;
-  const maxRequests = 5;
 
-  let record = fallbackMap.get(identifier);
+  let record = fallbackMap.get(key);
   if (!record || now > record.resetTime) {
     record = { count: 0, resetTime: now + windowMs };
   }
@@ -64,5 +71,5 @@ export async function rateLimit(identifier: string) {
   }
 
   record.count++;
-  fallbackMap.set(identifier, record);
+  fallbackMap.set(key, record);
 }

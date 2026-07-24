@@ -5,7 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET as string;
 if (!JWT_SECRET) {
   throw new Error("FATAL: JWT_SECRET environment variable is not defined!");
 }
-const TOKEN_EXPIRY = "7d"; // 7 days
+const TOKEN_EXPIRY = "1d"; // 1 day
 
 export interface JWTPayload {
   userId: string;
@@ -32,7 +32,7 @@ export async function setTokenCookie(token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60, // 7 days
+    maxAge: 1 * 24 * 60 * 60, // 1 day
     path: "/",
   });
 
@@ -42,7 +42,7 @@ export async function setTokenCookie(token: string) {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60,
+    maxAge: 1 * 24 * 60 * 60,
     path: "/",
   });
 }

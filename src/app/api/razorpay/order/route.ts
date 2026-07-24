@@ -9,9 +9,9 @@ export async function POST(request: Request) {
 
     const { amount, currency = "INR", receipt } = await request.json();
 
-    if (!amount) {
+    if (!amount || typeof amount !== "number" || amount <= 0) {
       return NextResponse.json(
-        { error: "Amount is required" },
+        { error: "Valid positive amount is required" },
         { status: 400 }
       );
     }

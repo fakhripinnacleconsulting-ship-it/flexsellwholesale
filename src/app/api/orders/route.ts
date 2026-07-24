@@ -113,10 +113,11 @@ export async function GET(request: Request) {
     const payload = auth.payload!;
 
     await dbConnect();
-    let query = {};
+    const andConditions: any[] = [];
+
     if (payload.role !== "admin") {
       // B2B buyer can only fetch their own orders matching their email
-      query = { "shippingAddress.email": payload.email.toLowerCase() };
+      andConditions.push({ "shippingAddress.email": payload.email.toLowerCase() });
     }
 
     const { searchParams } = new URL(request.url);
@@ -129,21 +130,20 @@ export async function GET(request: Request) {
 
     if (orderType) {
       if (orderType === "B2B") {
-        query = { 
-          ...query, 
+        andConditions.push({ 
           $or: [
             { orderType: "B2B" }, 
             { orderType: { $exists: false } }
           ] 
-        };
+        });
       } else {
-        query = { ...query, orderType: "B2C" };
+        andConditions.push({ orderType: "B2C" });
       }
     }
+
     if (origin) {
       if (origin === "self") {
-        query = {
-          ...query,
+        andConditions.push({
           $or: [
             { origin: "self" },
             { 
@@ -154,10 +154,9 @@ export async function GET(request: Request) {
               ]
             }
           ]
-        };
+        });
       } else {
-        query = {
-          ...query,
+        andConditions.push({
           $or: [
             { origin: "website" },
             {
@@ -168,7 +167,7 @@ export async function GET(request: Request) {
               ]
             }
           ]
-        };
+        });
       }
     }
 
@@ -182,8 +181,10 @@ export async function GET(request: Request) {
         end.setHours(23, 59, 59, 999);
         dateQuery.$lte = end;
       }
-      query = { ...query, createdAt: dateQuery };
+      andConditions.push({ createdAt: dateQuery });
     }
+
+    const query = andConditions.length > 0 ? { $and: andConditions } : {};
 
     if (page && limit) {
       const pageNum = parseInt(page, 10) || 1;
@@ -444,7 +445,12 @@ export async function POST(request: Request) {
         shippingAddress.company ? ` (${shippingAddress.company})` : ""
       }`;
 
-      const pStatus = paymentDetails?.paymentStatus || "Pending";
+      let pStatus = paymentDetails?.paymentStatus || "Pending";
+      // Security: Force non-admin online Razorpay payments to start as Pending until verified via /api/razorpay/verify
+      if (paymentDetails?.paymentMethod === "Razorpay" && payload.role !== "admin" && !quoteId) {
+        pStatus = "Pending";
+      }
+
       const docType = pStatus === "Paid" ? "invoice" : "receipt";
       const invoiceId = await generateInvoiceId(docType, session);
 

@@ -38,7 +38,9 @@ const CustomerSchema = new Schema<CustomerType & Document>(
       default: ["B2C"]
     },
     addresses: [SavedAddressSchema],
-    wishlist: [{ type: String }]
+    wishlist: [{ type: String }],
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date, default: null }
   },
   { timestamps: true }
 );

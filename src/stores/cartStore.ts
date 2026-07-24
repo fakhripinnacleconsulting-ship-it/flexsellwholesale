@@ -206,7 +206,8 @@ export const useCartStore = create<CartState>()(
       },
 
       getTaxDetails: () => {
-        const isIntrastate = get().buyerState === "Madhya Pradesh";
+        const sellerState = process.env.NEXT_PUBLIC_SELLER_STATE || "Madhya Pradesh";
+        const isIntrastate = get().buyerState.toLowerCase() === sellerState.toLowerCase();
         const hsnBreakdown: Record<string, TaxBreakdown> = {};
         
         let baseSubtotal = 0;
@@ -298,7 +299,24 @@ export const useCartStore = create<CartState>()(
           items: state.items.map((item) => {
             const productId = item.productId || item.product?._id;
             const prod = storeProducts.find((p) => p._id === productId);
-            return { ...item, productId, product: prod || item.product };
+            if (!prod) return item;
+
+            // Recalculate pricePerUnit for fresh pricing
+            const { color: selectedColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(item.selectedVariants);
+            const cv = prod.colorVariants?.find(c => c.color.toLowerCase() === selectedColor.toLowerCase()) || prod.colorVariants?.[0];
+            const sv = cv?.subVariants?.find(s => 
+              (!selectedSize || s.size.toLowerCase() === selectedSize.toLowerCase()) && 
+              (!selectedWeight || s.weight.toLowerCase() === selectedWeight.toLowerCase())
+            ) || cv?.subVariants?.[0];
+
+            const updatedPrice = sv ? resolvePrice(sv, item.priceTier || "B2C") : item.pricePerUnit;
+
+            return {
+              ...item,
+              productId,
+              product: prod,
+              pricePerUnit: updatedPrice > 0 ? updatedPrice : item.pricePerUnit
+            };
           })
         }));
       }

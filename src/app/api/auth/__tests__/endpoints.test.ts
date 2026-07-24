@@ -92,6 +92,7 @@ vi.mock("@/models/Customer", () => {
     toObject = vi.fn().mockReturnValue(this);
     static findOne = vi.fn();
     static findById = vi.fn();
+    static updateOne = vi.fn().mockResolvedValue({ modifiedCount: 1 });
   }
   return {
     default: MockCustomer,
@@ -122,7 +123,7 @@ describe("Authentication API Routes", () => {
     const validRegistrationData = {
       name: "John Doe",
       email: "john@example.com",
-      password: "password123",
+      password: "Password123",
       company: "Acme Corp",
       address: "123 Main St",
       city: "Metrocity",
@@ -192,7 +193,7 @@ describe("Authentication API Routes", () => {
   describe("POST /api/auth/login", () => {
     const validLoginData = {
       identifier: "john@example.com",
-      password: "password123",
+      password: "Password123",
     };
 
     it("should fail login if customer does not exist", async () => {
@@ -372,7 +373,7 @@ describe("Authentication API Routes", () => {
 
       const request = new Request("http://localhost/api/auth/reset-password", {
         method: "POST",
-        body: JSON.stringify({ token: "invalid-token", password: "newpassword123" }),
+        body: JSON.stringify({ token: "invalid-token", password: "Password123" }),
       });
 
       const response = await resetPasswordPOST(request);
@@ -395,7 +396,7 @@ describe("Authentication API Routes", () => {
 
       const request = new Request("http://localhost/api/auth/reset-password", {
         method: "POST",
-        body: JSON.stringify({ token: "valid-token", password: "newpassword123" }),
+        body: JSON.stringify({ token: "valid-token", password: "Password123" }),
       });
 
       const response = await resetPasswordPOST(request);
@@ -403,7 +404,7 @@ describe("Authentication API Routes", () => {
       const body = await response.json();
       expect(body.message).toContain("Password reset successfully");
 
-      expect(bcrypt.hash).toHaveBeenCalledWith("newpassword123", 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith("Password123", 10);
       expect(mockCustomer.password).toBe("newpasswordhash");
       expect(mockCustomer.resetPasswordToken).toBeUndefined();
       expect(mockCustomer.resetPasswordExpires).toBeUndefined();

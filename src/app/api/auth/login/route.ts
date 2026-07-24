@@ -35,6 +35,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
+    // Check if account is locked out
+    if (customer.lockUntil && customer.lockUntil > new Date()) {
+      const minutesRemaining = Math.ceil((customer.lockUntil.getTime() - Date.now()) / 60000);
+      return NextResponse.json(
+        { message: `Account is temporarily locked due to multiple failed login attempts. Try again in ${minutesRemaining} minute(s).` },
+        { status: 423 }
+      );
+    }
+
     // Google-only users might not have a password set
     if (!customer.password) {
       return NextResponse.json({ message: "This account logs in via Google. Please use Google Sign-In." }, { status: 400 });
@@ -42,7 +51,20 @@ export async function POST(req: Request) {
 
     const isMatch = await bcrypt.compare(password, customer.password);
     if (!isMatch) {
+      const attempts = (customer.failedLoginAttempts || 0) + 1;
+      const updates: Record<string, any> = { failedLoginAttempts: attempts };
+      if (attempts >= 10) {
+        updates.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 mins
+        updates.failedLoginAttempts = 0;
+      }
+      await Customer.updateOne({ _id: customer._id }, { $set: updates });
+
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+    }
+
+    // Reset lockout counters on successful login
+    if (customer.failedLoginAttempts > 0 || customer.lockUntil) {
+      await Customer.updateOne({ _id: customer._id }, { $set: { failedLoginAttempts: 0, lockUntil: null } });
     }
 
     // Sign token

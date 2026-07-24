@@ -23,11 +23,17 @@ class Logger {
       payload.error = error instanceof Error ? { message: (error as any).message, stack: error.stack } : error;
     }
 
+    const minLevel = process.env.LOG_LEVEL || (process.env.NODE_ENV === "production" ? "info" : "debug");
+    const levels: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+    if (levels[level] < (levels[minLevel as LogLevel] ?? 1)) {
+      return;
+    }
+
     const output = JSON.stringify(payload);
 
     switch (level) {
       case "debug":
-        if (process.env.NODE_ENV !== "production") console.debug(output);
+        console.debug(output);
         break;
       case "info":
         console.info(output);
