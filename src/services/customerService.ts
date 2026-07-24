@@ -123,7 +123,16 @@ export const customerService = {
   },
 
   async updateActiveCustomer(data: Partial<Customer>): Promise<Customer> {
-    return apiClient.put<Customer>("/customers/active", data);
+    const updated = await apiClient.put<Customer>("/customers/active", data);
+    try {
+      const { useAuthStore } = await import("@/stores/authStore");
+      useAuthStore.setState({ customer: updated });
+      const { useCartStore } = await import("@/stores/cartStore");
+      useCartStore.getState().hydrateProducts();
+    } catch (e) {
+      console.error("Failed to sync authStore on customer update", e);
+    }
+    return updated;
   },
 
   async getSavedAddresses(): Promise<SavedAddress[]> {

@@ -325,6 +325,10 @@ export const useCartStore = create<CartState>()(
 
       hydrateProducts: () => {
         const storeProducts = useProductStore.getState().products;
+        const customer = useAuthStore.getState().customer;
+        const customerTypes = customer?.customerTypes || ["B2C"];
+        const { resolvePrice, resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
+
         if (storeProducts.length === 0) return;
         set((state) => ({
           items: state.items.map((item) => {
@@ -332,7 +336,7 @@ export const useCartStore = create<CartState>()(
             const prod = storeProducts.find((p) => p._id === productId);
             if (!prod) return item;
 
-            // Recalculate pricePerUnit for fresh pricing
+            // Recalculate pricePerUnit & MOQ for fresh pricing based on active customerTypes
             const { color: selectedColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(item.selectedVariants);
             const cv = prod.colorVariants?.find(c => c.color.toLowerCase() === selectedColor.toLowerCase()) || prod.colorVariants?.[0];
             const sv = cv?.subVariants?.find(s => 
@@ -340,13 +344,24 @@ export const useCartStore = create<CartState>()(
               (!selectedWeight || s.weight.toLowerCase() === selectedWeight.toLowerCase())
             ) || cv?.subVariants?.[0];
 
-            const updatedPrice = sv ? resolvePrice(sv, item.priceTier || "B2C") : item.pricePerUnit;
+            const moq = resolveMoq(sv, customerTypes);
+            let targetQty = item.quantity;
+            if (targetQty < moq) {
+              targetQty = moq;
+            }
+
+            const updatedPrice = sv ? resolvePrice(sv, customerTypes, targetQty) : item.pricePerUnit;
+            const updatedTierName = sv ? resolvePriceTierName(sv, customerTypes, targetQty) : (item.priceTier || "B2C");
+            const variantKey = Object.entries(item.selectedVariants).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>`${k}:${v}`).join("|");
 
             return {
               ...item,
+              id: `${productId}-${variantKey}-${updatedTierName}`,
               productId,
               product: prod,
-              pricePerUnit: updatedPrice > 0 ? updatedPrice : item.pricePerUnit
+              quantity: targetQty,
+              pricePerUnit: updatedPrice > 0 ? updatedPrice : item.pricePerUnit,
+              priceTier: updatedTierName,
             };
           })
         }));
