@@ -39,8 +39,8 @@ export function VariantEditor() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center border-b pb-2">
-        <h3 className="font-extrabold text-xl text-foreground">Color Variants</h3>
+      <div className="flex flex-wrap justify-between items-center gap-2 border-b pb-2">
+        <h3 className="font-extrabold text-lg sm:text-xl text-foreground">Color Variants</h3>
         <Button type="button" size="sm" onClick={handleAddVariant} className="flex items-center gap-1.5 cursor-pointer">
           <Plus className="h-4 w-4" /> Add Color Variant
         </Button>
@@ -51,7 +51,7 @@ export function VariantEditor() {
           No color variants added yet. Click "Add Color Variant" to start.
         </div>
       ) : (
-        <div className="border rounded-md overflow-hidden bg-background">
+        <div className="border rounded-md overflow-x-auto bg-background">
           <table className="w-full text-sm text-left border-collapse">
             <thead className="bg-secondary/45 text-xs font-bold uppercase text-muted-foreground border-b border-border">
               <tr>

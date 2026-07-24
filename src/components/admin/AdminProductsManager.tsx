@@ -467,21 +467,21 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
 
   return (
     <div className="space-y-6 text-foreground">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
-          <p className="text-muted-foreground mt-1">Manage B2B inventory lines, custom MOQ, and SEO tags.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Products</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage B2B inventory lines, custom MOQ, and SEO tags.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsBulkOpen(true)}>
-            <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-600" /> Bulk Operations
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <Button variant="outline" onClick={() => setIsBulkOpen(true)} className="flex-1 sm:flex-none text-xs font-bold">
+            <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-600" /> Bulk Operations
           </Button>
-          <Button variant="outline" onClick={() => setIsScannerOpen(true)}>
-            <QrCode className="h-4 w-4 mr-2" /> Scan Barcode / Audit
+          <Button variant="outline" onClick={() => setIsScannerOpen(true)} className="flex-1 sm:flex-none text-xs font-bold">
+            <QrCode className="h-4 w-4 mr-1.5" /> Scan Barcode / Audit
           </Button>
-          <Link href="/admin/products/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" /> Add Product
+          <Link href="/admin/products/new" className="flex-1 sm:flex-none">
+            <Button className="w-full text-xs font-bold">
+              <Plus className="h-4 w-4 mr-1.5" /> Add Product
             </Button>
           </Link>
         </div>
@@ -518,7 +518,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
       )}
 
       {/* Panel Tab Switcher */}
-      <div className="flex border-b border-border mb-6">
+      <div className="flex border-b border-border mb-6 overflow-x-auto whitespace-nowrap scrollbar-none">
         <button
           onClick={() => setActivePanel("catalog")}
           className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${

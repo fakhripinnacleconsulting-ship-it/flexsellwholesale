@@ -166,13 +166,13 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   ref={inputRef}
                   data-barcode-input="true"
                   placeholder="Scan or paste SKU (e.g. FS-HK-CHOP12-001)..."
-                  className="pl-9 font-mono uppercase text-sm"
+                  className="pl-9 font-mono uppercase text-sm w-full"
                   value={scanInput}
                   onChange={(e) => setScanInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -181,8 +181,8 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
                 />
               </div>
 
-              <div className="flex gap-2">
-                <Button onClick={() => handleScanSearch(scanInput)} className="font-bold">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2 shrink-0">
+                <Button onClick={() => handleScanSearch(scanInput)} className="font-bold flex-1 sm:flex-initial">
                   Lookup
                 </Button>
 
@@ -190,7 +190,7 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
                   type="button"
                   variant={isScanning ? "destructive" : "secondary"}
                   onClick={() => (isScanning ? stopCamera() : startCamera())}
-                  className="flex items-center gap-1.5 font-bold"
+                  className="flex items-center justify-center gap-1.5 font-bold flex-1 sm:flex-initial"
                 >
                   {isScanning ? (
                     <>
@@ -203,7 +203,7 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
                   )}
                 </Button>
 
-                <label className="cursor-pointer inline-flex items-center justify-center rounded-md text-xs font-semibold h-10 px-3 border border-border bg-secondary/30 hover:bg-secondary/60 text-foreground transition-colors gap-1.5">
+                <label className="cursor-pointer flex-1 sm:flex-initial inline-flex items-center justify-center rounded-md text-xs font-semibold h-10 px-3 border border-border bg-secondary/30 hover:bg-secondary/60 text-foreground transition-colors gap-1.5">
                   <Upload className="h-4 w-4 text-primary" /> Image
                   <input
                     type="file"
@@ -395,14 +395,14 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
                       <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground block">
                         Inventory Adjustment (Input Quantity):
                       </label>
-                      <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
                         <Input
                           type="number"
                           min={1}
                           value={qtyInput}
                           onChange={(e) => setQtyInput(e.target.value)}
                           placeholder="Quantity"
-                          className="w-28 font-mono text-center font-bold h-9"
+                          className="w-full sm:w-28 font-mono text-center font-bold h-9 col-span-2 sm:col-span-1"
                         />
 
                         <Button
@@ -410,7 +410,7 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
                           variant="outline"
                           size="sm"
                           onClick={() => handleStockChange(parsedQty, "add")}
-                          className="flex-1 text-success border-success/30 hover:bg-success/10 font-bold h-9"
+                          className="w-full sm:flex-1 text-success border-success/30 hover:bg-success/10 font-bold h-9"
                         >
                           <Plus className="h-3.5 w-3.5 mr-1" /> Add {parsedQty}
                         </Button>
@@ -421,7 +421,7 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
                           size="sm"
                           disabled={scannedSubVariant.stock === 0}
                           onClick={() => handleStockChange(parsedQty, "sub")}
-                          className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10 font-bold h-9"
+                          className="w-full sm:flex-1 text-destructive border-destructive/30 hover:bg-destructive/10 font-bold h-9"
                         >
                           <Minus className="h-3.5 w-3.5 mr-1" /> Deduct {parsedQty}
                         </Button>
@@ -431,7 +431,7 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
                           variant="secondary"
                           size="sm"
                           onClick={() => handleStockChange(parsedQty, "set")}
-                          className="flex-1 font-bold h-9"
+                          className="w-full sm:flex-1 font-bold h-9 col-span-2 sm:col-span-1"
                         >
                           <Equal className="h-3.5 w-3.5 mr-1" /> Set to {parsedQty}
                         </Button>

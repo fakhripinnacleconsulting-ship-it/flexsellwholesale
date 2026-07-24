@@ -224,12 +224,12 @@ export default function AdminCustomersPage() {
 
   return (
     <div className="space-y-6 text-foreground container mx-auto px-4 py-8 max-w-6xl">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Wholesale Customers</h1>
-          <p className="text-muted-foreground mt-1">Manage and view purchasing history of B2B wholesale buyers.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Wholesale Customers</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage and view purchasing history of B2B wholesale buyers.</p>
         </div>
-        <Button onClick={handleOpenAddModal} className="font-bold flex items-center gap-1.5 shadow">
+        <Button onClick={handleOpenAddModal} className="w-full sm:w-auto font-bold flex items-center justify-center gap-1.5 shadow">
           <Plus className="h-4.5 w-4.5" /> Create Buyer Account
         </Button>
       </div>
@@ -255,13 +255,13 @@ export default function AdminCustomersPage() {
               <tbody className="divide-y divide-border">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
                       Loading B2B customers...
                     </td>
                   </tr>
                 ) : customerStats.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
                       No customer accounts found.
                     </td>
                   </tr>
@@ -269,15 +269,15 @@ export default function AdminCustomersPage() {
                   customerStats.map((cust) => (
                     <tr key={cust._id} className="hover:bg-secondary/15 transition-colors">
                       <td className="px-6 py-4 flex items-center gap-3">
-                        <Avatar initials={cust.initials} className="bg-primary text-primary-foreground border" />
-                        <div>
-                          <p className="font-bold text-foreground">{cust.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{cust.email}</p>
+                        <Avatar initials={cust.initials} className="bg-primary text-primary-foreground border shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-bold text-foreground truncate">{cust.name}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{cust.email}</p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-semibold text-foreground flex items-center gap-1.5">
-                          <Building className="h-3.5 w-3.5 text-muted-foreground" /> {cust.company || "Individual"}
+                          <Building className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> {cust.company || "Individual"}
                         </p>
                         {cust.gstin && (
                           <p className="text-[10px] font-mono text-primary font-bold mt-0.5">GSTIN: {cust.gstin}</p>
@@ -299,22 +299,24 @@ export default function AdminCustomersPage() {
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center font-bold">{cust.ordersCount} orders</td>
-                      <td className="px-6 py-4 text-right font-black text-foreground">
+                      <td className="px-6 py-4 text-center font-bold whitespace-nowrap">{cust.ordersCount} orders</td>
+                      <td className="px-6 py-4 text-right font-black text-foreground whitespace-nowrap">
                         {formatPrice(cust.totalSpend)}
                       </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <Link href={`/admin/customers/${cust._id}`}>
-                          <Button variant="outline" size="sm" className="font-semibold">
-                            <Eye className="h-3.5 w-3.5" />
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link href={`/admin/customers/${cust._id}`}>
+                            <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0" title="View Profile">
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
+                          <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0" title="Edit Customer" onClick={() => handleOpenEditModal(cust)}>
+                            <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                        </Link>
-                        <Button variant="outline" size="sm" className="font-semibold" onClick={() => handleOpenEditModal(cust)}>
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="outline" size="sm" className="font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive" onClick={() => handleDeleteCustomer(cust._id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                          <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0 text-destructive hover:bg-destructive/5 hover:text-destructive" title="Delete Customer" onClick={() => handleDeleteCustomer(cust._id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -327,7 +329,7 @@ export default function AdminCustomersPage() {
 
       {/* Create / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-card border rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 text-foreground space-y-4">
             <div>
               <h3 className="text-xl font-bold tracking-tight">{editingCustomer ? "Edit Customer Account" : "Create Customer Account"}</h3>
@@ -335,7 +337,7 @@ export default function AdminCustomersPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1.5">
                   <label className="font-bold text-muted-foreground">Name *</label>
                   <Input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -346,7 +348,7 @@ export default function AdminCustomersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1.5">
                   <label className="font-bold text-muted-foreground">Password {editingCustomer && "(Leave empty to keep current)"} *</label>
                   <Input placeholder="Account Password" value={password} onChange={(e) => setPassword(e.target.value)} required={!editingCustomer} type="password" />
@@ -357,7 +359,7 @@ export default function AdminCustomersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1.5">
                   <label className="font-bold text-muted-foreground">Company Name</label>
                   <Input placeholder="Company Name" value={company} onChange={(e) => setCompany(e.target.value)} />
@@ -370,7 +372,7 @@ export default function AdminCustomersPage() {
 
               <div className="space-y-1.5">
                 <label className="font-bold text-muted-foreground">Customer Type *</label>
-                <div className="flex gap-4 items-center pt-1">
+                <div className="flex flex-wrap gap-3 items-center pt-1">
                   {(["B2C", "B2B", "Dropshipping"] as const).map((type) => (
                     <label key={type} className="flex items-center gap-1.5 text-sm font-semibold cursor-pointer">
                       <input
@@ -400,7 +402,7 @@ export default function AdminCustomersPage() {
                 <Input placeholder="Street Address, Corporate Building" value={address} onChange={(e) => setAddress(e.target.value)} required />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-1.5">
                   <label className="font-bold text-muted-foreground">City *</label>
                   <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} required />
@@ -417,9 +419,9 @@ export default function AdminCustomersPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={isFormSubmitting}>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto">Cancel</Button>
+                <Button type="submit" disabled={isFormSubmitting} className="w-full sm:w-auto">
                   {isFormSubmitting ? "Saving..." : "Save Account"}
                 </Button>
               </div>

@@ -657,10 +657,10 @@ export default function AdminInvoicesPage() {
       {/* ─── TITLE & TABS ─── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Invoice & Receipt Manager</h1>
-          <p className="text-muted-foreground mt-1"> Persist, monitor, and print commercial invoices, payment receipts, and price quotes.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Invoice & Receipt Manager</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1"> Persist, monitor, and print commercial invoices, payment receipts, and price quotes.</p>
         </div>
-        <Button onClick={() => { setEditInvoiceId(null); setProductSearch(""); setIsCreateModalOpen(true); }} className="flex items-center gap-1.5 font-semibold">
+        <Button onClick={() => { setEditInvoiceId(null); setProductSearch(""); setIsCreateModalOpen(true); }} className="w-full sm:w-auto flex items-center justify-center gap-1.5 font-semibold">
           <Plus className="h-4.5 w-4.5" /> Generate Document
         </Button>
       </div>
@@ -732,7 +732,7 @@ export default function AdminInvoicesPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border/80">
+      <div className="flex border-b border-border/80 overflow-x-auto whitespace-nowrap scrollbar-none">
         <button
           onClick={() => { setActiveTab("quote"); setCurrentPage(1); }}
           className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${activeTab === "quote"
@@ -763,7 +763,7 @@ export default function AdminInvoicesPage() {
       </div>
 
       {activeTab !== "quote" && (
-        <div className="flex gap-2 border-b border-border/40 py-2 bg-secondary/10 px-4 rounded-lg">
+        <div className="flex gap-2 border-b border-border/40 py-2 bg-secondary/10 px-4 rounded-lg overflow-x-auto whitespace-nowrap">
           <button
             onClick={() => setActiveSubTab("B2B")}
             className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${activeSubTab === "B2B"
@@ -1199,8 +1199,8 @@ export default function AdminInvoicesPage() {
               {/* Items Section */}
               <div className="space-y-4">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-primary border-b pb-1.5">2. Add Product Items</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-secondary/10 p-4 rounded-lg border">
-                  <div className="relative md:col-span-2" ref={productWrapperRef}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-secondary/10 p-4 rounded-lg border">
+                  <div className="relative col-span-1 sm:col-span-2" ref={productWrapperRef}>
                     <div className="flex justify-between items-center mb-1">
                       <label className="text-xs font-semibold text-muted-foreground">Search Product *</label>
                       <button
@@ -1359,7 +1359,7 @@ export default function AdminInvoicesPage() {
 
                 {/* Items Summary List */}
                 {formItems.length > 0 && (
-                  <div className="border border-border/80 rounded-lg overflow-hidden">
+                  <div className="border border-border/80 rounded-lg overflow-x-auto">
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className="border-b bg-secondary/15 font-bold uppercase tracking-wider text-[10px] text-muted-foreground">
@@ -1411,10 +1411,10 @@ export default function AdminInvoicesPage() {
               </div>
 
               {/* Payment Details & Notes */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t pt-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 border-t pt-6">
                 <div className="space-y-4">
                   <h3 className="font-bold text-xs uppercase tracking-wider text-primary border-b pb-1.5">3. Commercial Details</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {formDocType !== "quote" && (
                       <>
                         <div>
@@ -1444,7 +1444,7 @@ export default function AdminInvoicesPage() {
                           </select>
                         </div>
                         {(formDocType === "invoice" || paymentStatus === "Paid") && (
-                          <div className="col-span-2">
+                          <div className="col-span-1 sm:col-span-2">
                             <label className="text-xs font-semibold text-muted-foreground block mb-1">Transaction Ref / Reference ID *</label>
                             <Input
                               value={transactionId}
@@ -1457,7 +1457,7 @@ export default function AdminInvoicesPage() {
                         )}
                       </>
                     )}
-                    <div className="col-span-2">
+                    <div className="col-span-1 sm:col-span-2">
                       <label className="text-xs font-semibold text-muted-foreground block mb-1">Salesperson Name</label>
                       <Input
                         value={salesperson}
@@ -1518,7 +1518,7 @@ export default function AdminInvoicesPage() {
                   </div>
                 </div>
 
-                <div className="col-span-2">
+                <div className="col-span-1 lg:col-span-2">
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Admin Notes (Will appear on print)</label>
                   <textarea
                     value={invoiceNotes}
@@ -1530,11 +1530,11 @@ export default function AdminInvoicesPage() {
               </div>
 
               {/* Form submit */}
-              <div className="flex justify-end gap-3 border-t pt-4">
-                <Button variant="outline" type="button" onClick={() => setIsCreateModalOpen(false)}>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t pt-4">
+                <Button variant="outline" type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:w-auto">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting} className="font-semibold">
+                <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto font-semibold">
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

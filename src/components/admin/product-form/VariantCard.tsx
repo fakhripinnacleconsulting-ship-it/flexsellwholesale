@@ -87,7 +87,7 @@ export function VariantCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 border-t pt-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t pt-3">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-muted-foreground">Length (cm) *</label>
             <Input
@@ -251,7 +251,7 @@ export function VariantCard({
             }
 
             return (
-              <div className="border rounded-lg overflow-hidden bg-background">
+              <div className="border rounded-lg overflow-x-auto bg-background">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-secondary/20 border-b">

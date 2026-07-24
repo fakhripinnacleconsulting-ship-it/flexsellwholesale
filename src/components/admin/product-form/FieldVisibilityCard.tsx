@@ -14,7 +14,7 @@ export function FieldVisibilityCard() {
         <p className="text-xs text-muted-foreground">
           Select which fields should be visible to buyers on the public Product Detail Page (PDP).
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
           {Object.entries(fieldVisibility).map(([key, isChecked]) => {
             const label = key.replace("show", "").replace(/^\w/, (c) => c.toUpperCase());
             const isWeights = key === "showWeights";

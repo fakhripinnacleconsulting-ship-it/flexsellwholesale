@@ -40,7 +40,7 @@ function ProductFormInner() {
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-4">
+      <form onSubmit={handleSave} className="space-y-6">
         <BasicInfoCard />
         <TaxComplianceCard />
         <FieldVisibilityCard />
@@ -49,17 +49,19 @@ function ProductFormInner() {
         <APlusContentCard />
 
         {/* Sticky Save Bar at the bottom of the screen */}
-        <div className="sticky bottom-0 -mx-6 md:-mx-8  flex justify-end gap-3 z-30 ">
-          <Link href="/admin/products">
-            <Button type="button" variant="outline" size="lg" className="h-10 text-sm font-semibold cursor-pointer" disabled={isSaving}>Cancel</Button>
+        <div className="sticky bottom-0 -mx-4 sm:-mx-6 md:-mx-8 p-3 sm:p-4 bg-background/95 backdrop-blur-md border-t border-border flex flex-wrap sm:flex-nowrap justify-between sm:justify-end items-center gap-3 z-30 shadow-xl">
+          <Link href="/admin/products" className="w-full sm:w-auto">
+            <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto h-10 text-sm font-semibold cursor-pointer" disabled={isSaving}>
+              Cancel
+            </Button>
           </Link>
-          <Button type="submit" size="lg" className="h-10 text-sm font-bold cursor-pointer" disabled={isSaving}>
+          <Button type="submit" size="lg" className="w-full sm:w-auto h-10 text-sm font-bold cursor-pointer" disabled={isSaving}>
             {isSaving ? "Saving..." : existingProduct ? "Save Product Details" : "Publish Product"}
           </Button>
         </div>
 
         {/* Spacer to prevent the fixed bar from covering the last card content */}
-        <div className="h-24" />
+        <div className="h-16" />
       </form>
     </div>
   );

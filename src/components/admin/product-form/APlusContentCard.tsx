@@ -21,8 +21,8 @@ export function APlusContentCard() {
   return (
     <Card>
       <CardContent className="p-6 space-y-6">
-        <div className="flex justify-between items-center border-b pb-2">
-          <h3 className="font-bold text-lg">A+ Marketing Content (Manufacturer Banners Only)</h3>
+        <div className="flex flex-wrap justify-between items-center gap-2 border-b pb-2">
+          <h3 className="font-bold text-base sm:text-lg">A+ Marketing Content (Manufacturer Banners Only)</h3>
           <Button type="button" size="sm" onClick={addAPlusBlock} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-1" /> Add Image Banner
           </Button>
@@ -31,7 +31,7 @@ export function APlusContentCard() {
         {aPlusBlocks.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">No manufacturer A+ marketing banners configured.</p>
         ) : (
-          <div className="border rounded-lg overflow-hidden bg-background">
+          <div className="border rounded-lg overflow-x-auto bg-background">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-secondary/20 border-b">

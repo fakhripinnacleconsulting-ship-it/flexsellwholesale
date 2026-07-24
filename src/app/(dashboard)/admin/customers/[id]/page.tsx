@@ -94,7 +94,7 @@ export default function AdminCustomerDetailPage({ params }: PageProps) {
       </div>
 
       {/* Quick stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="border border-border">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="bg-primary/10 text-primary p-2 rounded-full">
