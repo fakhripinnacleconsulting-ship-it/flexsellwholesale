@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Heart, ShoppingCart, Minus, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +22,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
+  const router = useRouter();
   const { addItem } = useCartStore();
   const { toggleWishlist, isInWishlist } = useWishlistStore();
   const { addToast } = useToastStore();
@@ -78,7 +80,13 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
   }, [product.cardTags, product.createdAt]);
   const isTrending = product.cardTags?.some(tag => tag.toLowerCase() === "trending" || tag.toLowerCase() === "hot");
 
-  const adjustQty = (amount: number) => {
+  const handleCardClick = () => {
+    router.push(`/products/${product.slug}`);
+  };
+
+  const adjustQty = (e: React.MouseEvent, amount: number) => {
+    e.preventDefault();
+    e.stopPropagation();
     setQty(prev => Math.max(1, prev + amount));
   };
 
@@ -120,37 +128,40 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
 
   if (layout === "list") {
     return (
-      <div className="flex flex-col sm:flex-row items-center border border-border rounded-xl p-4 gap-6 bg-card hover:shadow-md hover:border-primary/20 transition-all duration-300 relative group text-foreground w-full">
+      <div
+        onClick={handleCardClick}
+        className="flex flex-col sm:flex-row items-center border border-border rounded-xl p-4 gap-6 bg-card hover:shadow-md hover:border-primary/20 transition-all duration-300 relative group text-foreground w-full cursor-pointer"
+      >
         {/* Wishlist Button */}
         <button 
+          type="button"
           onClick={handleWishlistToggle}
-          className="absolute top-4 right-4 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive p-1.5 rounded-full shadow transition-colors z-10"
+          className="absolute top-4 right-4 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive p-1.5 rounded-full shadow transition-colors z-10 cursor-pointer"
+          title="Toggle Wishlist"
         >
           <Heart className={`h-4 w-4 ${favorited ? "fill-destructive text-destructive" : ""}`} />
         </button>
 
         {/* Product Image */}
         <div className="w-24 h-24 rounded-lg bg-secondary border overflow-hidden flex-shrink-0 relative">
-          <Link href={`/products/${product.slug}`}>
-            <div className="w-full h-full relative">
+          <div className="w-full h-full relative">
+            <Image 
+              src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"} 
+              alt={product.title} 
+              fill 
+              sizes="96px" 
+              className={`object-cover transition-opacity duration-500 ${secondImgUrl ? 'group-hover:opacity-0' : 'group-hover:scale-105'}`} 
+            />
+            {secondImgUrl && (
               <Image 
-                src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"} 
+                src={secondImgUrl} 
                 alt={product.title} 
                 fill 
                 sizes="96px" 
-                className={`object-cover transition-opacity duration-500 ${secondImgUrl ? 'group-hover:opacity-0' : 'group-hover:scale-105'}`} 
+                className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
               />
-              {secondImgUrl && (
-                <Image 
-                  src={secondImgUrl} 
-                  alt={product.title} 
-                  fill 
-                  sizes="96px" 
-                  className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
-                />
-              )}
-            </div>
-          </Link>
+            )}
+          </div>
           {discount > 0 && (
             <div className="absolute top-1 left-1 bg-destructive text-destructive-foreground text-[8px] font-extrabold px-1 rounded shadow">
               {discount}% OFF
@@ -161,9 +172,7 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
         {/* Details Section */}
         <div className="flex-1 min-w-0 space-y-2 text-center sm:text-left">
           <div className="space-y-0.5">
-            <Link href={`/products/${product.slug}`} className="hover:text-primary transition-colors">
-              <h3 className="font-bold text-base line-clamp-1 text-foreground">{product.title}</h3>
-            </Link>
+            <h3 className="font-bold text-base line-clamp-1 text-foreground group-hover:text-primary transition-colors">{product.title}</h3>
             <p className="text-xs font-mono text-muted-foreground">SKU: {sku}</p>
             {product.cardTags && product.cardTags.length > 0 && (
               <div className="flex flex-wrap justify-center sm:justify-start gap-1 pt-1">
@@ -176,17 +185,17 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
             )}
           </div>
 
-        {/* List Layout MOQ */}
-        <div className="flex items-center gap-3 justify-center sm:justify-start">
-          {product.totalStock <= 0 && (
-            <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded">
-              Out of Stock
-            </span>
-          )}
-          {(customer?.customerTypes?.includes("B2B") && defaultSub?.b2bMoq) && (
-            <span className="text-xs text-muted-foreground">B2B MOQ: {defaultSub.b2bMoq} units</span>
-          )}
-        </div>
+          {/* List Layout MOQ */}
+          <div className="flex items-center gap-3 justify-center sm:justify-start">
+            {product.totalStock <= 0 && (
+              <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded">
+                Out of Stock
+              </span>
+            )}
+            {(customer?.customerTypes?.includes("B2B") && defaultSub?.b2bMoq) && (
+              <span className="text-xs text-muted-foreground">B2B MOQ: {defaultSub.b2bMoq} units</span>
+            )}
+          </div>
         </div>
 
         {/* Pricing Column */}
@@ -203,32 +212,33 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
         </div>
 
         {/* Action Controls */}
-        <div className="flex flex-col gap-2 w-full sm:w-48 flex-shrink-0">
+        <div className="flex flex-col gap-2 w-full sm:w-48 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1.5 border rounded-lg p-0.5 bg-secondary/10 w-full justify-between">
             <button
               type="button"
-              onClick={() => adjustQty(-1)}
-              className="p-1 rounded hover:bg-secondary transition-colors"
+              onClick={(e) => adjustQty(e, -1)}
+              className="p-1 rounded hover:bg-secondary transition-colors cursor-pointer"
             >
               <Minus className="h-3 w-3" />
             </button>
             <input
               type="number"
               value={qty}
+              onClick={(e) => e.stopPropagation()}
               onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
               className="w-12 text-center text-xs font-bold bg-transparent border-none outline-none focus:ring-0 text-foreground"
             />
             <button
               type="button"
-              onClick={() => adjustQty(1)}
-              className="p-1 rounded hover:bg-secondary transition-colors"
+              onClick={(e) => adjustQty(e, 1)}
+              className="p-1 rounded hover:bg-secondary transition-colors cursor-pointer"
             >
               <Plus className="h-3 w-3" />
             </button>
           </div>
 
           <Button 
-            className="w-full flex items-center justify-center gap-2 font-bold" 
+            className="w-full flex items-center justify-center gap-2 font-bold cursor-pointer" 
             size="sm"
             onClick={handleAddToCart}
             disabled={product.totalStock <= 0 || !purchaseAllowed}
@@ -243,9 +253,12 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
 
   // Grid Layout
   return (
-    <Card className="flex flex-col h-full bg-card hover:shadow-lg hover:border-primary/20 transition-all duration-300 relative group border border-border">
+    <Card 
+      onClick={handleCardClick}
+      className="flex flex-col h-full bg-card hover:shadow-lg hover:border-primary/20 transition-all duration-300 relative group border border-border cursor-pointer select-none"
+    >
       {/* Floating Badges */}
-      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 pointer-events-none">
         {discount > 0 && (
           <span className="bg-destructive text-destructive-foreground text-[10px] font-extrabold px-2 py-0.5 rounded shadow uppercase">
             {discount}% OFF
@@ -270,34 +283,34 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
 
       {/* Wishlist Button */}
       <button 
+        type="button"
         onClick={handleWishlistToggle}
-        className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive p-1.5 rounded-full shadow transition-colors"
+        className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive p-1.5 rounded-full shadow transition-colors cursor-pointer"
+        title="Toggle Wishlist"
       >
         <Heart className={`h-4 w-4 ${favorited ? "fill-destructive text-destructive" : ""}`} />
       </button>
 
       {/* Image Viewport with Hover transition */}
       <div className="aspect-square relative bg-secondary overflow-hidden rounded-t-lg border-b">
-        <Link href={`/products/${product.slug}`}>
-          <div className="w-full h-full relative">
+        <div className="w-full h-full relative">
+          <Image
+            src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"}
+            alt={product.title}
+            fill
+            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className={`object-cover transition-all duration-500 ${secondImgUrl ? 'group-hover:opacity-0' : 'group-hover:scale-105'}`}
+          />
+          {secondImgUrl && (
             <Image
-              src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"}
+              src={secondImgUrl}
               alt={product.title}
               fill
               sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className={`object-cover transition-all duration-500 ${secondImgUrl ? 'group-hover:opacity-0' : 'group-hover:scale-105'}`}
+              className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
-            {secondImgUrl && (
-              <Image
-                src={secondImgUrl}
-                alt={product.title}
-                fill
-                sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              />
-            )}
-          </div>
-        </Link>
+          )}
+        </div>
         {(customer?.customerTypes?.includes("B2B") && defaultSub?.b2bMoq) && (
           <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] font-mono px-1 rounded z-10">
             MOQ: {defaultSub.b2bMoq} pcs
@@ -307,11 +320,9 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
 
       <CardContent className="p-4 flex flex-col flex-1 gap-3">
         <div className="space-y-1">
-          <Link href={`/products/${product.slug}`} className="hover:text-primary transition-colors">
-            <h3 className="font-bold text-sm line-clamp-2 text-foreground" title={product.title}>
-              {product.title}
-            </h3>
-          </Link>
+          <h3 className="font-bold text-sm line-clamp-2 text-foreground group-hover:text-primary transition-colors" title={product.title}>
+            {product.title}
+          </h3>
           <p className="text-[10px] font-mono text-muted-foreground">SKU: {sku}</p>
           
           {product.cardTags && product.cardTags.length > 0 && (
@@ -335,7 +346,7 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
         </div>
 
         {/* B2B Pricing Details */}
-        <div className="pt-2 border-t mt-auto space-y-3">
+        <div className="pt-2 border-t mt-auto space-y-3" onClick={(e) => e.stopPropagation()}>
           <div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-lg font-black text-primary">{formatPrice(price)}</span>
@@ -352,23 +363,30 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
           <div className="flex items-center gap-1.5 border rounded-lg p-0.5 bg-secondary/10 w-full justify-between">
             <button
               type="button"
-              onClick={() => adjustQty(-1)}
-              className="p-1 rounded-md hover:bg-secondary transition-colors"
+              onClick={(e) => adjustQty(e, -1)}
+              className="p-1 rounded-md hover:bg-secondary transition-colors cursor-pointer"
             >
               <Minus className="h-3 w-3" />
             </button>
-            <span className="text-xs font-mono font-bold px-2">{qty}</span>
+            <input
+              type="number"
+              min={1}
+              value={qty}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
+              className="w-14 text-center text-xs font-mono font-bold bg-transparent border-none outline-none focus:ring-0 text-foreground p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
             <button
               type="button"
-              onClick={() => adjustQty(1)}
-              className="p-1 rounded-md hover:bg-secondary transition-colors"
+              onClick={(e) => adjustQty(e, 1)}
+              className="p-1 rounded-md hover:bg-secondary transition-colors cursor-pointer"
             >
               <Plus className="h-3 w-3" />
             </button>
           </div>
 
           <Button 
-            className="w-full font-bold flex items-center justify-center gap-1.5" 
+            className="w-full font-bold flex items-center justify-center gap-1.5 cursor-pointer" 
             size="sm"
             onClick={handleAddToCart}
             disabled={product.totalStock <= 0 || !purchaseAllowed}

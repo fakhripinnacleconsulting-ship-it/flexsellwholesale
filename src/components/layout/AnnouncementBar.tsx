@@ -17,7 +17,7 @@ export function AnnouncementBar({ messages }: AnnouncementBarProps) {
   const singleHalf = Array(repeatCount).fill(messages).flat();
 
   return (
-    <div className="bg-gradient-to-r from-primary via-emerald-600 to-primary text-primary-foreground py-2 relative overflow-hidden select-none z-45 w-full border-b border-primary-foreground/10 flex items-center">
+    <div className="bg-gradient-to-r from-primary via-emerald-600 to-primary text-primary-foreground py-2 relative overflow-hidden select-none z-20 w-full border-b border-primary-foreground/10 flex items-center">
       <div className="flex w-max whitespace-nowrap animate-marquee pause-marquee flex-1">
         {/* First Half */}
         <div className="flex items-center gap-16 px-8">
@@ -45,7 +45,7 @@ export function AnnouncementBar({ messages }: AnnouncementBarProps) {
       <button
         type="button"
         onClick={() => setIsDismissed(true)}
-        className="px-3 text-primary-foreground/80 hover:text-primary-foreground transition-colors cursor-pointer bg-primary z-50 h-full flex items-center"
+        className="px-3 text-primary-foreground/80 hover:text-primary-foreground transition-colors cursor-pointer bg-primary z-20 h-full flex items-center"
         aria-label="Dismiss Announcement"
       >
         <X className="h-4 w-4" />

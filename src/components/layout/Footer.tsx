@@ -41,11 +41,11 @@ export function Footer({ data }: FooterProps) {
 
   return (
     <footer className="bg-card border-t pt-16 pb-8 text-foreground select-none">
-      <div className="mx-auto max-w-8xl px-4 md:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12 w-full">
+      <div className="mx-auto max-w-8xl px-4 md:px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-8 mb-12 w-full">
         {/* Brand Column */}
-        <div className="space-y-4 lg:col-span-2">
+        <div className="space-y-4 col-span-1 sm:col-span-2 lg:col-span-2">
           <Link href="/" className="flex items-center">
-            <Image src="/Flexsell%20Logo.png" alt="Flexsell Logo" width={160} height={44} className="h-10 md:h-12 w-auto object-contain" />
+            <Image src="/Flexsell%20Logo.png" alt="Flexsell Logo" width={160} height={44} className="h-8 sm:h-10 md:h-12 w-auto object-contain" />
           </Link>
           <p className="text-muted-foreground text-xs leading-relaxed max-w-sm">
             {description}

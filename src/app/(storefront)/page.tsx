@@ -125,89 +125,97 @@ export default async function HomePage() {
     }
   ];
 
+  const topLevelCategories = categories.filter(c => !c.parentId);
+
   return (
-    <div className="flex flex-col gap-12 pb-16">
+    <div className="flex flex-col gap-10 md:gap-14 pb-16">
       {/* High Performance Video & Image Hero Banner Carousel */}
       <HeroCarousel slides={heroBanners} />
 
       {/* Trust Stats Bar */}
       <TrustBar stats={cmsTrustStats?.value} />
 
-      {/* Categories Grid Section */}
-      <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-4">
-        <div className="flex justify-between items-end mb-8 border-b pb-4 border-border/60">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
-              Shop by Category
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">Sourced direct from global factory lines.</p>
-          </div>
-          <Link href="/categories" className="text-sm font-semibold text-primary hover:underline flex items-center gap-1">
-            View All Categories &rarr;
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-          {categories.filter(c => !c.parentId).slice(0, 6).map((category) => (
-            <Link key={category._id} href={`/categories/${category.slug}`}>
-              <Card className="hover:border-primary/50 transition-all hover:shadow-md cursor-pointer text-center overflow-hidden h-full flex flex-col group bg-card border-border">
-                <div className="aspect-square relative bg-secondary overflow-hidden">
-                  <Image
-                    src={category.image || `https://placehold.co/400x400/10b981/ffffff?text=${encodeURIComponent(category.name)}`}
-                    alt={category.name}
-                    fill
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 16vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-3 mt-auto bg-card border-t border-border">
-                  <p className="text-xs font-bold text-foreground line-clamp-2">{category.name}</p>
-                </div>
-              </Card>
+      {/* Categories Grid Section (Appears only if categories exist) */}
+      {topLevelCategories.length > 0 && (
+        <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4">
+          <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
+            <div>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
+                Shop by Category
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Sourced direct from global factory lines.</p>
+            </div>
+            <Link href="/categories" className="text-xs sm:text-sm font-semibold text-primary hover:underline flex items-center gap-1">
+              View All Categories &rarr;
             </Link>
-          ))}
-        </div>
-      </section>
+          </div>
 
-      {/* Featured Collections Section */}
-      <FeaturedCollections collections={collections} productCounts={productCounts} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+            {topLevelCategories.slice(0, 6).map((category) => (
+              <Link key={category._id} href={`/categories/${category.slug}`}>
+                <Card className="hover:border-primary/50 transition-all hover:shadow-md cursor-pointer text-center overflow-hidden h-full flex flex-col group bg-card border-border">
+                  <div className="aspect-square relative bg-secondary overflow-hidden">
+                    <Image
+                      src={category.image || `https://placehold.co/400x400/10b981/ffffff?text=${encodeURIComponent(category.name)}`}
+                      alt={category.name}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="p-3 mt-auto bg-card border-t border-border">
+                    <p className="text-xs font-bold text-foreground line-clamp-2">{category.name}</p>
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Featured Collections Section (Appears only if featured collections exist) */}
+      {featuredCols.length > 0 && (
+        <FeaturedCollections collections={collections} productCounts={productCounts} />
+      )}
 
       {/* Independent B2B Wholesale Business Section */}
       <WholesaleBusinessSection data={cmsWholesaleBiz?.value} />
 
-      {/* Trending Products Grid Section */}
-      <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-4">
-        <div className="flex justify-between items-end mb-8 border-b pb-4 border-border/60">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
-              Trending Consumer Gadgets
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">Our fastest selling consumer products and gadgets.</p>
-          </div>
-          <Link href="/products" className="text-sm font-semibold text-primary hover:underline flex items-center gap-1">
-            View All &rarr;
-          </Link>
-        </div>
-
-        <TrendingProducts initialProducts={trendingProducts} />
-      </section>
-
-      {/* New Arrivals Section */}
-      {newArrivals.length > 0 && (
-        <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-4 animate-in fade-in duration-700">
-          <div className="flex justify-between items-end mb-8 border-b pb-4 border-border/60">
+      {/* Trending Products Grid Section (Appears only if trending products exist) */}
+      {trendingProducts && trendingProducts.length > 0 && (
+        <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4">
+          <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
             <div>
-              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
-                New Arrivals
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
+                Trending Consumer Gadgets
               </h2>
-              <p className="text-sm text-muted-foreground mt-1">Our latest wholesale products added in the last 7 days.</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Our fastest selling consumer products and gadgets.</p>
             </div>
-            <Link href="/products?sort=newest" className="text-sm font-semibold text-primary hover:underline flex items-center gap-1">
+            <Link href="/products" className="text-xs sm:text-sm font-semibold text-primary hover:underline flex items-center gap-1">
               View All &rarr;
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <TrendingProducts initialProducts={trendingProducts} />
+        </section>
+      )}
+
+      {/* New Arrivals Section (Appears only if new arrivals exist) */}
+      {newArrivals.length > 0 && (
+        <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4 animate-in fade-in duration-700">
+          <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
+            <div>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
+                New Arrivals
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Our latest wholesale products added in the last 7 days.</p>
+            </div>
+            <Link href="/products?sort=newest" className="text-xs sm:text-sm font-semibold text-primary hover:underline flex items-center gap-1">
+              View All &rarr;
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
             {newArrivals.map((product) => (
               <ProductCard key={product._id} product={product} layout="grid" />
             ))}
@@ -218,11 +226,15 @@ export default async function HomePage() {
       {/* Independent Dropshipping Business Section */}
       <DropshippingBusinessSection data={cmsDropshipBiz?.value} />
 
-      {/* Brand Partners Marquee Bar */}
-      <BrandPartnersBar partners={cmsBrandPartners?.value} />
+      {/* Brand Partners Marquee Bar (Appears only if brand partners exist) */}
+      {cmsBrandPartners?.value && cmsBrandPartners.value.length > 0 && (
+        <BrandPartnersBar partners={cmsBrandPartners.value} />
+      )}
 
-      {/* Recently Viewed Carousel (Last 10 Products) */}
-      <RecentlyViewed initialProducts={products} />
+      {/* Recently Viewed Carousel (Appears only if products exist) */}
+      {products && products.length > 0 && (
+        <RecentlyViewed initialProducts={products} />
+      )}
 
       {/* Unified Single Frame Testimonials with 3-Tab Options */}
       <TestimonialsSection
