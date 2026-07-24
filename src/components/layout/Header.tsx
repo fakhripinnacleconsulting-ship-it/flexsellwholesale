@@ -49,7 +49,7 @@ export function Header({ categories, collections = [] }: HeaderProps) {
 
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2" aria-label="Flexsell Wholesale Home">
-          <Image src="/Flexsell%20Logo.png" alt="Flexsell Logo" width={160} height={44} className="h-10 md:h-12 w-auto object-contain" priority />
+          <Image src="/Flexsell%20Logo.png" alt="Flexsell Logo" width={160} height={44} style={{ width: "auto", height: "auto" }} className="h-10 md:h-12 w-auto object-contain" priority />
         </Link>
 
         {/* Global Search Bar - Desktop Only */}
