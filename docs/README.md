@@ -1,6 +1,6 @@
 # FlexSell Wholesale — Technical Documentation
 
-Welcome to the unified technical documentation for **FlexSell Wholesale**, an enterprise-grade B2B, B2C, and Dropshipping e-commerce platform built with Next.js 16 (App Router), TypeScript, MongoDB (Mongoose), Zustand, and Tailwind CSS.
+Welcome to the technical documentation for **FlexSell Wholesale**, an enterprise-grade B2B, B2C, and Dropshipping e-commerce platform.
 
 ---
 
@@ -14,6 +14,6 @@ The complete technical documentation, architecture diagrams, database ERD schema
 
 ## 🌐 Online Documentation Portal
 
-You can also view the interactive single-page documentation portal with PDF download options directly in the application:
+View the interactive single-page documentation portal with PDF download options directly in the application:
 
 👉 **URL:** `/documentation`
