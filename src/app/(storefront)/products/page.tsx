@@ -9,8 +9,12 @@ export default async function ProductsPage() {
   let products: any[] = [];
   let categories: any[] = [];
   try {
-    products = await productService.getProducts();
-    categories = await categoryService.getCategories();
+    const [productsData, categoriesData] = await Promise.all([
+      productService.getProducts(),
+      categoryService.getCategories()
+    ]);
+    products = productsData;
+    categories = categoriesData;
   } catch (err) {
     console.error("ProductsPage DB fetch notice:", (err as any)?.message || err);
   }

@@ -39,22 +39,50 @@ export default async function HomePage() {
   try {
     await dbConnect();
 
-    // Fetch CMS sections
-    cmsHeroBanners = await CmsContent.findOne({ key: "hero_banners" });
-    cmsTrustStats = await CmsContent.findOne({ key: "trust_stats" });
-    cmsWholesaleBiz = await CmsContent.findOne({ key: "wholesale_business_details" });
-    cmsDropshipBiz = await CmsContent.findOne({ key: "dropshipping_business_details" });
-    cmsTestimonialsWholesale = await CmsContent.findOne({ key: "testimonials_wholesale" });
-    cmsTestimonialsDropshipper = await CmsContent.findOne({ key: "testimonials_dropshipper" });
-    cmsTestimonialsClient = await CmsContent.findOne({ key: "testimonials_client" });
-    cmsBrandPartners = await CmsContent.findOne({ key: "brand_partners" });
+    // Fetch all CMS sections and product lists concurrently in parallel
+    const [
+      heroBannersRes,
+      trustStatsRes,
+      wholesaleBizRes,
+      dropshipBizRes,
+      testimonialsWholesaleRes,
+      testimonialsDropshipperRes,
+      testimonialsClientRes,
+      brandPartnersRes,
+      categoriesRes,
+      trendingRes,
+      newArrivalsRes,
+      collectionsRes,
+      productsRes
+    ] = await Promise.all([
+      CmsContent.findOne({ key: "hero_banners" }).lean(),
+      CmsContent.findOne({ key: "trust_stats" }).lean(),
+      CmsContent.findOne({ key: "wholesale_business_details" }).lean(),
+      CmsContent.findOne({ key: "dropshipping_business_details" }).lean(),
+      CmsContent.findOne({ key: "testimonials_wholesale" }).lean(),
+      CmsContent.findOne({ key: "testimonials_dropshipper" }).lean(),
+      CmsContent.findOne({ key: "testimonials_client" }).lean(),
+      CmsContent.findOne({ key: "brand_partners" }).lean(),
+      categoryService.getCategories(),
+      productService.getTrendingProducts(),
+      productService.getNewArrivals(),
+      collectionService.getCollections(),
+      productService.getProducts({ limit: 10 })
+    ]);
 
-    categories = await categoryService.getCategories();
-    trendingProducts = await productService.getTrendingProducts();
-    newArrivals = await productService.getNewArrivals();
-    collections = await collectionService.getCollections();
-    // Fetch limited active products for recently viewed fallback
-    products = await productService.getProducts({ limit: 10 });
+    cmsHeroBanners = heroBannersRes;
+    cmsTrustStats = trustStatsRes;
+    cmsWholesaleBiz = wholesaleBizRes;
+    cmsDropshipBiz = dropshipBizRes;
+    cmsTestimonialsWholesale = testimonialsWholesaleRes;
+    cmsTestimonialsDropshipper = testimonialsDropshipperRes;
+    cmsTestimonialsClient = testimonialsClientRes;
+    cmsBrandPartners = brandPartnersRes;
+    categories = categoriesRes;
+    trendingProducts = trendingRes;
+    newArrivals = newArrivalsRes;
+    collections = collectionsRes;
+    products = productsRes;
   } catch (err) {
     console.error("HomePage DB fetch notice (using fallback content):", (err as any)?.message || err);
   }

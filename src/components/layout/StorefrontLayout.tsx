@@ -19,10 +19,16 @@ export async function StorefrontLayout({ children }: StorefrontLayoutProps) {
 
   try {
     await dbConnect();
-    allCategories = await categoryService.getCategories();
-    collections = await collectionService.getCollections();
-    cmsAnnouncements = await CmsContent.findOne({ key: "announcements" });
-    cmsFooter = await CmsContent.findOne({ key: "footer" });
+    const [categoriesData, collectionsData, announcementsData, footerDataRes] = await Promise.all([
+      categoryService.getCategories(),
+      collectionService.getCollections(),
+      CmsContent.findOne({ key: "announcements" }).lean(),
+      CmsContent.findOne({ key: "footer" }).lean()
+    ]);
+    allCategories = categoriesData;
+    collections = collectionsData;
+    cmsAnnouncements = announcementsData;
+    cmsFooter = footerDataRes;
   } catch (err) {
     console.error("StorefrontLayout DB fetch notice (using fallback UI):", (err as any)?.message || err);
   }

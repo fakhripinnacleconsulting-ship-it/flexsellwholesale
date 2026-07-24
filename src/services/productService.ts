@@ -121,17 +121,32 @@ export const productService = {
         const CategoryModel = (await import("@/models/Category")).default;
         const OrderModel = (await import("@/models/Order")).default;
 
-        // 1. Get all active categories
-        const categories = await CategoryModel.find({ isActive: true }).select("_id").lean();
+        // Query active categories, active products, and recent non-cancelled orders concurrently
+        let productQuery = ProductModel.find({ isActive: true }).sort({ createdAt: -1 });
+        if (typeof productQuery.limit === "function") {
+          productQuery = productQuery.limit(50);
+        }
+
+        let orderQuery: any = OrderModel.find({ status: { $ne: "Cancelled" } });
+        if (typeof orderQuery.sort === "function") {
+          orderQuery = orderQuery.sort({ createdAt: -1 });
+        }
+        if (typeof orderQuery.select === "function") {
+          orderQuery = orderQuery.select("items");
+        }
+        if (typeof orderQuery.limit === "function") {
+          orderQuery = orderQuery.limit(100);
+        }
+
+        const [categories, products, orders] = await Promise.all([
+          CategoryModel.find({ isActive: true }).select("_id").lean(),
+          productQuery.lean(),
+          orderQuery.lean()
+        ]);
+
         const categoryIds = categories.map(c => c._id);
 
-        // 2. Get all active products
-        const products = await ProductModel.find({ isActive: true }).lean();
-
-        // 3. Get all non-cancelled orders
-        const orders = await OrderModel.find({ status: { $ne: "Cancelled" } }).select("items").lean();
-
-        // 4. Calculate total quantity sold for each product
+        // Calculate total quantity sold for each product in recent orders
         const salesMap: Record<string, number> = {};
         for (const order of orders) {
           if (order.items && Array.isArray(order.items)) {
@@ -144,7 +159,7 @@ export const productService = {
           }
         }
 
-        // 5. Group products by categoryId
+        // Group products by categoryId
         const categoryProducts: Record<string, typeof products> = {};
         for (const product of products) {
           const catId = product.categoryId;
@@ -154,7 +169,6 @@ export const productService = {
           categoryProducts[catId].push(product);
         }
 
-        // 6. Collect top product from each category, and gather products with sales
         const trendingProducts: typeof products = [];
         const addedProductIds = new Set<string>();
 
@@ -162,7 +176,6 @@ export const productService = {
           const catProds = categoryProducts[catId] || [];
           if (catProds.length === 0) continue;
 
-          // Sort products of this category by sales count descending, then by createdAt descending
           catProds.sort((a, b) => {
             const salesA = salesMap[a._id] || 0;
             const salesB = salesMap[b._id] || 0;
@@ -174,7 +187,6 @@ export const productService = {
             return dateB - dateA;
           });
 
-          // Top product from this category is guaranteed to be in trending list
           const topProduct = catProds[0];
           if (topProduct) {
             trendingProducts.push(topProduct);
@@ -182,7 +194,6 @@ export const productService = {
           }
         }
 
-        // Add any other products that have sales > 0
         for (const product of products) {
           if (!addedProductIds.has(product._id)) {
             const sales = salesMap[product._id] || 0;
@@ -193,7 +204,6 @@ export const productService = {
           }
         }
 
-        // Sort all gathered trending products by sales count descending, then by createdAt descending
         trendingProducts.sort((a, b) => {
           const salesA = salesMap[a._id] || 0;
           const salesB = salesMap[b._id] || 0;
@@ -205,7 +215,7 @@ export const productService = {
           return dateB - dateA;
         });
 
-        return JSON.parse(JSON.stringify(trendingProducts));
+        return JSON.parse(JSON.stringify(trendingProducts.slice(0, 12)));
       } catch (err) {
         console.error("productService.getTrendingProducts server notice:", (err as any)?.message || err);
         return [];
@@ -225,10 +235,16 @@ export const productService = {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - 7);
 
-        const products = await ProductModel.find({
+        let query = ProductModel.find({
           isActive: true,
           createdAt: { $gte: cutoffDate }
-        }).sort({ createdAt: -1 }).lean();
+        }).sort({ createdAt: -1 });
+
+        if (typeof query.limit === "function") {
+          query = query.limit(10);
+        }
+
+        const products = await query.lean();
 
         return JSON.parse(JSON.stringify(products));
       } catch (err) {

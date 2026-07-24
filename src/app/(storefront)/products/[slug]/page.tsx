@@ -35,8 +35,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { slug } = await params;
   
   try {
-    const product = await productService.getProductBySlug(slug);
-    const products = await productService.getProducts();
+    const [product, products] = await Promise.all([
+      productService.getProductBySlug(slug),
+      productService.getProducts({ limit: 12 })
+    ]);
 
     // Prepare JSON-LD Product Schema data
     const prices = product.colorVariants?.flatMap(cv => cv.subVariants?.map(sv => sv.b2cPrice) || []) || [0];
