@@ -28,14 +28,11 @@ export function AddToCartPanel() {
   
   const { useAuthStore } = require("@/stores/authStore");
   const customer = useAuthStore((state: any) => state.customer);
-  const { resolvePrice } = require("@/lib/priceTierHelper");
+  const { resolvePrice, resolveCustomerTier } = require("@/lib/priceTierHelper");
 
-  let activeTier: "B2C" | "B2B" | "Dropshipping" = product.defaultPriceTier || "B2C";
-  if (customer && customer.customerTypes && customer.customerTypes.length > 0) {
-    if (customer.customerTypes.includes("B2C")) activeTier = "B2C";
-    else if (customer.customerTypes.includes("B2B")) activeTier = "B2B";
-    else activeTier = "Dropshipping";
-  }
+  const activeTier = customer && customer.customerTypes && customer.customerTypes.length > 0
+    ? resolveCustomerTier(customer.customerTypes)
+    : (product.defaultPriceTier || "B2C");
 
   const highlightPrice = activeSubVariant ? resolvePrice(activeSubVariant, activeTier) : 0;
   const b2cPrice = activeSubVariant ? activeSubVariant.b2cPrice : 0;

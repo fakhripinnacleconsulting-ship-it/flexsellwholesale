@@ -13,7 +13,7 @@ import { useWishlistStore } from "@/stores/wishlistStore";
 import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
-import { resolvePrice, canPurchase, resolveMoq } from "@/lib/priceTierHelper";
+import { resolvePrice, canPurchase, resolveMoq, resolveCustomerTier } from "@/lib/priceTierHelper";
 import { motion } from "framer-motion";
 
 interface ProductCardProps {
@@ -49,19 +49,11 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
   const rawSecondImgUrl = secondImg ? (typeof secondImg === "string" ? secondImg : secondImg.url || "") : "";
   const secondImgUrl = rawSecondImgUrl ? sanitizeImgUrl(rawSecondImgUrl) : "";
 
-  let activeTier: "B2C" | "B2B" | "Dropshipping" = product.defaultPriceTier || "B2C";
-  let activeCartTier: "B2C" | "B2B" = "B2C";
-  if (customer && customer.customerTypes && customer.customerTypes.length > 0) {
-    if (customer.customerTypes.includes("B2C")) {
-      activeTier = "B2C";
-      activeCartTier = "B2C";
-    } else if (customer.customerTypes.includes("B2B")) {
-      activeTier = "B2B";
-      activeCartTier = "B2B";
-    } else {
-      activeTier = "Dropshipping";
-    }
-  }
+  const activeTier = customer && customer.customerTypes && customer.customerTypes.length > 0 
+    ? resolveCustomerTier(customer.customerTypes) 
+    : (product.defaultPriceTier || "B2C");
+
+  const activeCartTier = activeTier === "B2B" ? "B2B" : "B2C";
 
   const purchaseAllowed = !customer || canPurchase(customer.customerTypes);
   const price = defaultSub ? resolvePrice(defaultSub, activeTier) : 0;

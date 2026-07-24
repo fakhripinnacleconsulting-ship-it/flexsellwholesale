@@ -2,6 +2,15 @@ import { SubVariant } from "@/types";
 
 export type PriceTier = "B2C" | "B2B" | "Dropshipping";
 
+export function resolveCustomerTier(customerTypes?: string[]): PriceTier {
+  if (!customerTypes || customerTypes.length === 0) return "B2C";
+  // B2B takes precedence if the customer account has B2B access!
+  if (customerTypes.includes("B2B")) return "B2B";
+  if (customerTypes.includes("Dropshipping")) return "Dropshipping";
+  if (customerTypes.includes("B2C")) return "B2C";
+  return "B2C";
+}
+
 export function resolvePrice(sv: SubVariant, tier: PriceTier): number {
   if (!sv) return 0;
   switch (tier) {
@@ -28,8 +37,8 @@ export function canPurchase(customerTypes: string[]): boolean {
 export function getPurchasableTiers(customerTypes: string[]): PriceTier[] {
   const tiers: PriceTier[] = [];
   if (!customerTypes || customerTypes.length === 0) return ["B2C"];
-  if (customerTypes.includes("B2C")) tiers.push("B2C");
   if (customerTypes.includes("B2B")) tiers.push("B2B");
+  if (customerTypes.includes("B2C")) tiers.push("B2C");
   return tiers;
 }
 

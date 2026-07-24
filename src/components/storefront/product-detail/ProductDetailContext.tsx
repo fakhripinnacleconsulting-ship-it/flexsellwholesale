@@ -189,9 +189,9 @@ export function ProductDetailProvider({
   const handleBulkQtyChange = (subVariantId: string, valStr: string, svStock: number) => {
     const val = parseInt(valStr, 10);
     
-    const { resolveMoq } = require("@/lib/priceTierHelper");
-    const isB2B = activeUser?.customerTypes?.includes("B2B") ?? false;
-    const tier = isB2B ? "B2B" : "B2C";
+    const { resolveMoq, resolveCustomerTier } = require("@/lib/priceTierHelper");
+    const userTier = resolveCustomerTier(activeUser?.customerTypes);
+    const tier = userTier === "B2B" ? "B2B" : "B2C";
     const subVariant = activeVariant?.subVariants?.find(sv => sv.id === subVariantId);
     const moqLimit = subVariant ? resolveMoq(subVariant, tier) : 1;
 
@@ -218,8 +218,9 @@ export function ProductDetailProvider({
     if (!product) return;
     let addedCount = 0;
 
-    const isB2B = activeUser?.customerTypes?.includes("B2B") ?? false;
-    const tier = isB2B ? "B2B" : "B2C";
+    const { resolveCustomerTier } = require("@/lib/priceTierHelper");
+    const userTier = resolveCustomerTier(activeUser?.customerTypes);
+    const tier = userTier === "B2B" ? "B2B" : "B2C";
 
     product.colorVariants?.forEach(cv => {
       cv.subVariants?.forEach(sv => {

@@ -48,15 +48,19 @@ export const useCartStore = create<CartState>()(
       setBuyerState: (state) => set({ buyerState: state }),
 
       addItem: (product, selectedVariants, quantity = 1, priceTier = "B2C") => {
+        // Fetch active customer from authStore & resolve tier
+        const customer = useAuthStore.getState().customer;
+        const { resolveCustomerTier } = require("@/lib/priceTierHelper");
+        const effectiveTier: "B2C" | "B2B" = customer?.customerTypes?.length
+          ? (resolveCustomerTier(customer.customerTypes) === "B2B" ? "B2B" : "B2C")
+          : priceTier;
+
         const variantKey = Object.entries(selectedVariants)
           .sort((a, b) => a[0].localeCompare(b[0]))
           .map(([k, v]) => `${k}:${v}`)
           .join("|");
 
-        const itemId = `${product._id}-${variantKey}-${priceTier}`;
-
-        // Fetch active customer from authStore
-        const customer = useAuthStore.getState().customer;
+        const itemId = `${product._id}-${variantKey}-${effectiveTier}`;
         
         if (customer && customer.customerTypes && customer.customerTypes.length === 1 && customer.customerTypes[0] === "Dropshipping") {
           useToastStore.getState().addToast("Dropshipping accounts cannot place orders directly from storefront.", "warning");
@@ -86,9 +90,9 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const calculatedPrice = resolvePrice(matchedVariant, priceTier);
+        const calculatedPrice = resolvePrice(matchedVariant, effectiveTier);
         const availableStock = matchedVariant.stock;
-        const moq = resolveMoq(matchedVariant, priceTier);
+        const moq = resolveMoq(matchedVariant, effectiveTier);
 
         // Check if item exists in cart
         const existingItem = get().items.find(item => item.id === itemId);
@@ -132,7 +136,7 @@ export const useCartStore = create<CartState>()(
                   selectedVariants,
                   quantity: targetQty,
                   pricePerUnit: calculatedPrice,
-                  priceTier,
+                  priceTier: effectiveTier,
                 }
               ]
             };

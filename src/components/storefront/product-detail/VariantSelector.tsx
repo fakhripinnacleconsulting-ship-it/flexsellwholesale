@@ -46,11 +46,12 @@ export function VariantSelector() {
   const isB2C = customerTypes.includes("B2C");
   const isDropshipperOnly = customerTypes.length === 1 && customerTypes[0] === "Dropshipping";
 
-  const { resolvePrice, resolveMoq, canPurchase } = require("@/lib/priceTierHelper");
+  const { resolvePrice, resolveMoq, canPurchase, resolveCustomerTier } = require("@/lib/priceTierHelper");
   const purchaseAllowed = canPurchase(customerTypes);
 
   // Determine standard MOQ and active price tier for single selector
-  const activeCartTier = isB2C ? "B2C" : isB2B ? "B2B" : "B2C";
+  const userTier = resolveCustomerTier(customerTypes);
+  const activeCartTier = userTier === "B2B" ? "B2B" : "B2C";
   const itemMoq = activeSubVariant ? resolveMoq(activeSubVariant, activeCartTier) : 1;
 
   const handleAddToCart = () => {
