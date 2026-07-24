@@ -16,6 +16,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { GlobalSearchInput } from "@/components/storefront/GlobalSearchInput";
+import { NotificationPopover } from "./NotificationPopover";
 
 interface HeaderProps {
   categories: Category[];
@@ -78,6 +79,13 @@ export function Header({ categories, collections = [] }: HeaderProps) {
             <span className="hidden lg:inline-block text-xs font-bold text-muted-foreground">
               Hi, <span className="text-primary">{customer.name.split(" ")[0]}</span>
             </span>
+          )}
+
+          {isMounted && customer && (
+            <NotificationPopover
+              role={customer.role === "admin" ? "admin" : "customer"}
+              customerId={customer._id}
+            />
           )}
 
           <Link href={customer ? (customer.role === "admin" ? "/admin" : "/client/profile") : "/login"} aria-label={customer ? "My Account" : "Sign In"}>

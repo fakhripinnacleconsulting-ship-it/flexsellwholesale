@@ -60,10 +60,6 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
       );
     }
 
-    baseLinks.push(
-      { name: "Notifications", href: "/client/notifications", icon: Bell }
-    );
-
     return baseLinks;
   }, [activeView]);
 
