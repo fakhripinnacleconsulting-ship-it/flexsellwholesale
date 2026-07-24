@@ -171,9 +171,10 @@ export function CartView() {
             const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
             const sku = activeSubVariant?.sku || "NO SKU";
             
-            const { resolveMoq } = require("@/lib/priceTierHelper");
-            const itemTier = item.priceTier || "B2C";
-            const moq = activeSubVariant ? resolveMoq(activeSubVariant, itemTier) : 1;
+            const { resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
+            const customerTypes = customer?.customerTypes || ["B2C"];
+            const liveMoq = activeSubVariant ? resolveMoq(activeSubVariant, customerTypes) : 1;
+            const livePriceTier = activeSubVariant ? resolvePriceTierName(activeSubVariant, customerTypes, item.quantity) : (item.priceTier || "B2C");
             const maxStock = activeSubVariant?.stock || 0;
 
             return (
@@ -194,9 +195,9 @@ export function CartView() {
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold text-foreground line-clamp-2">{item.product.title}</h3>
                           <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            item.priceTier === "B2B" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            livePriceTier === "B2B" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                           }`}>
-                            {item.priceTier === "B2B" ? "Trade Price (B2B)" : "Selling Price (B2C)"}
+                            {livePriceTier === "B2B" ? "Trade Price (B2B)" : "Selling Price (B2C)"}
                           </span>
                         </div>
                         <Button
@@ -233,7 +234,7 @@ export function CartView() {
                                 size="sm"
                                 className="h-8 w-8 px-0 rounded-r-none text-foreground border-r-0"
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                disabled={item.quantity <= moq}
+                                disabled={item.quantity <= liveMoq}
                               >
                                 -
                               </Button>
@@ -242,8 +243,8 @@ export function CartView() {
                                 className="h-8 w-16 text-center text-sm font-semibold text-foreground bg-background border border-border focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                                 value={item.quantity}
                                 onChange={(e) => handleQtyInputChange(item.id, e.target.value)}
-                                onBlur={(e) => handleQtyBlur(item.id, e.target.value, moq)}
-                                min={moq}
+                                onBlur={(e) => handleQtyBlur(item.id, e.target.value, liveMoq)}
+                                min={liveMoq}
                                 max={maxStock}
                               />
                               <Button
@@ -257,7 +258,7 @@ export function CartView() {
                               </Button>
                             </div>
                             <span className="text-[10px] text-muted-foreground">
-                              ({item.priceTier === "B2B" ? "B2B " : ""}MOQ: {moq} | Stock: {maxStock})
+                              (MOQ: {liveMoq} | Stock: {maxStock})
                             </span>
                           </>
                         )}

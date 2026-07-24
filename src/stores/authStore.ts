@@ -33,6 +33,12 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.error("Failed to set dashboard view", e);
         }
       }
+      try {
+        const { useCartStore } = await import("./cartStore");
+        useCartStore.getState().hydrateProducts();
+      } catch (e) {
+        console.error("Failed to hydrate cart on login", e);
+      }
       return true;
     } catch (err: unknown) {
       set({ error: err instanceof Error ? (err as any).message : "Login failed", isLoading: false });
@@ -53,6 +59,12 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.error("Failed to set dashboard view", e);
         }
       }
+      try {
+        const { useCartStore } = await import("./cartStore");
+        useCartStore.getState().hydrateProducts();
+      } catch (e) {
+        console.error("Failed to hydrate cart on register", e);
+      }
       return true;
     } catch (err: unknown) {
       set({ error: err instanceof Error ? (err as any).message : "Registration failed", isLoading: false });
@@ -72,6 +84,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         } catch (e) {
           console.error("Failed to set dashboard view", e);
         }
+      }
+      try {
+        const { useCartStore } = await import("./cartStore");
+        useCartStore.getState().hydrateProducts();
+      } catch (e) {
+        console.error("Failed to hydrate cart on google login", e);
       }
       return true;
     } catch (err: unknown) {
@@ -108,6 +126,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         } catch (e) {
           console.error("Failed to sync dashboard view", e);
         }
+      }
+      try {
+        const { useCartStore } = await import("./cartStore");
+        useCartStore.getState().hydrateProducts();
+      } catch (e) {
+        console.error("Failed to hydrate cart on session check", e);
       }
     } catch (err) {
       set({ customer: null });
