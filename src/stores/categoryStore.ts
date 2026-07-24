@@ -8,7 +8,7 @@ interface CategoryStoreState {
   isLoading: boolean;
   error: string | null;
   initializeCategories: (initial?: Category[], force?: boolean) => Promise<void>;
-  addCategory: (category: Omit<Category, "_id" | "createdAt">) => Promise<void>;
+  addCategory: (category: Omit<Category, "_id" | "createdAt">) => Promise<Category>;
   updateCategory: (id: string, updatedFields: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
 }
@@ -45,6 +45,7 @@ export const useCategoryStore = create<CategoryStoreState>()((set, get) => ({
         categories: [...state.categories, newCategory],
         isLoading: false
       }));
+      return newCategory;
     } catch (err) {
       set({
         error: handleApiError(err, "Failed to add category"),

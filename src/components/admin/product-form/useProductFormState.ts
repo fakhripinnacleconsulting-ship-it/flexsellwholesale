@@ -101,7 +101,7 @@ export function useProductFormState(
 
   React.useEffect(() => {
     initializeProducts(initialProducts);
-    initializeCategories(initialCategories);
+    initializeCategories(initialCategories, true);
     initializeHsns();
   }, [initialProducts, initialCategories, initializeProducts, initializeCategories, initializeHsns]);
 
@@ -126,6 +126,13 @@ export function useProductFormState(
   const [seoDescription, setSeoDescription] = React.useState("");
   const [seoKeywords, setSeoKeywords] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
+
+  // Auto select default category if categoryId is empty for a new product
+  React.useEffect(() => {
+    if (!categoryId && activeCategories.length > 0 && !existingProduct) {
+      setCategoryId(activeCategories[0]._id);
+    }
+  }, [activeCategories, categoryId, existingProduct]);
 
   // Product-level Barcode States
   const [barcode, setBarcode] = React.useState("");
