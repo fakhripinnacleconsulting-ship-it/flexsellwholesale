@@ -47,21 +47,11 @@ export const useCartStore = create<CartState>()(
 
       setBuyerState: (state) => set({ buyerState: state }),
 
-      addItem: (product, selectedVariants, quantity = 1, priceTier = "B2C") => {
-        // Fetch active customer from authStore & resolve tier
+      addItem: (product, selectedVariants, quantity = 1, priceTierInput = "B2C") => {
+        const { resolvePrice, resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
         const customer = useAuthStore.getState().customer;
-        const { resolveCustomerTier } = require("@/lib/priceTierHelper");
-        const effectiveTier: "B2C" | "B2B" = customer?.customerTypes?.length
-          ? (resolveCustomerTier(customer.customerTypes) === "B2B" ? "B2B" : "B2C")
-          : priceTier;
+        const customerTypes = customer?.customerTypes || ["B2C"];
 
-        const variantKey = Object.entries(selectedVariants)
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([k, v]) => `${k}:${v}`)
-          .join("|");
-
-        const itemId = `${product._id}-${variantKey}-${effectiveTier}`;
-        
         if (customer && customer.customerTypes && customer.customerTypes.length === 1 && customer.customerTypes[0] === "Dropshipping") {
           useToastStore.getState().addToast("Dropshipping accounts cannot place orders directly from storefront.", "warning");
           return;
@@ -90,18 +80,22 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const calculatedPrice = resolvePrice(matchedVariant, effectiveTier);
+        const variantKey = Object.entries(selectedVariants)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([k, v]) => `${k}:${v}`)
+          .join("|");
+
         const availableStock = matchedVariant.stock;
-        const moq = resolveMoq(matchedVariant, effectiveTier);
+        const moq = resolveMoq(matchedVariant, customerTypes);
 
         // Check if item exists in cart
-        const existingItem = get().items.find(item => item.id === itemId);
+        const existingItem = get().items.find(item => item.productId === liveProduct._id && item.id.includes(variantKey));
         const currentQty = existingItem ? existingItem.quantity : 0;
         let targetQty = currentQty + quantity;
 
-        // Verify MOQ constraint
+        // Verify mandatory MOQ constraint (Pure B2B only)
         if (targetQty < moq) {
-          useToastStore.getState().addToast(`MOQ required. Standard limit for this product is at least ${moq} units.`, "warning");
+          useToastStore.getState().addToast(`MOQ required for B2B orders. Minimum limit is ${moq} units.`, "warning");
           targetQty = moq;
         }
 
@@ -116,16 +110,33 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
+        const calculatedPrice = resolvePrice(matchedVariant, customerTypes, targetQty);
+        const resolvedTierName = resolvePriceTierName(matchedVariant, customerTypes, targetQty);
+        const itemId = `${product._id}-${variantKey}-${resolvedTierName}`;
+
         set((state) => {
-          const existingIndex = state.items.findIndex(item => item.id === itemId);
+          const existingIndex = state.items.findIndex(item => item.productId === liveProduct._id && item.id.includes(variantKey));
           const updatedItems = [...state.items];
 
           if (existingIndex > -1) {
+            const oldPrice = updatedItems[existingIndex].pricePerUnit;
+            updatedItems[existingIndex].id = itemId;
             updatedItems[existingIndex].quantity = targetQty;
-            useToastStore.getState().addToast(`Updated quantity in cart to ${targetQty}.`, "success");
+            updatedItems[existingIndex].pricePerUnit = calculatedPrice;
+            updatedItems[existingIndex].priceTier = resolvedTierName;
+            
+            if (calculatedPrice < oldPrice) {
+              useToastStore.getState().addToast(`🎉 Bulk discount unlocked! Order quantity ${targetQty} reached MOQ threshold. Unit price upgraded to ${resolvedTierName} rate!`, "success");
+            } else {
+              useToastStore.getState().addToast(`Updated quantity in cart to ${targetQty}.`, "success");
+            }
             return { items: updatedItems };
           } else {
-            useToastStore.getState().addToast(`Successfully added ${targetQty} items to cart!`, "success");
+            if (resolvedTierName === "B2B" && customerTypes.includes("B2C")) {
+              useToastStore.getState().addToast(`🎉 Added ${targetQty} items at B2B wholesale price (${calculatedPrice})!`, "success");
+            } else {
+              useToastStore.getState().addToast(`Successfully added ${targetQty} items to cart!`, "success");
+            }
             return {
               items: [
                 ...state.items,
@@ -136,7 +147,7 @@ export const useCartStore = create<CartState>()(
                   selectedVariants,
                   quantity: targetQty,
                   pricePerUnit: calculatedPrice,
-                  priceTier: effectiveTier,
+                  priceTier: resolvedTierName,
                 }
               ]
             };
@@ -154,6 +165,10 @@ export const useCartStore = create<CartState>()(
       updateQuantity: (itemId, qty) => {
         const item = get().items.find(i => i.id === itemId);
         if (!item) return;
+
+        const { resolvePrice, resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
+        const customer = useAuthStore.getState().customer;
+        const customerTypes = customer?.customerTypes || ["B2C"];
 
         // Find live stock and MOQ boundaries
         const storeProducts = useProductStore.getState().products;
@@ -175,14 +190,13 @@ export const useCartStore = create<CartState>()(
         if (!matchedVariant) return;
 
         const availableStock = matchedVariant.stock;
-        const itemTier = item.priceTier || "B2C";
-        const moq = resolveMoq(matchedVariant, itemTier);
+        const moq = resolveMoq(matchedVariant, customerTypes);
 
         let targetQty = qty;
 
-        // Enforce MOQ
+        // Enforce mandatory MOQ only for Pure B2B
         if (targetQty < moq) {
-          useToastStore.getState().addToast(`MOQ required: minimum ${moq} units.`, "warning");
+          useToastStore.getState().addToast(`MOQ required for B2B orders: minimum ${moq} units.`, "warning");
           targetQty = moq;
         }
 
@@ -192,9 +206,22 @@ export const useCartStore = create<CartState>()(
           targetQty = availableStock;
         }
 
+        const newPricePerUnit = resolvePrice(matchedVariant, customerTypes, targetQty);
+        const newPriceTier = resolvePriceTierName(matchedVariant, customerTypes, targetQty);
+
+        if (item.pricePerUnit > newPricePerUnit) {
+          useToastStore.getState().addToast(`🎉 Wholesale price unlocked! Unit price upgraded to B2B rate.`, "success");
+        }
+
         set((state) => ({
           items: state.items.map(i =>
-            i.id === itemId ? { ...i, quantity: targetQty } : i
+            i.id === itemId ? {
+              ...i,
+              id: `${i.productId}-${Object.entries(i.selectedVariants).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>`${k}:${v}`).join("|")}-${newPriceTier}`,
+              quantity: targetQty,
+              pricePerUnit: newPricePerUnit,
+              priceTier: newPriceTier
+            } : i
           )
         }));
       },

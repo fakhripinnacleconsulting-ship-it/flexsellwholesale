@@ -13,7 +13,7 @@ import { useWishlistStore } from "@/stores/wishlistStore";
 import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
-import { resolvePrice, canPurchase, resolveMoq, resolveCustomerTier } from "@/lib/priceTierHelper";
+import { resolvePrice, canPurchase, resolveMoq, resolvePriceTierName, isPureB2B } from "@/lib/priceTierHelper";
 import { motion } from "framer-motion";
 
 interface ProductCardProps {
@@ -49,14 +49,14 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
   const rawSecondImgUrl = secondImg ? (typeof secondImg === "string" ? secondImg : secondImg.url || "") : "";
   const secondImgUrl = rawSecondImgUrl ? sanitizeImgUrl(rawSecondImgUrl) : "";
 
-  const activeTier = customer && customer.customerTypes && customer.customerTypes.length > 0 
-    ? resolveCustomerTier(customer.customerTypes) 
-    : (product.defaultPriceTier || "B2C");
+  const customerTypes = customer?.customerTypes || ["B2C"];
+  const purchaseAllowed = !customer || canPurchase(customerTypes);
+  
+  const price = defaultSub ? resolvePrice(defaultSub, customerTypes, qty) : 0;
+  const activeTierName = defaultSub ? resolvePriceTierName(defaultSub, customerTypes, qty) : "B2C";
+  const moq = defaultSub ? resolveMoq(defaultSub, customerTypes) : 1;
+  const pureB2B = isPureB2B(customerTypes);
 
-  const activeCartTier = activeTier === "B2B" ? "B2B" : "B2C";
-
-  const purchaseAllowed = !customer || canPurchase(customer.customerTypes);
-  const price = defaultSub ? resolvePrice(defaultSub, activeTier) : 0;
   const mrp = defaultSub?.mrp ?? 0;
   const discount = mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
   const sku = defaultSub?.sku || "NO SKU";
@@ -91,10 +91,10 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
       return;
     }
 
-    const itemMoq = defaultSub ? resolveMoq(defaultSub, activeCartTier) : 1;
+    const itemMoq = defaultSub ? resolveMoq(defaultSub, customerTypes) : 1;
     let orderQty = qty;
-    if (orderQty < itemMoq) {
-      addToast(`MOQ required. Standard limit is at least ${itemMoq} units.`, "warning");
+    if (pureB2B && orderQty < itemMoq) {
+      addToast(`MOQ required. Standard B2B limit is at least ${itemMoq} units.`, "warning");
       orderQty = itemMoq;
       setQty(itemMoq);
     }
@@ -106,8 +106,7 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
         Size: defaultSub?.size || "Standard",
         Weight: defaultSub?.weight || "250g"
       },
-      orderQty,
-      activeCartTier
+      orderQty
     );
     addToast(`${product.title} added to cart successfully.`, "success");
   };
