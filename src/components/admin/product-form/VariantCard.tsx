@@ -469,30 +469,40 @@ export function VariantCard({
 
                       const barcodeContentHtml = (sv.barcodeSource === "image" && sv.barcodeImage)
                         ? `<img src="${sv.barcodeImage}" style="max-height: 80px; max-width: 100%; object-fit: contain;" />`
-                        : getBarcodeSvgString(barVal, 0.8, 24);
+                        : getBarcodeSvgString(barVal, { width: 1.4, height: 35, displayValue: false });
 
                       printWindow.document.write(`
+                        <!DOCTYPE html>
                         <html>
                           <head>
                             <title>Barcode Print - ${sv.sku || "Variant"}</title>
                             <style>
-                              body { display: flex; justify-content: center; align-items: center; height: 90vh; font-family: sans-serif; background: #fff; }
-                              .card { text-align: center; width: 220px; border: 1px solid #000; padding: 12px; }
-                              @media print { button { display: none; } }
+                              @page {
+                                size: auto;
+                                margin: 0mm;
+                              }
+                              body { display: flex; justify-content: center; align-items: center; min-height: 90vh; font-family: system-ui, sans-serif; background: #fff; margin: 0; }
+                              .card { text-align: center; width: 220px; border: 1px solid #000; padding: 12px; border-radius: 6px; }
+                              @media print {
+                                html, body { margin: 0; padding: 0; }
+                                .no-print { display: none !important; }
+                              }
                             </style>
                           </head>
                           <body>
                             <div style="text-align:center;">
-                              <button onclick="window.print()" style="padding: 6px 12px; margin-bottom: 15px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px; font-weight: bold;">
-                                Print Barcode Label
-                              </button>
+                              <div class="no-print" style="margin-bottom: 15px;">
+                                <button onclick="window.print()" style="padding: 6px 12px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px; font-weight: bold;">
+                                  Print Barcode Label
+                                </button>
+                              </div>
                               <div class="card">
-                                <div style="font-size:12px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">${title || 'Product'}</div>
-                                <div style="font-size:10px; color:#555; margin-bottom:6px;">Variant: ${sv.size} / ${sv.weight}</div>
-                                <div style="display:flex; justify-content:center; margin-bottom:6px;">
+                                <div style="font-size:11px; font-weight:bold; margin-bottom:2px; text-transform:uppercase;">${title || 'Product'}</div>
+                                <div style="font-size:9px; color:#555; margin-bottom:4px;">Variant: ${sv.size || 'Std'} / ${sv.weight || '250g'}</div>
+                                <div style="display:flex; justify-content:center; margin:4px 0;">
                                   ${barcodeContentHtml}
                                 </div>
-                                <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase;">SKU: ${sv.sku}</div>
+                                <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase;">${sv.sku}</div>
                               </div>
                             </div>
                           </body>

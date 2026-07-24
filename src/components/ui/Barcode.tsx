@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CODE39_MAP } from "@/lib/barcodeHelper";
+import JsBarcode from "jsbarcode";
 
 interface BarcodeProps {
   value?: string;
@@ -9,71 +9,67 @@ interface BarcodeProps {
   className?: string;
   width?: number;
   height?: number;
+  displayValue?: boolean;
+  fontSize?: number;
 }
 
-export function Barcode({ value = "", sku, className = "", width = 0.8, height = 20 }: BarcodeProps) {
+export function Barcode({
+  value = "",
+  sku,
+  className = "",
+  width = 1.5,
+  height = 35,
+  displayValue = false,
+  fontSize = 11
+}: BarcodeProps) {
+  const svgRef = React.useRef<SVGSVGElement | null>(null);
   const encodeValue = React.useMemo(() => {
-    return sku || value || "";
+    return (sku || value || "").trim().toUpperCase();
   }, [value, sku]);
 
-  // Normalize value to uppercase and strip invalid characters
-  const rawText = React.useMemo(() => {
-    return encodeValue
-      .toUpperCase()
-      .split("")
-      .filter(char => char in CODE39_MAP)
-      .join("");
-  }, [encodeValue]);
+  const [hasError, setHasError] = React.useState(false);
 
-  // Wrap with Code 39 start/stop character '*'
-  const encodedText = React.useMemo(() => {
-    if (!rawText) return "";
-    return `*${rawText}*`;
-  }, [rawText]);
-
-  // Construct binary representation
-  const binaryBars = React.useMemo(() => {
-    let result = "";
-    for (let i = 0; i < encodedText.length; i++) {
-      const char = encodedText[i];
-      result += CODE39_MAP[char] + "0"; // 0 separator between characters
+  React.useLayoutEffect(() => {
+    if (!encodeValue || !svgRef.current) {
+      setHasError(!encodeValue);
+      return;
     }
-    return result;
-  }, [encodedText]);
 
-  if (!binaryBars) {
-    return <div className="text-[10px] text-destructive font-mono">Invalid Barcode</div>;
+    try {
+      JsBarcode(svgRef.current, encodeValue, {
+        format: "CODE128",
+        width,
+        height,
+        displayValue,
+        fontSize,
+        fontOptions: "bold",
+        margin: 2,
+        font: "monospace",
+        background: "transparent",
+        lineColor: "#000000",
+        valid: (valid) => {
+          setHasError(!valid);
+        }
+      });
+      setHasError(false);
+    } catch (err) {
+      console.warn("JsBarcode render notice:", err);
+      setHasError(true);
+    }
+  }, [encodeValue, width, height, displayValue, fontSize]);
+
+  if (!encodeValue || hasError) {
+    return (
+      <div className={`flex flex-col items-center justify-center p-2 rounded bg-destructive/10 border border-destructive/20 text-destructive text-[10px] font-mono ${className}`}>
+        Invalid Barcode ({encodeValue || "Empty"})
+      </div>
+    );
   }
 
-  const svgWidth = binaryBars.length * width;
-
   return (
-    <div className={`flex flex-col items-center p-1 bg-white rounded border border-gray-100 w-max select-none ${className}`}>
-      <svg
-        width={svgWidth}
-        height={height}
-        viewBox={`0 0 ${svgWidth} ${height}`}
-        className="w-full"
-      >
-        {binaryBars.split("").map((bit, idx) => {
-          if (bit === "1") {
-            return (
-              <rect
-                key={idx}
-                x={idx * width}
-                y={0}
-                width={width}
-                height={height}
-                fill="#000000"
-              />
-            );
-          }
-          return null;
-        })}
-      </svg>
-      <span className="text-[8px] font-mono font-bold tracking-widest text-black mt-1 uppercase">
-        {sku || value}
-      </span>
+    <div className={`flex flex-col items-center p-1.5 bg-white rounded border border-gray-200 select-none ${className}`}>
+      <svg ref={svgRef} className="max-w-full h-auto block" />
+      <span className="text-[11px] font-mono font-extrabold text-black mt-1 tracking-wider">{encodeValue}</span>
     </div>
   );
 }

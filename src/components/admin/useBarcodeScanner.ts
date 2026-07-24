@@ -1,7 +1,11 @@
+"use client";
+
 import * as React from "react";
 import { Product, ColorVariant, SubVariant } from "@/types";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
+import { resolveBarcode, BarcodeResolutionResult } from "@/services/barcodeResolver";
+import { initUSBScannerListener } from "@/lib/usbScannerListener";
 
 export interface ScanHistoryItem {
   timestamp: string;
@@ -11,16 +15,24 @@ export interface ScanHistoryItem {
   stock: number;
 }
 
-export function useBarcodeScanner(isOpen: boolean) {
+export function useBarcodeScanner(
+  isOpen: boolean,
+  initialCustomerType: "B2C" | "B2B" | "Dropshipping" = "B2C",
+  onSelectVariant?: (resolved: any) => void
+) {
   const { products, updateProduct } = useProductStore();
   const [scanInput, setScanInput] = React.useState("");
   const [scannedProduct, setScannedProduct] = React.useState<Product | null>(null);
   const [scannedVariant, setScannedVariant] = React.useState<ColorVariant | null>(null);
   const [scannedSubVariant, setScannedSubVariant] = React.useState<SubVariant | null>(null);
+  const [lastResolution, setLastResolution] = React.useState<BarcodeResolutionResult | null>(null);
   const [errorMsg, setErrorMsg] = React.useState("");
   const [scanHistory, setScanHistory] = React.useState<ScanHistoryItem[]>([]);
   const [continuousScan, setContinuousScan] = React.useState(true);
   const [isScanning, setIsScanning] = React.useState(false);
+
+  // Camera Dual-Mode State ("rear" | "front")
+  const [cameraMode, setCameraMode] = React.useState<"rear" | "front">("rear");
   const [availableCameras, setAvailableCameras] = React.useState<{ id: string; label: string }[]>([]);
   const [selectedCameraId, setSelectedCameraId] = React.useState<string>("");
 
@@ -29,10 +41,48 @@ export function useBarcodeScanner(isOpen: boolean) {
   const lastScanRef = React.useRef<{ value: string; timestamp: number }>({ value: "", timestamp: 0 });
   const isBusyRef = React.useRef<boolean>(false);
   const continuousScanRef = React.useRef<boolean>(true);
+  const onSelectVariantRef = React.useRef(onSelectVariant);
 
+  React.useEffect(() => {
+    onSelectVariantRef.current = onSelectVariant;
+  }, [onSelectVariant]);
+
+  // Sync continuousScan ref
   React.useEffect(() => {
     continuousScanRef.current = continuousScan;
   }, [continuousScan]);
+
+  // Load saved camera mode preference
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedPref = localStorage.getItem("flexsell-camera-preference") as "rear" | "front" | null;
+      if (savedPref === "rear" || savedPref === "front") {
+        setCameraMode(savedPref);
+      }
+    }
+  }, []);
+
+  // Web Audio synthetic scan beep tone
+  const playScanBeep = React.useCallback(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch {
+      // Audio autoplay restrictions ignored silently
+    }
+  }, []);
 
   const stopCamera = React.useCallback(async () => {
     if (isBusyRef.current && !html5QrcodeRef.current) return;
@@ -56,145 +106,88 @@ export function useBarcodeScanner(isOpen: boolean) {
     }
   }, []);
 
-  const handleScanSearch = React.useCallback((barcodeVal: string) => {
+  const handleScanSearch = React.useCallback((barcodeVal: string): BarcodeResolutionResult | null => {
     setErrorMsg("");
     const cleaned = barcodeVal.trim().replace(/[\r\n\t]/g, "").toUpperCase();
-    if (!cleaned) return;
+    if (!cleaned) return null;
 
-    // Debounce duplicate scans within 1500ms
+    // Debounce rapid duplicate scans within 1200ms
     const now = Date.now();
-    if (lastScanRef.current.value === cleaned && (now - lastScanRef.current.timestamp < 1500)) {
-      return;
+    if (lastScanRef.current.value === cleaned && (now - lastScanRef.current.timestamp < 1200)) {
+      return lastResolution;
     }
     lastScanRef.current = { value: cleaned, timestamp: now };
 
     const activeProducts = products.length > 0 ? products : useProductStore.getState().products;
+    const res = resolveBarcode(cleaned, activeProducts, initialCustomerType);
 
-    let foundProduct: Product | null = null;
-    let foundVariant: ColorVariant | null = null;
-    let foundSubVariant: SubVariant | null = null;
+    setLastResolution(res);
 
-    // Search 1: Exact match on SubVariant SKU or barcode
-    for (const p of activeProducts) {
-      for (const cv of p.colorVariants || []) {
-        const matchSub = cv.subVariants?.find(sv => 
-          sv.sku.toUpperCase() === cleaned || 
-          (sv.barcode && sv.barcode.toUpperCase() === cleaned)
-        );
-        if (matchSub) {
-          foundProduct = p;
-          foundVariant = cv;
-          foundSubVariant = matchSub;
-          break;
-        }
-      }
-      if (foundProduct) break;
-    }
+    if (res.success && res.product && res.colorVariant && res.subVariant) {
+      playScanBeep();
+      setScannedProduct(res.product);
+      setScannedVariant(res.colorVariant);
+      setScannedSubVariant(res.subVariant);
+      setScanInput(res.subVariant.sku);
 
-    // Search 2: Exact match on Product-level barcode, _id, or slug
-    if (!foundProduct) {
-      for (const p of activeProducts) {
-        const matchProductBarcode = p.barcode && p.barcode.toUpperCase() === cleaned;
-        const matchId = p._id.toUpperCase() === cleaned;
-        const matchSlug = p.slug.toUpperCase() === cleaned;
-
-        if (matchProductBarcode || matchId || matchSlug) {
-          foundProduct = p;
-          foundVariant = p.colorVariants?.[0] || null;
-          foundSubVariant = p.colorVariants?.[0]?.subVariants?.[0] || null;
-          break;
-        }
-      }
-    }
-
-    // Search 3: Normalized/Fuzzy match (ignoring non-alphanumeric separators)
-    if (!foundProduct) {
-      const strippedCleaned = cleaned.replace(/[^A-Z0-9]/g, "");
-      if (strippedCleaned.length >= 3) {
-        for (const p of activeProducts) {
-          for (const cv of p.colorVariants || []) {
-            const matchSub = cv.subVariants?.find(sv => {
-              const strippedSku = sv.sku.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-              const strippedBc = sv.barcode ? sv.barcode.replace(/[^A-Za-z0-9]/g, "").toUpperCase() : "";
-              return (strippedSku && (strippedSku === strippedCleaned || strippedCleaned.includes(strippedSku))) ||
-                     (strippedBc && (strippedBc === strippedCleaned || strippedCleaned.includes(strippedBc)));
-            });
-            if (matchSub) {
-              foundProduct = p;
-              foundVariant = cv;
-              foundSubVariant = matchSub;
-              break;
-            }
-          }
-          if (foundProduct) break;
-        }
-      }
-    }
-
-    if (foundProduct && foundVariant && foundSubVariant) {
-      setScannedProduct(foundProduct);
-      setScannedVariant(foundVariant);
-      setScannedSubVariant(foundSubVariant);
-      setScanInput(foundSubVariant.sku);
-      
       const newItem: ScanHistoryItem = {
         timestamp: new Date().toLocaleTimeString(),
-        sku: foundSubVariant.sku,
-        productTitle: foundProduct.title,
-        variantDetails: `${foundVariant.color} - ${foundSubVariant.size} / ${foundSubVariant.weight}`,
-        stock: foundSubVariant.stock
+        sku: res.subVariant.sku,
+        productTitle: res.product.title,
+        variantDetails: `${res.colorVariant.color} - ${res.subVariant.size || "Std"} / ${res.subVariant.weight || "250g"}`,
+        stock: res.subVariant.stock
       };
-      setScanHistory(prev => [newItem, ...prev.slice(0, 19)]); // Keep last 20
+      setScanHistory(prev => [newItem, ...prev.slice(0, 19)]);
+      useToastStore.getState().addToast(`Matched SKU: ${res.subVariant.sku} (${res.product.title})`, "success");
 
-      useToastStore.getState().addToast(`Matched product: ${foundProduct.title} (${foundVariant.color} - ${foundSubVariant.size})`, "success");
+      if (onSelectVariantRef.current) {
+        onSelectVariantRef.current(res);
+      }
+
+      return res;
     } else {
       setScannedProduct(null);
       setScannedVariant(null);
       setScannedSubVariant(null);
-      setErrorMsg(`Barcode "${barcodeVal}" not found in B2B product inventory.`);
-      useToastStore.getState().addToast(`Barcode lookup failed.`, "error");
+      setErrorMsg(res.error || `Barcode "${barcodeVal}" not found.`);
+      useToastStore.getState().addToast(`Barcode resolution failed for "${barcodeVal}".`, "error");
+      return null;
     }
-  }, [products]);
+  }, [products, initialCustomerType, playScanBeep, lastResolution]);
 
-  const startCamera = async (targetDeviceId?: string) => {
+  const startCamera = async (targetMode: "rear" | "front" = cameraMode, targetDeviceId?: string) => {
     if (isBusyRef.current) return;
     isBusyRef.current = true;
     setErrorMsg("");
 
-    // Check 1: Ensure mediaDevices API exists (must be on localhost or HTTPS)
     if (typeof window !== "undefined" && (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
-      setErrorMsg("Camera access is blocked or unavailable on insecure origins. Please access the admin dashboard via http://localhost:3000 or HTTPS.");
+      setErrorMsg("Camera access requires localhost or HTTPS context.");
       isBusyRef.current = false;
       return;
     }
 
-    // Check 2: Pre-request permission directly within user gesture window
+    // Attempt direct permission request
+    const facingConstraint = targetMode === "rear" ? "environment" : "user";
     let testStream: MediaStream | null = null;
     try {
       if (targetDeviceId) {
         testStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: targetDeviceId } } });
       } else {
         try {
-          testStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          testStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingConstraint } });
         } catch {
           testStream = await navigator.mediaDevices.getUserMedia({ video: true });
         }
       }
     } catch (permErr: any) {
-      console.warn("Direct getUserMedia permission request result:", permErr);
       const errStr = String(permErr?.message || permErr?.name || "");
-      if (
-        permErr?.name === "NotAllowedError" ||
-        permErr?.name === "PermissionDeniedError" ||
-        errStr.includes("Permission denied") ||
-        errStr.includes("Permission dismissed")
-      ) {
-        setErrorMsg("Camera permission is blocked in browser settings. Click the Site Settings/Lock icon near the browser URL bar, set Camera to 'Allow', then click 'Live Camera Scan' again.");
+      if (permErr?.name === "NotAllowedError" || errStr.includes("Permission denied")) {
+        setErrorMsg("Camera permission is blocked in browser settings. Please allow camera access in URL site settings.");
         setIsScanning(false);
         isBusyRef.current = false;
         return;
       } else if (permErr?.name === "NotFoundError" || errStr.includes("Requested device not found")) {
-        setErrorMsg("No camera device was detected on your computer or mobile device.");
+        setErrorMsg("No camera device was detected on your system.");
         setIsScanning(false);
         isBusyRef.current = false;
         return;
@@ -221,7 +214,7 @@ export function useBarcodeScanner(isOpen: boolean) {
 
       setIsScanning(true);
 
-      // Poll until DOM element 'scanner-video-feed' is rendered
+      // Wait for DOM container
       let retries = 0;
       const waitForElement = () => {
         return new Promise<HTMLElement | null>((resolve) => {
@@ -241,14 +234,13 @@ export function useBarcodeScanner(isOpen: boolean) {
 
       const container = await waitForElement();
       if (!container) {
-        setErrorMsg("Video scanner feed element not found in DOM.");
+        setErrorMsg("Video feed element not rendered.");
         setIsScanning(false);
         return;
       }
 
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
 
-      // Retrieve device list for camera switching
       try {
         const devices = await Html5Qrcode.getCameras();
         if (devices && devices.length > 0) {
@@ -258,15 +250,14 @@ export function useBarcodeScanner(isOpen: boolean) {
         console.warn("Could not enumerate camera devices:", devErr);
       }
 
-      // Enable 1D product barcodes (Code 128, EAN, UPC, Code 39) + 2D QR codes
       const supportedFormats = [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
         Html5QrcodeSupportedFormats.CODE_128,
         Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
         Html5QrcodeSupportedFormats.UPC_A,
         Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.QR_CODE,
         Html5QrcodeSupportedFormats.CODABAR,
         Html5QrcodeSupportedFormats.ITF,
         Html5QrcodeSupportedFormats.DATA_MATRIX
@@ -300,29 +291,28 @@ export function useBarcodeScanner(isOpen: boolean) {
       const tryStart = async (cameraTarget: { facingMode: string } | string) => {
         const containerEl = document.getElementById("scanner-video-feed");
         if (containerEl) containerEl.innerHTML = "";
-
         await html5QrCode.start(cameraTarget, scanConfig, onScanSuccess, () => {});
         html5QrcodeRef.current = html5QrCode;
       };
 
-      const activeCameraId = targetDeviceId || selectedCameraId;
-      if (activeCameraId) {
-        await tryStart(activeCameraId);
+      const activeDeviceId = targetDeviceId || selectedCameraId;
+      if (activeDeviceId) {
+        await tryStart(activeDeviceId);
       } else {
         try {
-          await tryStart({ facingMode: "environment" });
-        } catch (backErr) {
-          console.warn("Back camera unavailable, trying front camera:", backErr);
+          await tryStart({ facingMode: facingConstraint });
+        } catch (modeErr) {
+          console.warn(`Camera target facingMode ${facingConstraint} failed, trying fallback:`, modeErr);
+          const fallbackConstraint = facingConstraint === "environment" ? "user" : "environment";
           try {
-            await tryStart({ facingMode: "user" });
-          } catch (frontErr) {
-            console.warn("Front camera unavailable, listing cameras:", frontErr);
+            await tryStart({ facingMode: fallbackConstraint });
+          } catch (fbErr) {
             const devices = await Html5Qrcode.getCameras();
             if (devices && devices.length > 0) {
               await tryStart(devices[0].id);
               setSelectedCameraId(devices[0].id);
             } else {
-              throw new Error("No camera devices found.");
+              throw fbErr;
             }
           }
         }
@@ -330,24 +320,45 @@ export function useBarcodeScanner(isOpen: boolean) {
     } catch (err: any) {
       console.warn("Camera scanner start failed:", err);
       const errStr = String(err?.message || err || "");
-      if (
-        errStr.includes("NotAllowedError") ||
-        errStr.includes("Permission denied") ||
-        errStr.includes("PermissionDeniedError")
-      ) {
-        setErrorMsg("Camera permission is blocked in browser settings. Please click the Lock icon next to the site URL -> Site settings -> Allow Camera.");
-      } else if (errStr.includes("NotFoundError") || errStr.includes("No camera") || errStr.includes("Requested device not found")) {
+      if (errStr.includes("NotAllowedError") || errStr.includes("Permission denied")) {
+        setErrorMsg("Camera permission is blocked in browser settings.");
+      } else if (errStr.includes("NotFoundError") || errStr.includes("No camera")) {
         setErrorMsg("No camera device found on this system.");
-      } else if (errStr.includes("NotReadableError") || errStr.includes("Could not start video source")) {
-        setErrorMsg("Camera is locked by another application. Please close Zoom/Teams/Webcam apps and retry.");
+      } else if (errStr.includes("NotReadableError")) {
+        setErrorMsg("Camera is locked by another application (Zoom, Teams, Webcam).");
       } else {
-        setErrorMsg("Camera access failed. Ensure a valid camera is connected and allowed.");
+        setErrorMsg("Camera access failed. Check device connections.");
       }
       setIsScanning(false);
     } finally {
       isBusyRef.current = false;
     }
   };
+
+  // Switch camera mode (Rear vs Front) with live restart
+  const toggleCameraMode = async (mode: "rear" | "front") => {
+    setCameraMode(mode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("flexsell-camera-preference", mode);
+    }
+    if (isScanning) {
+      await stopCamera();
+      await startCamera(mode);
+    }
+  };
+
+  // Attach USB Scanner Listener when modal is open
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const cleanupUSB = initUSBScannerListener({
+      onScan: (scannedText) => {
+        handleScanSearch(scannedText);
+      }
+    });
+    return () => {
+      cleanupUSB();
+    };
+  }, [isOpen, handleScanSearch]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -365,13 +376,21 @@ export function useBarcodeScanner(isOpen: boolean) {
     };
   }, [isOpen, stopCamera]);
 
-  const handleStockChange = async (amount: number) => {
+  const handleStockChange = async (amount: number, actionType: "add" | "sub" | "set") => {
     if (!scannedProduct || !scannedVariant || !scannedSubVariant) return;
-    const newStock = Math.max(0, scannedSubVariant.stock + amount);
-    
+
+    let newStock = scannedSubVariant.stock;
+    if (actionType === "add") {
+      newStock = scannedSubVariant.stock + amount;
+    } else if (actionType === "sub") {
+      newStock = Math.max(0, scannedSubVariant.stock - amount);
+    } else if (actionType === "set") {
+      newStock = Math.max(0, amount);
+    }
+
     const updatedVariants = scannedProduct.colorVariants.map((cv: ColorVariant) => {
       if (cv.color === scannedVariant.color) {
-        const updatedSubs = (cv.subVariants || []).map((sv) => 
+        const updatedSubs = (cv.subVariants || []).map((sv) =>
           sv.id === scannedSubVariant.id ? { ...sv, stock: newStock } : sv
         );
         return { ...cv, subVariants: updatedSubs };
@@ -379,7 +398,7 @@ export function useBarcodeScanner(isOpen: boolean) {
       return cv;
     });
 
-    const totalStock = updatedVariants.reduce((sum: number, cv: ColorVariant) => 
+    const totalStock = updatedVariants.reduce((sum: number, cv: ColorVariant) =>
       sum + (cv.subVariants?.reduce((sSum, sv) => sSum + sv.stock, 0) || 0)
     , 0);
 
@@ -389,7 +408,6 @@ export function useBarcodeScanner(isOpen: boolean) {
       colorVariants: updatedVariants
     };
 
-    // Optimistic UI updates
     const previousProduct = scannedProduct;
     const previousSubVariant = scannedSubVariant;
     setScannedProduct(updatedProduct);
@@ -397,26 +415,12 @@ export function useBarcodeScanner(isOpen: boolean) {
 
     try {
       await updateProduct(scannedProduct._id, updatedProduct);
-      useToastStore.getState().addToast(`Stock level updated to ${newStock} units.`, "success");
+      useToastStore.getState().addToast(`Stock for ${scannedSubVariant.sku} updated to ${newStock} units.`, "success");
     } catch (err: any) {
-      // Revert state on failure
       setScannedProduct(previousProduct);
       setScannedSubVariant(previousSubVariant);
-      useToastStore.getState().addToast(err?.message || "Failed to update stock level in database.", "error");
+      useToastStore.getState().addToast(err?.message || "Failed to update stock in database.", "error");
     }
-  };
-
-  const getWarehouseLocation = (catId: string) => {
-    const sections: Record<string, string> = {
-      cat_kitchen_tools: "Aisle A, Rack 04 (Kitchen Goods)",
-      cat_home_cleaning: "Aisle A, Rack 12 (Cleaning Supplies)",
-      cat_electronics: "Aisle B, Rack 02 (Electronics)",
-      cat_beauty: "Aisle C, Rack 08 (Cosmetics)",
-      cat_fashion: "Aisle D, Rack 15 (Apparel)",
-      cat_hardware: "Aisle E, Rack 03 (Tools & DIY)",
-      cat_toys: "Aisle F, Rack 09 (Kids Section)"
-    };
-    return sections[catId] || "Aisle G, Rack 01 (General Cargo)";
   };
 
   const handleFileUploadScan = async (file: File) => {
@@ -425,16 +429,11 @@ export function useBarcodeScanner(isOpen: boolean) {
     try {
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
       const supportedFormats = [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
         Html5QrcodeSupportedFormats.CODE_128,
         Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODABAR,
-        Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.DATA_MATRIX
+        Html5QrcodeSupportedFormats.QR_CODE
       ];
 
       const tempId = "offscreen-file-scanner";
@@ -456,11 +455,11 @@ export function useBarcodeScanner(isOpen: boolean) {
       if (decodedText) {
         handleScanSearch(decodedText);
       } else {
-        setErrorMsg("No readable barcode detected in the uploaded image.");
+        setErrorMsg("No readable barcode detected in image.");
       }
     } catch (err: any) {
       console.warn("File scan error:", err);
-      setErrorMsg("Could not decode barcode from image. Ensure the image has a clear, unblurred barcode label.");
+      setErrorMsg("Could not decode barcode label image.");
     }
   };
 
@@ -471,12 +470,15 @@ export function useBarcodeScanner(isOpen: boolean) {
     scannedProduct,
     scannedVariant,
     scannedSubVariant,
+    lastResolution,
     errorMsg,
     isScanning,
     inputRef,
     scanHistory,
     continuousScan,
     setContinuousScan,
+    cameraMode,
+    toggleCameraMode,
     availableCameras,
     selectedCameraId,
     setSelectedCameraId,
@@ -484,8 +486,6 @@ export function useBarcodeScanner(isOpen: boolean) {
     handleFileUploadScan,
     startCamera,
     stopCamera,
-    handleStockChange,
-    getWarehouseLocation
+    handleStockChange
   };
 }
-

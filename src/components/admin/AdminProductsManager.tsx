@@ -301,11 +301,11 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
         cv.subVariants?.forEach(sv => {
           const barValue = sv.barcode || sv.sku || "FX0000";
           cardsHtml += `
-            <div style="text-align:center; width:140px; margin:10px; display:inline-block; box-sizing:border-box;">
-              <div style="display:flex; justify-content:center; margin-bottom:4px;">
-                ${getBarcodeSvgString(barValue, 0.8, 24)}
+            <div style="text-align:center; width:150px; margin:8px; display:inline-block; box-sizing:border-box; padding:6px; border:1px border #e5e7eb; border-radius:4px;">
+              <div style="display:flex; justify-content:center;">
+                ${getBarcodeSvgString(barValue, { width: 1.4, height: 35, displayValue: false })}
               </div>
-              <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase;">${sv.sku}</div>
+              <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase; margin-top:3px; letter-spacing:0.5px;">${sv.sku}</div>
             </div>
           `;
         });
@@ -313,15 +313,20 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
     });
 
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Bulk Print Barcodes</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; background: #fff; text-align:center; }
-            .grid { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
+            @page {
+              size: auto;
+              margin: 0mm;
+            }
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 15px; background: #fff; text-align:center; }
+            .grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
             @media print {
-              body { background: white; padding: 0; }
-              .no-print { display: none; }
+              html, body { background: #fff; padding: 5mm; margin: 0; }
+              .no-print { display: none !important; }
             }
           </style>
         </head>
@@ -330,7 +335,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
             <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor:pointer; background:#10b981; color:white; border:none; border-radius:5px; font-weight:bold;">
               Print Barcode Labels
             </button>
-            <p style="font-size:12px; color:#666;">Confirm print preview settings and margin layout configuration.</p>
+            <p style="font-size:12px; color:#666; margin-top:6px;">Clean single-SKU Code 128 barcodes ready for thermal or standard printing.</p>
           </div>
           <div class="grid">${cardsHtml}</div>
         </body>
@@ -352,25 +357,36 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
     const barValue = sv.barcode || sv.sku || "FX0000";
 
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Print Label - ${sv.sku}</title>
           <style>
-            body { display: flex; justify-content: center; align-items: center; height: 90vh; font-family: sans-serif; background:#fff; }
-            .card { text-align: center; width: 220px; }
-            @media print { button { display: none; } }
+            @page {
+              size: auto;
+              margin: 0mm;
+            }
+            body { display: flex; justify-content: center; align-items: center; min-height: 90vh; font-family: system-ui, sans-serif; background:#fff; margin:0; }
+            .card { text-align: center; width: 220px; border: 1px border #000; padding: 12px; border-radius: 6px; }
+            @media print {
+              html, body { margin: 0; padding: 0; }
+              .no-print { display: none !important; }
+            }
           </style>
         </head>
         <body>
           <div style="text-align:center;">
-            <button onclick="window.print()" style="padding: 8px 16px; margin-bottom: 20px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px; font-weight: bold;">
-              Print Barcode
-            </button>
+            <div class="no-print" style="margin-bottom: 15px;">
+              <button onclick="window.print()" style="padding: 8px 16px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px; font-weight: bold;">
+                Print Barcode Label
+              </button>
+            </div>
             <div class="card">
-              <div style="display:flex; justify-content:center; margin-bottom:4px;">
-                ${getBarcodeSvgString(barValue, 0.8, 24)}
+              <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">${product.title}</div>
+              <div style="display:flex; justify-content:center;">
+                ${getBarcodeSvgString(barValue, { width: 1.4, height: 35, displayValue: false })}
               </div>
-              <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase;">${sv.sku}</div>
+              <div style="font-size:11px; font-weight:bold; font-family:monospace; text-transform:uppercase; margin-top:4px;">${sv.sku}</div>
             </div>
           </div>
         </body>
@@ -397,26 +413,31 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
         const barValue = sv.barcode || sv.sku || "FX0000";
         
         return `
-          <div style="text-align:center; width:140px; margin:10px; display:inline-block;">
-            <div style="display:flex; justify-content:center; margin-bottom:4px;">
-              ${getBarcodeSvgString(barValue, 0.8, 24)}
+          <div style="text-align:center; width:150px; margin:8px; display:inline-block; box-sizing:border-box; padding:6px; border:1px border #e5e7eb; border-radius:4px;">
+            <div style="display:flex; justify-content:center;">
+              ${getBarcodeSvgString(barValue, { width: 1.4, height: 35, displayValue: false })}
             </div>
-            <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase;">${sv.sku}</div>
+            <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase; margin-top:3px; letter-spacing:0.5px;">${sv.sku}</div>
           </div>
         `;
       }) || []
     ).join("");
 
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Print Barcode Labels - ${titleText}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; background: #fff; text-align:center; }
-            .grid { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
+            @page {
+              size: auto;
+              margin: 0mm;
+            }
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 15px; background: #fff; text-align:center; margin:0; }
+            .grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
             @media print {
-              body { background: white; padding: 0; }
-              .no-print { display: none; }
+              html, body { background: #fff; padding: 5mm; margin: 0; }
+              .no-print { display: none !important; }
             }
           </style>
         </head>
@@ -425,7 +446,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
             <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor:pointer; background:#10b981; color:white; border:none; border-radius:5px; font-weight:bold;">
               Print Barcode Sheet
             </button>
-            <p style="font-size:12px; color:#666; margin-top:5px;">Ensure margins are disabled and background graphics are printed.</p>
+            <p style="font-size:12px; color:#666; margin-top:5px;">Code 128 barcode stickers for ${titleText}.</p>
           </div>
           <div class="grid">${cardsHtml}</div>
         </body>

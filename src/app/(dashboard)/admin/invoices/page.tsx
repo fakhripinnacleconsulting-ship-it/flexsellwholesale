@@ -4,7 +4,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Search, Eye, Plus, Trash2, Calendar, FileText, X, Check, Loader2, ArrowLeft, Printer, RefreshCw, Edit } from "lucide-react";
+import { Search, Eye, Plus, Trash2, Calendar, FileText, X, Check, Loader2, ArrowLeft, Printer, RefreshCw, Edit, QrCode } from "lucide-react";
 import { useInvoiceStore } from "@/stores/invoiceStore";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
@@ -17,6 +17,7 @@ import { Customer, Product, Invoice, CartItem, TaxBreakdown } from "@/types";
 import { INDIAN_STATES } from "@/lib/constants";
 import { resolvePrice, resolveMoq } from "@/lib/priceTierHelper";
 import CustomerSearchPicker from "@/components/admin/CustomerSearchPicker";
+import { BarcodeScanner } from "@/components/admin/BarcodeScanner";
 
 export default function AdminInvoicesPage() {
   const { invoices, total, page, totalPages, initializeInvoices, createInvoice, updateInvoice, voidInvoice, deleteInvoice, isLoading } = useInvoiceStore();
@@ -43,6 +44,7 @@ export default function AdminInvoicesPage() {
 
   // Creation Form State
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
+  const [isInvoiceScannerOpen, setIsInvoiceScannerOpen] = React.useState(false);
   const [formDocType, setFormDocType] = React.useState<"invoice" | "receipt" | "quote">("invoice");
   const [formCustomerType, setFormCustomerType] = React.useState<"B2B" | "B2C" | "Dropshipping">("B2B");
   const [shippingConfig, setShippingConfig] = React.useState<any>(null);
@@ -219,10 +221,12 @@ export default function AdminInvoicesPage() {
   // Reset variant selections when selected product changes
   React.useEffect(() => {
     if (currentSelectedProduct) {
-      const defaultColor = currentSelectedProduct.colorVariants?.[0]?.color || "";
-      setSelectedColor(defaultColor);
-      setSelectedSize("");
-      setSelectedWeight("");
+      const validColors = currentSelectedProduct.colorVariants?.map(cv => cv.color) || [];
+      if (!selectedColor || !validColors.includes(selectedColor)) {
+        setSelectedColor(validColors[0] || "");
+        setSelectedSize("");
+        setSelectedWeight("");
+      }
     } else {
       setSelectedColor("");
       setSelectedSize("");
@@ -1197,7 +1201,16 @@ export default function AdminInvoicesPage() {
                 <h3 className="font-bold text-xs uppercase tracking-wider text-primary border-b pb-1.5">2. Add Product Items</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-secondary/10 p-4 rounded-lg border">
                   <div className="relative md:col-span-2" ref={productWrapperRef}>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Search Product *</label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-xs font-semibold text-muted-foreground">Search Product *</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsInvoiceScannerOpen(true)}
+                        className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <QrCode className="h-3.5 w-3.5" /> Scan Barcode / SKU
+                      </button>
+                    </div>
                     <div className="relative">
                       <Input
                         value={productSearch}
@@ -1536,6 +1549,65 @@ export default function AdminInvoicesPage() {
           </div>
         </div>
       )}
+
+      {/* Invoice Barcode Item Scanner Modal */}
+      <BarcodeScanner
+        isOpen={isInvoiceScannerOpen}
+        onClose={() => setIsInvoiceScannerOpen(false)}
+        customerType={formCustomerType}
+        onSelectVariant={(resolved) => {
+          if (resolved && resolved.product && resolved.subVariant) {
+            const prod = resolved.product;
+            const cv = resolved.colorVariant || prod.colorVariants?.[0];
+            const sv = resolved.subVariant;
+
+            const color = cv?.color || "";
+            const size = sv.size || "";
+            const weight = sv.weight || "";
+            const price = resolved.price || resolvePrice(sv, formCustomerType);
+            const moq = resolveMoq(sv, formCustomerType as any);
+            const qty = Math.max(moq, 1);
+
+            setSelectedProductId(prod._id);
+            setProductSearch(prod.title);
+            setSelectedColor(color);
+            setSelectedSize(size);
+            setSelectedWeight(weight);
+            setItemPrice(price);
+            setItemQty(qty);
+            setIsProductDropdownOpen(false);
+
+            const uniqueId = `${prod._id}-${color}-${size}-${weight}`;
+            if (!formItems.some(i => i.id === uniqueId)) {
+              const selectedVariants: Record<string, string> = {};
+              if (color) selectedVariants["Color"] = color;
+              if (size) selectedVariants["Size"] = size;
+              if (weight) selectedVariants["Weight"] = weight;
+
+              const newItem = {
+                id: uniqueId,
+                productId: prod._id,
+                product: {
+                  _id: prod._id,
+                  title: prod.title,
+                  categoryId: prod.categoryId,
+                  gstRate: prod.gstRate || 18,
+                  priceIncludesGst: prod.priceIncludesGst ?? true,
+                  hsnCode: prod.hsnCode || "3924",
+                  colorVariants: prod.colorVariants
+                },
+                selectedVariants,
+                quantity: qty,
+                pricePerUnit: price
+              };
+              setFormItems(prev => [...prev, newItem]);
+              addToast(`Added ${prod.title} (${color} ${size}) to document!`, "success");
+            } else {
+              addToast(`Selected ${prod.title} (${color} ${size}).`, "info");
+            }
+          }
+        }}
+      />
       {/* ─── PAYMENT DETAILS / MARK PAID MODAL ─── */}
       {isPayModalOpen && (
         <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">

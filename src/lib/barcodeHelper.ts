@@ -1,73 +1,70 @@
-export const CODE39_MAP: Record<string, string> = {
-  "0": "101001101101",
-  "1": "110100101011",
-  "2": "101100101011",
-  "3": "110110010101",
-  "4": "101001101011",
-  "5": "110100110101",
-  "6": "101100110101",
-  "7": "101001011011",
-  "8": "110100101101",
-  "9": "101100101101",
-  "A": "110101001011",
-  "B": "101101001011",
-  "C": "110110100101",
-  "D": "101011001011",
-  "E": "110101100101",
-  "F": "101101100101",
-  "G": "101010011011",
-  "H": "110101001101",
-  "I": "101101001101",
-  "J": "101011001101",
-  "K": "110101010011",
-  "L": "101101010011",
-  "M": "110110101001",
-  "N": "101011010011",
-  "O": "110101101001",
-  "P": "101101101001",
-  "Q": "101010110011",
-  "R": "110101011001",
-  "S": "101101011001",
-  "T": "101011011001",
-  "U": "110010101011",
-  "V": "100110101011",
-  "W": "110011010101",
-  "X": "100101101011",
-  "Y": "110010110101",
-  "Z": "100110110101",
-  "-": "100101011011",
-  ".": "110010101101",
-  " ": "100110101101",
-  "*": "100101101101",
-  "$": "100100100101",
-  "/": "100100101001",
-  "+": "100101001001",
-  "%": "101001001001"
-};
+import JsBarcode from "jsbarcode";
 
-export function getBarcodeSvgString(rawVal: string, width = 0.8, height = 30): string {
-  const val = rawVal || "";
-  const cleanVal = val.toUpperCase().split("").filter(char => char in CODE39_MAP).join("");
-  if (!cleanVal) return "<div style='color:red; font-size:10px;'>Invalid</div>";
+export interface BarcodeHelperOptions {
+  width?: number;
+  height?: number;
+  displayValue?: boolean;
+  fontSize?: number;
+  margin?: number;
+  background?: string;
+  lineColor?: string;
+}
 
-  const encodedText = `*${cleanVal}*`;
-  let binaryBars = "";
-  for (let i = 0; i < encodedText.length; i++) {
-    const char = encodedText[i];
-    binaryBars += CODE39_MAP[char] + "0";
+/**
+ * Generates an SVG string representation of a Code 128 barcode using JsBarcode.
+ * Defaults displayValue to false to avoid duplicate text rendering under barcode bars.
+ */
+export function getBarcodeSvgString(
+  rawVal: string,
+  widthOrOptions?: number | BarcodeHelperOptions,
+  heightParam?: number
+): string {
+  const val = (rawVal || "").trim().toUpperCase();
+  if (!val) return "<div style='color:red; font-size:10px;'>Invalid Barcode</div>";
+
+  let options: BarcodeHelperOptions = {};
+  if (typeof widthOrOptions === "number") {
+    options = {
+      width: widthOrOptions,
+      height: heightParam ?? 35,
+      displayValue: false
+    };
+  } else if (widthOrOptions) {
+    options = widthOrOptions;
   }
 
-  const svgWidth = binaryBars.length * width;
-  let rectsHtml = "";
-  binaryBars.split("").forEach((bit, idx) => {
-    if (bit === "1") {
-      rectsHtml += `<rect x="${idx * width}" y="0" width="${width}" height="${height}" fill="#000000" />`;
-    }
-  });
+  const width = options.width ?? 1.4;
+  const height = options.height ?? 35;
+  const displayValue = options.displayValue ?? false;
+  const fontSize = options.fontSize ?? 11;
+  const margin = options.margin ?? 2;
+  const background = options.background ?? "#ffffff";
+  const lineColor = options.lineColor ?? "#000000";
 
-  return `
-    <svg width="${svgWidth}" height="${height}" viewBox="0 0 ${svgWidth} ${height}" style="display:block; margin:0 auto;">
-      ${rectsHtml}
-    </svg>
-  `;
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    try {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      JsBarcode(svg, val, {
+        format: "CODE128",
+        width,
+        height,
+        displayValue,
+        fontSize,
+        margin,
+        font: "monospace",
+        background,
+        lineColor,
+        valid: () => true
+      });
+      return svg.outerHTML;
+    } catch (e) {
+      console.warn("JsBarcode string generation notice:", e);
+    }
+  }
+
+  // Pure SVG fallback if document is undefined
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="${height + 10}" viewBox="0 0 160 ${height + 10}" style="display:block; margin:0 auto; background:${background};">
+    <rect width="100%" height="100%" fill="${background}" />
+    <text x="50%" y="50%" text-anchor="middle" font-family="monospace" font-size="12" font-weight="bold" fill="${lineColor}">${val}</text>
+  </svg>`;
 }

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Barcode } from "@/components/ui/Barcode";
 import { useProductForm } from "./ProductFormContext";
-import { Upload, Download, Trash2, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Upload, Download, Trash2, CheckCircle2, ShieldCheck, Printer } from "lucide-react";
 import { getBarcodeSvgString } from "@/lib/barcodeHelper";
 import { useToastStore } from "@/stores/toastStore";
 
@@ -24,8 +24,102 @@ export function BarcodeCard() {
     handleProductBarcodeImageUpload
   } = useProductForm();
 
+  const [labelSize, setLabelSize] = React.useState<"50x25" | "50x30" | "70x35" | "100x50">("50x30");
+
   const defaultSku = variantsList?.[0]?.subVariants?.[0]?.sku || "FX-PRODUCT";
   const activeBarcodeVal = barcode || defaultSku;
+
+  const handlePrintSingleSticker = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      addToast("Popup blocker prevented print window.", "error");
+      return;
+    }
+
+    const dims: Record<string, { w: string; h: string }> = {
+      "50x25": { w: "50mm", h: "25mm" },
+      "50x30": { w: "50mm", h: "30mm" },
+      "70x35": { w: "70mm", h: "35mm" },
+      "100x50": { w: "100mm", h: "50mm" }
+    };
+    const targetDim = dims[labelSize] || dims["50x30"];
+
+    const barcodeHtml = (barcodeSource === "image" && barcodeImage)
+      ? `<img src="${barcodeImage}" style="max-height: 80%; max-width: 100%; object-fit: contain;" />`
+      : getBarcodeSvgString(activeBarcodeVal, { width: 1.5, height: 35, displayValue: false });
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Sticker Print - ${activeBarcodeVal}</title>
+          <style>
+            @page {
+              size: ${targetDim.w} ${targetDim.h};
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 2mm;
+              box-sizing: border-box;
+              width: ${targetDim.w};
+              height: ${targetDim.h};
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              align-items: center;
+              font-family: monospace;
+              background: #ffffff;
+              color: #000000;
+              overflow: hidden;
+            }
+            .header-text {
+              font-size: 8px;
+              font-weight: bold;
+              text-transform: uppercase;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 100%;
+            }
+            .barcode-container {
+              width: 100%;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              flex: 1;
+            }
+            .barcode-container svg {
+              max-width: 100%;
+              max-height: 100%;
+            }
+            .sku-text {
+              font-size: 9px;
+              font-weight: bold;
+              letter-spacing: 0.5px;
+            }
+            @media print {
+              .no-print { display: none !important; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="no-print" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">
+            <button onclick="window.print()" style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+              Print Thermal Sticker Label
+            </button>
+          </div>
+
+          <div class="header-text">${title || "FlexSell Wholesale"}</div>
+          <div class="barcode-container">
+            ${barcodeHtml}
+          </div>
+          <div class="sku-text">${activeBarcodeVal}</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   return (
     <Card className="border border-border bg-card text-foreground shadow-sm">
@@ -36,7 +130,7 @@ export function BarcodeCard() {
               <ShieldCheck className="h-5 w-5 text-primary" /> Product Barcode & Identification
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Set one barcode for this product. Choose auto-generated SKU barcode, custom digit number, or upload a physical barcode image.
+              Code 128 barcode format. Select auto SKU, custom digit number, or physical image.
             </CardDescription>
           </div>
           <span className="text-xs font-mono font-bold px-2.5 py-1 rounded bg-primary/10 text-primary self-start sm:self-auto">
@@ -49,7 +143,7 @@ export function BarcodeCard() {
         {/* Mode Selector Tabs */}
         <div className="space-y-2">
           <label className="text-xs font-extrabold uppercase text-muted-foreground tracking-wider">
-            Select Barcode Option (Default is Auto)
+            Select Barcode Option (Default is Auto Code 128)
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
@@ -62,11 +156,11 @@ export function BarcodeCard() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">1. Auto (SKU Barcode)</span>
+                <span className="text-xs font-bold text-foreground">1. Auto (SKU Code 128)</span>
                 {barcodeSource === "auto" && <CheckCircle2 className="h-4 w-4 text-primary" />}
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Generates vector SVG Code-128 barcode from SKU.
+                Generates scannable vector SVG Code 128 barcode from SKU.
               </p>
             </button>
 
@@ -80,11 +174,11 @@ export function BarcodeCard() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">2. Custom Barcode Number</span>
+                <span className="text-xs font-bold text-foreground">2. Custom Barcode String</span>
                 {barcodeSource === "manual" && <CheckCircle2 className="h-4 w-4 text-primary" />}
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Enter EAN-13, UPC-A, GTIN or custom digits.
+                Enter custom EAN-13, UPC-A, GTIN or SKU code.
               </p>
             </button>
 
@@ -102,7 +196,7 @@ export function BarcodeCard() {
                 {barcodeSource === "image" && <CheckCircle2 className="h-4 w-4 text-primary" />}
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Upload existing physical manufacturer barcode label image.
+                Upload existing physical label image.
               </p>
             </button>
           </div>
@@ -111,24 +205,21 @@ export function BarcodeCard() {
         {/* Input Controls Panel */}
         {barcodeSource === "manual" && (
           <div className="p-4 border rounded-xl bg-secondary/15 space-y-2">
-            <label className="text-xs font-bold text-foreground block">Enter Barcode Number / String *</label>
+            <label className="text-xs font-bold text-foreground block">Enter Barcode / SKU Number *</label>
             <Input
               type="text"
-              placeholder="e.g. 8901234567890"
+              placeholder="e.g. FS-HK-CHOP12-001"
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
               className="font-mono text-sm max-w-md bg-background"
             />
-            <p className="text-[11px] text-muted-foreground">
-              Valid barcode characters: alphanumeric numbers (EAN-13, UPC, Code-128).
-            </p>
           </div>
         )}
 
         {barcodeSource === "image" && (
           <div className="p-4 border rounded-xl bg-secondary/15 space-y-3">
-            <label className="text-xs font-bold text-foreground block">Upload Manufacturer / Physical Barcode Image *</label>
-            
+            <label className="text-xs font-bold text-foreground block">Upload Barcode Image *</label>
+
             {barcodeImage ? (
               <div className="flex flex-col sm:flex-row items-center gap-4 p-3 bg-white border rounded-lg">
                 <img
@@ -138,11 +229,8 @@ export function BarcodeCard() {
                 />
                 <div className="space-y-1 flex-1">
                   <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-4 w-4" /> Barcode Image Uploaded & Verified
+                    <CheckCircle2 className="h-4 w-4" /> Image Uploaded & Verified
                   </span>
-                  <p className="text-[11px] font-mono text-gray-600 truncate max-w-xs" title={barcodeImage}>
-                    {barcodeImage}
-                  </p>
                   <Button
                     type="button"
                     variant="ghost"
@@ -160,8 +248,7 @@ export function BarcodeCard() {
             ) : (
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-primary/30 rounded-xl bg-background hover:bg-primary/5 cursor-pointer transition-colors text-center">
                 <Upload className="h-8 w-8 text-primary mb-2" />
-                <span className="text-xs font-bold text-foreground">Click to Upload Existing Barcode Image</span>
-                <span className="text-[10px] text-muted-foreground mt-0.5">Supported Formats: PNG, JPEG, WebP, SVG (Max 5MB)</span>
+                <span className="text-xs font-bold text-foreground">Click to Upload Barcode Image</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -173,69 +260,49 @@ export function BarcodeCard() {
           </div>
         )}
 
-        {/* Live Preview Card & Print Action */}
-        <div className="p-4 border rounded-xl bg-card space-y-3">
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Product Barcode Preview</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const printWindow = window.open("", "_blank");
-                if (!printWindow) {
-                  addToast("Popup blocker prevented printing.", "error");
-                  return;
-                }
+        {/* Thermal Sticker Print Controls */}
+        <div className="p-4 border rounded-xl bg-card space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-3">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
+              Single Sticker Thermal Print Controls
+            </span>
 
-                const barcodeHtml = (barcodeSource === "image" && barcodeImage)
-                  ? `<img src="${barcodeImage}" style="max-height: 90px; max-width: 100%; object-fit: contain;" />`
-                  : getBarcodeSvgString(activeBarcodeVal, 1, 30);
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-xs font-semibold">
+                <span className="text-muted-foreground">Size:</span>
+                <select
+                  value={labelSize}
+                  onChange={(e) => setLabelSize(e.target.value as any)}
+                  className="bg-background text-foreground text-xs font-bold border rounded px-2 py-1"
+                >
+                  <option value="50x25">50mm x 25mm (Small)</option>
+                  <option value="50x30">50mm x 30mm (Standard)</option>
+                  <option value="70x35">70mm x 35mm (Medium)</option>
+                  <option value="100x50">100mm x 50mm (Large Tag)</option>
+                </select>
+              </div>
 
-                printWindow.document.write(`
-                  <html>
-                    <head>
-                      <title>Barcode Print - ${title || "Product"}</title>
-                      <style>
-                        body { display: flex; justify-content: center; align-items: center; height: 90vh; font-family: sans-serif; background: #fff; }
-                        .card { text-align: center; width: 240px; border: 2px solid #000; padding: 16px; }
-                        @media print { button { display: none; } }
-                      </style>
-                    </head>
-                    <body>
-                      <div style="text-align:center;">
-                        <button onclick="window.print()" style="padding: 8px 16px; margin-bottom: 15px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px; font-weight: bold;">
-                          Print Product Barcode
-                        </button>
-                        <div class="card">
-                          <div style="font-size:14px; font-weight:bold; margin-bottom:6px; text-transform:uppercase;">${title || 'Product'}</div>
-                          <div style="display:flex; justify-content:center; margin-bottom:8px;">
-                            ${barcodeHtml}
-                          </div>
-                          <div style="font-size:11px; font-weight:bold; font-family:monospace;">${activeBarcodeVal}</div>
-                        </div>
-                      </div>
-                    </body>
-                  </html>
-                `);
-                printWindow.document.close();
-              }}
-              className="h-8 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 flex items-center gap-1.5 cursor-pointer"
-            >
-              <Download className="h-3.5 w-3.5" /> Print Barcode Label
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handlePrintSingleSticker}
+                className="h-8 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="h-3.5 w-3.5" /> Print Thermal Sticker
+              </Button>
+            </div>
           </div>
 
           <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg border text-black">
             {barcodeSource === "image" && barcodeImage ? (
               <div className="text-center space-y-1">
                 <img src={barcodeImage} alt="Barcode Preview" className="h-16 max-w-full object-contain mx-auto" />
-                <span className="text-[10px] font-mono font-bold block text-gray-700">Uploaded Barcode Label Image</span>
+                <span className="text-[10px] font-mono font-bold block text-gray-700">Uploaded Barcode Label</span>
               </div>
             ) : (
               <div className="text-center space-y-1">
-                <Barcode sku={activeBarcodeVal} height={28} />
-                <span className="text-xs font-mono font-extrabold block">{activeBarcodeVal}</span>
+                <Barcode sku={activeBarcodeVal} height={32} />
               </div>
             )}
           </div>
