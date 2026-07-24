@@ -149,6 +149,7 @@ export function GlobalSearchInput({
       <form onSubmit={handleFormSubmit} className="relative w-full">
         <Input
           type="search"
+          aria-label="Search products, SKUs, categories"
           placeholder={placeholder}
           className={`w-full ${isMobile ? "h-10 pl-9 pr-10 text-xs" : "h-10 pl-4 pr-10 rounded-full"} border border-input bg-muted/40 text-sm text-foreground transition-all duration-300 ${
             isFocused ? "bg-background ring-2 ring-primary border-primary shadow-sm" : "focus:bg-background"
@@ -163,6 +164,7 @@ export function GlobalSearchInput({
         />
         <button
           type="submit"
+          aria-label="Submit Search"
           className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
         >
           {loading ? (

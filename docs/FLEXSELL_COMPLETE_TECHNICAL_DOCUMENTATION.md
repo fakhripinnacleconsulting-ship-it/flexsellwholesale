@@ -1,6 +1,6 @@
 # FlexSell Wholesale — Master Technical Documentation Suite
 
-> **Last Updated:** 2026-07-24T06:17:31.161Z  
+> **Last Updated:** 2026-07-24T06:21:11.409Z  
 > **Application Version:** 0.1.0  
 > **Framework:** Next.js 16.2.10 (App Router) | React 19.2.4 | TypeScript 5.0  
 > **Database:** MongoDB Atlas (Mongoose ^9.7.4)  
@@ -64,6 +64,7 @@ FlexSell Wholesale is an all-in-one B2B, B2C, and Dropshipping e-commerce platfo
 | Payment Gateway | Razorpay SDK | ^2.9.8 | Online orders & HMAC verification |
 | Logistics | Shiprocket Client | Custom | Courier serviceability & AWB labels |
 | Rate Limiting | Upstash Redis | ^1.38.0 | Sliding-window API rate limits |
+| Testing | Vitest | ^4.1.10 | Unit testing framework |
 
 ---
 
@@ -476,52 +477,81 @@ Active Zustand Stores:
 
 # 20. CONTENT MANAGEMENT SYSTEM (CMS) ARCHITECTURE
 
-CMS Content Key-Value Store (`CmsContent`) managing hero banners, FAQs, trust stats, footers, blogs, testimonials, and policy documents.
+Managed via the `CmsContent` Mongoose key-value model. Stores dynamic content for:
+- Hero Marketing Banners & Call-to-Actions
+- Category Trust Badges & Announcements
+- FAQs, Blogs, Policy Documents & Testimonials
+- Footer Links & Contact Info
 
 ---
 
 # 21. EXCEL & BULK DATA OPERATIONS
 
-CSV/XLSX product import (`excelParser.ts`), product export (`excelExporter.ts`), and printable B2B catalog sheets with QR codes.
+- **CSV/XLSX Bulk Import (`excelParser.ts`):** Allows wholesale admins to upload catalog spreadsheets containing color variants, subvariant matrices, SKUs, and stock levels.
+- **Product Export (`excelExporter.ts`):** Generates structured CSV catalog exports for ERP software.
 
 ---
 
 # 22. TESTING STRATEGY & TEST SUITE COVERAGE
 
-Vitest test suites (`src/lib/__tests__/` and `src/app/api/auth/__tests__/`) covering auth JWTs, search matching, trending calculation, and REST endpoints.
+Vitest automated test suite (`npm run test`) containing 39 passed unit & API integration tests covering:
+- `trending.test.ts`: Category-balanced sales volume algorithm
+- `searchService.test.ts`: SKU priority search matching & autocomplete
+- `auth.test.ts`: JWT token signing, verification & CSRF token hashing
+- `endpoints.test.ts`: REST API controllers for registration, login, lockout & password reset
 
 ---
 
 # 23. SECURITY CONTROL MATRIX & CRYPTOGRAPHY
 
-CSP headers, double-submit CSRF tokens, Upstash Redis sliding-window rate limiting, bcrypt password hashing, and AES-256-GCM encryption for credentials.
+- **Content Security Policy (CSP):** Restricts inline script execution.
+- **CSRF Token Verification:** Double-submit cookie header check (`X-CSRF-Token`).
+- **Account Lockout Protection:** Locks accounts for 15 minutes after 10 consecutive failed password attempts.
+- **Credential Encryption:** AES-256-GCM encryption for stored API keys.
 
 ---
 
 # 24. DEPLOYMENT, PWA & SYSTEM HEALTH MONITORING
 
-Vercel / Docker build setup, PWA service worker (`public/sw.js`), and `/api/health` monitoring probe.
+- **Next.js Vercel / Docker Setup:** Server-side component compilation.
+- **PWA Service Worker (`public/sw.js`):** Caches offline static assets.
+- **Health Check Probe (`/api/health`):** Monitors MongoDB Atlas connection readiness.
 
 ---
 
 # 25. ENVIRONMENT VARIABLES REFERENCE
 
-`MONGODB_URI`, `JWT_SECRET`, `NEXT_PUBLIC_SITE_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `SHIPROCKET_EMAIL`, `SHIPROCKET_PASSWORD`, `UPSTASH_REDIS_REST_URL`.
+| Variable | Required | Description |
+|:---------|:---------|:------------|
+| `MONGODB_URI` | Yes | MongoDB Atlas connection string |
+| `JWT_SECRET` | Yes | Secret key for signing JWT cookies |
+| `NEXT_PUBLIC_SITE_URL` | Yes | Base canonical site URL |
+| `RAZORPAY_KEY_ID` | Yes | Razorpay API Key ID |
+| `RAZORPAY_KEY_SECRET` | Yes | Razorpay HMAC Secret |
+| `SHIPROCKET_EMAIL` | Yes | Shiprocket login credential |
+| `SHIPROCKET_PASSWORD` | Yes | Shiprocket login password |
+| `UPSTASH_REDIS_REST_URL`| Optional | Sliding window rate limiting Redis URL |
 
 ---
 
 # 26. ERROR HANDLING ARCHITECTURE
 
-React Global Error Boundaries (`error.tsx`), structured Sentry logging (`logger.ts`), and user toast alerts (`toastStore`).
+- **Global React Error Boundaries (`error.tsx`):** Catches uncaught UI rendering exceptions.
+- **Structured Server Logger (`logger.ts`):** Logs API errors and external webhook failures.
+- **Client Toast Manager (`toastStore`):** Displays user-friendly notification alerts.
 
 ---
 
 # 27. TROUBLESHOOTING & OPERATIONAL DIAGNOSTICS
 
-Step-by-step procedures for MongoDB SRV timeouts, Razorpay signature mismatches, camera permissions, and HMR dev warnings.
+1. **MongoDB Connection Timeouts:** Ensure IP whitelist includes `0.0.0.0/0` on MongoDB Atlas.
+2. **Razorpay Signature Mismatch:** Verify `RAZORPAY_KEY_SECRET` matches key secret in Razorpay Dashboard.
+3. **Camera Barcode Access:** Ensure HTTPS protocol or `localhost` origin for camera permissions.
 
 ---
 
 # 28. KNOWN ISSUES & TECHNICAL DEBT ANALYSIS
 
-In-memory rate limiter fallback in multi-instance environments, dynamic image allowlists, local disk upload fallbacks, and progressive type refinement.
+- In-memory rate limiting fallback when Upstash Redis is unconfigured.
+- Dynamic image domains require explicit configuration in `next.config.ts`.
+- Progressive type refinement across older service mock fallbacks.

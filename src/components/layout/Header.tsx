@@ -43,12 +43,12 @@ export function Header({ categories, collections = [] }: HeaderProps) {
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 transition-all">
       <div className="mx-auto flex h-16 max-w-8xl items-center justify-between px-4 md:px-6">
         {/* Mobile Menu Icon */}
-        <Button variant="ghost" size="icon" className="md:hidden text-foreground cursor-pointer" onClick={() => setIsMobileMenuOpen(true)}>
+        <Button variant="ghost" size="icon" className="md:hidden text-foreground cursor-pointer" aria-label="Open Menu" onClick={() => setIsMobileMenuOpen(true)}>
           <Menu className="h-5 w-5" />
         </Button>
 
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2" aria-label="Flexsell Wholesale Home">
           <Image src="/Flexsell%20Logo.png" alt="Flexsell Logo" width={160} height={44} className="h-10 md:h-12 w-auto object-contain" priority />
         </Link>
 
@@ -66,14 +66,14 @@ export function Header({ categories, collections = [] }: HeaderProps) {
             </span>
           )}
 
-          <Link href={customer ? (customer.role === "admin" ? "/admin" : "/client/profile") : "/login"}>
-            <Button variant="ghost" size="icon" className="cursor-pointer" title={customer ? "My Account" : "Sign In"}>
+          <Link href={customer ? (customer.role === "admin" ? "/admin" : "/client/profile") : "/login"} aria-label={customer ? "My Account" : "Sign In"}>
+            <Button variant="ghost" size="icon" className="cursor-pointer" title={customer ? "My Account" : "Sign In"} aria-label={customer ? "My Account" : "Sign In"}>
               <User className="h-5 w-5 text-foreground" />
             </Button>
           </Link>
 
-          <Link href="/wishlist">
-            <Button variant="ghost" size="icon" className="relative cursor-pointer" title="Wishlist">
+          <Link href="/wishlist" aria-label="Wishlist">
+            <Button variant="ghost" size="icon" className="relative cursor-pointer" title="Wishlist" aria-label="Wishlist">
               <Heart className="h-5 w-5 text-foreground" />
               {isMounted && wishlistItemsCount > 0 && (
                 <motion.span
@@ -89,8 +89,8 @@ export function Header({ categories, collections = [] }: HeaderProps) {
           </Link>
 
           {!isDropshipperOnly && (
-            <Link href="/cart">
-              <Button variant="ghost" size="icon" className="relative cursor-pointer" title="Cart">
+            <Link href="/cart" aria-label="Shopping Cart">
+              <Button variant="ghost" size="icon" className="relative cursor-pointer" title="Cart" aria-label="Shopping Cart">
                 <ShoppingCart className="h-5 w-5 text-foreground" />
                 {isMounted && cartItemsCount > 0 && (
                   <motion.span
