@@ -126,6 +126,29 @@ export function AddToCartPanel() {
             {visibility.showDimensions && activeVariant?.dimensions && (
               <span className="text-muted-foreground font-semibold">• Box Size: {activeVariant.dimensions}</span>
             )}
+
+            {(() => {
+              const { calculateVolumetricWeightGrams, parseDimensionsToCm } = require("@/lib/priceTierHelper");
+              const parsed = parseDimensionsToCm(activeVariant?.dimensions);
+              const l = (activeVariant?.lengthCm !== undefined && activeVariant?.lengthCm !== null && activeVariant?.lengthCm > 0)
+                ? activeVariant.lengthCm
+                : parsed.lengthCm;
+              const b = (activeVariant?.breadthCm !== undefined && activeVariant?.breadthCm !== null && activeVariant?.breadthCm > 0)
+                ? activeVariant.breadthCm
+                : parsed.breadthCm;
+              const h = (activeVariant?.heightCm !== undefined && activeVariant?.heightCm !== null && activeVariant?.heightCm > 0)
+                ? activeVariant.heightCm
+                : parsed.heightCm;
+
+              const volWeightGrams = Math.round(calculateVolumetricWeightGrams(l, b, h));
+              return volWeightGrams > 0 ? (
+                <span className="text-muted-foreground font-semibold">• Volumetric Weight: {volWeightGrams}g</span>
+              ) : null;
+            })()}
+
+            <span className="text-muted-foreground font-semibold">
+              • HSN Code: <strong className="font-mono text-foreground">{product.hsnCode || "3924"}</strong> (GST {gstRate}%)
+            </span>
           </div>
         </div>
       )}

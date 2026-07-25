@@ -292,6 +292,8 @@ export function CheckoutView() {
       return num;
     };
 
+    const { calculateShippingByWeight, calculateEffectiveUnitWeightGrams } = require("@/lib/priceTierHelper");
+
     const b2cWeightGrams = items
       .filter(item => item.priceTier !== "B2B")
       .reduce((sum, item) => {
@@ -303,7 +305,14 @@ export function CheckoutView() {
           (!item.selectedVariants["Weight"] || sv.weight === item.selectedVariants["Weight"])
         ) || activeVariant?.subVariants?.[0];
         const unitWeightStr = activeSubVariant?.weight || "0g";
-        return sum + (parseWeightToGrams(unitWeightStr) * item.quantity);
+        const actualUnitWeightGrams = activeSubVariant?.weightGrams ?? parseWeightToGrams(unitWeightStr);
+        const effectiveUnitWeight = calculateEffectiveUnitWeightGrams(
+          actualUnitWeightGrams,
+          activeVariant?.lengthCm,
+          activeVariant?.breadthCm,
+          activeVariant?.heightCm
+        );
+        return sum + (effectiveUnitWeight * item.quantity);
       }, 0);
 
     const hasB2B = items.some(item => item.priceTier === "B2B");
@@ -313,7 +322,6 @@ export function CheckoutView() {
     const slabs = shippingConfig?.weightSlabs || [];
 
     const b2bShipping = hasB2B ? b2bFixed : 0;
-    const { calculateShippingByWeight } = require("@/lib/priceTierHelper");
     const b2cShipping = hasB2C ? calculateShippingByWeight(b2cWeightGrams, slabs) : 0;
 
     const shippingCharge = b2bShipping + b2cShipping;

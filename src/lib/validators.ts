@@ -134,7 +134,7 @@ export const subVariantSchema = z.object({
 
 export const colorVariantSchema = z.object({
   color: z.string().min(1, "Color is required"),
-  dimensions: z.string().min(1, "Dimensions are required"),
+  dimensions: z.string().optional().default(""),
   images: z.array(z.any()).optional().default([]),
   subVariants: z.array(subVariantSchema).min(1, "At least 1 sub-variant is required"),
 });

@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Sliders, Truck, ShieldCheck } from "lucide-react";
 
 export function ProductInfoTabs() {
-  const { product, isDescExpanded, setIsDescExpanded, activeSubVariant } = useProductDetail();
+  const { product, isDescExpanded, setIsDescExpanded, activeVariant, activeSubVariant } = useProductDetail();
   const [activeTab, setActiveTab] = React.useState<"description" | "specifications" | "shipping">("description");
 
   if (!product) return null;
@@ -124,13 +124,36 @@ export function ProductInfoTabs() {
                 <span className="font-bold">{activeSubVariant.weight}</span>
               </div>
             )}
+            {activeVariant?.dimensions && (
+              <div className="grid grid-cols-2 gap-2 p-3 bg-secondary/15 rounded-lg border">
+                <span className="text-muted-foreground font-medium">Box Dimensions:</span>
+                <span className="font-bold font-mono">{activeVariant.dimensions}</span>
+              </div>
+            )}
+            {(() => {
+              const { calculateVolumetricWeightGrams, parseDimensionsToCm } = require("@/lib/priceTierHelper");
+              const parsed = parseDimensionsToCm(activeVariant?.dimensions);
+              const l = (activeVariant?.lengthCm !== undefined && activeVariant?.lengthCm !== null && activeVariant?.lengthCm > 0)
+                ? activeVariant.lengthCm
+                : parsed.lengthCm;
+              const b = (activeVariant?.breadthCm !== undefined && activeVariant?.breadthCm !== null && activeVariant?.breadthCm > 0)
+                ? activeVariant.breadthCm
+                : parsed.breadthCm;
+              const h = (activeVariant?.heightCm !== undefined && activeVariant?.heightCm !== null && activeVariant?.heightCm > 0)
+                ? activeVariant.heightCm
+                : parsed.heightCm;
+
+              const volWeightGrams = Math.round(calculateVolumetricWeightGrams(l, b, h));
+              return volWeightGrams > 0 ? (
+                <div className="grid grid-cols-2 gap-2 p-3 bg-secondary/15 rounded-lg border">
+                  <span className="text-muted-foreground font-medium">Volumetric Weight:</span>
+                  <span className="font-bold font-mono">{volWeightGrams}g</span>
+                </div>
+              ) : null;
+            })()}
             <div className="grid grid-cols-2 gap-2 p-3 bg-secondary/15 rounded-lg border">
-              <span className="text-muted-foreground font-medium">GST Tax Rate:</span>
-              <span className="font-bold">{product.gstRate || 18}% ({product.priceIncludesGst ? "Inclusive" : "Exclusive"})</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 p-3 bg-secondary/15 rounded-lg border">
-              <span className="text-muted-foreground font-medium">Standard HSN Code:</span>
-              <span className="font-bold font-mono">{product.hsnCode || "39241090"}</span>
+              <span className="text-muted-foreground font-medium">HSN Code & GST Tax:</span>
+              <span className="font-bold font-mono">{product.hsnCode || "3924"} (GST {product.gstRate || 18}%)</span>
             </div>
           </motion.div>
         )}

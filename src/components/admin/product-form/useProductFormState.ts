@@ -5,6 +5,7 @@ import { useProductStore } from "@/stores/productStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useHsnStore } from "@/stores/hsnStore";
 import { useToastStore } from "@/stores/toastStore";
+import { parseWeightToGrams, parseDimensionsToCm } from "@/lib/priceTierHelper";
 
 export interface ProductFormContextProps {
   productId?: string;
@@ -184,21 +185,37 @@ export function useProductFormState(
       });
 
       if (existingProduct.colorVariants && existingProduct.colorVariants.length > 0) {
-        const normalizedVariants = existingProduct.colorVariants.map(v => ({
-          ...v,
-          images: (v.images || []).map((img, imgIdx) => {
-            if (typeof img === "string") {
+        const normalizedVariants = existingProduct.colorVariants.map(v => {
+          const parsedDim = parseDimensionsToCm(v.dimensions);
+          const lengthCm = (v.lengthCm !== undefined && v.lengthCm !== null && v.lengthCm > 0) ? v.lengthCm : parsedDim.lengthCm;
+          const breadthCm = (v.breadthCm !== undefined && v.breadthCm !== null && v.breadthCm > 0) ? v.breadthCm : parsedDim.breadthCm;
+          const heightCm = (v.heightCm !== undefined && v.heightCm !== null && v.heightCm > 0) ? v.heightCm : parsedDim.heightCm;
+          return {
+            ...v,
+            lengthCm,
+            breadthCm,
+            heightCm,
+            dimensions: v.dimensions || `${lengthCm}x${breadthCm}x${heightCm} cm`,
+            subVariants: (v.subVariants || []).map(sv => ({
+              ...sv,
+              weightGrams: (sv.weightGrams !== undefined && sv.weightGrams !== null && sv.weightGrams > 0)
+                ? sv.weightGrams
+                : parseWeightToGrams(sv.weight || "250g")
+            })),
+            images: (v.images || []).map((img, imgIdx) => {
+              if (typeof img === "string") {
+                return {
+                  url: img,
+                  alt: `${existingProduct.title} - ${v.color} - Image ${imgIdx + 1}`
+                };
+              }
               return {
-                url: img,
-                alt: `${existingProduct.title} - ${v.color} - Image ${imgIdx + 1}`
+                url: img.url || "",
+                alt: img.alt || `${existingProduct.title} - ${v.color} - Image ${imgIdx + 1}`
               };
-            }
-            return {
-              url: img.url || "",
-              alt: img.alt || `${existingProduct.title} - ${v.color} - Image ${imgIdx + 1}`
-            };
-          }).filter(img => Boolean(img.url && img.url.trim()))
-        }));
+            }).filter(img => Boolean(img.url && img.url.trim()))
+          };
+        });
         setVariantsList(normalizedVariants);
 
         const initialSizes: Record<number, string> = {};
@@ -287,19 +304,20 @@ export function useProductFormState(
       sizes.forEach(size => {
         weights.forEach(weight => {
           const existing = item.subVariants.find(sv => sv.size === size && sv.weight === weight);
+          const parsedGrams = parseWeightToGrams(weight);
           if (existing) {
-            newSubVariants.push(existing);
+            newSubVariants.push({
+              ...existing,
+              weightGrams: (existing.weightGrams !== undefined && existing.weightGrams !== null && existing.weightGrams > 0)
+                ? existing.weightGrams
+                : parsedGrams
+            });
           } else {
-            const parsedWeightGrams = parseFloat(weight.replace(/[^0-9.]/g, ""));
-            const calcGrams = !isNaN(parsedWeightGrams)
-              ? (weight.toLowerCase().includes("kg") ? Math.round(parsedWeightGrams * 1000) : Math.round(parsedWeightGrams))
-              : (item.subVariants[0]?.weightGrams || 250);
-
             newSubVariants.push({
               id: `sv-${Date.now()}-${counter}`,
               size,
               weight,
-              weightGrams: calcGrams,
+              weightGrams: parsedGrams,
               mrp: item.subVariants[0]?.mrp || 0,
               b2cPrice: item.subVariants[0]?.b2cPrice || 0,
               b2bPrice: item.subVariants[0]?.b2bPrice || 0,
@@ -349,7 +367,18 @@ export function useProductFormState(
   const updateVariantField = (index: number, field: keyof ColorVariant, value: any) => {
     setVariantsList(prev => prev.map((item, idx) => {
       if (idx !== index) return item;
-      return { ...item, [field]: value };
+      const updated = { ...item, [field]: value };
+      if (field === "lengthCm" || field === "breadthCm" || field === "heightCm") {
+        const l = updated.lengthCm;
+        const b = updated.breadthCm;
+        const h = updated.heightCm;
+        if (l && b && h && Number(l) > 0 && Number(b) > 0 && Number(h) > 0) {
+          updated.dimensions = `${l}x${b}x${h} cm`;
+        } else if (!updated.dimensions || updated.dimensions.includes("cm")) {
+          updated.dimensions = "";
+        }
+      }
+      return updated;
     }));
   };
 

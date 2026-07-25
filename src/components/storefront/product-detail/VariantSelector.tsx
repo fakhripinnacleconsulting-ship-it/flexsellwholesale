@@ -130,22 +130,20 @@ export function VariantSelector() {
           <button
             type="button"
             onClick={() => setOrderMode("single")}
-            className={`flex-1 pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              orderMode === "single"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className={`flex-1 pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${orderMode === "single"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
           >
             Standard Selector
           </button>
           <button
             type="button"
             onClick={() => setOrderMode("bulk")}
-            className={`flex-1 pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              orderMode === "bulk"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className={`flex-1 pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${orderMode === "bulk"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
           >
             Bulk Purchase Matrix
           </button>
@@ -158,7 +156,7 @@ export function VariantSelector() {
           {colorVariants.length > 0 && (
             <div className="space-y-3">
               <h4 className="font-bold text-sm text-foreground uppercase tracking-wider">
-                Select Option / Color:
+                Variations :
                 <span className="text-primary font-semibold ml-2">{activeVariant?.color}</span>
               </h4>
               <div className="flex flex-wrap gap-2">
@@ -170,11 +168,10 @@ export function VariantSelector() {
                       key={idx}
                       type="button"
                       onClick={() => setSelectedColorIdx(idx)}
-                      className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                        isSelected
-                          ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
-                          : "border-border hover:border-primary/50 text-muted-foreground bg-card"
-                      } ${isOutOfStock ? "opacity-40 line-through cursor-not-allowed" : ""}`}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${isSelected
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                        : "border-border hover:border-primary/50 text-muted-foreground bg-card"
+                        } ${isOutOfStock ? "opacity-40 line-through cursor-not-allowed" : ""}`}
                       title={isOutOfStock ? "This option is currently out of stock" : ""}
                     >
                       {v.color}
@@ -190,7 +187,7 @@ export function VariantSelector() {
             <div className="space-y-3 pt-2">
               <h4 className="font-bold text-sm text-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Maximize2 className="h-4.5 w-4.5 text-muted-foreground" />
-                Select Pack Sizing:
+                Select Pack :
                 <span className="text-primary font-semibold ml-2">{selectedSize}</span>
               </h4>
               <div className="flex flex-wrap gap-2">
@@ -205,11 +202,10 @@ export function VariantSelector() {
                       key={size}
                       type="button"
                       onClick={() => setSelectedSize(size)}
-                      className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer relative ${
-                        isSelected
-                          ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
-                          : "border-border hover:border-primary/50 text-muted-foreground bg-card"
-                      } ${isOutOfStock ? "opacity-40 line-through cursor-not-allowed" : ""}`}
+                      className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer relative ${isSelected
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                        : "border-border hover:border-primary/50 text-muted-foreground bg-card"
+                        } ${isOutOfStock ? "opacity-40 line-through cursor-not-allowed" : ""}`}
                       title={isOutOfStock ? "This pack size option is currently out of stock" : ""}
                     >
                       {size}
@@ -240,11 +236,10 @@ export function VariantSelector() {
                       key={weight}
                       type="button"
                       onClick={() => setSelectedWeight(weight)}
-                      className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer relative ${
-                        isSelected
-                          ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
-                          : "border-border hover:border-primary/50 text-muted-foreground bg-card"
-                      } ${isOutOfStock ? "opacity-40 line-through cursor-not-allowed" : ""}`}
+                      className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer relative ${isSelected
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                        : "border-border hover:border-primary/50 text-muted-foreground bg-card"
+                        } ${isOutOfStock ? "opacity-40 line-through cursor-not-allowed" : ""}`}
                       title={isOutOfStock ? "This weight option is currently out of stock" : ""}
                     >
                       {weight}
@@ -332,7 +327,7 @@ export function VariantSelector() {
                   (cv.subVariants || []).filter(sv => sv.isActive !== false).map(sv => {
                     const rate = product.gstRate ?? 18;
                     const isIncl = product.priceIncludesGst ?? true;
-                    
+
                     const bulkTier = isB2B ? "B2B" : "B2C";
                     const resolvedBasePrice = resolvePrice(sv, bulkTier);
                     const totalPrice = isIncl ? resolvedBasePrice : resolvedBasePrice * (1 + rate / 100);

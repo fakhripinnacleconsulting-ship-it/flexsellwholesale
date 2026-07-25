@@ -64,7 +64,9 @@ export async function POST(request: NextRequest) {
           missing
         });
       } else {
-        totalWeightGrams += (weightGrams * item.quantity);
+        const { calculateEffectiveUnitWeightGrams } = require("@/lib/priceTierHelper");
+        const effectiveWeightGrams = calculateEffectiveUnitWeightGrams(weightGrams, lengthCm, breadthCm, heightCm);
+        totalWeightGrams += (effectiveWeightGrams * item.quantity);
         maxLen = Math.max(maxLen, lengthCm);
         maxBrd = Math.max(maxBrd, breadthCm);
         maxHgt = Math.max(maxHgt, heightCm);

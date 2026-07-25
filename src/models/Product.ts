@@ -22,7 +22,7 @@ const SubVariantSchema = new Schema({
 
 const ColorVariantSchema = new Schema({
   color: { type: String, required: true },
-  dimensions: { type: String, required: true },
+  dimensions: { type: String, default: "" },
   lengthCm: { type: Number, default: null },
   breadthCm: { type: Number, default: null },
   heightCm: { type: Number, default: null },

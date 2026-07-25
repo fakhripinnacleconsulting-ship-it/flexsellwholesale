@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Trash2, Upload, Download, CheckCircle2 } from "lucide-react";
 import { Barcode } from "@/components/ui/Barcode";
 import { getBarcodeSvgString } from "@/lib/barcodeHelper";
+import { parseWeightToGrams, parseDimensionsToCm } from "@/lib/priceTierHelper";
 
 interface VariantCardProps {
   idx: number;
@@ -63,11 +64,11 @@ export function VariantCard({
       )}
 
       <CardContent className="p-6 space-y-6">
-        <h4 className="font-bold text-sm text-primary uppercase tracking-wider">Color Line #{idx + 1}</h4>
+        <h4 className="font-bold text-sm text-primary uppercase tracking-wider">Varient Line #{idx + 1}</h4>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Color Name</label>
+            <label className="text-xs font-semibold uppercase text-muted-foreground">Variation Type</label>
             <Input
               placeholder="e.g. Slate Gray"
               value={item.color}
@@ -75,57 +76,56 @@ export function VariantCard({
               required
             />
           </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase text-muted-foreground"> Dimensions (Label)</label>
-            <Input
-              placeholder="e.g. 15x12x8 cm"
-              value={item.dimensions}
-              onChange={(e) => updateVariantField(idx, "dimensions", e.target.value)}
-              required
-            />
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t pt-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Length (cm) *</label>
-            <Input
-              type="number"
-              step="0.1"
-              min="0.1"
-              placeholder="15"
-              value={item.lengthCm ?? ""}
-              onChange={(e) => updateVariantField(idx, "lengthCm", e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Breadth (cm) *</label>
-            <Input
-              type="number"
-              step="0.1"
-              min="0.1"
-              placeholder="12"
-              value={item.breadthCm ?? ""}
-              onChange={(e) => updateVariantField(idx, "breadthCm", e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Height (cm) *</label>
-            <Input
-              type="number"
-              step="0.1"
-              min="0.1"
-              placeholder="8"
-              value={item.heightCm ?? ""}
-              onChange={(e) => updateVariantField(idx, "heightCm", e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-        </div>
+        {(() => {
+          const parsedDim = parseDimensionsToCm(item.dimensions);
+          const lengthVal = (item.lengthCm !== undefined && item.lengthCm !== null && item.lengthCm > 0) ? item.lengthCm : parsedDim.lengthCm;
+          const breadthVal = (item.breadthCm !== undefined && item.breadthCm !== null && item.breadthCm > 0) ? item.breadthCm : parsedDim.breadthCm;
+          const heightVal = (item.heightCm !== undefined && item.heightCm !== null && item.heightCm > 0) ? item.heightCm : parsedDim.heightCm;
+
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t pt-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Package Length (cm) *</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  placeholder={String(parsedDim.lengthCm)}
+                  value={lengthVal}
+                  onChange={(e) => updateVariantField(idx, "lengthCm", e.target.value === "" ? null : Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Package Breadth (cm) *</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  placeholder={String(parsedDim.breadthCm)}
+                  value={breadthVal}
+                  onChange={(e) => updateVariantField(idx, "breadthCm", e.target.value === "" ? null : Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Package Height (cm) *</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  placeholder={String(parsedDim.heightCm)}
+                  value={heightVal}
+                  onChange={(e) => updateVariantField(idx, "heightCm", e.target.value === "" ? null : Number(e.target.value))}
+                />
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-b pb-4">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Sizes (comma separated)</label>
+            <label className="text-xs font-semibold uppercase text-muted-foreground">Variation Sizes (comma separated)</label>
             <div className="flex gap-2">
               <Input
                 placeholder="e.g. Standard 1.2L, Pro 2.0L"
@@ -136,7 +136,7 @@ export function VariantCard({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Weights (comma separated) *</label>
+            <label className="text-xs font-semibold uppercase text-muted-foreground">Variation Weights (comma separated) *</label>
             <div className="flex gap-2">
               <Input
                 placeholder="e.g. 250g, 500g"
@@ -172,14 +172,26 @@ export function VariantCard({
                 </tr>
               </thead>
               <tbody>
-                {item.subVariants.map((sv: any) => (
-                  <tr key={sv.id} className="border-b bg-background">
-                    <td className="px-4 py-2 font-medium">
-                      {sv.size} - {sv.weight}
-                    </td>
-                    <td className="px-4 py-2">
-                      <Input type="number" min="1" className="h-8 text-xs w-20" placeholder="250" value={sv.weightGrams ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "weightGrams", e.target.value === "" ? null : Number(e.target.value))} />
-                    </td>
+                {item.subVariants.map((sv: any) => {
+                  const calcGrams = parseWeightToGrams(sv.weight || "250g");
+                  const actualWeightGrams = (sv.weightGrams !== undefined && sv.weightGrams !== null && sv.weightGrams > 0)
+                    ? sv.weightGrams
+                    : calcGrams;
+                  return (
+                    <tr key={sv.id} className="border-b bg-background">
+                      <td className="px-4 py-2 font-medium">
+                        {sv.size} - {sv.weight}
+                      </td>
+                      <td className="px-4 py-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          className="h-8 text-xs w-20 font-semibold"
+                          placeholder={String(calcGrams)}
+                          value={actualWeightGrams}
+                          onChange={e => updateSubVariantField(idx, sv.id, "weightGrams", e.target.value === "" ? null : Number(e.target.value))}
+                        />
+                      </td>
                     <td className="px-4 py-2">
                       <Input className="h-8 text-xs" value={sv.sku} onChange={e => updateSubVariantField(idx, sv.id, "sku", e.target.value)} required />
                     </td>
@@ -232,7 +244,8 @@ export function VariantCard({
                       </Button>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>
