@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Category, Collection } from "@/types";
 import { ChevronDown, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +21,10 @@ function toTitleCase(str: string): string {
 }
 
 export function MegaMenu({ categories, collections }: MegaMenuProps) {
+  const pathname = usePathname();
+  const isDropshippingPage = pathname?.startsWith("/dropshipping");
+  const isWholesalePage = pathname?.startsWith("/products") || pathname?.startsWith("/categories") || pathname?.startsWith("/collections");
+
   const [isCategoriesOpen, setIsCategoriesOpen] = React.useState(false);
   const [hoveredCollectionId, setHoveredCollectionId] = React.useState<string | null>(null);
 
@@ -89,7 +94,7 @@ export function MegaMenu({ categories, collections }: MegaMenuProps) {
           <div className="flex items-center gap-6 h-full py-1 text-muted-foreground overflow-visible">
             {activeCollections.map((col) => {
               // Get categories linked to this collection
-              const linkedCats = categories.filter(cat => 
+              const linkedCats = categories.filter(cat =>
                 col.linkedCategoryIds?.includes(cat._id)
               );
 
@@ -100,8 +105,8 @@ export function MegaMenu({ categories, collections }: MegaMenuProps) {
                   onMouseEnter={() => setHoveredCollectionId(col._id)}
                   onMouseLeave={() => setHoveredCollectionId(null)}
                 >
-                  <Link 
-                    href={`/collections/${col.slug}`} 
+                  <Link
+                    href={`/collections/${col.slug}`}
                     className="hover:text-primary whitespace-nowrap transition-colors flex items-center gap-1 font-bold text-foreground"
                   >
                     {toTitleCase(col.title)}
@@ -171,12 +176,26 @@ export function MegaMenu({ categories, collections }: MegaMenuProps) {
           </div>
 
           {/* Independent Channel Links */}
-          <div className="flex items-center gap-4 shrink-0 border-l pl-4 border-border h-full">
-            <Link href="/products" className="hover:text-primary whitespace-nowrap font-bold text-foreground transition-colors">
-              Wholesale Bulk Catalog
+          <div className="flex items-center gap-3 shrink-0 border-l pl-4 border-border h-full my-auto">
+            <Link
+              href="/products"
+              className={`whitespace-nowrap font-bold text-sm transition-all px-2.5 py-1 rounded-lg ${isWholesalePage
+                  ? "text-primary bg-primary/10 font-extrabold"
+                  : "text-muted-foreground hover:text-primary hover:bg-secondary/50"
+                }`}
+            >
+              All Products
             </Link>
-            <Link href="/dropshipping" className="bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1 rounded-full whitespace-nowrap font-bold transition-colors flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5" /> Dropshipping Hub
+
+            <Link
+              href="/dropshipping"
+              className={`whitespace-nowrap font-bold text-xs px-3.5 py-1.5 rounded-full transition-all duration-300 flex items-center gap-1.5 shadow-sm text-white ${isDropshippingPage
+                  ? "bg-purple-700 font-black ring-2 ring-purple-400/50 shadow-purple-500/30"
+                  : "bg-purple-600 hover:bg-purple-700 hover:shadow-purple-500/25 active:scale-95"
+                }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-white animate-pulse" />
+              Dropshipping Hub
             </Link>
           </div>
         </div>

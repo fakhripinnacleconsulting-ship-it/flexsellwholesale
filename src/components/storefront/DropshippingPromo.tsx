@@ -82,7 +82,7 @@ export function DropshippingPromo({ data }: DropshippingPromoProps) {
           </div>
 
           <Link href={ctaLink}>
-            <Button size="lg" className="font-bold shadow-md gap-2 shrink-0 cursor-pointer">
+            <Button size="lg" className="font-bold shadow-lg shadow-purple-500/25 bg-purple-600 hover:bg-purple-700 text-white gap-2 shrink-0 cursor-pointer border-none">
               {ctaText} <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
