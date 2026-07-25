@@ -13,7 +13,7 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-heading" });
 
 export const metadata: Metadata = {
   title: {
-    default: "FlexSell Wholesale - Premium B2B Wholesale Market",
+    default: "FlexSell Wholesale - B2B Wholesale Market",
     template: "%s | FlexSell Wholesale"
   },
   description: "India's leading B2B e-commerce platform for sourcing household products, kitchen tools, utilities, fashion accessories, and electronics directly from manufacturers.",
@@ -29,8 +29,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_IN",
     url: "https://flexsellwholesale.in",
-    title: "FlexSell Wholesale - Premium B2B Sourcing",
-    description: "Source premium quality household utility gadgets directly from manufacturers. Low MOQs, dynamic pricing, and nationwide shipping.",
+    title: "FlexSell Wholesale -   B2B Sourcing",
+    description: "Source   quality household utility gadgets directly from manufacturers. Low MOQs, dynamic pricing, and nationwide shipping.",
     siteName: "FlexSell Wholesale"
   },
   manifest: "/manifest.json"

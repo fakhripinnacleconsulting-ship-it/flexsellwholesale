@@ -17,8 +17,8 @@ const categoryMap = new Map<string, Category>([[mockCategory._id, mockCategory]]
 
 const mockProduct: Product = {
   _id: "prod-101",
-  title: "Premium Heavyweight Oversized T-Shirt",
-  slug: "premium-heavyweight-oversized-t-shirt",
+  title: "  Heavyweight Oversized T-Shirt",
+  slug: " -heavyweight-oversized-t-shirt",
   description: "High quality 240 GSM cotton wholesale t-shirt.",
   categoryId: "cat-apparel",
   tags: ["tshirt", "oversized", "streetwear"],

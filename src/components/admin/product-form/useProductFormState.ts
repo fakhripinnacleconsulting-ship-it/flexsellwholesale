@@ -69,7 +69,7 @@ export interface ProductFormContextProps {
   barcodeImage: string | null;
   setBarcodeImage: (img: string | null) => void;
   handleProductBarcodeImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  
+
   // Handlers
   addVariant: () => void;
   removeVariant: (index: number) => void;
@@ -291,7 +291,7 @@ export function useProductFormState(
             newSubVariants.push(existing);
           } else {
             const parsedWeightGrams = parseFloat(weight.replace(/[^0-9.]/g, ""));
-            const calcGrams = !isNaN(parsedWeightGrams) 
+            const calcGrams = !isNaN(parsedWeightGrams)
               ? (weight.toLowerCase().includes("kg") ? Math.round(parsedWeightGrams * 1000) : Math.round(parsedWeightGrams))
               : (item.subVariants[0]?.weightGrams || 250);
 
@@ -316,20 +316,20 @@ export function useProductFormState(
       return { ...item, subVariants: newSubVariants };
     }));
   };
- 
+
   const updateSubVariantField = (colorIdx: number, subId: string, field: string, value: any) => {
     setVariantsList(prev => prev.map((item, idx) => {
       if (idx !== colorIdx) return item;
       const newSubs = item.subVariants.map(sv => {
         if (sv.id !== subId) return sv;
         const updated = { ...sv, [field]: value };
-        
+
         // Dynamic price discount recalculation
         const priceField = defaultPriceTier === "B2B" ? "b2bPrice" : defaultPriceTier === "Dropshipping" ? "dropshippingPrice" : "b2cPrice";
         const p = ["b2cPrice", "b2bPrice", "dropshippingPrice"].includes(field) ? Number(value) : (sv as any)[priceField];
         const m = field === "mrp" ? Number(value) : sv.mrp;
         updated.discount = m > 0 ? Math.round(((m - p) / m) * 100) : 0;
-        
+
         return updated;
       });
       return { ...item, subVariants: newSubs };
@@ -408,7 +408,7 @@ export function useProductFormState(
       const newImgIndex = currentImages.length + 1;
       const colorName = variantsList[variantIndex].color || "Variant";
       const defaultAlt = `${title || "Product"} - ${colorName} - Image ${newImgIndex}`;
-      
+
       const updatedImages = [...currentImages, { url, alt: defaultAlt }];
       updateVariantField(variantIndex, "images", updatedImages);
       addToast("Variant image uploaded and added to preview successfully.", "success");
@@ -500,9 +500,9 @@ export function useProductFormState(
       const { url } = await res.json();
 
       setAPlusBlocks(prev => prev.map((b, idx) =>
-        b.id === blockId ? { 
-          ...b, 
-          imageUrl: url, 
+        b.id === blockId ? {
+          ...b,
+          imageUrl: url,
           type: "image",
           alt: b.alt || `${title || "Product"} A+ Banner ${idx + 1}`
         } : b
@@ -612,7 +612,7 @@ export function useProductFormState(
     const selectedCat = activeCategories.find(c => c._id === categoryId);
     const catName = selectedCat ? selectedCat.name : "Wholesale Supply";
     setSeoTitle(`${title} | Buy Bulk Online at Wholesale Price`);
-    setSeoDescription(`Purchase ${title} in bulk direct from manufacturers. Premium B2B cargo supply. Department: ${catName}. GST claimable tax invoice supplied.`);
+    setSeoDescription(`Purchase ${title} in bulk direct from manufacturers.   B2B cargo supply. Department: ${catName}. GST claimable tax invoice supplied.`);
     setSeoKeywords(`${title.toLowerCase()}, wholesale ${title.toLowerCase()}, B2B bulk buy, ${catName.toLowerCase()} supply`);
     addToast("SEO metadata tags successfully auto-generated!", "success");
   };
@@ -755,7 +755,7 @@ export function useProductFormState(
     aPlusBlocks,
     setAPlusBlocks,
     isSaving,
-    
+
     addVariant,
     removeVariant,
     generateSubVariants,

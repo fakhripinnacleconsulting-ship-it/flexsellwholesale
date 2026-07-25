@@ -398,10 +398,10 @@ export function ProductCatalog({ initialProducts, initialCategories }: ProductCa
               <p className="font-medium">Showing <span className="text-foreground font-bold">{sortedProducts.length}</span> wholesale products</p>
               {selectedCategories.length > 0 && <span className="text-primary font-semibold text-[11px] bg-primary/10 px-2 py-0.5 rounded border border-primary/20">Filters active</span>}
             </div>
-            <ExportCatalogButton 
-              products={sortedProducts} 
-              categories={initialCategories} 
-              catalogTitle="Wholesale Product Catalog" 
+            <ExportCatalogButton
+              products={sortedProducts}
+              categories={initialCategories}
+              catalogTitle="Product Catalog"
               filterSummary={selectedCategories.length > 0 ? "Category Filtered" : "All Products"}
             />
           </div>

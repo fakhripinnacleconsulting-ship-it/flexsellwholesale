@@ -19,7 +19,7 @@ interface ExportCatalogButtonProps {
 export function ExportCatalogButton({
   products,
   categories = [],
-  catalogTitle = "Wholesale Product Catalog",
+  catalogTitle = "Product Catalog",
   filterSummary,
   variant = "outline",
   size = "sm",

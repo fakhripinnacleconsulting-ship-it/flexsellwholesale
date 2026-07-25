@@ -38,9 +38,9 @@ function getLocalInvoices(): Invoice[] {
               productId: "PROD-1",
               product: {
                 _id: "PROD-1",
-                title: "Premium Cotton T-Shirt",
-                slug: "premium-cotton-tshirt",
-                description: "High quality premium cotton wholesale tshirt.",
+                title: "  Cotton T-Shirt",
+                slug: " -cotton-tshirt",
+                description: "High quality   cotton wholesale tshirt.",
                 categoryId: "CAT-1",
                 rating: 4.8,
                 reviewCount: 12,
@@ -229,7 +229,7 @@ export const invoiceService = {
       if (params?.status) list = list.filter(i => i.status === params.status);
       if (params?.customerId) list = list.filter(i => i.customerId === params.customerId);
       if (params?.customerType) list = list.filter(i => i.customerType === params.customerType);
-      
+
       if (params?.search) {
         const q = params.search.toLowerCase();
         list = list.filter(i =>
@@ -267,7 +267,7 @@ export const invoiceService = {
     if (params?.page) queryParams.push(`page=${params.page}`);
     if (params?.limit) queryParams.push(`limit=${params.limit}`);
     if (params?.customerType) queryParams.push(`customerType=${params.customerType}`);
-    
+
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;
     }
@@ -299,7 +299,7 @@ export const invoiceService = {
     if (isMockMode) {
       const list = getLocalInvoices();
       const id = generateNextClientMockId(data.type || "quote");
-      
+
       let customerId = data.customerId;
       if (data.newCustomer) {
         customerId = generateNextClientMockId("customer");

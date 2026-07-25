@@ -66,7 +66,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
 
       {/* Collection Hero Header */}
       <div className="relative border border-border bg-card rounded-3xl overflow-hidden shadow-md mb-10 min-h-[300px] md:min-h-[420px] flex flex-col justify-center">
-        {/* Banner image or fallback premium gradient */}
+        {/* Banner image or fallback   gradient */}
         {collection.bannerImage ? (
           <div className="absolute inset-0 z-0 bg-secondary">
             <img
@@ -79,7 +79,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
           </div>
         ) : (
           <div className="absolute inset-0 z-0 bg-gradient-to-br from-secondary/50 via-background to-secondary/30">
-            {/* Glowing ambient light blobs for premium fallback */}
+            {/* Glowing ambient light blobs for   fallback */}
             <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-primary/20 blur-3xl" />
             <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-72 h-72 rounded-full bg-accent/20 blur-3xl" />
           </div>
@@ -92,7 +92,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
               <Layers className="h-3.5 w-3.5" />
               {collection.type === "smart" ? "Automated Sourcing" : "Hand-Curated Catalog"}
             </span>
-            
+
             <h1 className="text-3xl md:text-5xl font-black tracking-tight text-foreground leading-tight">
               {toTitleCase(collection.title)}
             </h1>
@@ -108,9 +108,9 @@ export default async function CollectionDetailPage({ params }: { params: Promise
                 <ShoppingBag className="h-4 w-4 text-primary" />
                 <span>Showing {products.length} {products.length === 1 ? "factory line" : "factory lines"}</span>
               </div>
-              <ExportCatalogButton 
-                products={products} 
-                catalogTitle={`${toTitleCase(collection.title)} Collection`} 
+              <ExportCatalogButton
+                products={products}
+                catalogTitle={`${toTitleCase(collection.title)} Collection`}
                 filterSummary={`Collection: ${toTitleCase(collection.title)}`}
               />
             </div>

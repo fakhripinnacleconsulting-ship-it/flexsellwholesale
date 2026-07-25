@@ -32,6 +32,7 @@ export interface CatalogVariantRow {
   priceIncludesGst: boolean;
   mrp: number;
   b2bPrice: number;
+  b2cPrice: number;
   dropshippingPrice: number;
   moq: number;
   quantity: number;
@@ -100,6 +101,7 @@ function flattenProductVariants(products: Product[], categories: Category[]): Ca
         priceIncludesGst: product.priceIncludesGst ?? true,
         mrp: 0,
         b2bPrice: 0,
+        b2cPrice: 0,
         dropshippingPrice: 0,
         moq: 1,
         quantity: 1,
@@ -132,6 +134,7 @@ function flattenProductVariants(products: Product[], categories: Category[]): Ca
           priceIncludesGst: product.priceIncludesGst ?? true,
           mrp: 0,
           b2bPrice: 0,
+          b2cPrice: 0,
           dropshippingPrice: 0,
           moq: 1,
           quantity: 1,
@@ -144,6 +147,8 @@ function flattenProductVariants(products: Product[], categories: Category[]): Ca
       for (let svIdx = 0; svIdx < subVariants.length; svIdx++) {
         const sv = subVariants[svIdx];
         const b2bPrice = sv.b2bPrice || sv.b2cPrice || 0;
+        const b2cPrice = sv.b2cPrice || 0;
+        const dropshippingPrice = sv.dropshippingPrice || 0;
         const moq = sv.b2bMoq || 1;
         rows.push({
           rowId: `${product._id}-${cvIdx}-${sv.id || svIdx}`,
@@ -161,7 +166,8 @@ function flattenProductVariants(products: Product[], categories: Category[]): Ca
           priceIncludesGst: product.priceIncludesGst ?? true,
           mrp: sv.mrp || 0,
           b2bPrice,
-          dropshippingPrice: sv.dropshippingPrice || 0,
+          b2cPrice,
+          dropshippingPrice,
           moq,
           quantity: moq,
           stock: sv.stock ?? 0,
@@ -224,7 +230,6 @@ const CatalogTableRow = React.memo(function CatalogTableRow({
 
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground font-mono pt-0.5">
           <span>SKU: {row.sku}</span>
-          {row.barcode && <span>• Barcode: {row.barcode}</span>}
         </div>
       </td>
 
@@ -241,19 +246,33 @@ const CatalogTableRow = React.memo(function CatalogTableRow({
         </p>
       </td>
 
-      {/* 4. Wholesale B2B Price */}
+      {/* 4. Retail B2C Price */}
       <td className="p-3 align-top text-right space-y-0.5">
-        <p className="text-sm font-black text-primary">
-          ₹{row.b2bPrice.toLocaleString("en-IN")}
+        <p className="text-xs font-bold text-foreground font-mono">
+          {row.b2cPrice > 0 ? `₹${row.b2cPrice.toLocaleString("en-IN")}` : row.mrp > 0 ? `₹${row.mrp.toLocaleString("en-IN")}` : "—"}
         </p>
-        {row.mrp > row.b2bPrice && (
-          <p className="text-[11px] text-muted-foreground line-through">
+        {row.mrp > row.b2cPrice && row.b2cPrice > 0 && (
+          <p className="text-[10px] text-muted-foreground line-through font-mono">
             MRP: ₹{row.mrp.toLocaleString("en-IN")}
           </p>
         )}
       </td>
 
-      {/* 5. Quantity (Editable on Screen with MOQ Enforcement, Static Text on PDF/Print) */}
+      {/* 5. Wholesale B2B Price */}
+      <td className="p-3 align-top text-right space-y-0.5">
+        <p className="text-xs font-extrabold text-primary font-mono">
+          {row.b2bPrice > 0 ? `₹${row.b2bPrice.toLocaleString("en-IN")}` : "—"}
+        </p>
+      </td>
+
+      {/* 6. Dropshipping Price */}
+      <td className="p-3 align-top text-right space-y-0.5">
+        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+          {row.dropshippingPrice > 0 ? `₹${row.dropshippingPrice.toLocaleString("en-IN")}` : "—"}
+        </p>
+      </td>
+
+      {/* 7. Quantity (Editable on Screen with MOQ Enforcement, Static Text on PDF/Print) */}
       <td className="p-3 align-top text-center space-y-1">
         {/* Screen View: Interactive stepper & input strictly enforcing MOQ */}
         <div className="no-print flex flex-col items-center gap-1">
@@ -302,7 +321,7 @@ const CatalogTableRow = React.memo(function CatalogTableRow({
         </div>
       </td>
 
-      {/* 6. Screen-Only Action (Hidden on Print) */}
+      {/* 8. Screen-Only Action (Hidden on Print) */}
       <td className="p-3 align-top text-center no-print">
         <button
           type="button"
@@ -471,16 +490,18 @@ export function B2BCatalogPrintModal({
                 <tr className="bg-secondary/40 border-b border-border text-foreground font-bold uppercase tracking-wider text-[11px]">
                   <th className="p-3 w-16 text-center">Image</th>
                   <th className="p-3">Product Name & Variant Specs</th>
-                  <th className="p-3 w-28">HSN</th>
-                  <th className="p-3 w-32 text-right">B2B Price</th>
-                  <th className="p-3 w-36 text-center">Quantity</th>
+                  <th className="p-3 w-24">HSN</th>
+                  <th className="p-3 w-24 text-right">B2C Price</th>
+                  <th className="p-3 w-24 text-right">B2B Price</th>
+                  <th className="p-3 w-28 text-right">Dropship Price</th>
+                  <th className="p-3 w-32 text-center">Quantity</th>
                   <th className="p-3 w-12 text-center no-print">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {activeRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center p-8 text-muted-foreground italic">
+                    <td colSpan={8} className="text-center p-8 text-muted-foreground italic">
                       No variant lines remaining in catalog. Close dialog to reset.
                     </td>
                   </tr>

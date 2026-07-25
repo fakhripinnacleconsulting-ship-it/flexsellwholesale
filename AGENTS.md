@@ -39,7 +39,7 @@ Components must **never** make direct `fetch` or `apiClient` requests to endpoin
 
 ## 🎨 UI & Design Guidelines
 
-- **Premium Aesthetic:** Use modern typography (e.g., Google Fonts), smooth transitions, glassmorphism, and custom hover transitions. Avoid generic default colors (e.g., pure blue, pure red).
+- **  Aesthetic:** Use modern typography (e.g., Google Fonts), smooth transitions, glassmorphism, and custom hover transitions. Avoid generic default colors (e.g., pure blue, pure red).
 - **Responsive Layouts:** Ensure all tables, dialog grids, and checkout views scale flawlessly on mobile and desktop.
 - **Print Optimization:** Invoices and quotes must support print CSS rules (hiding headers, footers, and interactive buttons).
 

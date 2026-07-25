@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
     // 2. Fetch all existing products to map for matching
     const existingProductsList = await Product.find({}).lean();
-    
+
     // Lookup Maps
     const existingByTitle = new Map<string, any>(); // Title (lowercase) -> Product
     const skuToProductId = new Map<string, any>(); // SKU (lowercase) -> Product
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
         // Search for matching product in database by Title or any imported variant SKU
         let match: any = null;
-        
+
         // Match by Title first
         const titleKey = imported.title.toLowerCase().trim();
         if (existingByTitle.has(titleKey)) {
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
 
         // Auto-generate SEO metadata if blank
         const seoTitle = imported.seoTitle || `${imported.title} | FlexSell B2B Wholesale`;
-        const seoDescription = imported.seoDescription || `Buy ${imported.title} in bulk at wholesale price. Premium B2B cargo supply. MOQ: ${imported.moq || 1} units.`;
+        const seoDescription = imported.seoDescription || `Buy ${imported.title} in bulk at wholesale price.   B2B cargo supply. MOQ: ${imported.moq || 1} units.`;
         const seoKeywords = imported.seoKeywords || `${imported.title.toLowerCase()}, wholesale, B2B cargo`;
 
         if (match) {
@@ -198,7 +198,7 @@ export async function POST(request: Request) {
           let baseSlug = generateSlug(imported.title);
           let uniqueSlug = baseSlug;
           let counter = 1;
-          
+
           const slugExists = async (slugVal: string) => {
             const dbCheck = await Product.findOne({ slug: slugVal }).lean();
             return !!dbCheck;

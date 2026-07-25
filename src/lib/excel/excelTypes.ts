@@ -47,7 +47,7 @@ export const GUIDELINES = [
   "Required. Select from dropdown.",
   "Optional. Default: TRUE.",
   "Optional B2B Minimum Order Quantity. Defaults to 1 if left blank. Integer >= 1.",
-  "Optional. Comma-separated. e.g. premium, kitchen.",
+  "Optional. Comma-separated. e.g.  , kitchen.",
   "Optional. Comma-separated. e.g. Hot, New, Bestseller.",
   "Optional. Max 60 chars. Auto-generated if blank.",
   "Optional. Max 160 chars. Auto-generated if blank.",

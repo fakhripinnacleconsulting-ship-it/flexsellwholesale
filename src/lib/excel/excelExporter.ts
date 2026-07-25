@@ -56,7 +56,7 @@ function buildInstructionsSheet(workbook: ExcelJS.Workbook) {
     "Select from the dropdown list. GST rate is auto-determined from this code.",
     "Whether the Selling Price includes GST. Defaults to TRUE if left blank.",
     "Minimum order quantity. Defaults to 1 if left blank.",
-    "Comma-separated product tags. e.g. premium, eco-friendly, kitchen",
+    "Comma-separated product tags. e.g.  , eco-friendly, kitchen",
     "Comma-separated card badge tags. e.g. Hot, New, Bestseller",
     "Page title for SEO. Auto-generated from Product Name if blank.",
     "Meta description for SEO. Auto-generated if blank.",
@@ -266,8 +266,8 @@ export async function downloadExcel(
   const minutes = String(now.getMinutes()).padStart(2, "0");
   const timestamp = `${year}${month}${day}_${hours}${minutes}`;
 
-  a.download = onlyTemplate 
-    ? `flexsell_add_products_${timestamp}.xlsx` 
+  a.download = onlyTemplate
+    ? `flexsell_add_products_${timestamp}.xlsx`
     : `flexsell_update_products_${timestamp}.xlsx`;
 
   document.body.appendChild(a);
