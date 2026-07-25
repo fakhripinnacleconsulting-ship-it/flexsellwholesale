@@ -13,6 +13,10 @@ export function TaxComplianceCard() {
     hsns,
     priceIncludesGst,
     setPriceIncludesGst,
+    packagingCharge,
+    setPackagingCharge,
+    packagingChargeType,
+    setPackagingChargeType,
     defaultPriceTier,
     setDefaultPriceTier
   } = useProductForm();
@@ -21,7 +25,7 @@ export function TaxComplianceCard() {
     <Card>
       <CardContent className="p-6 space-y-6">
         <h3 className="font-bold text-lg border-b pb-2">B2B Compliance & Taxation</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           {/* HSN Dropdown */}
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-1">
@@ -53,6 +57,32 @@ export function TaxComplianceCard() {
             >
               {priceIncludesGst ? "Prices INCLUDE GST" : "Prices EXCLUDE GST"}
             </button>
+          </div>
+
+          {/* Packaging Charge Type Dropdown */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium block">Packaging Calculation</label>
+            <select
+              value={packagingChargeType || "per_unit"}
+              onChange={(e) => setPackagingChargeType(e.target.value as "per_unit" | "per_order")}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground"
+            >
+              <option value="per_unit">Per Unit / Per Product</option>
+              <option value="per_order">Per Order (Flat Rate)</option>
+            </select>
+          </div>
+
+          {/* Product Packaging Charge */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium block">Packaging Charge (₹)</label>
+            <Input
+              type="number"
+              min="0"
+              placeholder="0"
+              value={packagingCharge}
+              onChange={(e) => setPackagingCharge(Math.max(0, Number(e.target.value)))}
+              className="h-10 text-sm font-semibold"
+            />
           </div>
         </div>
       </CardContent>

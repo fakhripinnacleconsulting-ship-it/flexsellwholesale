@@ -24,6 +24,8 @@ export interface SubVariant {
   b2bPrice: number;
   dropshippingPrice: number;
   b2bMoq?: number | null;
+  packagingCharge?: number;
+  packagingChargeType?: "per_unit" | "per_order";
   discount: number;
   stock: number;
   sku: string;
@@ -44,6 +46,8 @@ export interface ColorVariant {
   lengthCm?: number | null;
   breadthCm?: number | null;
   heightCm?: number | null;
+  packagingCharge?: number;
+  packagingChargeType?: "per_unit" | "per_order";
   images: (string | ProductImage)[];
   subVariants: SubVariant[];
 }
@@ -84,6 +88,8 @@ export interface Product extends BaseDocument {
   hsnCode?: string;
   gstRate?: number;
   priceIncludesGst?: boolean;
+  packagingCharge?: number;
+  packagingChargeType?: "per_unit" | "per_order";
   defaultPriceTier?: "B2C" | "B2B" | "Dropshipping";
   seoTitle?: string;
   seoDescription?: string;
@@ -399,6 +405,9 @@ export interface ShippingConfig {
   _id?: string;
   weightSlabs: ShippingWeightSlab[];
   b2bFixedCharge: number;
+  dropshippingFixedCharge?: number;
+  packagingCharge?: number;
+  packagingChargeType?: "per_unit" | "per_order";
   shiprocket?: ShiprocketConfig;
   updatedAt?: string;
 }

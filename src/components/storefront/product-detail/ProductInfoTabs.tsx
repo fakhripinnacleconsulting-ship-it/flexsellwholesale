@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { useProductDetail } from "./ProductDetailContext";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,6 +11,22 @@ import { FileText, Sliders, Truck, ShieldCheck } from "lucide-react";
 export function ProductInfoTabs() {
   const { product, isDescExpanded, setIsDescExpanded, activeVariant, activeSubVariant } = useProductDetail();
   const [activeTab, setActiveTab] = React.useState<"description" | "specifications" | "shipping">("description");
+  const [selectedBreakdownTier, setSelectedBreakdownTier] = React.useState<"B2C" | "B2B" | "Dropshipping">("B2C");
+  const [breakdownQty, setBreakdownQty] = React.useState<number>(1);
+  const [shippingConfig, setShippingConfig] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    fetch("/api/shipping")
+      .then(r => r.json())
+      .then(data => setShippingConfig(data))
+      .catch(() => { });
+  }, []);
+
+  React.useEffect(() => {
+    if (selectedBreakdownTier === "B2B" && activeSubVariant?.b2bMoq) {
+      setBreakdownQty(activeSubVariant.b2bMoq);
+    }
+  }, [selectedBreakdownTier, activeSubVariant]);
 
   if (!product) return null;
 
@@ -29,9 +46,8 @@ export function ProductInfoTabs() {
           <button
             type="button"
             onClick={() => setActiveTab("description")}
-            className={`pb-3 font-bold text-sm transition-all relative cursor-pointer flex items-center gap-1.5 ${
-              activeTab === "description" ? "text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`pb-3 font-bold text-sm transition-all relative cursor-pointer flex items-center gap-1.5 ${activeTab === "description" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              }`}
           >
             <FileText className="h-4 w-4" /> Description
             {activeTab === "description" && (
@@ -43,9 +59,8 @@ export function ProductInfoTabs() {
         <button
           type="button"
           onClick={() => setActiveTab("specifications")}
-          className={`pb-3 font-bold text-sm transition-all relative cursor-pointer flex items-center gap-1.5 ${
-            activeTab === "specifications" ? "text-primary" : "text-muted-foreground hover:text-foreground"
-          }`}
+          className={`pb-3 font-bold text-sm transition-all relative cursor-pointer flex items-center gap-1.5 ${activeTab === "specifications" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}
         >
           <Sliders className="h-4 w-4" /> Specifications
           {activeTab === "specifications" && (
@@ -56,9 +71,8 @@ export function ProductInfoTabs() {
         <button
           type="button"
           onClick={() => setActiveTab("shipping")}
-          className={`pb-3 font-bold text-sm transition-all relative cursor-pointer flex items-center gap-1.5 ${
-            activeTab === "shipping" ? "text-primary" : "text-muted-foreground hover:text-foreground"
-          }`}
+          className={`pb-3 font-bold text-sm transition-all relative cursor-pointer flex items-center gap-1.5 ${activeTab === "shipping" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}
         >
           <Truck className="h-4 w-4" /> Shipping & Freight
           {activeTab === "shipping" && (
@@ -80,9 +94,8 @@ export function ProductInfoTabs() {
           >
             <div className="relative">
               <div
-                className={`text-muted-foreground leading-relaxed prose prose-sm max-w-none dark:prose-invert transition-all duration-300 overflow-hidden ${
-                  isDescExpanded ? "max-h-full" : "max-h-[160px] line-clamp-6"
-                }`}
+                className={`text-muted-foreground leading-relaxed prose prose-sm max-w-none dark:prose-invert transition-all duration-300 overflow-hidden ${isDescExpanded ? "max-h-full" : "max-h-[160px] line-clamp-6"
+                  }`}
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description || "") }}
               />
               {!isDescExpanded && (
@@ -165,12 +178,176 @@ export function ProductInfoTabs() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="space-y-3 text-xs text-muted-foreground leading-relaxed"
+            className="space-y-6 text-xs text-muted-foreground leading-relaxed"
           >
+            {/* 3 Customer Type Sub-Tabs */}
+            <div className="space-y-4 bg-secondary/10 p-4 rounded-xl border border-border/60">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h4 className="text-sm font-black text-foreground flex items-center gap-1.5">
+                  <Truck className="h-4 w-4 text-primary" /> Dynamic Cost & Shipping Breakdown
+                </h4>
+                <div className="flex bg-background border p-1 rounded-lg gap-1 text-[11px] font-bold">
+                  {(["B2C", "B2B", "Dropshipping"] as const).map((tierKey) => (
+                    <button
+                      key={tierKey}
+                      type="button"
+                      onClick={() => setSelectedBreakdownTier(tierKey)}
+                      className={`px-3 py-1 rounded-md transition-all cursor-pointer ${selectedBreakdownTier === tierKey
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/20"
+                        }`}
+                    >
+                      {tierKey === "B2C" ? "B2C Retail" : tierKey === "B2B" ? "B2B Wholesale" : "Dropshipping"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dynamic Breakdown Card */}
+              {(() => {
+                const { calculateDetailedBreakdown } = require("@/lib/priceTierHelper");
+                const breakdown = calculateDetailedBreakdown({
+                  product,
+                  variant: activeVariant,
+                  subVariant: activeSubVariant,
+                  tier: selectedBreakdownTier,
+                  quantity: breakdownQty,
+                  shippingConfig,
+                });
+
+                return (
+                  <div className="space-y-4 text-foreground">
+                    {/* Header info bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-background rounded-lg border text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground block">Customer Segment</span>
+                        <span className="font-bold text-primary">
+                          {selectedBreakdownTier === "B2C" ? "Retail (B2C)" : selectedBreakdownTier === "B2B" ? "Wholesale (B2B Bulk)" : "Reseller (Dropshipping)"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground block">Selected Variation</span>
+                        <span className="font-bold font-mono">
+                          {activeSubVariant ? `${activeSubVariant.size} - ${activeSubVariant.weight}` : "Default"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground">Quantity:</span>
+                        <input
+                          type="number"
+                          min={selectedBreakdownTier === "B2B" ? (activeSubVariant?.b2bMoq || 1) : 1}
+                          value={breakdownQty}
+                          onChange={(e) => setBreakdownQty(Math.max(1, Number(e.target.value)))}
+                          className="w-16 h-7 text-xs font-bold text-center border rounded-md bg-background"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Detailed Table */}
+                    <div className="overflow-x-auto border rounded-lg bg-background">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-secondary/20 text-muted-foreground font-semibold border-b">
+                          <tr>
+                            <th className="p-2.5">Cost Component</th>
+                            <th className="p-2.5">Calculation Details</th>
+                            <th className="p-2.5 text-right">Amount (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50 font-medium">
+                          {/* Base Product Amount */}
+                          <tr>
+                            <td className="p-2.5 font-bold">
+                              Base Selling Price
+                              {selectedBreakdownTier === "B2B" && (
+                                <span className="text-[10px] text-muted-foreground block font-normal">
+                                  (MOQ: {activeSubVariant?.b2bMoq || 1} units)
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-muted-foreground font-mono">
+                              ₹{breakdown.unitBasePrice.toFixed(2)} × {breakdown.quantity} unit(s)
+                            </td>
+                            <td className="p-2.5 text-right font-bold font-mono">
+                              ₹{breakdown.totalProductPrice.toFixed(2)}
+                            </td>
+                          </tr>
+
+                          {/* GST Tax Breakdown */}
+                          <tr>
+                            <td className="p-2.5">
+                              <span className="font-bold">GST Tax ({breakdown.gstRate}%)</span>
+                              <span className="text-[10px] text-muted-foreground block font-mono">
+                                HSN: {breakdown.hsnCode} • {breakdown.priceIncludesGst ? "Inclusive in Base" : "Exclusive Tax"}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-muted-foreground font-mono text-[11px]">
+                              CGST ({breakdown.gstRate / 2}%): ₹{breakdown.cgstAmount.toFixed(2)} + SGST ({breakdown.gstRate / 2}%): ₹{breakdown.sgstAmount.toFixed(2)}
+                            </td>
+                            <td className="p-2.5 text-right font-bold font-mono">
+                              ₹{breakdown.totalTaxAmount.toFixed(2)}
+                            </td>
+                          </tr>
+
+                          {/* Weight & Shipping Charge */}
+                          <tr>
+                            <td className="p-2.5">
+                              <span className="font-bold">Freight & Shipping Charge</span>
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
+                                  Actual: {breakdown.actualUnitWeightGrams}g
+                                </Badge>
+                                <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono">
+                                  Volumetric: {breakdown.volumetricUnitWeightGrams}g
+                                </Badge>
+                                <Badge variant={breakdown.appliedWeightType === "volumetric" ? "warning" : "secondary"} className="text-[9px] py-0 px-1">
+                                  Chargeable: {breakdown.chargeableUnitWeightGrams}g ({breakdown.appliedWeightType === "volumetric" ? "Volumetric Applied" : "Actual Applied"})
+                                </Badge>
+                              </div>
+                            </td>
+                            <td className="p-2.5 text-muted-foreground font-mono text-[11px]">
+                              Total Chargeable: {(breakdown.totalChargeableWeightGrams / 1000).toFixed(2)} kg
+                            </td>
+                            <td className="p-2.5 text-right font-bold font-mono text-blue-600 dark:text-blue-400">
+                              ₹{breakdown.estimatedShippingCharge.toFixed(2)}
+                            </td>
+                          </tr>
+
+                          {/* Packaging Charge */}
+                          <tr>
+                            <td className="p-2.5 font-bold">Packaging Charge</td>
+                            <td className="p-2.5 text-muted-foreground font-mono">
+                              {breakdown.packagingChargeType === "per_order"
+                                ? `₹${breakdown.totalPackagingCharge.toFixed(2)} (Flat Per Order)`
+                                : `₹${breakdown.unitPackagingCharge.toFixed(2)} × ${breakdown.quantity} unit(s)`}
+                            </td>
+                            <td className="p-2.5 text-right font-bold font-mono">
+                              ₹{breakdown.totalPackagingCharge.toFixed(2)}
+                            </td>
+                          </tr>
+
+                          {/* Total Estimated Cost */}
+                          <tr className="bg-primary/10 text-primary font-black border-t text-xs">
+                            <td className="p-3">ESTIMATED TOTAL LANDED COST</td>
+                            <td className="p-3 font-mono text-[11px]">
+                              Per Unit Landed: ₹{breakdown.unitLandedPrice.toFixed(2)}
+                            </td>
+                            <td className="p-3 text-right text-sm font-black font-mono">
+                              ₹{breakdown.totalLandedOrderAmount.toFixed(2)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Informational dispatch banners */}
             <div className="flex gap-3 p-3 bg-primary/5 rounded-lg border border-primary/20">
               <Truck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-foreground">Express Surat Central Dispatch</p>
+                <p className="font-bold text-foreground">Express Bhopal Central Dispatch</p>
                 <p>All wholesale cargo orders are packed and handed over to Delhivery, V-Trans, or Gati transport within 24-48 working hours.</p>
               </div>
             </div>

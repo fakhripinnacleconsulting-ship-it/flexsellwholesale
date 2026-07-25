@@ -85,7 +85,7 @@ export function VariantCard({
           const heightVal = (item.heightCm !== undefined && item.heightCm !== null && item.heightCm > 0) ? item.heightCm : parsedDim.heightCm;
 
           return (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 border-t pt-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">Package Length (cm) *</label>
                 <Input
@@ -117,6 +117,27 @@ export function VariantCard({
                   placeholder={String(parsedDim.heightCm)}
                   value={heightVal}
                   onChange={(e) => updateVariantField(idx, "heightCm", e.target.value === "" ? null : Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Packaging Calculation</label>
+                <select
+                  value={item.packagingChargeType || "per_unit"}
+                  onChange={(e) => updateVariantField(idx, "packagingChargeType", e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                >
+                  <option value="per_unit">Per Unit</option>
+                  <option value="per_order">Per Order (Flat)</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Packaging Charge (₹)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={item.packagingCharge ?? 0}
+                  onChange={(e) => updateVariantField(idx, "packagingCharge", e.target.value === "" ? 0 : Number(e.target.value))}
                 />
               </div>
             </div>

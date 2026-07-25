@@ -7,6 +7,7 @@ import {
   isHybridB2CAndB2B,
   calculateVolumetricWeightGrams,
   calculateEffectiveUnitWeightGrams,
+  calculateDetailedBreakdown,
 } from "../priceTierHelper";
 
 const sampleSubVariant: any = {
@@ -102,5 +103,99 @@ describe("Volumetric & Effective Weight Calculations", () => {
     const qty = 3;
     const totalLineWeight = unitWeight * qty;
     expect(totalLineWeight).toBe(6000); // 6kg (6000g)
+  });
+});
+
+describe("calculateDetailedBreakdown", () => {
+  const dummyProduct = {
+    _id: "prod-1",
+    title: "Test Badge Product",
+    hsnCode: "3924",
+    gstRate: 18,
+    priceIncludesGst: true,
+    packagingCharge: 10,
+  };
+
+  const dummyVariant = {
+    color: "Default",
+    dimensions: "15x12x20.9 cm",
+    lengthCm: 15,
+    breadthCm: 12,
+    heightCm: 20.9,
+  };
+
+  const dummySubVariant = {
+    id: "sv-1",
+    size: "Standard",
+    weight: "100g",
+    weightGrams: 100,
+    b2cPrice: 15,
+    b2bPrice: 10,
+    dropshippingPrice: 12,
+    b2bMoq: 10,
+    packagingCharge: 5,
+  };
+
+  it("calculates detailed breakdown correctly for B2C tier", () => {
+    const breakdown = calculateDetailedBreakdown({
+      product: dummyProduct,
+      variant: dummyVariant,
+      subVariant: dummySubVariant,
+      tier: "B2C",
+      quantity: 2,
+    });
+
+    expect(breakdown.tier).toBe("B2C");
+    expect(breakdown.quantity).toBe(2);
+    expect(breakdown.unitBasePrice).toBe(15);
+    expect(breakdown.totalProductPrice).toBe(30);
+    expect(breakdown.unitPackagingCharge).toBe(5);
+    expect(breakdown.totalPackagingCharge).toBe(10);
+    expect(breakdown.appliedWeightType).toBe("volumetric"); // Volumetric 752g > Actual 100g
+    expect(breakdown.chargeableUnitWeightGrams).toBe(752);
+  });
+
+  it("calculates detailed breakdown correctly for B2B tier with MOQ", () => {
+    const breakdown = calculateDetailedBreakdown({
+      product: dummyProduct,
+      variant: dummyVariant,
+      subVariant: dummySubVariant,
+      tier: "B2B",
+      quantity: 10,
+    });
+
+    expect(breakdown.tier).toBe("B2B");
+    expect(breakdown.quantity).toBe(10);
+    expect(breakdown.unitBasePrice).toBe(10);
+    expect(breakdown.totalProductPrice).toBe(100);
+    expect(breakdown.b2bMoq).toBe(10);
+    expect(breakdown.totalPackagingCharge).toBe(50);
+  });
+
+  it("calculates per_order flat packaging charge correctly", () => {
+    const breakdown = calculateDetailedBreakdown({
+      product: { ...dummyProduct, packagingCharge: 50, packagingChargeType: "per_order" },
+      variant: dummyVariant,
+      subVariant: { ...dummySubVariant, packagingCharge: 50, packagingChargeType: "per_order" },
+      tier: "B2C",
+      quantity: 5,
+    });
+
+    expect(breakdown.packagingChargeType).toBe("per_order");
+    expect(breakdown.totalPackagingCharge).toBe(50); // Flat ₹50 for whole order
+    expect(breakdown.unitPackagingCharge).toBe(10); // ₹50 / 5 units
+  });
+
+  it("falls back to variant/product packaging charge when subVariant has 0", () => {
+    const breakdown = calculateDetailedBreakdown({
+      product: { ...dummyProduct, packagingCharge: 40 },
+      variant: { ...dummyVariant, packagingCharge: 25 },
+      subVariant: { ...dummySubVariant, packagingCharge: 0 },
+      tier: "B2C",
+      quantity: 2,
+    });
+
+    expect(breakdown.unitPackagingCharge).toBe(25); // Picked variant packaging charge
+    expect(breakdown.totalPackagingCharge).toBe(50);
   });
 });

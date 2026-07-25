@@ -38,7 +38,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { weightSlabs, b2bFixedCharge, shiprocket } = body;
+    const { weightSlabs, b2bFixedCharge, dropshippingFixedCharge, shiprocket } = body;
 
     let config = await ShippingConfig.findOne({ _id: "shipping-config" });
     if (!config) {
@@ -47,6 +47,7 @@ export async function PUT(request: Request) {
 
     if (weightSlabs !== undefined) config.weightSlabs = weightSlabs;
     if (b2bFixedCharge !== undefined) config.b2bFixedCharge = b2bFixedCharge;
+    if (dropshippingFixedCharge !== undefined) config.dropshippingFixedCharge = dropshippingFixedCharge;
     if (shiprocket !== undefined) {
       config.shiprocket = {
         ...config.shiprocket,

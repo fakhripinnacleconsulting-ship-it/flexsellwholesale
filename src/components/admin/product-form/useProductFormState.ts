@@ -26,6 +26,10 @@ export interface ProductFormContextProps {
   setHsnCode: (c: string) => void;
   priceIncludesGst: boolean;
   setPriceIncludesGst: (b: boolean) => void;
+  packagingCharge: number;
+  setPackagingCharge: (p: number) => void;
+  packagingChargeType: "per_unit" | "per_order";
+  setPackagingChargeType: (t: "per_unit" | "per_order") => void;
   defaultPriceTier: "B2C" | "B2B" | "Dropshipping";
   setDefaultPriceTier: (t: "B2C" | "B2B" | "Dropshipping") => void;
   seoTitle: string;
@@ -122,6 +126,8 @@ export function useProductFormState(
   const [cardTagsText, setCardTagsText] = React.useState("");
   const [hsnCode, setHsnCode] = React.useState("3924");
   const [priceIncludesGst, setPriceIncludesGst] = React.useState(true);
+  const [packagingCharge, setPackagingCharge] = React.useState<number>(0);
+  const [packagingChargeType, setPackagingChargeType] = React.useState<"per_unit" | "per_order">("per_unit");
   const [defaultPriceTier, setDefaultPriceTier] = React.useState<"B2C" | "B2B" | "Dropshipping">("B2C");
   const [seoTitle, setSeoTitle] = React.useState("");
   const [seoDescription, setSeoDescription] = React.useState("");
@@ -167,6 +173,8 @@ export function useProductFormState(
       setAPlusBlocks(existingProduct.aPlusContent || []);
       setHsnCode(existingProduct.hsnCode || "3924");
       setPriceIncludesGst(existingProduct.priceIncludesGst ?? true);
+      setPackagingCharge(existingProduct.packagingCharge ?? 0);
+      setPackagingChargeType(existingProduct.packagingChargeType || "per_unit");
       setDefaultPriceTier(existingProduct.defaultPriceTier || "B2C");
       setSeoTitle(existingProduct.seoTitle || "");
       setSeoDescription(existingProduct.seoDescription || "");
@@ -195,9 +203,13 @@ export function useProductFormState(
             lengthCm,
             breadthCm,
             heightCm,
+            packagingCharge: v.packagingCharge ?? 0,
+            packagingChargeType: v.packagingChargeType || "per_unit",
             dimensions: v.dimensions || `${lengthCm}x${breadthCm}x${heightCm} cm`,
             subVariants: (v.subVariants || []).map(sv => ({
               ...sv,
+              packagingCharge: sv.packagingCharge ?? 0,
+              packagingChargeType: sv.packagingChargeType || "per_unit",
               weightGrams: (sv.weightGrams !== undefined && sv.weightGrams !== null && sv.weightGrams > 0)
                 ? sv.weightGrams
                 : parseWeightToGrams(sv.weight || "250g")
@@ -672,9 +684,13 @@ export function useProductFormState(
       const validImages = (item.images || []).filter((img: any) => img.url && img.url.trim() !== "");
       return {
         ...item,
+        packagingCharge: Number(item.packagingCharge) || 0,
+        packagingChargeType: item.packagingChargeType || "per_unit",
         images: validImages.length > 0 ? validImages : [{ url: "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80", alt: `${title || 'Product'} Default Image` }],
         subVariants: (item.subVariants || []).map((sv: any) => ({
           ...sv,
+          packagingCharge: Number(sv.packagingCharge) || 0,
+          packagingChargeType: sv.packagingChargeType || "per_unit",
           barcode: sv.barcode || null,
           barcodeSource: sv.barcodeSource || (sv.barcodeImage ? "image" : sv.barcode ? "manual" : "auto"),
           barcodeImage: sv.barcodeImage || null,
@@ -715,6 +731,8 @@ export function useProductFormState(
       hsnCode,
       gstRate: gstRateVal,
       priceIncludesGst,
+      packagingCharge: Number(packagingCharge) || 0,
+      packagingChargeType: packagingChargeType || "per_unit",
       defaultPriceTier,
       seoTitle,
       seoDescription,
@@ -761,6 +779,10 @@ export function useProductFormState(
     setHsnCode,
     priceIncludesGst,
     setPriceIncludesGst,
+    packagingCharge,
+    setPackagingCharge,
+    packagingChargeType,
+    setPackagingChargeType,
     defaultPriceTier,
     setDefaultPriceTier,
     seoTitle,

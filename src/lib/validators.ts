@@ -123,6 +123,8 @@ export const subVariantSchema = z.object({
   b2bPrice: z.number().nonnegative().default(0),
   dropshippingPrice: z.number().nonnegative().default(0),
   b2bMoq: z.number().int().nonnegative().nullable().default(null),
+  packagingCharge: z.number().nonnegative().optional().default(0),
+  packagingChargeType: z.enum(["per_unit", "per_order"]).optional().default("per_unit"),
   discount: z.number().nonnegative(),
   stock: z.number().int().nonnegative(),
   sku: z.string().min(1, "SKU is required"),
@@ -135,6 +137,8 @@ export const subVariantSchema = z.object({
 export const colorVariantSchema = z.object({
   color: z.string().min(1, "Color is required"),
   dimensions: z.string().optional().default(""),
+  packagingCharge: z.number().nonnegative().optional().default(0),
+  packagingChargeType: z.enum(["per_unit", "per_order"]).optional().default("per_unit"),
   images: z.array(z.any()).optional().default([]),
   subVariants: z.array(subVariantSchema).min(1, "At least 1 sub-variant is required"),
 });
@@ -167,6 +171,8 @@ export const productSchema = z.object({
   hsnCode: z.string().optional().nullable(),
   gstRate: z.number().nonnegative().optional().nullable(),
   priceIncludesGst: z.boolean().default(true),
+  packagingCharge: z.number().nonnegative().optional().default(0),
+  packagingChargeType: z.enum(["per_unit", "per_order"]).optional().default("per_unit"),
   defaultPriceTier: z.enum(["B2C", "B2B", "Dropshipping"]).default("B2C"),
   seoTitle: z.string().optional().nullable(),
   seoDescription: z.string().optional().nullable(),

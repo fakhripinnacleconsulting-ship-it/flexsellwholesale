@@ -198,3 +198,170 @@ export function parseDimensionsToCm(dimStr?: string | null): { lengthCm: number;
   }
   return { lengthCm: 15, breadthCm: 12, heightCm: 8 };
 }
+
+export interface CostBreakdownDetails {
+  tier: "B2C" | "B2B" | "Dropshipping";
+  quantity: number;
+  unitBasePrice: number;
+  totalProductPrice: number;
+  
+  // Tax breakdown
+  hsnCode: string;
+  gstRate: number;
+  priceIncludesGst: boolean;
+  unitTaxableAmount: number;
+  unitTaxAmount: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  totalTaxAmount: number;
+  
+  // Weight & Freight breakdown
+  actualUnitWeightGrams: number;
+  volumetricUnitWeightGrams: number;
+  chargeableUnitWeightGrams: number;
+  totalChargeableWeightGrams: number;
+  appliedWeightType: "actual" | "volumetric";
+  estimatedShippingCharge: number;
+  
+  // Packaging charge
+  unitPackagingCharge: number;
+  totalPackagingCharge: number;
+  packagingChargeType: "per_unit" | "per_order";
+  
+  // Totals
+  unitLandedPrice: number;
+  totalLandedOrderAmount: number;
+  b2bMoq: number;
+}
+
+export function calculateDetailedBreakdown(params: {
+  product: any;
+  variant?: any;
+  subVariant?: any;
+  tier: "B2C" | "B2B" | "Dropshipping";
+  quantity?: number;
+  shippingConfig?: any;
+}): CostBreakdownDetails {
+  const { product, variant, subVariant, tier, shippingConfig } = params;
+  const qty = Math.max(1, params.quantity || 1);
+
+  const b2bMoq = subVariant?.b2bMoq || 1;
+  const hsnCode = product?.hsnCode || "3924";
+  const gstRate = product?.gstRate ?? 18;
+  const priceIncludesGst = product?.priceIncludesGst ?? true;
+
+  // Base price per unit
+  let unitBasePrice = 0;
+  if (subVariant) {
+    if (tier === "B2B") unitBasePrice = subVariant.b2bPrice || subVariant.b2cPrice || 0;
+    else if (tier === "Dropshipping") unitBasePrice = subVariant.dropshippingPrice || subVariant.b2cPrice || 0;
+    else unitBasePrice = subVariant.b2cPrice || 0;
+  }
+
+  const totalProductPrice = unitBasePrice * qty;
+
+  // Tax calculation
+  let unitTaxableAmount = 0;
+  let unitTaxAmount = 0;
+
+  if (unitBasePrice > 0) {
+    if (priceIncludesGst) {
+      unitTaxableAmount = unitBasePrice / (1 + gstRate / 100);
+      unitTaxAmount = unitBasePrice - unitTaxableAmount;
+    } else {
+      unitTaxableAmount = unitBasePrice;
+      unitTaxAmount = unitBasePrice * (gstRate / 100);
+    }
+  }
+
+  const totalTaxAmount = unitTaxAmount * qty;
+  const cgstAmount = totalTaxAmount / 2;
+  const sgstAmount = totalTaxAmount / 2;
+
+  // Weight calculations
+  const actualUnitWeightGrams = subVariant?.weightGrams ?? parseWeightToGrams(subVariant?.weight || "250g");
+
+  const parsedDim = parseDimensionsToCm(variant?.dimensions);
+  const l = (variant?.lengthCm !== undefined && variant?.lengthCm !== null && variant?.lengthCm > 0)
+    ? variant.lengthCm
+    : parsedDim.lengthCm;
+  const b = (variant?.breadthCm !== undefined && variant?.breadthCm !== null && variant?.breadthCm > 0)
+    ? variant.breadthCm
+    : parsedDim.breadthCm;
+  const h = (variant?.heightCm !== undefined && variant?.heightCm !== null && variant?.heightCm > 0)
+    ? variant.heightCm
+    : parsedDim.heightCm;
+
+  const volumetricUnitWeightGrams = Math.round(calculateVolumetricWeightGrams(l, b, h));
+  const chargeableUnitWeightGrams = Math.max(actualUnitWeightGrams, volumetricUnitWeightGrams);
+  const totalChargeableWeightGrams = chargeableUnitWeightGrams * qty;
+  const appliedWeightType: "actual" | "volumetric" = volumetricUnitWeightGrams > actualUnitWeightGrams ? "volumetric" : "actual";
+
+  // Shipping calculation per customer tier from /admin/shipping configuration
+  let estimatedShippingCharge = 0;
+  if (shippingConfig) {
+    if (tier === "B2B") {
+      const b2bFixed = Number(shippingConfig?.b2bFixedCharge) ?? 150;
+      estimatedShippingCharge = b2bFixed;
+    } else if (tier === "Dropshipping") {
+      if (typeof shippingConfig?.dropshippingFixedCharge === "number" && shippingConfig.dropshippingFixedCharge > 0) {
+        estimatedShippingCharge = shippingConfig.dropshippingFixedCharge;
+      } else {
+        const slabs = shippingConfig?.weightSlabs || [];
+        estimatedShippingCharge = slabs.length > 0 ? calculateShippingByWeight(totalChargeableWeightGrams, slabs) : 80;
+      }
+    } else {
+      // B2C Tier uses weight slabs from /admin/shipping
+      const slabs = shippingConfig?.weightSlabs || [];
+      estimatedShippingCharge = slabs.length > 0 ? calculateShippingByWeight(totalChargeableWeightGrams, slabs) : 50;
+    }
+  } else {
+    estimatedShippingCharge = tier === "B2B" ? 150 : tier === "Dropshipping" ? 80 : 50;
+  }
+
+  // Packaging charge calculation per_unit vs per_order
+  const packagingChargeType: "per_unit" | "per_order" = subVariant?.packagingChargeType || variant?.packagingChargeType || product?.packagingChargeType || shippingConfig?.packagingChargeType || "per_unit";
+  const rawPackagingAmount = Number(subVariant?.packagingCharge || variant?.packagingCharge || product?.packagingCharge || shippingConfig?.packagingCharge || 0);
+
+  let unitPackagingCharge = 0;
+  let totalPackagingCharge = 0;
+
+  if (packagingChargeType === "per_order") {
+    totalPackagingCharge = rawPackagingAmount;
+    unitPackagingCharge = rawPackagingAmount / qty;
+  } else {
+    unitPackagingCharge = rawPackagingAmount;
+    totalPackagingCharge = rawPackagingAmount * qty;
+  }
+
+  // Landed total
+  const unitLandedPrice = (priceIncludesGst ? unitBasePrice : unitBasePrice + unitTaxAmount) + unitPackagingCharge + (estimatedShippingCharge / qty);
+  const totalLandedOrderAmount = (priceIncludesGst ? totalProductPrice : totalProductPrice + totalTaxAmount) + totalPackagingCharge + estimatedShippingCharge;
+
+  return {
+    tier,
+    quantity: qty,
+    unitBasePrice,
+    totalProductPrice,
+    hsnCode,
+    gstRate,
+    priceIncludesGst,
+    unitTaxableAmount,
+    unitTaxAmount,
+    cgstAmount,
+    sgstAmount,
+    totalTaxAmount,
+    actualUnitWeightGrams,
+    volumetricUnitWeightGrams,
+    chargeableUnitWeightGrams,
+    totalChargeableWeightGrams,
+    appliedWeightType,
+    estimatedShippingCharge,
+    unitPackagingCharge,
+    totalPackagingCharge,
+    packagingChargeType,
+    unitLandedPrice,
+    totalLandedOrderAmount,
+    b2bMoq,
+  };
+}

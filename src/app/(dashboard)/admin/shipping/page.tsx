@@ -16,6 +16,7 @@ export default function AdminShippingPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
   const [b2bFixedCharge, setB2bFixedCharge] = React.useState(150);
+  const [dropshippingFixedCharge, setDropshippingFixedCharge] = React.useState(80);
   const [slabs, setSlabs] = React.useState<ShippingWeightSlab[]>([]);
   const [activeTab, setActiveTab] = React.useState<"weight" | "b2b" | "shiprocket">("weight");
 
@@ -52,6 +53,7 @@ export default function AdminShippingPage() {
       .then((config: any) => {
         if (config) {
           setB2bFixedCharge(config.b2bFixedCharge ?? 150);
+          setDropshippingFixedCharge(config.dropshippingFixedCharge ?? 80);
           setSlabs(config.weightSlabs || []);
 
           if (config.shiprocket) {
@@ -158,6 +160,7 @@ export default function AdminShippingPage() {
       await shippingService.updateConfig({
         weightSlabs: slabs,
         b2bFixedCharge: Number(b2bFixedCharge),
+        dropshippingFixedCharge: Number(dropshippingFixedCharge),
         shiprocket: {
           enabled: srEnabled,
           email: srEmail,
@@ -362,9 +365,9 @@ export default function AdminShippingPage() {
               </CardTitle>
               <CardDescription>Set flat shipping rates for bulk trade orders.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold">B2B Fixed Shipping Charge (₹)</label>
+                <label className="text-sm font-bold">B2B Fixed Freight Charge (₹)</label>
                 <Input
                   type="number"
                   min={0}
@@ -373,7 +376,21 @@ export default function AdminShippingPage() {
                   className="font-bold text-lg max-w-xs"
                 />
                 <p className="text-[10px] text-muted-foreground leading-relaxed mt-1">
-                  This flat rate is automatically applied to all B2B bulk orders at checkout, regardless of cargo weight or package sizes.
+                  This flat freight rate is automatically applied to all B2B wholesale bulk orders at checkout and in product cost breakdowns.
+                </p>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-bold">Dropshipping Fixed Shipping Charge (₹)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={dropshippingFixedCharge}
+                  onChange={(e) => setDropshippingFixedCharge(Math.max(0, Number(e.target.value)))}
+                  className="font-bold text-lg max-w-xs"
+                />
+                <p className="text-[10px] text-muted-foreground leading-relaxed mt-1">
+                  This rate is applied to dropshipping reseller orders. If set to 0, dropshipping orders fall back to weight slabs.
                 </p>
               </div>
             </CardContent>
