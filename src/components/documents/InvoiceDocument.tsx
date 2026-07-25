@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { Order, CartItem, TaxBreakdown, SellerInfo, HsnSlab } from "@/types";
 import { useProductStore } from "@/stores/productStore";
+import { resolveVariantKeys } from "@/lib/variantMatcher";
 
 export interface InvoiceDocumentProps {
   type: "invoice" | "receipt" | "quote";
@@ -14,6 +15,7 @@ export interface InvoiceDocumentProps {
   taxBreakdown?: TaxBreakdown;
   showActions?: boolean;
   customerId?: string;
+  salesperson?: string;
 }
 
 function computeTaxBreakdown(order: Order, sellerState: string): TaxBreakdown {
@@ -83,6 +85,7 @@ export function InvoiceDocument({
   taxBreakdown: providedTaxBreakdown,
   showActions = true,
   customerId,
+  salesperson,
 }: InvoiceDocumentProps) {
   const { products } = useProductStore();
   // Extract seller state from address for tax computation
@@ -144,6 +147,11 @@ export function InvoiceDocument({
                 Order Ref: {order._id}
               </p>
             )}
+            {salesperson && (
+              <p className="text-xs font-medium text-emerald-700 mt-1">
+                Sales Rep: <span className="font-bold text-gray-900">{salesperson}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -168,6 +176,11 @@ export function InvoiceDocument({
             )}
             {sellerInfo.phone && (
               <p className="text-gray-500">Phone: {sellerInfo.phone}</p>
+            )}
+            {salesperson && (
+              <p className="text-xs text-emerald-700 font-medium mt-1.5 pt-1.5 border-t border-gray-100">
+                Salesperson: <span className="font-bold text-gray-900">{salesperson}</span>
+              </p>
             )}
           </div>
 
@@ -234,19 +247,23 @@ export function InvoiceDocument({
                             const matchedProduct = products.find(p => p._id === item.productId || p._id === item.product?._id);
                             const productSource = matchedProduct || item.product;
                             const colorVariants = productSource?.colorVariants || [];
-                            const matchingColor = item.selectedVariants?.["Color"] || item.selectedVariants?.["color"];
-                            const activeVariant = colorVariants.find((cv: any) => cv.color === matchingColor)
+                            const { color: matchingColor } = resolveVariantKeys(item.selectedVariants);
+                            const activeVariant = colorVariants.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
                               || colorVariants[0];
-                            const firstImg = activeVariant?.images?.[0];
-                            const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+                             const firstImg = activeVariant?.images?.[0] || colorVariants.find((cv: any) => cv.images && cv.images.length > 0)?.images?.[0];
+                            const rawUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+                            const imgUrl = sanitizeImgUrl(rawUrl, "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80");
                             return (
-                              <Image
-                                src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"}
+                              <img
+                                src={imgUrl}
                                 alt={item.product?.title || "Product"}
-                                fill
-                                sizes="48px"
-                                className="object-cover"
-                                unoptimized
+                                className="w-12 h-12 object-cover"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.onerror = null;
+                                  target.src = "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80";
+                                }}
                               />
                             );
                           })()}
@@ -255,10 +272,13 @@ export function InvoiceDocument({
                           <p className="font-semibold text-gray-900">{item.product?.title || "Product"}</p>
                           <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-500 font-mono mt-0.5">
                             {(() => {
-                              const matchingColor = item.selectedVariants?.["Color"] || item.selectedVariants?.["color"];
-                              const activeVariant = item.product?.colorVariants?.find((cv: any) => cv.color === matchingColor)
+                              const { color: matchingColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(item.selectedVariants);
+                              const activeVariant = item.product?.colorVariants?.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
                                 || item.product?.colorVariants?.[0];
-                              const activeSub = activeVariant?.subVariants?.[0];
+                              const activeSub = activeVariant?.subVariants?.find((sv: any) =>
+                                (!selectedSize || sv.size?.toLowerCase() === selectedSize.toLowerCase()) &&
+                                (!selectedWeight || sv.weight?.toLowerCase() === selectedWeight.toLowerCase())
+                              ) || activeVariant?.subVariants?.[0];
                               const sku = activeSub?.sku || (item.product?._id ? `SKU-${item.product._id.slice(-6)}` : "SKU-N/A");
                               return <span>SKU: {sku}</span>;
                             })()}
@@ -393,6 +413,50 @@ export function InvoiceDocument({
                 Txn ID: {order.transactionId}
               </p>
             )}
+
+            {order.paymentStatus === "Paid" ? (
+              <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded text-xs space-y-1">
+                <p className="font-bold text-emerald-800 text-[10px] uppercase tracking-wider flex items-center gap-1">
+                  ✓ Payment Settled & Verified
+                </p>
+                <p className="text-gray-700">Payment Mode: <strong className="font-semibold">{order.paymentMethod || "Bank Transfer"}</strong></p>
+                {order.transactionId && (
+                  <p className="text-gray-700 font-mono">Reference / Txn ID: <strong className="font-semibold">{order.transactionId}</strong></p>
+                )}
+              </div>
+            ) : (
+              <>
+                {(order.paymentMethod === "Bank Transfer" || order.paymentMethod === "NEFT/RTGS" || order.paymentMethod === "Cheque" || !order.paymentMethod) && sellerInfo.bankDetails?.accountNumber && (
+                  <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded text-xs space-y-1">
+                    <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wider">Direct Bank Transfer Details:</p>
+                    <p className="text-gray-700">Bank: <strong className="font-semibold">{sellerInfo.bankDetails.bankName}</strong></p>
+                    <p className="text-gray-700">Account Name: <strong className="font-semibold">{sellerInfo.bankDetails.accountName}</strong></p>
+                    <p className="text-gray-700 font-mono">A/C No: <strong className="font-semibold">{sellerInfo.bankDetails.accountNumber}</strong></p>
+                    <p className="text-gray-700 font-mono">IFSC Code: <strong className="font-semibold">{sellerInfo.bankDetails.ifscCode}</strong></p>
+                    {sellerInfo.bankDetails.branchName && (
+                      <p className="text-gray-500 text-[10px]">Branch: {sellerInfo.bankDetails.branchName}</p>
+                    )}
+                  </div>
+                )}
+
+                {order.paymentMethod === "UPI" && sellerInfo.upiDetails?.upiId && (
+                  <div className="mt-3 p-3 bg-emerald-50/50 border border-emerald-200 rounded text-xs space-y-1">
+                    <p className="font-bold text-emerald-800 text-[10px] uppercase tracking-wider">UPI / VPA Payment Details:</p>
+                    <p className="text-gray-700 font-mono">UPI ID: <strong className="font-semibold text-emerald-700">{sellerInfo.upiDetails.upiId}</strong></p>
+                    {sellerInfo.upiDetails.payeeName && (
+                      <p className="text-gray-700">Payee Name: <strong>{sellerInfo.upiDetails.payeeName}</strong></p>
+                    )}
+                  </div>
+                )}
+
+                {order.paymentMethod === "COD" && (
+                  <div className="mt-3 p-3 bg-amber-50/50 border border-amber-200 rounded text-xs space-y-1">
+                    <p className="font-bold text-amber-800 text-[10px] uppercase tracking-wider">Cash on Delivery Instructions:</p>
+                    <p className="text-amber-900 text-[11px]">Pay cash to logistics agent upon delivery.</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Authorized Signatory */}
@@ -401,17 +465,40 @@ export function InvoiceDocument({
               <div className="border border-emerald-300 border-dashed rounded text-[9px] font-bold text-emerald-600 px-2 py-1 rotate-[-4deg] absolute left-2 top-2 opacity-80 uppercase tracking-widest no-print">
                 {sellerInfo.storeName} B2B Verified
               </div>
-              <div className="h-16 flex items-center justify-center">
-                <span className="text-[10px] text-gray-400 italic font-serif">
-                  Authorized Signatory
-                </span>
+              <div className="h-16 flex items-center justify-center pt-2">
+                {sellerInfo.signatureUrl ? (
+                  <img
+                    src={sellerInfo.signatureUrl}
+                    alt="Authorized Signatory Signature"
+                    className="h-14 max-w-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="text-[10px] text-gray-400 italic font-serif">
+                    Authorized Signatory
+                  </span>
+                )}
               </div>
-              <div className="border-t border-gray-400 pt-2 font-bold text-[10px] text-gray-800 uppercase tracking-wider">
+              <div className="border-t border-gray-400 pt-2 font-bold text-[10px] text-gray-800 uppercase tracking-wider mt-1">
                 For {sellerInfo.storeName}
               </div>
             </div>
           </div>
         </div>
+
+        {/* ─── TERMS & CONDITIONS ─── */}
+        {sellerInfo.termsAndConditions && sellerInfo.termsAndConditions.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-gray-200 text-xs">
+            <h4 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-1.5">
+              Terms & Conditions / Policies:
+            </h4>
+            <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-gray-600">
+              {sellerInfo.termsAndConditions.map((term, idx) => (
+                <li key={idx}>{term}</li>
+              ))}
+            </ol>
+          </div>
+        )}
 
         {/* ─── FOOTER NOTE ─── */}
         <div className="mt-8 pt-4 border-t border-gray-200 text-[10px] text-gray-400 text-center space-y-1">
@@ -423,15 +510,34 @@ export function InvoiceDocument({
       {/* ─── PRINT STYLES ─── */}
       <style jsx global>{`
         @media print {
-          body * { visibility: hidden; }
-          .invoice-document, .invoice-document * { visibility: visible; }
-          .invoice-document {
-            position: absolute; left: 0; top: 0; width: 100%;
-            max-width: 100% !important; padding: 0 !important;
+          @page {
+            size: A4 portrait;
+            margin: 0;
           }
-          .no-print { display: none !important; }
-          nav, header, footer, aside, [data-sidebar],
-          .no-print, button { display: none !important; }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+          }
+          body * { visibility: hidden; }
+          .invoice-document, .invoice-document * { visibility: visible !important; }
+          .invoice-document {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 10mm 15mm !important;
+            box-sizing: border-box !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+          }
+          nav, header, footer, aside, [data-sidebar], .no-print, button { display: none !important; }
         }
       `}</style>
     </div>

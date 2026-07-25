@@ -4,7 +4,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Search, Eye, Plus, Trash2, Calendar, FileText, X, Check, Loader2, ArrowLeft, Printer, RefreshCw, Edit, QrCode } from "lucide-react";
+import { Search, Eye, Plus, Trash2, Calendar, FileText, X, Check, Loader2, ArrowLeft, Printer, RefreshCw, Edit, QrCode, Building, Save, Upload } from "lucide-react";
 import { useInvoiceStore } from "@/stores/invoiceStore";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
@@ -25,7 +25,7 @@ export default function AdminInvoicesPage() {
   const { addToast } = useToastStore();
   const confirmAction = useConfirmStore((state) => state.confirm);
 
-  const [activeTab, setActiveTab] = React.useState<"invoice" | "receipt" | "quote">("quote");
+  const [activeTab, setActiveTab] = React.useState<"invoice" | "receipt" | "quote" | "company_info">("quote");
   const [activeSubTab, setActiveSubTab] = React.useState<"B2B" | "B2C" | "Dropshipping">("B2B");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
@@ -34,6 +34,35 @@ export default function AdminInvoicesPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [salesperson, setSalesperson] = React.useState("");
 
+  // Company Information State
+  const [isSavingCompanyInfo, setIsSavingCompanyInfo] = React.useState(false);
+  const [companyInfo, setCompanyInfo] = React.useState({
+    storeName: "FlexSell Wholesale",
+    legalName: "FlexSell Wholesale Pvt Ltd",
+    gstin: "23AAACD1234D1Z0",
+    pan: "AAACD1234D",
+    cin: "U74999MP2026PTC012345",
+    companyAddress: "2nd floor, Sector B, Plot no 3, Main Rd, Kohefiza, Bhopal, Madhya Pradesh 462001",
+    city: "Bhopal",
+    state: "Madhya Pradesh",
+    pinCode: "462001",
+    supportEmail: "support@flexsell.in",
+    supportPhone: "+91 98765 43210",
+    websiteUrl: "https://flexsellwholesale.com",
+    signatureUrl: "",
+    bankName: "HDFC Bank",
+    accountName: "FlexSell Wholesale Pvt Ltd",
+    accountNumber: "50200012345678",
+    ifscCode: "HDFC0001234",
+    branchName: "Vijay Nagar Branch, Indore",
+    termsAndConditions: [
+      "Prices represent verified factory-direct wholesale pricing.",
+      "Quote valid for 15 calendar days from generation date.",
+      "Prices inclusive of GST as per Indian tax norms.",
+      "Shipping charges calculated dynamically based on cargo weight/B2B flat rate.",
+      "Subject to stock availability at time of order placement."
+    ]
+  });
   // Detail View State
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null);
 
@@ -41,6 +70,24 @@ export default function AdminInvoicesPage() {
     setCurrentPage(1);
     setSelectedInvoice(null);
   }, [activeTab, activeSubTab]);
+
+  // Load Company Settings from CMS
+  React.useEffect(() => {
+    fetch("/api/cms")
+      .then(res => res.json())
+      .then(data => {
+        if (data?.businessSettings) {
+          setCompanyInfo(prev => ({
+            ...prev,
+            ...data.businessSettings,
+            termsAndConditions: Array.isArray(data.businessSettings.termsAndConditions) && data.businessSettings.termsAndConditions.length > 0
+              ? data.businessSettings.termsAndConditions
+              : prev.termsAndConditions,
+          }));
+        }
+      })
+      .catch(err => console.error("Failed to load company info from CMS:", err));
+  }, []);
 
   // Creation Form State
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
@@ -62,6 +109,25 @@ export default function AdminInvoicesPage() {
   const [newCustCity, setNewCustCity] = React.useState("");
   const [newCustState, setNewCustState] = React.useState(INDIAN_STATES[0]);
   const [newCustPinCode, setNewCustPinCode] = React.useState("");
+
+  // Auto-fill client details when selecting existing customer
+  React.useEffect(() => {
+    if (selectedCustomerId && customerMode === "existing") {
+      const cust = customers.find(c => c._id === selectedCustomerId);
+      if (cust) {
+        setNewCustName(cust.name || "");
+        setNewCustEmail(cust.email || "");
+        setNewCustPhone(cust.phone || "");
+        setNewCustCompany(cust.company || "");
+        setNewCustGstin(cust.gstin || "");
+        const defaultAddr = cust.addresses?.find(a => a.isDefault) || cust.addresses?.[0];
+        setNewCustAddress(defaultAddr?.address || cust.address || "");
+        setNewCustCity(defaultAddr?.city || cust.city || "");
+        setNewCustState(defaultAddr?.state || cust.state || INDIAN_STATES[0]);
+        setNewCustPinCode(defaultAddr?.pinCode || cust.pinCode || "");
+      }
+    }
+  }, [selectedCustomerId, customerMode, customers]);
 
   // Pay Modal State
   const [isPayModalOpen, setIsPayModalOpen] = React.useState(false);
@@ -91,8 +157,73 @@ export default function AdminInvoicesPage() {
   const [isProductDropdownOpen, setIsProductDropdownOpen] = React.useState(false);
   const productWrapperRef = React.useRef<HTMLDivElement>(null);
 
+  // Helper functions for Company Information Tab
+  const handleSaveCompanyInfo = async () => {
+    setIsSavingCompanyInfo(true);
+    try {
+      const res = await fetch("/api/cms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "businessSettings",
+          value: companyInfo,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save company settings");
+      addToast("Company Information & Document Terms saved successfully!", "success");
+    } catch (err: any) {
+      addToast(err.message || "Failed to save settings", "error");
+    } finally {
+      setIsSavingCompanyInfo(false);
+    }
+  };
+
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) {
+        setCompanyInfo(prev => ({ ...prev, signatureUrl: data.url }));
+        addToast("Digital signature uploaded successfully!", "success");
+      } else {
+        throw new Error(data.message || "Upload failed");
+      }
+    } catch (err: any) {
+      addToast(err.message || "Failed to upload signature", "error");
+    }
+  };
+
+  const handleAddTermLine = () => {
+    setCompanyInfo(prev => ({
+      ...prev,
+      termsAndConditions: [...prev.termsAndConditions, ""],
+    }));
+  };
+
+  const handleRemoveTermLine = (index: number) => {
+    setCompanyInfo(prev => ({
+      ...prev,
+      termsAndConditions: prev.termsAndConditions.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleUpdateTermLine = (index: number, text: string) => {
+    setCompanyInfo(prev => ({
+      ...prev,
+      termsAndConditions: prev.termsAndConditions.map((item, i) => (i === index ? text : item)),
+    }));
+  };
+
   // Fetch data
   const loadData = React.useCallback(async () => {
+    if (activeTab === "company_info") return;
     initializeInvoices({
       type: activeTab,
       status: statusFilter || undefined,
@@ -122,7 +253,7 @@ export default function AdminInvoicesPage() {
   React.useEffect(() => {
     // Load products and customers for generation modal
     if (isCreateModalOpen) {
-      setFormDocType(activeTab);
+      setFormDocType(activeTab === "company_info" ? "quote" : activeTab);
       initializeProducts();
       customerService.getCustomers()
         .then(setCustomers)
@@ -700,7 +831,7 @@ export default function AdminInvoicesPage() {
                 {activeTab === "quote" ? "Converted" : activeTab === "receipt" ? "Paid Receipts" : "Paid Invoices"}
               </p>
               <h3 className="text-lg font-black mt-1 text-foreground">
-                {activeTab === "quote" 
+                {activeTab === "quote"
                   ? invoices.filter(i => i.status === "converted").length
                   : invoices.filter(i => i.status === "paid").length}
               </h3>
@@ -720,8 +851,8 @@ export default function AdminInvoicesPage() {
                 {activeTab === "quote"
                   ? invoices.filter(i => ["draft", "sent", "finalized"].includes(i.status)).length
                   : activeTab === "receipt"
-                  ? invoices.filter(i => ["pending", "failed"].includes(i.status)).length
-                  : invoices.filter(i => i.status === "void").length}
+                    ? invoices.filter(i => ["pending", "failed"].includes(i.status)).length
+                    : invoices.filter(i => i.status === "void").length}
               </h3>
             </div>
             <div className="p-2 rounded-lg bg-yellow-500/5 text-yellow-600 dark:text-yellow-400 text-base">
@@ -760,15 +891,24 @@ export default function AdminInvoicesPage() {
         >
           <FileText className="h-4 w-4" /> Commercial Invoices
         </button>
+        <button
+          onClick={() => { setActiveTab("company_info"); }}
+          className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${activeTab === "company_info"
+            ? "border-primary text-primary font-bold bg-primary/5"
+            : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+        >
+          <Building className="h-4 w-4" /> Company Information
+        </button>
       </div>
 
-      {activeTab !== "quote" && (
+      {activeTab !== "quote" && activeTab !== "company_info" && (
         <div className="flex gap-2 border-b border-border/40 py-2 bg-secondary/10 px-4 rounded-lg overflow-x-auto whitespace-nowrap">
           <button
             onClick={() => setActiveSubTab("B2B")}
             className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${activeSubTab === "B2B"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
               }`}
           >
             💼 B2B Business {activeTab === "invoice" ? "Invoices" : "Receipts"}
@@ -776,8 +916,8 @@ export default function AdminInvoicesPage() {
           <button
             onClick={() => setActiveSubTab("B2C")}
             className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${activeSubTab === "B2C"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
               }`}
           >
             🛍️ B2C Retail {activeTab === "invoice" ? "Invoices" : "Receipts"}
@@ -785,8 +925,8 @@ export default function AdminInvoicesPage() {
           <button
             onClick={() => setActiveSubTab("Dropshipping")}
             className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${activeSubTab === "Dropshipping"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
               }`}
           >
             📦 Dropshipping
@@ -794,225 +934,469 @@ export default function AdminInvoicesPage() {
         </div>
       )}
 
-      <div>
-        {/* ─── INVOICE LIST TABLE ─── */}
-        <div className="w-full">
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 border-b">
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {activeTab === "company_info" ? (
+        <Card className="p-6 space-y-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Building className="h-5 w-5 text-primary" /> Company & Document Settings
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configure static company metadata, digital signatures, bank payment details, and terms & conditions for generated invoices, quotes, and receipts.
+              </p>
+            </div>
+            <Button onClick={handleSaveCompanyInfo} disabled={isSavingCompanyInfo} className="font-semibold gap-2">
+              {isSavingCompanyInfo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {isSavingCompanyInfo ? "Saving..." : "Save Settings"}
+            </Button>
+          </div>
+
+          {/* Grid Section 1: Business Profile & Corporate Information */}
+          <div className="space-y-4">
+            <h3 className="font-bold text-xs text-primary uppercase tracking-wider border-b pb-1">
+              1. Corporate Profile & Legal Identification
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Store / Brand Name *</label>
                 <Input
-                  placeholder={`Search ${activeTab === "invoice" ? "invoices" : activeTab === "receipt" ? "receipts" : "quotes"}...`}
-                  className="pl-9 text-foreground text-sm"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={companyInfo.storeName}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, storeName: e.target.value }))}
+                  placeholder="e.g. FlexSell Wholesale"
+                  className="text-xs"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-background text-foreground text-xs font-semibold px-3 py-2 border rounded-md"
-                >
-                  <option value="">All Statuses</option>
-                  {activeTab === "quote" && (
-                    <>
-                      <option value="draft">Draft</option>
-                      <option value="sent">Sent</option>
-                      <option value="converted">Converted</option>
-                      <option value="cancelled">Cancelled</option>
-                    </>
-                  )}
-                  {activeTab === "receipt" && (
-                    <>
-                      <option value="pending">Pending</option>
-                      <option value="paid">Paid</option>
-                      <option value="failed">Failed</option>
-                    </>
-                  )}
-                  {activeTab === "invoice" && (
-                    <>
-                      <option value="paid">Paid</option>
-                      <option value="void">Deleted</option>
-                      <option value="archived">Archived</option>
-                    </>
-                  )}
-                </select>
-                <div className="flex items-center gap-1">
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Legal Entity Name</label>
+                <Input
+                  value={companyInfo.legalName || ""}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, legalName: e.target.value }))}
+                  placeholder="e.g. FlexSell Wholesale Pvt Ltd"
+                  className="text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">GSTIN (GST Identification Number) *</label>
+                <Input
+                  value={companyInfo.gstin}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, gstin: e.target.value.toUpperCase() }))}
+                  placeholder="e.g. 23AAACD1234D1Z0"
+                  className="font-mono uppercase text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">PAN Number</label>
+                <Input
+                  value={companyInfo.pan || ""}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, pan: e.target.value.toUpperCase() }))}
+                  placeholder="e.g. AAACD1234D"
+                  className="font-mono uppercase text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Corporate Identity Number (CIN)</label>
+                <Input
+                  value={companyInfo.cin || ""}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, cin: e.target.value.toUpperCase() }))}
+                  placeholder="e.g. U74999MP2026PTC012345"
+                  className="font-mono uppercase text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Support Email</label>
+                <Input
+                  value={companyInfo.supportEmail}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, supportEmail: e.target.value }))}
+                  placeholder="e.g. support@flexsell.in"
+                  className="text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Support Phone</label>
+                <Input
+                  value={companyInfo.supportPhone}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, supportPhone: e.target.value }))}
+                  placeholder="e.g. +91 98765 43210"
+                  className="text-xs"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="font-semibold block mb-1 text-muted-foreground">Registered Business Address</label>
+                <Input
+                  value={companyInfo.companyAddress}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, companyAddress: e.target.value }))}
+                  placeholder="e.g. 123 Business Hub, Indore, MP - 452001"
+                  className="text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Grid Section 2: Authorized Signatory Signature Upload */}
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="font-bold text-xs text-primary uppercase tracking-wider border-b pb-1">
+              2. Authorized Signatory Digital Signature
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Upload a digital signature or official stamp image. This signature image will be automatically attached to <strong>Authorized Signatory / For {companyInfo.storeName}</strong> on all printed PDF invoices, quotes, and receipts.
+            </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 bg-secondary/10 p-4 rounded-lg border">
+              <div className="w-48 h-24 bg-white border border-dashed border-border rounded flex items-center justify-center overflow-hidden p-2 relative shadow-sm">
+                {companyInfo.signatureUrl ? (
+                  <img src={companyInfo.signatureUrl} alt="Signature Preview" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <div className="text-center text-muted-foreground text-[11px]">
+                    No Signature Uploaded
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
                   <Input
-                    type="date"
-                    className="h-8 py-0 px-2 text-xs w-28"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <Input
-                    type="date"
-                    className="h-8 py-0 px-2 text-xs w-28"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSignatureUpload}
+                    className="text-xs max-w-xs cursor-pointer"
                   />
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Recommended size: 300x100px. Supports PNG (transparent background) or JPEG.
+                </p>
+                {companyInfo.signatureUrl && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    type="button"
+                    onClick={() => setCompanyInfo(prev => ({ ...prev, signatureUrl: "" }))}
+                    className="text-xs h-7 px-2"
+                  >
+                    Remove Signature
+                  </Button>
+                )}
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b bg-secondary/15 text-muted-foreground uppercase font-bold tracking-wider text-[10px]">
-                      <th className="p-4">Doc Number</th>
-                      <th className="p-4">Customer</th>
-                      <th className="p-4 text-right">Amount</th>
-                      <th className="p-4">Payment Method</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4">Date</th>
-                      <th className="p-4 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isLoading ? (
-                      <tr>
-                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
-                          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
-                          <span>Fetching records from DB...</span>
-                        </td>
+            </div>
+          </div>
+
+          {/* Grid Section 3: Bank Account Details for Wire Transfer */}
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="font-bold text-xs text-primary uppercase tracking-wider border-b pb-1">
+              3. Bank Payment & Wire Transfer Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Bank Name</label>
+                <Input
+                  value={companyInfo.bankName || ""}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, bankName: e.target.value }))}
+                  placeholder="e.g. HDFC Bank"
+                  className="text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Account Beneficiary Name</label>
+                <Input
+                  value={companyInfo.accountName || ""}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, accountName: e.target.value }))}
+                  placeholder="e.g. FlexSell Wholesale Pvt Ltd"
+                  className="text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Account Number</label>
+                <Input
+                  value={companyInfo.accountNumber || ""}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, accountNumber: e.target.value }))}
+                  placeholder="e.g. 50200012345678"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">IFSC Code</label>
+                <Input
+                  value={companyInfo.ifscCode || ""}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, ifscCode: e.target.value.toUpperCase() }))}
+                  placeholder="e.g. HDFC0001234"
+                  className="font-mono uppercase text-xs"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-muted-foreground">Branch Name</label>
+                <Input
+                  value={companyInfo.branchName || ""}
+                  onChange={(e) => setCompanyInfo(prev => ({ ...prev, branchName: e.target.value }))}
+                  placeholder="e.g. Vijay Nagar, Indore Branch"
+                  className="text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Grid Section 4: Dynamic Terms & Conditions / Policies */}
+          <div className="space-y-4 pt-4 border-t">
+            <div className="flex justify-between items-center border-b pb-1">
+              <h3 className="font-bold text-xs text-primary uppercase tracking-wider">
+                4. Document Terms & Conditions / Policies
+              </h3>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleAddTermLine}
+                className="text-xs font-semibold gap-1"
+              >
+                + Add Term Line
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Customize the standard terms & policies displayed at the footer of generated B2B quotes, tax invoices, and payment receipts.
+            </p>
+
+            <div className="space-y-2">
+              {companyInfo.termsAndConditions.map((term, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold text-muted-foreground w-6 text-right">
+                    {idx + 1}.
+                  </span>
+                  <Input
+                    value={term}
+                    onChange={(e) => handleUpdateTermLine(idx, e.target.value)}
+                    placeholder={`Term / Condition line ${idx + 1}...`}
+                    className="text-xs flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveTermLine(idx)}
+                    className="text-destructive hover:bg-destructive/10 h-8 px-2 text-xs"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <div>
+          {/* ─── INVOICE LIST TABLE ─── */}
+          <div className="w-full">
+            <Card>
+              <CardHeader className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 border-b">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={`Search ${activeTab === "invoice" ? "invoices" : activeTab === "receipt" ? "receipts" : "quotes"}...`}
+                    className="pl-9 text-foreground text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-background text-foreground text-xs font-semibold px-3 py-2 border rounded-md"
+                  >
+                    <option value="">All Statuses</option>
+                    {activeTab === "quote" && (
+                      <>
+                        <option value="draft">Draft</option>
+                        <option value="sent">Sent</option>
+                        <option value="converted">Converted</option>
+                        <option value="cancelled">Cancelled</option>
+                      </>
+                    )}
+                    {activeTab === "receipt" && (
+                      <>
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid</option>
+                        <option value="failed">Failed</option>
+                      </>
+                    )}
+                    {activeTab === "invoice" && (
+                      <>
+                        <option value="paid">Paid</option>
+                        <option value="void">Deleted</option>
+                        <option value="archived">Archived</option>
+                      </>
+                    )}
+                  </select>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="date"
+                      className="h-8 py-0 px-2 text-xs w-28"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                    <span className="text-xs text-muted-foreground">to</span>
+                    <Input
+                      type="date"
+                      className="h-8 py-0 px-2 text-xs w-28"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b bg-secondary/15 text-muted-foreground uppercase font-bold tracking-wider text-[10px]">
+                        <th className="p-4">Doc Number</th>
+                        <th className="p-4">Customer</th>
+                        <th className="p-4 text-right">Amount</th>
+                        <th className="p-4">Payment Method</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4">Date</th>
+                        <th className="p-4 text-center">Actions</th>
                       </tr>
-                    ) : invoices.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="p-8 text-center text-muted-foreground italic">
-                          No {activeTab === "invoice" ? "invoices" : activeTab === "receipt" ? "receipts" : "price quotes"} found matching the query.
-                        </td>
-                      </tr>
-                    ) : (
-                      invoices.map((inv) => (
-                        <tr key={inv._id} className="border-b hover:bg-secondary/10 transition-colors">
-                          <td className="p-4 font-mono font-bold">{inv._id}</td>
-                          <td className="p-4">
-                            <p className="font-semibold text-foreground">{inv.customerName}</p>
-                            <p className="text-[10px] text-muted-foreground">{inv.customerEmail}</p>
+                    </thead>
+                    <tbody>
+                      {isLoading ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                            <span>Fetching records from DB...</span>
                           </td>
-                          <td className="p-4 text-right font-bold text-foreground">{formatPrice(inv.amount)}</td>
-                          <td className="p-4 font-medium text-foreground">{inv.paymentMethod || "N/A"}</td>
-                          <td className="p-4">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${inv.status === "void" || inv.status === "failed" || inv.status === "rejected" || inv.status === "expired" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400" :
-                              inv.status === "paid" || inv.status === "accepted" || inv.status === "converted" ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-400" :
-                                inv.status === "pending" || inv.status === "draft" ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-400" :
-                                  "bg-gray-100 text-gray-800 dark:bg-gray-950 dark:text-gray-400"
-                              }`}>
-                              {inv.status === "void" ? "deleted" : inv.status}
-                            </span>
+                        </tr>
+                      ) : invoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-muted-foreground italic">
+                            No {activeTab === "invoice" ? "invoices" : activeTab === "receipt" ? "receipts" : "price quotes"} found matching the query.
                           </td>
-                          <td className="p-4 font-semibold text-muted-foreground">{inv.generatedAt}</td>
-                          <td className="p-4 text-center flex items-center justify-center gap-1.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 w-7 p-0 cursor-pointer"
-                              title="View Document"
-                              onClick={() => setSelectedInvoice(inv)}
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            {inv.type === "invoice" ? (
-                              <>
-                                {inv.status !== "archived" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-amber-500 hover:bg-amber-500/10 border-amber-500/20 cursor-pointer"
-                                    title="Archive Invoice"
-                                    onClick={() => handleArchiveInvoice(inv._id)}
-                                  >
-                                    <FileText className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                                {inv.status !== "void" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 border-destructive/20 cursor-pointer"
-                                    title="Delete Invoice"
-                                    onClick={() => handleVoidInvoice(inv._id)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                              </>
-                            ) : inv.type === "quote" ? (
-                              <>
-                                {inv.status !== "converted" && (
-                                  <>
+                        </tr>
+                      ) : (
+                        invoices.map((inv) => (
+                          <tr key={inv._id} className="border-b hover:bg-secondary/10 transition-colors">
+                            <td className="p-4 font-mono font-bold">{inv._id}</td>
+                            <td className="p-4">
+                              <p className="font-semibold text-foreground">{inv.customerName}</p>
+                              <p className="text-[10px] text-muted-foreground">{inv.customerEmail}</p>
+                            </td>
+                            <td className="p-4 text-right font-bold text-foreground">{formatPrice(inv.amount)}</td>
+                            <td className="p-4 font-medium text-foreground">{inv.paymentMethod || "N/A"}</td>
+                            <td className="p-4">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${inv.status === "void" || inv.status === "failed" || inv.status === "rejected" || inv.status === "expired" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400" :
+                                inv.status === "paid" || inv.status === "accepted" || inv.status === "converted" ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-400" :
+                                  inv.status === "pending" || inv.status === "draft" ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-400" :
+                                    "bg-gray-100 text-gray-800 dark:bg-gray-950 dark:text-gray-400"
+                                }`}>
+                                {inv.status === "void" ? "deleted" : inv.status}
+                              </span>
+                            </td>
+                            <td className="p-4 font-semibold text-muted-foreground">{inv.generatedAt}</td>
+                            <td className="p-4 text-center flex items-center justify-center gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-7 p-0 cursor-pointer"
+                                title="View Document"
+                                onClick={() => setSelectedInvoice(inv)}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              {inv.type === "invoice" ? (
+                                <>
+                                  {inv.status !== "archived" && (
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      className="h-7 w-7 p-0 text-primary hover:bg-primary/10 border-primary/20 cursor-pointer"
-                                      title="Edit Quote"
-                                      onClick={() => handleEditQuote(inv)}
+                                      className="h-7 w-7 p-0 text-amber-500 hover:bg-amber-500/10 border-amber-500/20 cursor-pointer"
+                                      title="Archive Invoice"
+                                      onClick={() => handleArchiveInvoice(inv._id)}
                                     >
-                                      <Edit className="h-3.5 w-3.5" />
+                                      <FileText className="h-3.5 w-3.5" />
                                     </Button>
+                                  )}
+                                  {inv.status !== "void" && (
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 border-destructive/20 cursor-pointer"
-                                      title="Delete Quote"
+                                      title="Delete Invoice"
+                                      onClick={() => handleVoidInvoice(inv._id)}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                </>
+                              ) : inv.type === "quote" ? (
+                                <>
+                                  {inv.status !== "converted" && (
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-primary hover:bg-primary/10 border-primary/20 cursor-pointer"
+                                        title="Edit Quote"
+                                        onClick={() => handleEditQuote(inv)}
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 border-destructive/20 cursor-pointer"
+                                        title="Delete Quote"
+                                        onClick={() => handleDeleteInvoice(inv._id)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {inv.status !== "paid" && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 border-destructive/20 cursor-pointer"
+                                      title="Delete Receipt"
                                       onClick={() => handleDeleteInvoice(inv._id)}
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
-                                  </>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {inv.status !== "paid" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 border-destructive/20 cursor-pointer"
-                                    title="Delete Receipt"
-                                    onClick={() => handleDeleteInvoice(inv._id)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {totalPages > 1 && (
-                <div className="p-4 border-t flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Showing page {page} of {totalPages}</span>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={page === 1}
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={page === totalPages}
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    >
-                      Next
-                    </Button>
-                  </div>
+                                  )}
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                {totalPages > 1 && (
+                  <div className="p-4 border-t flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Showing page {page} of {totalPages}</span>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page === 1}
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page === totalPages}
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-
-      </div>
+      )}
 
       {/* ─── CREATE DOCUMENT MODAL ─── */}
       {isCreateModalOpen && (
@@ -1697,19 +2081,33 @@ export default function AdminInvoicesPage() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <style>{`
             @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                background: #ffffff !important;
+                overflow: visible !important;
+              }
               body * {
                 visibility: hidden;
               }
               .print-container, .print-container * {
-                visibility: visible;
+                visibility: visible !important;
               }
               .print-container {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                padding: 0 !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 margin: 0 !important;
+                padding: 10mm 15mm !important;
+                box-sizing: border-box !important;
                 border: none !important;
                 box-shadow: none !important;
                 background: white !important;
@@ -1823,8 +2221,33 @@ export default function AdminInvoicesPage() {
                     couponCode: selectedInvoice.couponCode,
                     couponDiscount: selectedInvoice.couponDiscount,
                   }}
-                  sellerInfo={selectedInvoice.sellerInfo}
+                  sellerInfo={{
+                    storeName: selectedInvoice.sellerInfo?.storeName || companyInfo.storeName,
+                    legalName: selectedInvoice.sellerInfo?.legalName || companyInfo.legalName,
+                    gstin: selectedInvoice.sellerInfo?.gstin || companyInfo.gstin,
+                    pan: selectedInvoice.sellerInfo?.pan || companyInfo.pan,
+                    cin: selectedInvoice.sellerInfo?.cin || companyInfo.cin,
+                    address: selectedInvoice.sellerInfo?.address || companyInfo.companyAddress,
+                    email: selectedInvoice.sellerInfo?.email || companyInfo.supportEmail,
+                    phone: selectedInvoice.sellerInfo?.phone || companyInfo.supportPhone,
+                    signatureUrl: selectedInvoice.sellerInfo?.signatureUrl || companyInfo.signatureUrl,
+                    bankDetails: selectedInvoice.sellerInfo?.bankDetails || (
+                      (selectedInvoice.paymentMethod === "Bank Transfer" || selectedInvoice.type === "quote")
+                        ? {
+                          bankName: companyInfo.bankName,
+                          accountName: companyInfo.accountName,
+                          accountNumber: companyInfo.accountNumber,
+                          ifscCode: companyInfo.ifscCode,
+                          branchName: companyInfo.branchName
+                        }
+                        : undefined
+                    ),
+                    termsAndConditions: (selectedInvoice.sellerInfo?.termsAndConditions && selectedInvoice.sellerInfo.termsAndConditions.length > 0)
+                      ? selectedInvoice.sellerInfo.termsAndConditions
+                      : companyInfo.termsAndConditions
+                  }}
                   taxBreakdown={selectedInvoice.taxDetails}
+                  salesperson={selectedInvoice.salesperson}
                   showActions={false}
                 />
               </div>

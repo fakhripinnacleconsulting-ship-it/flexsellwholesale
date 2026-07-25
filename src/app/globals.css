@@ -285,3 +285,57 @@
     font-size: 18px;
   }
 }
+
+/* ─── UNIFIED PRINT STYLES ─── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  nav, header, footer, sidebar, aside, button,
+  .no-print, [data-sidebar], select, input {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-container, .print-container *,
+  .invoice-document, .invoice-document *,
+  .quote-document, .quote-document * {
+    visibility: visible !important;
+  }
+
+  .print-container,
+  .invoice-document,
+  .quote-document {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10mm 15mm !important;
+    box-sizing: border-box !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    transform: none !important;
+  }
+}

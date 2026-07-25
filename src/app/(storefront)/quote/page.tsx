@@ -5,22 +5,27 @@ import { QuoteDocument } from "@/components/documents/QuoteDocument";
 import { useCartStore } from "@/stores/cartStore";
 import { useProductStore } from "@/stores/productStore";
 import { SellerInfo } from "@/types";
+import { resolvePrice } from "@/lib/priceTierHelper";
+import { resolveVariantKeys } from "@/lib/variantMatcher";
+import { useSearchParams } from "next/navigation";
 
-export default function QuotePage() {
-  const { items, buyerState, getTaxDetails, hydrateProducts } = useCartStore();
+function QuoteContent() {
+  const searchParams = useSearchParams();
+  const salespersonParam = searchParams.get("salesperson") || undefined;
+  const { items, buyerState, hydrateProducts } = useCartStore();
+  const { products, initializeProducts } = useProductStore();
   const [cmsData, setCmsData] = React.useState<any>(null);
   const [shippingConfig, setShippingConfig] = React.useState<any>(null);
 
   React.useEffect(() => {
-    const init = async () => {
-      const productState = useProductStore.getState();
-      if (productState.products.length === 0) {
-        await productState.initializeProducts();
-      }
+    if (products.length === 0) {
+      initializeProducts();
+    } else {
       hydrateProducts();
-    };
-    init();
+    }
+  }, [products.length, initializeProducts, hydrateProducts]);
 
+  React.useEffect(() => {
     fetch("/api/cms")
       .then(res => res.json())
       .then(data => setCmsData(data))
@@ -30,28 +35,30 @@ export default function QuotePage() {
     shippingService.getConfig()
       .then((config: any) => setShippingConfig(config))
       .catch((err: unknown) => console.error("Failed to load shipping config:", err));
-  }, [hydrateProducts]);
+  }, []);
 
   const b2bItems = React.useMemo(() => {
-    const { resolvePrice } = require("@/lib/priceTierHelper");
     return items.map((item) => {
-      const matchingColor = item.selectedVariants["Color"] || item.selectedVariants["color"];
-      const activeVariant = item.product?.colorVariants?.find((cv: any) => cv.color === matchingColor)
-        || item.product?.colorVariants?.[0];
+      const liveProduct = products.find(p => p._id === item.productId || p._id === item.product?._id) || item.product;
+      const { color: matchingColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(item.selectedVariants);
+      
+      const activeVariant = liveProduct?.colorVariants?.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
+        || liveProduct?.colorVariants?.[0];
       const activeSubVariant = activeVariant?.subVariants?.find((sv: any) =>
-        (!item.selectedVariants["Size"] || sv.size === item.selectedVariants["Size"]) &&
-        (!item.selectedVariants["Weight"] || sv.weight === item.selectedVariants["Weight"])
+        (!selectedSize || sv.size?.toLowerCase() === selectedSize.toLowerCase()) &&
+        (!selectedWeight || sv.weight?.toLowerCase() === selectedWeight.toLowerCase())
       ) || activeVariant?.subVariants?.[0];
 
       const b2bUnitPrice = activeSubVariant ? resolvePrice(activeSubVariant, "B2B") : item.pricePerUnit;
 
       return {
         ...item,
+        product: liveProduct,
         priceTier: "B2B" as const,
         pricePerUnit: b2bUnitPrice,
       };
     });
-  }, [items]);
+  }, [items, products]);
 
   const taxDetails = React.useMemo(() => {
     const isIntrastate = (buyerState || "Madhya Pradesh") === "Madhya Pradesh";
@@ -63,66 +70,53 @@ export default function QuotePage() {
     let totalIgst = 0;
     let grandTotal = 0;
 
-    const storeProducts = useProductStore.getState().products;
-
     b2bItems.forEach((item) => {
-      const p = storeProducts.find(prod => prod._id === (item.productId || item.product?._id)) || item.product;
+      const p = products.find(prod => prod._id === (item.productId || item.product?._id)) || item.product;
       const rate = p?.gstRate ?? 18;
       const hsn = p?.hsnCode ?? "3924";
       const isIncl = p?.priceIncludesGst ?? true;
-      
-      const unitPrice = item.pricePerUnit;
-      const qty = item.quantity;
-      const totalAmount = unitPrice * qty;
+      const totalAmount = item.pricePerUnit * item.quantity;
 
-      let basePrice = unitPrice;
+      let itemBase = 0;
       let itemTax = 0;
 
       if (isIncl) {
-        // Price includes GST
-        basePrice = unitPrice / (1 + rate / 100);
-        const itemBase = basePrice * qty;
+        itemBase = totalAmount / (1 + rate / 100);
         itemTax = totalAmount - itemBase;
-        baseSubtotal += itemBase;
-        grandTotal += totalAmount;
       } else {
-        // Price excludes GST
-        const itemBase = unitPrice * qty;
-        itemTax = itemBase * (rate / 100);
-        baseSubtotal += itemBase;
-        grandTotal += (itemBase + itemTax);
+        itemBase = totalAmount;
+        itemTax = totalAmount * (rate / 100);
       }
 
-      let cgst = 0;
-      let sgst = 0;
-      let igst = 0;
+      baseSubtotal += itemBase;
+      grandTotal += (itemBase + itemTax);
 
       if (isIntrastate) {
-        cgst = itemTax / 2;
-        sgst = itemTax / 2;
-        totalCgst += cgst;
-        totalSgst += sgst;
+        totalCgst += (itemTax / 2);
+        totalSgst += (itemTax / 2);
       } else {
-        igst = itemTax;
-        totalIgst += igst;
+        totalIgst += itemTax;
       }
 
-      if (hsnBreakdown[hsn]) {
-        hsnBreakdown[hsn].baseAmount += (basePrice * qty);
-        hsnBreakdown[hsn].cgst += cgst;
-        hsnBreakdown[hsn].sgst += sgst;
-        hsnBreakdown[hsn].igst += igst;
-        hsnBreakdown[hsn].totalTax += itemTax;
-      } else {
+      if (!hsnBreakdown[hsn]) {
         hsnBreakdown[hsn] = {
           hsnCode: hsn,
           gstRate: rate,
-          baseAmount: (basePrice * qty),
-          cgst,
-          sgst,
-          igst,
-          totalTax: itemTax,
+          baseAmount: 0,
+          totalTax: 0,
+          cgst: 0,
+          sgst: 0,
+          igst: 0
         };
+      }
+
+      hsnBreakdown[hsn].baseAmount += itemBase;
+      hsnBreakdown[hsn].totalTax += itemTax;
+      if (isIntrastate) {
+        hsnBreakdown[hsn].cgst += (itemTax / 2);
+        hsnBreakdown[hsn].sgst += (itemTax / 2);
+      } else {
+        hsnBreakdown[hsn].igst += itemTax;
       }
     });
 
@@ -142,7 +136,7 @@ export default function QuotePage() {
         igst: slab.igst
       }))
     };
-  }, [b2bItems, buyerState]);
+  }, [b2bItems, buyerState, products]);
 
   if (items.length === 0) {
     return (
@@ -153,7 +147,7 @@ export default function QuotePage() {
     );
   }
 
-  const bs = cmsData?.brandSettings || {};
+  const bs = cmsData?.businessSettings || {};
   const sellerInfo: SellerInfo = {
     storeName: bs.storeName || "FlexSell Wholesale",
     gstin: bs.gstin || "24AAACF1001M1Z5",
@@ -174,7 +168,16 @@ export default function QuotePage() {
         sellerInfo={sellerInfo}
         showActions={true}
         shippingConfig={shippingConfig}
+        salesperson={salespersonParam}
       />
     </div>
+  );
+}
+
+export default function QuotePage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center">Loading quote...</div>}>
+      <QuoteContent />
+    </React.Suspense>
   );
 }

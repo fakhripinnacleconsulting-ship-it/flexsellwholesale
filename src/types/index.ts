@@ -188,7 +188,7 @@ export interface Order extends BaseDocument {
   items: CartItem[];
   shipmentDetails?: ShipmentDetails;
   history: HistoryEvent[];
-  paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD";
+  paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD" | "NEFT/RTGS" | "Cheque" | "Cash" | string;
   paymentStatus?: "Pending" | "Paid" | "Failed";
   transactionId?: string;
   invoiceId?: string;
@@ -223,11 +223,28 @@ export interface TaxBreakdown {
 
 export interface SellerInfo {
   storeName: string;
+  legalName?: string;
   gstin: string;
+  pan?: string;
+  cin?: string;
   address: string;
   email: string;
   phone: string;
   logoUrl?: string;
+  signatureUrl?: string;
+  bankDetails?: {
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
+    ifscCode: string;
+    branchName?: string;
+  };
+  upiDetails?: {
+    upiId: string;
+    payeeName?: string;
+  };
+  paymentInstructions?: string;
+  termsAndConditions?: string[];
 }
 
 export interface Invoice extends BaseDocument {

@@ -22,11 +22,23 @@ const TaxBreakdownSchema = new Schema({
 
 const SellerInfoSchema = new Schema({
   storeName: { type: String, required: true },
+  legalName: { type: String },
   gstin: { type: String, default: "" },
+  pan: { type: String },
+  cin: { type: String },
   address: { type: String, default: "" },
   email: { type: String, default: "" },
   phone: { type: String, default: "" },
   logoUrl: { type: String },
+  signatureUrl: { type: String },
+  bankDetails: {
+    bankName: { type: String },
+    accountName: { type: String },
+    accountNumber: { type: String },
+    ifscCode: { type: String },
+    branchName: { type: String },
+  },
+  termsAndConditions: [{ type: String }],
 }, { _id: false });
 
 const InvoiceSchema = new Schema<InvoiceType & Document>(

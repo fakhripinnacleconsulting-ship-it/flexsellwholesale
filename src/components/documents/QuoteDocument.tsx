@@ -3,6 +3,8 @@
 import * as React from "react";
 import Image from "next/image";
 import { CartItem, TaxBreakdown, SellerInfo, HsnSlab } from "@/types";
+import { resolveVariantKeys } from "@/lib/variantMatcher";
+import { sanitizeImgUrl } from "@/lib/utils";
 
 export interface QuoteDocumentProps {
   quoteId: string;
@@ -12,6 +14,7 @@ export interface QuoteDocumentProps {
   sellerInfo: SellerInfo;
   showActions?: boolean;
   shippingConfig?: any;
+  salesperson?: string;
 }
 
 export function QuoteDocument({
@@ -22,6 +25,7 @@ export function QuoteDocument({
   sellerInfo,
   showActions = true,
   shippingConfig,
+  salesperson,
 }: QuoteDocumentProps) {
   const handlePrint = () => window.print();
 
@@ -93,6 +97,11 @@ export function QuoteDocument({
             <p className="text-[10px] text-amber-600 font-semibold mt-1">
               Valid for 15 days
             </p>
+            {salesperson && (
+              <p className="text-xs text-emerald-700 font-semibold mt-1">
+                Sales Rep: <span className="font-bold text-gray-900">{salesperson}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -121,6 +130,11 @@ export function QuoteDocument({
             )}
             {sellerInfo.phone && (
               <p className="text-gray-500">Phone: {sellerInfo.phone}</p>
+            )}
+            {salesperson && (
+              <p className="text-xs text-emerald-700 font-medium mt-1.5 pt-1.5 border-t border-gray-100">
+                Salesperson: <span className="font-bold text-gray-900">{salesperson}</span>
+              </p>
             )}
           </div>
         </div>
@@ -151,27 +165,36 @@ export function QuoteDocument({
                 const hsnCode = item.product?.hsnCode ?? "3924";
                 const lineTotal = item.pricePerUnit * item.quantity;
                 
-                const matchingColor = item.selectedVariants?.["Color"] || item.selectedVariants?.["color"];
-                const activeVariant = item.product?.colorVariants?.find((cv: any) => cv.color === matchingColor)
+                const { color: matchingColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(item.selectedVariants);
+                const activeVariant = item.product?.colorVariants?.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
                   || item.product?.colorVariants?.[0];
-                const activeSub = activeVariant?.subVariants?.[0];
+                const activeSub = activeVariant?.subVariants?.find((sv: any) =>
+                  (!selectedSize || sv.size?.toLowerCase() === selectedSize.toLowerCase()) &&
+                  (!selectedWeight || sv.weight?.toLowerCase() === selectedWeight.toLowerCase())
+                ) || activeVariant?.subVariants?.[0];
                 const sku = activeSub?.sku || (item.product?._id ? `SKU-${item.product._id.slice(-6)}` : "SKU-N/A");
-                const firstImg = activeVariant?.images?.[0];
-                const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+
+                // Extract image with fallback across all color variants
+                const firstImg = activeVariant?.images?.[0] || item.product?.colorVariants?.find((cv: any) => cv.images && cv.images.length > 0)?.images?.[0];
+                const rawUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+                const imgUrl = sanitizeImgUrl(rawUrl, "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80");
 
                 return (
                   <tr key={`${item.product?._id || index}-${index}`} className="border-b border-gray-100 text-xs">
                     <td className="py-3 px-1 text-gray-500 font-mono align-top">{index + 1}</td>
                     <td className="py-3 px-2 align-top">
                       <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 relative flex-shrink-0 bg-gray-50 border border-gray-200 rounded overflow-hidden mt-0.5">
-                          <Image
-                            src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"}
+                        <div className="w-12 h-12 flex-shrink-0 bg-gray-50 border border-gray-200 rounded overflow-hidden mt-0.5">
+                          <img
+                            src={imgUrl}
                             alt={item.product?.title || "Product"}
-                            fill
-                            sizes="48px"
-                            className="object-cover"
-                            unoptimized
+                            className="w-12 h-12 object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              target.onerror = null;
+                              target.src = "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80";
+                            }}
                           />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -198,23 +221,44 @@ export function QuoteDocument({
         {/* ─── SUMMARY ─── */}
         <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-200">
           {/* Terms */}
-          <div className="text-xs text-gray-500 space-y-2">
-            <p className="font-bold uppercase text-[10px] text-gray-400 tracking-widest">
+          <div>
+            <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-2">
               Quote Terms & Conditions:
-            </p>
-            <ol className="list-decimal list-inside space-y-1 text-gray-500 leading-relaxed italic">
-              <li>Prices represent verified factory-direct wholesale pricing.</li>
-              <li>Quote valid for 15 calendar days from generation date.</li>
-              <li>Prices inclusive of GST as per Indian tax norms.</li>
-              <li>
-                {shippingCharge > 0 ? (
-                  "Shipping charges calculated dynamically based on cargo weight/B2B flat rate."
-                ) : (
-                  "Free delivery for wholesale volume orders."
-                )}
-              </li>
-              <li>Subject to stock availability at time of order placement.</li>
+            </h3>
+            <ol className="list-decimal list-inside space-y-1 text-gray-600 italic leading-relaxed text-[11px]">
+              {sellerInfo.termsAndConditions && sellerInfo.termsAndConditions.length > 0 ? (
+                sellerInfo.termsAndConditions.map((term, idx) => (
+                  <li key={idx}>{term}</li>
+                ))
+              ) : (
+                <>
+                  <li>Prices represent verified factory-direct wholesale pricing.</li>
+                  <li>Quote valid for 15 calendar days from generation date.</li>
+                  <li>Prices inclusive of GST as per Indian tax norms.</li>
+                  <li>
+                    {shippingCharge > 0 ? (
+                      "Shipping charges calculated dynamically based on cargo weight/B2B flat rate."
+                    ) : (
+                      "Free delivery for wholesale volume orders."
+                    )}
+                  </li>
+                  <li>Subject to stock availability at time of order placement.</li>
+                </>
+              )}
             </ol>
+
+            {sellerInfo.bankDetails?.accountNumber && (
+              <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs space-y-1 not-italic">
+                <p className="font-bold text-gray-800 text-[10px] uppercase tracking-wider">Direct Bank Payment Details:</p>
+                <p className="text-gray-700">Bank: <strong className="font-semibold">{sellerInfo.bankDetails.bankName}</strong></p>
+                <p className="text-gray-700">Account Name: <strong className="font-semibold">{sellerInfo.bankDetails.accountName}</strong></p>
+                <p className="text-gray-700 font-mono">A/C No: <strong className="font-semibold">{sellerInfo.bankDetails.accountNumber}</strong></p>
+                <p className="text-gray-700 font-mono">IFSC Code: <strong className="font-semibold">{sellerInfo.bankDetails.ifscCode}</strong></p>
+                {sellerInfo.bankDetails.branchName && (
+                  <p className="text-gray-500 text-[10px]">Branch: {sellerInfo.bankDetails.branchName}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Totals */}
@@ -271,11 +315,26 @@ export function QuoteDocument({
         </div>
 
         {/* ─── SIGNATURE ─── */}
-        <div className="mt-12 pt-6 border-t border-gray-200 flex justify-between items-center text-xs">
+        <div className="mt-12 pt-6 border-t border-gray-200 flex justify-between items-end text-xs">
           <div className="text-gray-400">
             Authorized Distributor • {sellerInfo.storeName} B2B Sourcing
           </div>
-          <div className="border-b-2 border-dotted border-gray-300 w-48 h-8" />
+          <div className="flex flex-col items-center">
+            {sellerInfo.signatureUrl && (
+              <img
+                src={sellerInfo.signatureUrl}
+                alt="Authorized Signatory Signature"
+                className="h-14 max-w-full object-contain mb-1"
+                referrerPolicy="no-referrer"
+              />
+            )}
+            <div className="border-t border-gray-400 pt-1 text-[11px] font-bold text-gray-800 text-center w-48 uppercase tracking-wider">
+              Authorized Signatory
+            </div>
+            <div className="text-[10px] text-gray-500 font-semibold text-center">
+              For {sellerInfo.storeName}
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
@@ -287,13 +346,34 @@ export function QuoteDocument({
       {/* Print Styles */}
       <style jsx global>{`
         @media print {
-          body * { visibility: hidden; }
-          .quote-document, .quote-document * { visibility: visible; }
-          .quote-document {
-            position: absolute; left: 0; top: 0; width: 100%;
-            max-width: 100% !important; padding: 0 !important;
+          @page {
+            size: A4 portrait;
+            margin: 0;
           }
-          .no-print { display: none !important; }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+          }
+          body * { visibility: hidden; }
+          .quote-document, .quote-document * { visibility: visible !important; }
+          .quote-document {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 10mm 15mm !important;
+            box-sizing: border-box !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+          }
+          nav, header, footer, aside, [data-sidebar], .no-print, button { display: none !important; }
         }
       `}</style>
     </div>
