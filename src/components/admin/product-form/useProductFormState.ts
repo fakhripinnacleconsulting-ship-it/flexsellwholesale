@@ -682,19 +682,43 @@ export function useProductFormState(
 
     const finalVariants = variantsList.map((item) => {
       const validImages = (item.images || []).filter((img: any) => img.url && img.url.trim() !== "");
+      const parsedLength = (item.lengthCm !== null && item.lengthCm !== undefined && !isNaN(Number(item.lengthCm)) && Number(item.lengthCm) >= 0) ? Math.max(0, Number(item.lengthCm)) : null;
+      const parsedBreadth = (item.breadthCm !== null && item.breadthCm !== undefined && !isNaN(Number(item.breadthCm)) && Number(item.breadthCm) >= 0) ? Math.max(0, Number(item.breadthCm)) : null;
+      const parsedHeight = (item.heightCm !== null && item.heightCm !== undefined && !isNaN(Number(item.heightCm)) && Number(item.heightCm) >= 0) ? Math.max(0, Number(item.heightCm)) : null;
+
       return {
         ...item,
-        packagingCharge: Number(item.packagingCharge) || 0,
+        lengthCm: parsedLength,
+        breadthCm: parsedBreadth,
+        heightCm: parsedHeight,
+        packagingCharge: Math.max(0, Number(item.packagingCharge) || 0),
         packagingChargeType: item.packagingChargeType || "per_unit",
         images: validImages.length > 0 ? validImages : [{ url: "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80", alt: `${title || 'Product'} Default Image` }],
-        subVariants: (item.subVariants || []).map((sv: any) => ({
-          ...sv,
-          packagingCharge: Number(sv.packagingCharge) || 0,
-          packagingChargeType: sv.packagingChargeType || "per_unit",
-          barcode: sv.barcode || null,
-          barcodeSource: sv.barcodeSource || (sv.barcodeImage ? "image" : sv.barcode ? "manual" : "auto"),
-          barcodeImage: sv.barcodeImage || null,
-        }))
+        subVariants: (item.subVariants || []).map((sv: any) => {
+          const parsedMoq = (sv.b2bMoq !== null && sv.b2bMoq !== undefined && !isNaN(Number(sv.b2bMoq)) && Number(sv.b2bMoq) > 0)
+            ? Math.max(1, Math.floor(Number(sv.b2bMoq)))
+            : null;
+          const parsedWeightGrams = (sv.weightGrams !== null && sv.weightGrams !== undefined && !isNaN(Number(sv.weightGrams)) && Number(sv.weightGrams) >= 0)
+            ? Math.max(0, Number(sv.weightGrams))
+            : null;
+
+          return {
+            ...sv,
+            mrp: Math.max(0, Number(sv.mrp) || 0),
+            b2cPrice: Math.max(0, Number(sv.b2cPrice) || 0),
+            b2bPrice: Math.max(0, Number(sv.b2bPrice) || 0),
+            dropshippingPrice: Math.max(0, Number(sv.dropshippingPrice) || 0),
+            b2bMoq: parsedMoq,
+            discount: Math.max(0, Number(sv.discount) || 0),
+            stock: Math.max(0, Math.floor(Number(sv.stock) || 0)),
+            weightGrams: parsedWeightGrams,
+            packagingCharge: Math.max(0, Number(sv.packagingCharge) || 0),
+            packagingChargeType: sv.packagingChargeType || "per_unit",
+            barcode: sv.barcode || null,
+            barcodeSource: sv.barcodeSource || (sv.barcodeImage ? "image" : sv.barcode ? "manual" : "auto"),
+            barcodeImage: sv.barcodeImage || null,
+          };
+        })
       };
     });
 
@@ -731,7 +755,7 @@ export function useProductFormState(
       hsnCode,
       gstRate: gstRateVal,
       priceIncludesGst,
-      packagingCharge: Number(packagingCharge) || 0,
+      packagingCharge: Math.max(0, Number(packagingCharge) || 0),
       packagingChargeType: packagingChargeType || "per_unit",
       defaultPriceTier,
       seoTitle,
@@ -753,8 +777,8 @@ export function useProductFormState(
         addToast("New product published successfully.", "success");
       }
       router.push("/admin/products");
-    } catch (err: unknown) {
-      addToast("Failed to save product details.", "error");
+    } catch (err: any) {
+      addToast(err?.message || "Failed to save product details.", "error");
     } finally {
       setIsSaving(false);
     }

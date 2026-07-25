@@ -50,6 +50,8 @@ export function VariantCard({
   handleAddImageUrl,
   addToast
 }: VariantCardProps) {
+  const [bulkMoqVal, setBulkMoqVal] = React.useState<string>("");
+
   return (
     <Card className="border border-border relative bg-card text-foreground group shadow-sm hover:shadow">
       {variantsListLength > 1 && (
@@ -85,7 +87,7 @@ export function VariantCard({
           const heightVal = (item.heightCm !== undefined && item.heightCm !== null && item.heightCm > 0) ? item.heightCm : parsedDim.heightCm;
 
           return (
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 border-t pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t pt-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">Package Length (cm) *</label>
                 <Input
@@ -117,27 +119,6 @@ export function VariantCard({
                   placeholder={String(parsedDim.heightCm)}
                   value={heightVal}
                   onChange={(e) => updateVariantField(idx, "heightCm", e.target.value === "" ? null : Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">Packaging Calculation</label>
-                <select
-                  value={item.packagingChargeType || "per_unit"}
-                  onChange={(e) => updateVariantField(idx, "packagingChargeType", e.target.value)}
-                  className="w-full h-9 rounded-md border border-input bg-background px-2 text-xs font-semibold"
-                >
-                  <option value="per_unit">Per Unit</option>
-                  <option value="per_order">Per Order (Flat)</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">Packaging Charge (₹)</label>
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={item.packagingCharge ?? 0}
-                  onChange={(e) => updateVariantField(idx, "packagingCharge", e.target.value === "" ? 0 : Number(e.target.value))}
                 />
               </div>
             </div>
@@ -175,7 +156,35 @@ export function VariantCard({
         </div>
 
         <div className="space-y-4 pt-4">
-          <h5 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Combinations Matrix (Stock & Pricing)</h5>
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-secondary/15 p-3 rounded-lg border text-xs">
+            <h5 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Combinations Matrix (Stock & Pricing)</h5>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-muted-foreground">Bulk Apply MOQ:</span>
+              <Input
+                type="number"
+                min="1"
+                placeholder="e.g. 5"
+                className="h-7 text-xs w-20 bg-background"
+                value={bulkMoqVal}
+                onChange={(e) => setBulkMoqVal(e.target.value)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs cursor-pointer px-2.5 font-semibold"
+                onClick={() => {
+                  const val = bulkMoqVal === "" ? null : Number(bulkMoqVal);
+                  item.subVariants.forEach((sv: any) => {
+                    updateSubVariantField(idx, sv.id, "b2bMoq", val);
+                  });
+                  addToast(`Set B2B MOQ to ${val || 1} for all combinations in ${item.color || "variant"}`, "success");
+                }}
+              >
+                Apply to All
+              </Button>
+            </div>
+          </div>
           <div className="border rounded-md overflow-hidden overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-secondary/50 text-xs uppercase">
@@ -185,7 +194,7 @@ export function VariantCard({
                   <th className="px-4 py-3">SKU *</th>
                   <th className="px-4 py-3">MRP (₹) *</th>
                   <th className="px-4 py-3">B2C Price (₹) *</th>
-                  <th className="px-4 py-3">B2B Price (₹)</th>
+                  <th className="px-4 py-3">B2B Price (₹) & MOQ</th>
                   <th className="px-4 py-3">Dropshipping Price (₹)</th>
                   <th className="px-4 py-3">Stock *</th>
                   <th className="px-4 py-3 text-center">Status</th>
@@ -223,17 +232,25 @@ export function VariantCard({
                       <Input type="number" className="h-8 text-xs w-24" value={sv.b2cPrice ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "b2cPrice", e.target.value === "" ? 0 : Number(e.target.value))} required />
                     </td>
                     <td className="px-4 py-2">
-                      <div className="space-y-1">
-                        <Input type="number" className="h-8 text-xs w-24" value={sv.b2bPrice ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "b2bPrice", e.target.value === "" ? 0 : Number(e.target.value))} />
-                        {(typeof sv.b2bPrice === "number" && sv.b2bPrice > 0) && (
+                      <div className="space-y-1.5">
+                        <Input
+                          type="number"
+                          className="h-8 text-xs w-28"
+                          placeholder="Price (₹)"
+                          value={sv.b2bPrice ?? ""}
+                          onChange={e => updateSubVariantField(idx, sv.id, "b2bPrice", e.target.value === "" ? 0 : Number(e.target.value))}
+                        />
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">MOQ:</span>
                           <Input
                             type="number"
-                            className="h-7 text-[10px] w-24 border-primary/40 focus:border-primary"
-                            placeholder="Min Qty (MOQ)"
+                            min="1"
+                            className="h-7 text-xs w-18 border-primary/50 font-bold text-primary focus:border-primary bg-primary/5"
+                            placeholder="1"
                             value={sv.b2bMoq ?? ""}
                             onChange={e => updateSubVariantField(idx, sv.id, "b2bMoq", e.target.value === "" ? null : Number(e.target.value))}
                           />
-                        )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-2">

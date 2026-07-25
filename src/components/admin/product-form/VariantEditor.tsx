@@ -40,22 +40,22 @@ export function VariantEditor() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-center gap-2 border-b pb-2">
-        <h3 className="font-extrabold text-lg sm:text-xl text-foreground">Color Variants</h3>
+        <h3 className="font-extrabold text-lg sm:text-xl text-foreground">Variants</h3>
         <Button type="button" size="sm" onClick={handleAddVariant} className="flex items-center gap-1.5 cursor-pointer">
-          <Plus className="h-4 w-4" /> Add Color Variant
+          <Plus className="h-4 w-4" /> Add Variant
         </Button>
       </div>
 
       {variantsList.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg bg-secondary/5">
-          No color variants added yet. Click "Add Color Variant" to start.
+          No variants added yet. Click "Add Variant" to start.
         </div>
       ) : (
         <div className="border rounded-md overflow-x-auto bg-background">
           <table className="w-full text-sm text-left border-collapse">
             <thead className="bg-secondary/45 text-xs font-bold uppercase text-muted-foreground border-b border-border">
               <tr>
-                <th className="px-4 py-3">Color Variant</th>
+                <th className="px-4 py-3">Variant</th>
                 <th className="px-4 py-3">Dimensions</th>
                 <th className="px-4 py-3">Sizes / Weights</th>
                 <th className="px-4 py-3 text-center">Combinations</th>
