@@ -98,6 +98,10 @@ describe("Volumetric & Effective Weight Calculations", () => {
     expect(calculateEffectiveUnitWeightGrams(400, 0, 0, 0)).toBe(400);
   });
 
+  it("parses dimensionsStr when length/breadth/height are missing or 0", () => {
+    expect(calculateEffectiveUnitWeightGrams(100, undefined, undefined, undefined, "15x12x20.9 cm")).toBe(752);
+  });
+
   it("calculates total line item weight accurately by multiplying effective unit weight by quantity", () => {
     const unitWeight = calculateEffectiveUnitWeightGrams(250, 20, 20, 25); // 2000g
     const qty = 3;
@@ -149,8 +153,8 @@ describe("calculateDetailedBreakdown", () => {
     expect(breakdown.quantity).toBe(2);
     expect(breakdown.unitBasePrice).toBe(15);
     expect(breakdown.totalProductPrice).toBe(30);
-    expect(breakdown.unitPackagingCharge).toBe(5);
-    expect(breakdown.totalPackagingCharge).toBe(10);
+    expect(breakdown.unitPackagingCharge).toBe(0); // B2C is exempt from packaging charges
+    expect(breakdown.totalPackagingCharge).toBe(0);
     expect(breakdown.appliedWeightType).toBe("volumetric"); // Volumetric 752g > Actual 100g
     expect(breakdown.chargeableUnitWeightGrams).toBe(752);
   });
@@ -177,7 +181,7 @@ describe("calculateDetailedBreakdown", () => {
       product: { ...dummyProduct, packagingCharge: 50, packagingChargeType: "per_order" },
       variant: dummyVariant,
       subVariant: { ...dummySubVariant, packagingCharge: 50, packagingChargeType: "per_order" },
-      tier: "B2C",
+      tier: "B2B",
       quantity: 5,
     });
 
@@ -191,7 +195,7 @@ describe("calculateDetailedBreakdown", () => {
       product: { ...dummyProduct, packagingCharge: 40 },
       variant: { ...dummyVariant, packagingCharge: 25 },
       subVariant: { ...dummySubVariant, packagingCharge: 0 },
-      tier: "B2C",
+      tier: "B2B",
       quantity: 2,
     });
 

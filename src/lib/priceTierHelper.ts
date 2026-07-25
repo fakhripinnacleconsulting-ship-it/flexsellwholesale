@@ -150,10 +150,23 @@ export function calculateEffectiveUnitWeightGrams(
   actualWeightGrams: number,
   lengthCm?: number | null,
   breadthCm?: number | null,
-  heightCm?: number | null
+  heightCm?: number | null,
+  dimensionsStr?: string | null
 ): number {
   const actual = Math.max(0, Number(actualWeightGrams) || 0);
-  const volumetric = calculateVolumetricWeightGrams(lengthCm, breadthCm, heightCm);
+
+  let l = lengthCm;
+  let b = breadthCm;
+  let h = heightCm;
+
+  if ((!l || !b || !h || l <= 0 || b <= 0 || h <= 0) && dimensionsStr) {
+    const parsed = parseDimensionsToCm(dimensionsStr);
+    l = l && l > 0 ? l : parsed.lengthCm;
+    b = b && b > 0 ? b : parsed.breadthCm;
+    h = h && h > 0 ? h : parsed.heightCm;
+  }
+
+  const volumetric = Math.round(calculateVolumetricWeightGrams(l, b, h));
   return Math.max(actual, volumetric);
 }
 
@@ -319,19 +332,21 @@ export function calculateDetailedBreakdown(params: {
     estimatedShippingCharge = tier === "B2B" ? 150 : tier === "Dropshipping" ? 80 : 50;
   }
 
-  // Packaging charge calculation per_unit vs per_order
+  // Packaging charge calculation per_unit vs per_order (Applied to B2B and Dropshipping only; B2C is exempt)
   const packagingChargeType: "per_unit" | "per_order" = subVariant?.packagingChargeType || variant?.packagingChargeType || product?.packagingChargeType || shippingConfig?.packagingChargeType || "per_unit";
-  const rawPackagingAmount = Number(subVariant?.packagingCharge || variant?.packagingCharge || product?.packagingCharge || shippingConfig?.packagingCharge || 0);
-
   let unitPackagingCharge = 0;
   let totalPackagingCharge = 0;
 
-  if (packagingChargeType === "per_order") {
-    totalPackagingCharge = rawPackagingAmount;
-    unitPackagingCharge = rawPackagingAmount / qty;
-  } else {
-    unitPackagingCharge = rawPackagingAmount;
-    totalPackagingCharge = rawPackagingAmount * qty;
+  if (tier !== "B2C") {
+    const rawPackagingAmount = Number(subVariant?.packagingCharge || variant?.packagingCharge || product?.packagingCharge || shippingConfig?.packagingCharge || 0);
+
+    if (packagingChargeType === "per_order") {
+      totalPackagingCharge = rawPackagingAmount;
+      unitPackagingCharge = rawPackagingAmount / qty;
+    } else {
+      unitPackagingCharge = rawPackagingAmount;
+      totalPackagingCharge = rawPackagingAmount * qty;
+    }
   }
 
   // Landed total

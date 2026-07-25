@@ -59,12 +59,12 @@ export function CartView() {
     const b2cWeightGrams = items
       .filter(item => item.priceTier !== "B2B")
       .reduce((sum, item) => {
-        const matchingColor = item.selectedVariants["Color"] || item.selectedVariants["color"];
+        const matchingColor = item.selectedVariants?.["Color"] || item.selectedVariants?.["color"] || item.selectedVariants?.["Varient Line #"] || item.selectedVariants?.["Variant Line #"] || Object.values(item.selectedVariants || {})[0];
         const activeVariant = item.product?.colorVariants?.find((cv: any) => cv.color === matchingColor)
           || item.product?.colorVariants?.[0];
         const activeSubVariant = activeVariant?.subVariants?.find((sv: any) =>
-          (!item.selectedVariants["Size"] || sv.size === item.selectedVariants["Size"]) &&
-          (!item.selectedVariants["Weight"] || sv.weight === item.selectedVariants["Weight"])
+          (!item.selectedVariants?.["Size"] || sv.size === item.selectedVariants["Size"]) &&
+          (!item.selectedVariants?.["Weight"] || sv.weight === item.selectedVariants["Weight"])
         ) || activeVariant?.subVariants?.[0];
         const unitWeightStr = activeSubVariant?.weight || "0g";
         const actualUnitWeightGrams = activeSubVariant?.weightGrams ?? parseWeightToGrams(unitWeightStr);
@@ -72,7 +72,8 @@ export function CartView() {
           actualUnitWeightGrams,
           activeVariant?.lengthCm,
           activeVariant?.breadthCm,
-          activeVariant?.heightCm
+          activeVariant?.heightCm,
+          activeVariant?.dimensions
         );
         return sum + (effectiveUnitWeight * item.quantity);
       }, 0);
@@ -87,6 +88,31 @@ export function CartView() {
     const b2cShipping = hasB2C ? calculateShippingByWeight(b2cWeightGrams, slabs) : 0;
 
     return b2bShipping + b2cShipping;
+  }, [items, shippingConfig]);
+
+  const totalPackagingCharge = React.useMemo(() => {
+    if (!items || items.length === 0) return 0;
+    return items.reduce((sum, item) => {
+      if (!item.product) return sum;
+      // B2C items are exempt from packaging charges
+      if (item.priceTier === "B2C" || !item.priceTier) return sum;
+
+      const matchingColor = item.selectedVariants["Color"] || item.selectedVariants["color"];
+      const activeVariant = item.product.colorVariants?.find((cv: any) => cv.color === matchingColor)
+        || item.product.colorVariants?.[0];
+      const activeSubVariant = activeVariant?.subVariants?.find((sv: any) =>
+        (!item.selectedVariants["Size"] || sv.size === item.selectedVariants["Size"]) &&
+        (!item.selectedVariants["Weight"] || sv.weight === item.selectedVariants["Weight"])
+      ) || activeVariant?.subVariants?.[0];
+
+      const pkgType = activeSubVariant?.packagingChargeType || activeVariant?.packagingChargeType || item.product.packagingChargeType || shippingConfig?.packagingChargeType || "per_unit";
+      const rawPkg = Number(activeSubVariant?.packagingCharge || activeVariant?.packagingCharge || item.product.packagingCharge || shippingConfig?.packagingCharge || 0);
+
+      if (pkgType === "per_order") {
+        return sum + rawPkg;
+      }
+      return sum + (rawPkg * item.quantity);
+    }, 0);
   }, [items, shippingConfig]);
 
   const taxDetails = React.useMemo(() => {
@@ -359,6 +385,13 @@ export function CartView() {
                     )}
                   </span>
                 </div>
+
+                {totalPackagingCharge > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Packaging Charge</span>
+                    <span className="font-semibold text-foreground">{formatPrice(totalPackagingCharge)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic HSN Slabs Summary List */}
@@ -383,7 +416,7 @@ export function CartView() {
 
               <div className="flex justify-between font-bold text-lg border-t pt-4">
                 <span>Grand Total (Incl. GST)</span>
-                <span className="text-primary">{formatPrice(grandTotal + shippingCharge)}</span>
+                <span className="text-primary">{formatPrice(grandTotal + shippingCharge + totalPackagingCharge)}</span>
               </div>
 
               <div className="space-y-3 mt-6">

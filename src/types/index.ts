@@ -196,6 +196,7 @@ export interface Order extends BaseDocument {
   salesperson?: string;
   couponCode?: string;
   couponDiscount?: number;
+  packagingCharge?: number;
   orderType?: "B2B" | "B2C";
   origin?: "self" | "website";
 }
