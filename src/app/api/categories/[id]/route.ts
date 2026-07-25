@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Category from "@/models/Category";
+import Product from "@/models/Product";
 import { requireAuth } from "@/lib/authGuard";
 import { categorySchema } from "@/lib/validators";
 import { ZodError } from "zod";
@@ -50,6 +51,14 @@ export async function DELETE(
 
     await dbConnect();
     const { id } = await params;
+
+    const productCount = await Product.countDocuments({ categoryId: id });
+    if (productCount > 0) {
+      return NextResponse.json(
+        { message: `Cannot delete category: ${productCount} product(s) are assigned to it. Please reassign or delete the products first.` },
+        { status: 400 }
+      );
+    }
     
     const deletedCategory = await Category.findByIdAndDelete(id);
     

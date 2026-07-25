@@ -125,7 +125,7 @@ export interface CartItem {
   selectedVariants: Record<string, string>;
   quantity: number;
   pricePerUnit: number;
-  priceTier?: "B2C" | "B2B";
+  priceTier?: "B2C" | "B2B" | "Dropshipping";
 }
 
 export interface HistoryEvent {
@@ -197,7 +197,8 @@ export interface Order extends BaseDocument {
   couponCode?: string;
   couponDiscount?: number;
   packagingCharge?: number;
-  orderType?: "B2B" | "B2C";
+  shippingCharge?: number;
+  orderType?: "B2B" | "B2C" | "Dropshipping";
   origin?: "self" | "website";
 }
 

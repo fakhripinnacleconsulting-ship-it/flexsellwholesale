@@ -8,7 +8,7 @@ import { shiprocketClient } from "@/lib/shiprocketClient";
 export async function GET() {
   try {
     await dbConnect();
-    let config = await ShippingConfig.findOne({ _id: "shipping-config" }).lean() as any;
+    let config = await ShippingConfig.findOne({ _id: "shipping-config" } as any).lean() as any;
     const sr = config?.shiprocket || {};
 
     return NextResponse.json({
@@ -48,9 +48,9 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { enabled, email, password, webhookToken, channelId, pickupAddress } = body;
 
-    let config = await ShippingConfig.findOne({ _id: "shipping-config" });
+    let config = await ShippingConfig.findOne({ _id: "shipping-config" } as any);
     if (!config) {
-      config = new ShippingConfig({ _id: "shipping-config" });
+      config = new ShippingConfig({ _id: "shipping-config" } as any);
     }
 
     const currentSr = config.shiprocket || {};

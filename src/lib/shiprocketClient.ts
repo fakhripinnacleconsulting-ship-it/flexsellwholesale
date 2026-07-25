@@ -25,7 +25,7 @@ interface ShiprocketCredentials {
 
 export async function getShiprocketCredentials(): Promise<ShiprocketCredentials> {
   await dbConnect();
-  const config = await ShippingConfig.findOne({ _id: "shipping-config" }).lean() as any;
+  const config = await ShippingConfig.findOne({ _id: "shipping-config" } as any).lean() as any;
   const srConfig = config?.shiprocket;
 
   const email = srConfig?.email || process.env.SHIPROCKET_EMAIL || "";

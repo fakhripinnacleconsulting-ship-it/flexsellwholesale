@@ -6,13 +6,13 @@ import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 export async function GET() {
   try {
     await dbConnect();
-    let config = await ShippingConfig.findOne({ _id: "shipping-config" }).lean() as any;
+    let config = await ShippingConfig.findOne({ _id: "shipping-config" } as any).lean() as any;
     if (!config) {
       config = await ShippingConfig.create({
         _id: "shipping-config",
         weightSlabs: [],
         b2bFixedCharge: 150,
-      });
+      } as any);
       config = config.toObject();
     }
     if (config.shiprocket) {
@@ -40,9 +40,9 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { weightSlabs, b2bFixedCharge, dropshippingFixedCharge, shiprocket } = body;
 
-    let config = await ShippingConfig.findOne({ _id: "shipping-config" });
+    let config = await ShippingConfig.findOne({ _id: "shipping-config" } as any);
     if (!config) {
-      config = new ShippingConfig({ _id: "shipping-config" });
+      config = new ShippingConfig({ _id: "shipping-config" } as any);
     }
 
     if (weightSlabs !== undefined) config.weightSlabs = weightSlabs;

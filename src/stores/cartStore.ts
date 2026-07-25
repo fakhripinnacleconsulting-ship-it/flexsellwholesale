@@ -5,7 +5,7 @@ import { useProductStore } from "./productStore";
 import { useToastStore } from "./toastStore";
 import { useAuthStore } from "./authStore";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { resolvePrice, resolveMoq } from "@/lib/priceTierHelper";
+import { resolvePrice, resolveMoq, resolvePriceTierName } from "@/lib/priceTierHelper";
 
 interface TaxBreakdown {
   hsnCode: string;
@@ -48,7 +48,6 @@ export const useCartStore = create<CartState>()(
       setBuyerState: (state) => set({ buyerState: state }),
 
       addItem: (product, selectedVariants, quantity = 1, priceTierInput = "B2C") => {
-        const { resolvePrice, resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
         const customer = useAuthStore.getState().customer;
         const customerTypes = customer?.customerTypes || ["B2C"];
 
@@ -166,7 +165,6 @@ export const useCartStore = create<CartState>()(
         const item = get().items.find(i => i.id === itemId);
         if (!item) return;
 
-        const { resolvePrice, resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
         const customer = useAuthStore.getState().customer;
         const customerTypes = customer?.customerTypes || ["B2C"];
 
@@ -327,7 +325,6 @@ export const useCartStore = create<CartState>()(
         const storeProducts = useProductStore.getState().products;
         const customer = useAuthStore.getState().customer;
         const customerTypes = customer?.customerTypes || ["B2C"];
-        const { resolvePrice, resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
 
         if (storeProducts.length === 0) return;
         set((state) => ({

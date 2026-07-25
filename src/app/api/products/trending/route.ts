@@ -15,19 +15,28 @@ export async function GET() {
     // 2. Get all active products
     const products = await Product.find({ isActive: true }).lean();
 
-    // 3. Get all non-cancelled orders
-    const orders = await Order.find({ status: { $ne: "Cancelled" } }).select("items").lean();
-
-    // 4. Calculate total quantity sold for each product
-    const salesMap: Record<string, number> = {};
-    for (const order of orders) {
-      if (order.items && Array.isArray(order.items)) {
-        for (const item of order.items) {
-          const productId = item.productId || item.product?._id || (typeof item.product === "string" ? item.product : undefined);
-          if (productId) {
-            salesMap[productId] = (salesMap[productId] || 0) + (Number(item.quantity) || 0);
-          }
+    // 3. Calculate total quantity sold for each product via MongoDB aggregation
+    const salesAggregation = await Order.aggregate([
+      { $match: { status: { $ne: "Cancelled" } } },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: {
+            $ifNull: [
+              "$items.productId",
+              { $ifNull: ["$items.product._id", "$items.product"] }
+            ]
+          },
+          totalQty: { $sum: { $ifNull: ["$items.quantity", 0] } }
         }
+      }
+    ]);
+
+    const salesMap: Record<string, number> = {};
+    for (const row of salesAggregation) {
+      if (row._id) {
+        const pId = String(row._id);
+        salesMap[pId] = row.totalQty || 0;
       }
     }
 

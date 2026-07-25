@@ -38,8 +38,7 @@ const ShippingConfigSchema = new Schema<ShippingConfigType & Document>(
 );
 
 if (mongoose.models.ShippingConfig) {
-  delete mongoose.models.ShippingConfig;
+  mongoose.deleteModel("ShippingConfig");
 }
 
-export default mongoose.models.ShippingConfig ||
-  mongoose.model<ShippingConfigType & Document>("ShippingConfig", ShippingConfigSchema);
+export default mongoose.model<ShippingConfigType & Document>("ShippingConfig", ShippingConfigSchema);

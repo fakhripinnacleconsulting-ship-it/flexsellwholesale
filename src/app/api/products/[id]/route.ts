@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
+import Collection from "@/models/Collection";
+import Customer from "@/models/Customer";
 import { requireAuth } from "@/lib/authGuard";
 import { productSchema } from "@/lib/validators";
 import { ZodError } from "zod";
@@ -76,6 +78,12 @@ export async function DELETE(
       return NextResponse.json({ message: "Product not found" }, { status: 404 });
     }
     
+    // Cleanup references in Collections and Customer wishlists asynchronously
+    await Promise.all([
+      Collection.updateMany({ productIds: id }, { $pull: { productIds: id } }),
+      Customer.updateMany({ wishlist: id }, { $pull: { wishlist: id } }),
+    ]);
+
     revalidateProducts();
     return NextResponse.json({ message: "Product deleted successfully" });
   } catch (error: unknown) {

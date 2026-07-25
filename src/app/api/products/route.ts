@@ -64,6 +64,26 @@ export async function POST(request: Request) {
     if (!validatedData._id) {
       validatedData._id = await generateNextId("product");
     }
+
+    // Check duplicate slug
+    const existingSlug = await Product.findOne({ slug: validatedData.slug }).lean();
+    if (existingSlug) {
+      return NextResponse.json({ message: `Product slug "${validatedData.slug}" is already taken. Please choose a different title or slug.` }, { status: 400 });
+    }
+
+    // Check duplicate SKUs
+    const skus: string[] = [];
+    validatedData.colorVariants?.forEach((cv: any) => {
+      cv.subVariants?.forEach((sv: any) => {
+        if (sv.sku) skus.push(sv.sku.trim());
+      });
+    });
+    if (skus.length > 0) {
+      const existingSkuDoc = await Product.findOne({ "colorVariants.subVariants.sku": { $in: skus } }).lean();
+      if (existingSkuDoc) {
+        return NextResponse.json({ message: `SKU collision: One of the SKUs is already assigned to product "${(existingSkuDoc as any).title}".` }, { status: 400 });
+      }
+    }
     
     const newProduct = await Product.create(validatedData);
     revalidateProducts();

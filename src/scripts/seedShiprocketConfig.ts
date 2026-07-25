@@ -10,7 +10,7 @@ async function seedShiprocket() {
   console.log("Seeding Shiprocket default configuration into database...");
   await dbConnect();
 
-  let config = await ShippingConfig.findOne({ _id: "shipping-config" });
+  let config = await ShippingConfig.findOne({ _id: "shipping-config" } as any);
   if (!config) {
     config = new ShippingConfig({ _id: "shipping-config" });
   }

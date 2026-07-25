@@ -76,7 +76,8 @@ const OrderSchema = new Schema<OrderType & Document>(
     couponCode: { type: String },
     couponDiscount: { type: Number },
     packagingCharge: { type: Number, default: 0 },
-    orderType: { type: String, enum: ["B2B", "B2C"], default: "B2C", required: true },
+    shippingCharge: { type: Number, default: 0 },
+    orderType: { type: String, enum: ["B2B", "B2C", "Dropshipping"], default: "B2C", required: true },
     origin: { type: String, enum: ["self", "website"], default: "website", required: true },
   },
   { timestamps: true }

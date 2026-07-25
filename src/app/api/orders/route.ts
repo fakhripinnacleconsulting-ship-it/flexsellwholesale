@@ -13,6 +13,7 @@ import { generateNextId } from "@/lib/idGeneratorServer";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
+import { resolvePrice } from "@/lib/priceTierHelper";
 import nodemailer from "nodemailer";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 import { rateLimit } from "@/lib/rateLimit";
@@ -248,7 +249,7 @@ export async function POST(request: Request) {
 
     // Validate order request with Zod
     const validatedData = orderSchema.parse(body);
-    const { items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, quoteId, salesperson } = validatedData;
+    const { items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, packagingCharge, shippingCharge, quoteId, salesperson } = validatedData;
 
     // Idempotency Check: if quoteId is provided, check if Order already exists
     if (quoteId) {
@@ -300,8 +301,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "You have already reached the maximum usage limit for this coupon" }, { status: 400 });
       }
 
-      let calculatedDiscount = 0;
       const orderSubtotal = items.reduce((sum: number, item: any) => sum + (item.pricePerUnit * item.quantity), 0);
+      if (dbCoupon.minOrderValue && dbCoupon.minOrderValue > 0 && orderSubtotal < dbCoupon.minOrderValue) {
+        return NextResponse.json({ message: `Minimum order value of ₹${dbCoupon.minOrderValue} required for coupon "${cleanCode}".` }, { status: 400 });
+      }
+
+      let calculatedDiscount = 0;
       if (dbCoupon.discountType === "flat") {
         calculatedDiscount = dbCoupon.discountValue;
       } else {
@@ -331,6 +336,11 @@ export async function POST(request: Request) {
         }
       }
 
+      // Fetch customer doc to determine customerTypes for price verification & orderType resolution
+      const customerDoc = await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).session(session || null).lean() as any;
+      const customerId = customerDoc?._id ? String(customerDoc._id) : "legacy-sync";
+      const customerTypes: string[] = customerDoc?.customerTypes || ["B2C"];
+
       // Deduct stock for each ordered item atomically
       const stockRollbacks: Array<{ productId: string; cvColor: string; size: string; weight: string; qty: number }> = [];
       try {
@@ -359,6 +369,14 @@ export async function POST(request: Request) {
 
           if (sv.stock < item.quantity) {
             throw new Error(`Insufficient stock for product "${dbProduct.title}" (${selectedColor} - ${selectedSize || ""})`);
+          }
+
+          // Server-side Price Re-verification (Security Check)
+          if (!quoteId) {
+            const expectedPrice = resolvePrice(sv, customerTypes, item.quantity);
+            if (expectedPrice > 0 && Math.abs(expectedPrice - item.pricePerUnit) > 0.05) {
+              throw new Error(`Price verification failed for product "${dbProduct.title}". Expected ₹${expectedPrice}, got ₹${item.pricePerUnit}.`);
+            }
           }
 
           const updateResult = await Product.updateOne(
@@ -454,9 +472,18 @@ export async function POST(request: Request) {
       const docType = pStatus === "Paid" ? "invoice" : "receipt";
       const invoiceId = await generateInvoiceId(docType, session);
 
-      // Determine B2B/B2C category and order origin
-      const isB2B = !!quoteId || !!salesperson || !!shippingAddress?.company || !!shippingAddress?.gstin;
-      const orderType = isB2B ? "B2B" : "B2C";
+      // Determine B2B/B2C/Dropshipping category and order origin
+      let orderType: "B2B" | "B2C" | "Dropshipping" = "B2C";
+      if (customerTypes.length === 1 && customerTypes[0] === "Dropshipping") {
+        orderType = "Dropshipping";
+      } else if (!!quoteId || !!salesperson || !!shippingAddress?.company || !!shippingAddress?.gstin || customerTypes.includes("B2B")) {
+        orderType = "B2B";
+      } else if (customerTypes.includes("Dropshipping")) {
+        orderType = "Dropshipping";
+      } else {
+        orderType = "B2C";
+      }
+
       const isSelf = payload.role === "admin" || !!quoteId;
       const origin = isSelf ? "self" : "website";
 
@@ -479,6 +506,8 @@ export async function POST(request: Request) {
           transactionId: paymentDetails?.transactionId,
           couponCode,
           couponDiscount,
+          packagingCharge: packagingCharge || 0,
+          shippingCharge: shippingCharge || 0,
           quoteId,
           salesperson,
           invoiceId,
@@ -504,9 +533,6 @@ export async function POST(request: Request) {
         const generatedAt = new Date().toLocaleDateString("en-IN", {
           day: "2-digit", month: "long", year: "numeric",
         });
-
-        const customerDoc = await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).session(session || null).lean();
-        const customerId = customerDoc?._id ? String(customerDoc._id) : "legacy-sync";
 
         let defaultDocStatus = "paid";
         if (docType === "receipt") {
@@ -534,7 +560,8 @@ export async function POST(request: Request) {
           status: defaultDocStatus,
           salesperson,
           couponCode,
-          couponDiscount
+          couponDiscount,
+          customerType: orderType,
         });
         await invoiceInstance.save({ session });
         createdDoc = invoiceInstance;

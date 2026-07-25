@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Collection from "@/models/Collection";
+import Product from "@/models/Product";
 import { requireAuth } from "@/lib/authGuard";
 import { collectionSchema } from "@/lib/validators";
 import { ZodError } from "zod";
@@ -41,6 +42,13 @@ export async function POST(request: Request) {
       validatedData._id = "col_" + Array.from({ length: 16 }, () =>
         Math.floor(Math.random() * 16).toString(16)
       ).join("");
+    }
+
+    // Filter productIds to keep only existing products
+    if (validatedData.productIds && validatedData.productIds.length > 0) {
+      const existingProds = await Product.find({ _id: { $in: validatedData.productIds } }).select("_id").lean();
+      const validSet = new Set(existingProds.map(p => p._id));
+      validatedData.productIds = validatedData.productIds.filter((id: string) => validSet.has(id));
     }
 
     const newCollection = await Collection.create(validatedData);
