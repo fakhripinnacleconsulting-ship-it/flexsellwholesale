@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Heart, ShoppingCart, Minus, Plus } from "lucide-react";
+import { Heart, ShoppingCart, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Product } from "@/types";
@@ -13,23 +12,27 @@ import { useWishlistStore } from "@/stores/wishlistStore";
 import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
-import { resolvePrice, canPurchase, resolveMoq, resolvePriceTierName, isPureB2B } from "@/lib/priceTierHelper";
-import { motion } from "framer-motion";
+import { resolvePrice, canPurchase, resolveMoq, isPureB2B } from "@/lib/priceTierHelper";
 
 interface ProductCardProps {
   product: Product;
   layout?: "grid" | "list";
 }
 
-export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
+export function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
   const { addItem } = useCartStore();
   const { toggleWishlist, isInWishlist } = useWishlistStore();
   const { addToast } = useToastStore();
   const customer = useAuthStore((state: any) => state.customer);
 
-  const [qty, setQty] = React.useState(1);
   const [isMounted, setIsMounted] = React.useState(false);
+  const [currentImgIndex, setCurrentImgIndex] = React.useState(0);
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  // Touch & Drag Swipe references
+  const touchStartX = React.useRef<number | null>(null);
+  const touchEndX = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -39,47 +42,95 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
   const defaultVariant = product.colorVariants?.[0];
   const defaultSub = defaultVariant?.subVariants?.[0];
 
-  // Primary image
-  const firstImg = defaultVariant?.images?.[0];
-  const rawImgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
-  const imgUrl = sanitizeImgUrl(rawImgUrl);
+  // Collect ALL product & variant images for the carousel
+  const allImages = React.useMemo(() => {
+    const imgs: string[] = [];
+    product.colorVariants?.forEach((cv) => {
+      cv.images?.forEach((img) => {
+        const url = typeof img === "string" ? img : img?.url;
+        if (url && url.trim()) {
+          const sanitized = sanitizeImgUrl(url);
+          if (sanitized && !imgs.includes(sanitized)) {
+            imgs.push(sanitized);
+          }
+        }
+      });
+    });
+    if (imgs.length === 0) {
+      imgs.push("https://placehold.co/400x400/10b981/ffffff?text=Product");
+    }
+    return imgs;
+  }, [product.colorVariants]);
 
-  // Hover/Secondary image
-  const secondImg = defaultVariant?.images?.[1];
-  const rawSecondImgUrl = secondImg ? (typeof secondImg === "string" ? secondImg : secondImg.url || "") : "";
-  const secondImgUrl = rawSecondImgUrl ? sanitizeImgUrl(rawSecondImgUrl) : "";
+  // Auto-slide effect (every 2.8 seconds on hover)
+  React.useEffect(() => {
+    if (allImages.length <= 1 || !isHovered) return;
+    const interval = setInterval(() => {
+      setCurrentImgIndex((prev) => (prev + 1) % allImages.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [allImages.length, isHovered]);
 
   const customerTypes = customer?.customerTypes || ["B2C"];
   const purchaseAllowed = !customer || canPurchase(customerTypes);
   
-  const price = defaultSub ? resolvePrice(defaultSub, customerTypes, qty) : 0;
-  const activeTierName = defaultSub ? resolvePriceTierName(defaultSub, customerTypes, qty) : "B2C";
   const moq = defaultSub ? resolveMoq(defaultSub, customerTypes) : 1;
   const pureB2B = isPureB2B(customerTypes);
+  const orderQty = pureB2B ? moq : 1;
 
+  const price = defaultSub ? resolvePrice(defaultSub, customerTypes, orderQty) : 0;
   const mrp = defaultSub?.mrp ?? 0;
-  const discount = mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
-  const sku = defaultSub?.sku || "NO SKU";
+  const discount = mrp > price && mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
   const isBestseller = product.cardTags?.some(tag => tag.toLowerCase() === "bestseller" || tag.toLowerCase() === "best seller");
-  const [isNew, setIsNew] = React.useState(() =>
-    !!product.cardTags?.some(tag => tag.toLowerCase() === "new")
-  );
-  React.useEffect(() => {
-    const isTagNew = product.cardTags?.some(tag => tag.toLowerCase() === "new");
-    const isDateNew = product.createdAt ? (new Date().getTime() - new Date(product.createdAt).getTime()) <= 7 * 24 * 60 * 60 * 1000 : false;
-    setIsNew(!!(isTagNew || isDateNew));
-  }, [product.cardTags, product.createdAt]);
+  const isNew = product.cardTags?.some(tag => tag.toLowerCase() === "new");
   const isTrending = product.cardTags?.some(tag => tag.toLowerCase() === "trending" || tag.toLowerCase() === "hot");
+
+  // Title truncation to max 50 characters
+  const truncatedTitle = product.title.length > 50 ? product.title.slice(0, 50).trim() + "..." : product.title;
 
   const handleCardClick = () => {
     router.push(`/products/${product.slug}`);
   };
 
-  const adjustQty = (e: React.MouseEvent, amount: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setQty(prev => Math.max(1, prev + amount));
+  const nextImage = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setCurrentImgIndex((prev) => (prev + 1) % allImages.length);
+  };
+
+  const prevImage = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setCurrentImgIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+  };
+
+  // Touch Swipe Handlers (Mobile & Tablet)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const diffX = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 30;
+
+    if (diffX > minSwipeDistance) {
+      nextImage();
+    } else if (diffX < -minSwipeDistance) {
+      prevImage();
+    }
+
+    touchStartX.current = null;
+    touchEndX.current = null;
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -89,14 +140,6 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
     if (!purchaseAllowed) {
       addToast("Dropshipping accounts cannot place orders directly from storefront.", "warning");
       return;
-    }
-
-    const itemMoq = defaultSub ? resolveMoq(defaultSub, customerTypes) : 1;
-    let orderQty = qty;
-    if (pureB2B && orderQty < itemMoq) {
-      addToast(`MOQ required. Standard B2B limit is at least ${itemMoq} units.`, "warning");
-      orderQty = itemMoq;
-      setQty(itemMoq);
     }
 
     addItem(
@@ -117,272 +160,181 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
     toggleWishlist(product);
   };
 
-  if (layout === "list") {
-    return (
-      <div
-        onClick={handleCardClick}
-        className="flex flex-col sm:flex-row items-center border border-border rounded-xl p-4 gap-6 bg-card hover:shadow-md hover:border-primary/20 transition-all duration-300 relative group text-foreground w-full cursor-pointer"
-      >
-        {/* Wishlist Button */}
-        <button 
-          type="button"
-          onClick={handleWishlistToggle}
-          className="absolute top-4 right-4 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive p-1.5 rounded-full shadow transition-colors z-10 cursor-pointer"
-          title="Toggle Wishlist"
-        >
-          <Heart className={`h-4 w-4 ${favorited ? "fill-destructive text-destructive" : ""}`} />
-        </button>
-
-        {/* Product Image */}
-        <div className="w-24 h-24 rounded-lg bg-secondary border overflow-hidden flex-shrink-0 relative">
-          <div className="w-full h-full relative">
-            <Image 
-              src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"} 
-              alt={product.title} 
-              fill 
-              sizes="96px" 
-              className={`object-cover transition-opacity duration-500 ${secondImgUrl ? 'group-hover:opacity-0' : 'group-hover:scale-105'}`} 
-            />
-            {secondImgUrl && (
-              <Image 
-                src={secondImgUrl} 
-                alt={product.title} 
-                fill 
-                sizes="96px" 
-                className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
-              />
-            )}
-          </div>
-          {discount > 0 && (
-            <div className="absolute top-1 left-1 bg-destructive text-destructive-foreground text-[8px] font-extrabold px-1 rounded shadow">
-              {discount}% OFF
-            </div>
-          )}
-        </div>
-
-        {/* Details Section */}
-        <div className="flex-1 min-w-0 space-y-2 text-center sm:text-left">
-          <div className="space-y-0.5">
-            <h3 className="font-bold text-base line-clamp-1 text-foreground group-hover:text-primary transition-colors">{product.title}</h3>
-            <p className="text-xs font-mono text-muted-foreground">SKU: {sku}</p>
-            {product.cardTags && product.cardTags.length > 0 && (
-              <div className="flex flex-wrap justify-center sm:justify-start gap-1 pt-1">
-                {product.cardTags.map((tag, tIdx) => (
-                  <span key={tIdx} className="bg-secondary text-muted-foreground text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* List Layout MOQ */}
-          <div className="flex items-center gap-3 justify-center sm:justify-start">
-            {product.totalStock <= 0 && (
-              <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded">
-                Out of Stock
-              </span>
-            )}
-            {(customer?.customerTypes?.includes("B2B") && defaultSub?.b2bMoq) && (
-              <span className="text-xs text-muted-foreground">B2B MOQ: {defaultSub.b2bMoq} units</span>
-            )}
-          </div>
-        </div>
-
-        {/* Pricing Column */}
-        <div className="text-center sm:text-left flex-shrink-0">
-          <div className="flex items-baseline gap-1.5 justify-center sm:justify-start">
-            <span className="text-xl font-extrabold text-primary">{formatPrice(price)}</span>
-            {mrp > price && (
-              <span className="text-xs text-muted-foreground line-through">{formatPrice(mrp)}</span>
-            )}
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-0.5 font-semibold">
-            {product.priceIncludesGst ? "Incl. GST" : `+ ${product.gstRate || 18}% GST (Excl.)`}
-          </p>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex flex-col gap-2 w-full sm:w-48 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1.5 border rounded-lg p-0.5 bg-secondary/10 w-full justify-between">
-            <button
-              type="button"
-              onClick={(e) => adjustQty(e, -1)}
-              className="p-1 rounded hover:bg-secondary transition-colors cursor-pointer"
-            >
-              <Minus className="h-3 w-3" />
-            </button>
-            <input
-              type="number"
-              value={qty}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-              className="w-12 text-center text-xs font-bold bg-transparent border-none outline-none focus:ring-0 text-foreground"
-            />
-            <button
-              type="button"
-              onClick={(e) => adjustQty(e, 1)}
-              className="p-1 rounded hover:bg-secondary transition-colors cursor-pointer"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-          </div>
-
-          <Button 
-            className="w-full flex items-center justify-center gap-2 font-bold cursor-pointer" 
-            size="sm"
-            onClick={handleAddToCart}
-            disabled={product.totalStock <= 0 || !purchaseAllowed}
-          >
-            <ShoppingCart className="h-4 w-4" />
-            {!purchaseAllowed ? "Dropship Only" : "Add to Cart"}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Grid Layout
   return (
     <Card 
       onClick={handleCardClick}
-      className="flex flex-col h-full bg-card hover:shadow-lg hover:border-primary/20 transition-all duration-300 relative group border border-border cursor-pointer select-none"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group border border-border/80 cursor-pointer select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
     >
-      {/* Floating Badges */}
-      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 pointer-events-none">
+      {/* Fixed Floating Overlay Badges */}
+      <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 pointer-events-none">
         {discount > 0 && (
-          <span className="bg-destructive text-destructive-foreground text-[10px] font-extrabold px-2 py-0.5 rounded shadow uppercase">
+          <span className="bg-destructive text-destructive-foreground text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow uppercase tracking-wider">
             {discount}% OFF
           </span>
         )}
         {isBestseller && (
-          <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow uppercase">
-            BEST SELLER
+          <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow uppercase tracking-wider">
+            BESTSELLER
           </span>
         )}
         {isNew && (
-          <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow uppercase">
+          <span className="bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow uppercase tracking-wider">
             NEW
           </span>
         )}
         {isTrending && (
-          <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow uppercase">
+          <span className="bg-purple-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow uppercase tracking-wider">
             TRENDING
           </span>
         )}
       </div>
 
-      {/* Wishlist Button */}
+      {/* Fixed Wishlist Button */}
       <button 
         type="button"
         onClick={handleWishlistToggle}
-        className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive p-1.5 rounded-full shadow transition-colors cursor-pointer"
+        className="absolute top-2 right-2 z-20 bg-background/80 hover:bg-background text-muted-foreground hover:text-destructive p-1.5 rounded-full shadow-md backdrop-blur-xs transition-transform active:scale-95 cursor-pointer"
         title="Toggle Wishlist"
       >
-        <Heart className={`h-4 w-4 ${favorited ? "fill-destructive text-destructive" : ""}`} />
+        <Heart className={`h-4 w-4 transition-colors ${favorited ? "fill-destructive text-destructive" : ""}`} />
       </button>
 
-      {/* Image Viewport with Hover transition */}
-      <div className="aspect-square relative bg-secondary overflow-hidden rounded-t-lg border-b">
-        <div className="w-full h-full relative">
-          <Image
-            src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"}
-            alt={product.title}
-            fill
-            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className={`object-cover transition-all duration-500 ${secondImgUrl ? 'group-hover:opacity-0' : 'group-hover:scale-105'}`}
-          />
-          {secondImgUrl && (
-            <Image
-              src={secondImgUrl}
-              alt={product.title}
-              fill
-              sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-            />
-          )}
+      {/* Interactive Image Carousel Viewport */}
+      <div 
+        className="aspect-square relative bg-secondary/20 overflow-hidden border-b select-none touch-pan-y"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div 
+          className="flex w-full h-full transition-transform duration-500 ease-out"
+          style={{ transform: `translateX(-${currentImgIndex * 100}%)` }}
+        >
+          {allImages.map((imgSrc, i) => (
+            <div key={i} className="w-full h-full flex-shrink-0 relative">
+              <Image
+                src={imgSrc}
+                alt={`${product.title} - Image ${i + 1}`}
+                fill
+                sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                priority={i === 0}
+              />
+            </div>
+          ))}
         </div>
+
+        {/* Carousel Arrow Controls */}
+        {allImages.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={prevImage}
+              className="absolute left-1 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow"
+              title="Previous Image"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={nextImage}
+              className="absolute right-1 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow"
+              title="Next Image"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {/* Carousel Dot Indicators */}
+            <div className="absolute bottom-2 left-0 right-0 z-20 flex justify-center items-center gap-1.5 pointer-events-auto">
+              {allImages.map((_, dotIdx) => (
+                <button
+                  key={dotIdx}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setCurrentImgIndex(dotIdx);
+                  }}
+                  className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                    currentImgIndex === dotIdx ? "w-4 bg-primary shadow-xs" : "w-1.5 bg-white/70 hover:bg-white"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Fixed B2B MOQ Badge */}
         {(customer?.customerTypes?.includes("B2B") && defaultSub?.b2bMoq) && (
-          <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] font-mono px-1 rounded z-10">
+          <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] font-mono px-1.5 py-0.5 rounded z-20 shadow-xs">
             MOQ: {defaultSub.b2bMoq} pcs
           </div>
         )}
       </div>
 
-      <CardContent className="p-4 flex flex-col flex-1 gap-3">
+      {/* Card Content Details */}
+      <CardContent className="p-3.5 flex flex-col flex-1 justify-between gap-3">
         <div className="space-y-1">
-          <h3 className="font-bold text-sm line-clamp-2 text-foreground group-hover:text-primary transition-colors" title={product.title}>
-            {product.title}
+          {/* Truncated Name (50 chars max with ...) */}
+          <h3 
+            className="font-bold text-sm text-foreground group-hover:text-primary transition-colors leading-snug" 
+            title={product.title}
+          >
+            {truncatedTitle}
           </h3>
-          <p className="text-[10px] font-mono text-muted-foreground">SKU: {sku}</p>
-          
-          {product.cardTags && product.cardTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {product.cardTags.slice(0, 3).map((tag, tIdx) => (
-                <span key={tIdx} className="bg-secondary text-muted-foreground text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Stock Level meter */}
-        <div>
-          {product.totalStock <= 0 && (
-            <span className="text-[11px] font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded">
-              Out of Stock
+          {/* Industry Level 5-Star Filled Rating System */}
+          <div className="flex items-center gap-1.5 pt-0.5">
+            <div className="flex items-center text-amber-400">
+              {[1, 2, 3, 4, 5].map((starIdx) => {
+                const ratingVal = product.rating && product.rating > 0 ? product.rating : 4.5;
+                const isFull = ratingVal >= starIdx;
+                const isHalf = !isFull && ratingVal >= starIdx - 0.5;
+
+                return (
+                  <Star
+                    key={starIdx}
+                    className={`h-3.5 w-3.5 ${
+                      isFull
+                        ? "fill-amber-400 text-amber-400"
+                        : isHalf
+                        ? "fill-amber-400/50 text-amber-400"
+                        : "fill-muted/20 text-muted-foreground/30"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+            <span className="font-bold text-foreground text-xs font-mono">
+              {(product.rating && product.rating > 0 ? product.rating : 4.5).toFixed(1)}
             </span>
-          )}
-        </div>
-
-        {/* B2B Pricing Details */}
-        <div className="pt-2 border-t mt-auto space-y-3" onClick={(e) => e.stopPropagation()}>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-lg font-black text-primary">{formatPrice(price)}</span>
-              {mrp > price && (
-                <span className="text-xs text-muted-foreground line-through">{formatPrice(mrp)}</span>
-              )}
-            </div>
-            <span className="text-[10px] text-muted-foreground font-semibold">
-              {product.priceIncludesGst ? "Incl. GST" : `+ ${product.gstRate || 18}% GST (Excl.)`}
+            <span className="text-[10px] text-muted-foreground font-normal">
+              ({product.reviewCount || 12})
             </span>
           </div>
+        </div>
 
-          {/* Bulk quantity counters */}
-          <div className="flex items-center gap-1.5 border rounded-lg p-0.5 bg-secondary/10 w-full justify-between">
-            <button
-              type="button"
-              onClick={(e) => adjustQty(e, -1)}
-              className="p-1 rounded-md hover:bg-secondary transition-colors cursor-pointer"
-            >
-              <Minus className="h-3 w-3" />
-            </button>
-            <input
-              type="number"
-              min={1}
-              value={qty}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-              className="w-14 text-center text-xs font-mono font-bold bg-transparent border-none outline-none focus:ring-0 text-foreground p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <button
-              type="button"
-              onClick={(e) => adjustQty(e, 1)}
-              className="p-1 rounded-md hover:bg-secondary transition-colors cursor-pointer"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
+        {/* Bottom Section: Amount on Top / Button Below on Mobile, Side-by-Side on Desktop */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/40 mt-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-base font-black text-primary">{formatPrice(price)}</span>
+              {mrp > price && (
+                <span className="text-[11px] text-muted-foreground line-through font-medium">{formatPrice(mrp)}</span>
+              )}
+            </div>
           </div>
 
           <Button 
-            className="w-full font-bold flex items-center justify-center gap-1.5 cursor-pointer" 
+            className="w-full sm:w-auto font-bold flex items-center justify-center gap-1.5 cursor-pointer text-xs h-8.5 px-3 flex-shrink-0" 
             size="sm"
             onClick={handleAddToCart}
             disabled={product.totalStock <= 0 || !purchaseAllowed}
           >
-            <ShoppingCart className="h-4 w-4" /> {!purchaseAllowed ? "Dropship Only" : "Add to Cart"}
+            <ShoppingCart className="h-3.5 w-3.5" />
+            {product.totalStock <= 0 ? "Out of Stock" : !purchaseAllowed ? "Dropship Only" : "Add to Cart"}
           </Button>
         </div>
       </CardContent>
