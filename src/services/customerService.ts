@@ -41,7 +41,7 @@ export const customerService = {
               city: "Indore",
               state: "Madhya Pradesh",
               pinCode: "452001",
-              phone: "9826012345",
+              phone: "9203675004",
               initials: "FE",
               gstin: "23AAACF1001M1Z5",
               customerTypes: ["B2B"],
@@ -227,7 +227,7 @@ export const customerService = {
       if (typeof window === "undefined") throw new Error("Window unavailable");
       const raw = localStorage.getItem("flexsell-customers-storage");
       const list: Customer[] = raw ? JSON.parse(raw) : [];
-      
+
       const { useAuthStore } = await import("@/stores/authStore");
       const currentCustomer = useAuthStore.getState().customer;
       const custId = currentCustomer?._id || "FSW-CUST-00001";

@@ -11,6 +11,7 @@ import { useOrderStore } from "@/stores/orderStore";
 import { formatPrice } from "@/lib/utils";
 import { ArrowLeft, User, ShoppingBag, CreditCard, Mail, Phone, MapPin, Building, ShieldAlert, CheckCircle2, Truck, Clock, Store, FileText, ExternalLink, Download, ArrowUpCircle, XCircle } from "lucide-react";
 import { useToastStore } from "@/stores/toastStore";
+import { useConfirmStore } from "@/stores/confirmStore";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -18,6 +19,7 @@ interface PageProps {
 
 export default function AdminCustomerDetailPage({ params }: PageProps) {
   const { addToast } = useToastStore();
+  const confirmAction = useConfirmStore((state) => state.confirm);
   const resolvedParams = React.use(params);
   const customerId = resolvedParams.id;
 
@@ -28,57 +30,65 @@ export default function AdminCustomerDetailPage({ params }: PageProps) {
 
   const fetchCustomersData = React.useCallback(async () => {
     try {
+      setIsLoading(true);
       const data = await customerService.getCustomers();
       setCustomers(data);
-    } catch (err) {
-      console.error("Failed to load customer detail data", err);
+    } catch {
+      addToast("Failed to load customer profiles", "error");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [addToast]);
 
   React.useEffect(() => {
-    const loadData = async () => {
-      try {
-        await initializeOrders();
-        await fetchCustomersData();
-      } catch (err) {
-        console.error("Failed to load customer detail data", err);
-      }
-    };
-    loadData();
+    fetchCustomersData();
+    initializeOrders();
   }, [initializeOrders, fetchCustomersData]);
 
   const customer = React.useMemo(() => customers.find(c => c._id === customerId), [customers, customerId]);
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
     if (!customer) return;
-    setIsProcessing(true);
-    try {
-      await customerService.approveUpgrade(customer._id);
-      addToast("Customer upgrade approved!", "success");
-      fetchCustomersData();
-    } catch (err: unknown) {
-      addToast((err as any).message || "Failed to approve upgrade", "error");
-    } finally {
-      setIsProcessing(false);
-    }
+    confirmAction({
+      title: "Approve Wholesale Upgrade",
+      message: `Are you sure you want to approve the upgrade application for "${customer.name}"? This will combine their requested account tiers and grant wholesale access.`,
+      confirmText: "Approve Upgrade",
+      type: "info",
+      onConfirm: async () => {
+        setIsProcessing(true);
+        try {
+          await customerService.approveUpgrade(customer._id);
+          addToast("Customer upgrade approved!", "success");
+          fetchCustomersData();
+        } catch (err: unknown) {
+          addToast((err as any).message || "Failed to approve upgrade", "error");
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+    });
   };
 
-  const handleReject = async () => {
+  const handleReject = () => {
     if (!customer) return;
-    const reason = prompt("Enter rejection reason:");
-    if (reason === null) return;
-    setIsProcessing(true);
-    try {
-      await customerService.rejectUpgrade(customer._id, reason || undefined);
-      addToast("Upgrade request rejected.", "info");
-      fetchCustomersData();
-    } catch (err: unknown) {
-      addToast((err as any).message || "Failed to reject upgrade", "error");
-    } finally {
-      setIsProcessing(false);
-    }
+    confirmAction({
+      title: "Reject Upgrade Request",
+      message: `Are you sure you want to reject the upgrade request for "${customer.name}"? Their account status will revert to standard B2C.`,
+      confirmText: "Reject Upgrade",
+      type: "danger",
+      onConfirm: async () => {
+        setIsProcessing(true);
+        try {
+          await customerService.rejectUpgrade(customer._id);
+          addToast("Upgrade request rejected.", "info");
+          fetchCustomersData();
+        } catch (err: unknown) {
+          addToast((err as any).message || "Failed to reject upgrade", "error");
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+    });
   };
 
   const customerOrders = React.useMemo(() => {

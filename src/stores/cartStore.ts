@@ -366,22 +366,27 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "flexsell-cart-storage",
-      // Exclude full product from serialization to keep localStorage size minimal
       partialize: (state) => ({
         ...state,
         items: state.items.map((item) => ({
           id: item.id,
-          productId: item.productId || item.product._id,
+          productId: item.productId || item.product?._id,
+          product: item.product ? {
+            _id: item.product._id,
+            title: item.product.title,
+            gstRate: item.product.gstRate,
+            hsnCode: item.product.hsnCode,
+            priceIncludesGst: item.product.priceIncludesGst,
+            colorVariants: item.product.colorVariants,
+          } : undefined,
           selectedVariants: item.selectedVariants,
           quantity: item.quantity,
           pricePerUnit: item.pricePerUnit,
           priceTier: item.priceTier || "B2C",
         }))
       }) as any,
-      // Hydrate product objects from the productStore upon rehydration
       onRehydrateStorage: () => () => {
-        // Product hydration is handled lazily by CartView/CheckoutView
-        // after the product store is initialized
+        // Hydrate after rehydration
       }
     }
   )

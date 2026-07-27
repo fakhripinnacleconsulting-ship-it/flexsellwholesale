@@ -10,6 +10,7 @@ import { Customer } from "@/types";
 import { customerService } from "@/services/customerService";
 import { useOrderStore } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
+import { useConfirmStore } from "@/stores/confirmStore";
 import { formatPrice } from "@/lib/utils";
 import { Plus, Eye, Edit2, Trash2, Building } from "lucide-react";
 
@@ -48,6 +49,7 @@ const INDIAN_STATES = [
 
 export default function AdminCustomersPage() {
   const { addToast } = useToastStore();
+  const confirmAction = useConfirmStore((state) => state.confirm);
   const { orders, initializeOrders } = useOrderStore();
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -221,21 +223,28 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const handleDeleteCustomer = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this customer account permanently?")) return;
-    try {
-      const res = await fetch(`/api/customers?id=${id}`, {
-        method: "DELETE"
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to delete customer");
-      }
-      addToast("Customer account deleted successfully", "success");
-      fetchCustomers();
-    } catch (err: unknown) {
-      addToast((err as any).message || "Failed to delete customer", "error");
-    }
+  const handleDeleteCustomer = (id: string) => {
+    confirmAction({
+      title: "Delete Customer Account",
+      message: "Are you sure you want to delete this customer account permanently? All associated customer profile data will be permanently removed.",
+      confirmText: "Delete Account",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/customers?id=${id}`, {
+            method: "DELETE"
+          });
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.message || "Failed to delete customer");
+          }
+          addToast("Customer account deleted successfully", "success");
+          fetchCustomers();
+        } catch (err: unknown) {
+          addToast((err as any).message || "Failed to delete customer", "error");
+        }
+      },
+    });
   };
 
   // Compute stats for each customer dynamically

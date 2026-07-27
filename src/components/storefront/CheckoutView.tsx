@@ -26,18 +26,18 @@ export function CheckoutView() {
   const { addToast } = useToastStore();
   const { items, buyerState, setBuyerState, clearCart, getTaxDetails, hydrateProducts } = useCartStore();
   const { createOrder } = useOrderStore();
+  const products = useProductStore((state) => state.products);
   const [shippingConfig, setShippingConfig] = React.useState<any>(null);
 
   React.useEffect(() => {
     const initCartProducts = async () => {
-      const productState = useProductStore.getState();
-      if (productState.products.length === 0) {
-        await productState.initializeProducts();
+      if (products.length === 0) {
+        await useProductStore.getState().initializeProducts();
       }
       hydrateProducts();
     };
     initCartProducts();
-  }, [hydrateProducts]);
+  }, [products.length, hydrateProducts]);
 
   const taxDetails = React.useMemo(() => {
     return getTaxDetails();
@@ -297,12 +297,12 @@ export function CheckoutView() {
     const b2cWeightGrams = items
       .filter(item => item.priceTier !== "B2B")
       .reduce((sum, item) => {
-        const matchingColor = item.selectedVariants["Color"] || item.selectedVariants["color"];
-        const activeVariant = item.product.colorVariants?.find(cv => cv.color === matchingColor)
-          || item.product.colorVariants?.[0];
-        const activeSubVariant = activeVariant?.subVariants?.find(sv =>
-          (!item.selectedVariants["Size"] || sv.size === item.selectedVariants["Size"]) &&
-          (!item.selectedVariants["Weight"] || sv.weight === item.selectedVariants["Weight"])
+        const matchingColor = item.selectedVariants?.["Color"] || item.selectedVariants?.["color"] || item.selectedVariants?.["Varient Line #"] || item.selectedVariants?.["Variant Line #"] || Object.values(item.selectedVariants || {})[0];
+        const activeVariant = item.product?.colorVariants?.find((cv: any) => cv.color === matchingColor)
+          || item.product?.colorVariants?.[0];
+        const activeSubVariant = activeVariant?.subVariants?.find((sv: any) =>
+          (!item.selectedVariants?.["Size"] || sv.size === item.selectedVariants["Size"]) &&
+          (!item.selectedVariants?.["Weight"] || sv.weight === item.selectedVariants["Weight"])
         ) || activeVariant?.subVariants?.[0];
         const unitWeightStr = activeSubVariant?.weight || "0g";
         const actualUnitWeightGrams = activeSubVariant?.weightGrams ?? parseWeightToGrams(unitWeightStr);

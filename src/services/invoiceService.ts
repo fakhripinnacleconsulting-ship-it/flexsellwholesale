@@ -106,7 +106,7 @@ function getLocalInvoices(): Invoice[] {
             city: "Indore",
             state: "Madhya Pradesh",
             pinCode: "452001",
-            phone: "9826012345",
+            phone: "9203675004",
             gstin: "23AAACF1001M1Z5"
           },
           sellerInfo: {

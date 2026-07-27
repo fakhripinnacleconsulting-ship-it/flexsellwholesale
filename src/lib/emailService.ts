@@ -168,7 +168,18 @@ export const emailService = {
 
   // Get Admin recipient email
   getAdminEmail(): string {
-    return process.env.SUPPORT_EMAIL || process.env.SMTP_USER || "mauryatech7@gmail.com";
+    const candidates = [
+      process.env.SUPPORT_EMAIL,
+      process.env.ADMIN_EMAIL,
+      process.env.SMTP_USER,
+      "kuldeepmaurya4296@gmail.com"
+    ];
+    for (const c of candidates) {
+      if (c && typeof c === "string" && c.includes("@") && !c.includes("emailapikey")) {
+        return c.trim();
+      }
+    }
+    return "kuldeepmaurya4296@gmail.com";
   },
 
   // 1. Pre-Registration OTP Verification Email

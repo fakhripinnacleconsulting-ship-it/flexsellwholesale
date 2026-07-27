@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/Input";
 import { customerService } from "@/services/customerService";
 import { Customer, KycDocuments } from "@/types";
 import { useToastStore } from "@/stores/toastStore";
+import { useConfirmStore } from "@/stores/confirmStore";
 import { ArrowUpCircle, CheckCircle2, XCircle, Search, FileText, Download, ExternalLink, User, Building, Store, Phone, MapPin } from "lucide-react";
 
 export default function AdminUpgradeRequestsPage() {
   const { addToast } = useToastStore();
+  const confirmAction = useConfirmStore((state) => state.confirm);
   const [requests, setRequests] = React.useState<Customer[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
@@ -32,33 +34,46 @@ export default function AdminUpgradeRequestsPage() {
     fetchRequests();
   }, [fetchRequests]);
 
-  const handleApprove = async (customerId: string) => {
-    if (!confirm("Are you sure you want to approve this upgrade request?")) return;
-    setProcessingId(customerId);
-    try {
-      await customerService.approveUpgrade(customerId);
-      addToast("Customer upgrade approved successfully!", "success");
-      fetchRequests();
-    } catch (err: unknown) {
-      addToast((err as any).message || "Failed to approve upgrade", "error");
-    } finally {
-      setProcessingId(null);
-    }
+  const handleApprove = (customerId: string, name: string) => {
+    confirmAction({
+      title: "Approve Account Upgrade",
+      message: `Are you sure you want to approve the wholesale upgrade application for "${name}"? This will combine their requested account tiers and grant wholesale access.`,
+      confirmText: "Approve Upgrade",
+      type: "info",
+      onConfirm: async () => {
+        setProcessingId(customerId);
+        try {
+          await customerService.approveUpgrade(customerId);
+          addToast("Customer upgrade approved successfully!", "success");
+          fetchRequests();
+        } catch (err: unknown) {
+          addToast((err as any).message || "Failed to approve upgrade", "error");
+        } finally {
+          setProcessingId(null);
+        }
+      },
+    });
   };
 
-  const handleReject = async (customerId: string) => {
-    const reason = prompt("Enter reason for rejection (optional):");
-    if (reason === null) return;
-    setProcessingId(customerId);
-    try {
-      await customerService.rejectUpgrade(customerId, reason || undefined);
-      addToast("Customer upgrade request rejected.", "info");
-      fetchRequests();
-    } catch (err: unknown) {
-      addToast((err as any).message || "Failed to reject upgrade", "error");
-    } finally {
-      setProcessingId(null);
-    }
+  const handleReject = (customerId: string, name: string) => {
+    confirmAction({
+      title: "Reject Upgrade Request",
+      message: `Are you sure you want to reject the upgrade request for "${name}"? Their account status will revert to standard B2C.`,
+      confirmText: "Reject Upgrade",
+      type: "danger",
+      onConfirm: async () => {
+        setProcessingId(customerId);
+        try {
+          await customerService.rejectUpgrade(customerId);
+          addToast("Customer upgrade request rejected.", "info");
+          fetchRequests();
+        } catch (err: unknown) {
+          addToast((err as any).message || "Failed to reject upgrade", "error");
+        } finally {
+          setProcessingId(null);
+        }
+      },
+    });
   };
 
   const filteredRequests = React.useMemo(() => {
@@ -191,7 +206,7 @@ export default function AdminUpgradeRequestsPage() {
                         size="sm"
                         variant="outline"
                         className="border-destructive/30 text-destructive hover:bg-destructive/10 font-bold"
-                        onClick={() => handleReject(cust._id)}
+                        onClick={() => handleReject(cust._id, cust.name)}
                         disabled={processingId === cust._id}
                       >
                         <XCircle className="h-4 w-4 mr-1" /> Reject
@@ -199,7 +214,7 @@ export default function AdminUpgradeRequestsPage() {
                       <Button
                         size="sm"
                         className="bg-green-600 hover:bg-green-700 text-white font-bold"
-                        onClick={() => handleApprove(cust._id)}
+                        onClick={() => handleApprove(cust._id, cust.name)}
                         disabled={processingId === cust._id}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Upgrade

@@ -15,18 +15,18 @@ import { INDIAN_STATES } from "@/lib/constants";
 import { SuggestedProductsCarousel } from "./SuggestedProductsCarousel";
 
 export function CartView() {
-  const { items, updateQuantity, removeItem, buyerState, setBuyerState, getCartSubtotal, hydrateProducts, getTaxDetails } = useCartStore();
+  const { items, updateQuantity, removeItem, clearCart, buyerState, setBuyerState, getCartSubtotal, hydrateProducts, getTaxDetails } = useCartStore();
+  const products = useProductStore((state) => state.products);
 
   React.useEffect(() => {
     const initCartProducts = async () => {
-      const productState = useProductStore.getState();
-      if (productState.products.length === 0) {
-        await productState.initializeProducts();
+      if (products.length === 0) {
+        await useProductStore.getState().initializeProducts();
       }
       hydrateProducts();
     };
     initCartProducts();
-  }, [hydrateProducts]);
+  }, [products.length, hydrateProducts]);
 
   const [shippingConfig, setShippingConfig] = React.useState<any>(null);
 
@@ -181,29 +181,45 @@ export function CartView() {
         </Link>
       </div>
 
-      <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">Shopping Cart</h1>
+        {items.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => clearCart()}
+            className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10 font-bold cursor-pointer"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear Cart
+          </Button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Side: Items List */}
         <div className="lg:col-span-2 space-y-4">
           {items.map((item) => {
-            if (!item.product) {
-              return null; // Product data hasn't hydrated yet or product was deleted
-            }
+            const prod = item.product || {
+              _id: item.productId,
+              title: `Wholesale Product (${item.productId})`,
+              gstRate: 18,
+              priceIncludesGst: true,
+              colorVariants: []
+            };
 
-            const formattedVariants = Object.entries(item.selectedVariants)
+            const formattedVariants = Object.entries(item.selectedVariants || {})
               .map(([key, val]) => `${key}: ${val}`)
               .join(", ");
-            const matchingColor = item.selectedVariants["Color"] || item.selectedVariants["color"];
-            const activeVariant = item.product.colorVariants?.find(cv => cv.color === matchingColor)
-              || item.product.colorVariants?.[0];
+            const matchingColor = item.selectedVariants?.["Color"] || item.selectedVariants?.["color"];
+            const activeVariant = prod.colorVariants?.find(cv => cv.color === matchingColor)
+              || prod.colorVariants?.[0];
             const activeSubVariant = activeVariant?.subVariants?.find(sv =>
-              (!item.selectedVariants["Size"] || sv.size === item.selectedVariants["Size"]) &&
-              (!item.selectedVariants["Weight"] || sv.weight === item.selectedVariants["Weight"])
+              (!item.selectedVariants?.["Size"] || sv.size === item.selectedVariants["Size"]) &&
+              (!item.selectedVariants?.["Weight"] || sv.weight === item.selectedVariants["Weight"])
             ) || activeVariant?.subVariants?.[0];
             const firstImg = activeVariant?.images?.[0];
             const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
-            const sku = activeSubVariant?.sku || "NO SKU";
+            const sku = activeSubVariant?.sku || item.productId;
             
             const { resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
             const customerTypes = customer?.customerTypes || ["B2C"];
@@ -217,7 +233,7 @@ export function CartView() {
                   <div className="w-24 h-24 bg-secondary rounded-md overflow-hidden flex-shrink-0 border relative">
                     <Image
                       src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"}
-                      alt={item.product.title}
+                      alt={prod.title}
                       fill
                       sizes="96px"
                       className="object-cover"
@@ -227,7 +243,7 @@ export function CartView() {
                     <div>
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-semibold text-foreground line-clamp-2">{item.product.title}</h3>
+                          <h3 className="font-semibold text-foreground line-clamp-2">{prod.title}</h3>
                           <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
                             livePriceTier === "B2B" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                           }`}>
@@ -245,7 +261,7 @@ export function CartView() {
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground font-mono mt-1">
                         <span>SKU: {sku}</span>
-                        {item.product.hsnCode && <span>HSN: {item.product.hsnCode} ({item.product.gstRate}% GST)</span>}
+                        {prod.hsnCode && <span>HSN: {prod.hsnCode} ({prod.gstRate ?? 18}% GST)</span>}
                       </div>
                       {formattedVariants && (
                         <p className="text-xs text-primary font-semibold mt-1">{formattedVariants}</p>
@@ -302,7 +318,7 @@ export function CartView() {
                       <div className="text-right">
                         <p className="text-xs text-muted-foreground">
                           {formatPrice(item.pricePerUnit)} each ({item.priceTier || "B2C"})
-                          {item.product.priceIncludesGst ? " (incl. GST)" : " (excl. GST)"}
+                          {prod.priceIncludesGst ? " (incl. GST)" : " (excl. GST)"}
                         </p>
                         <p className="font-bold text-lg text-foreground">
                           {formatPrice(item.pricePerUnit * item.quantity)}

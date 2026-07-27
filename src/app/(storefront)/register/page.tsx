@@ -269,10 +269,10 @@ export default function RegisterPage() {
                   <div className="pt-2 border-t space-y-1">
                     <p className="font-bold text-foreground">Need Urgent Assistance?</p>
                     <p className="flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-3.5 w-3.5 text-primary" /> support@flexsell.com
+                      <Mail className="h-3.5 w-3.5 text-primary" /> support@flexsellwholesale.com
                     </p>
                     <p className="flex items-center gap-2 text-muted-foreground">
-                      <PhoneCall className="h-3.5 w-3.5 text-primary" /> +91-9826012345
+                      <PhoneCall className="h-3.5 w-3.5 text-primary" /> +91-9203675004
                     </p>
                   </div>
                 </div>
@@ -428,54 +428,54 @@ export default function RegisterPage() {
                     </div>
                   )}
 
-              {skipAddress ? (
-                <div className="p-3.5 bg-muted/40 rounded-xl border border-dashed text-xs text-muted-foreground text-center">
-                  🚚 Delivery address skipped for now. You can add your delivery address anytime from your Customer Dashboard or at Checkout.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="font-bold">Street Address *</label>
-                    <Input placeholder="45 Textile Market, Ring Road" value={address} onChange={(e) => setAddress(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold">City *</label>
-                    <Input placeholder="Bhopal" value={city} onChange={(e) => setCity(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="font-bold">State *</label>
-                        <Input placeholder="Gujarat" value={state} onChange={(e) => setState(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
+                  {skipAddress ? (
+                    <div className="p-3.5 bg-muted/40 rounded-xl border border-dashed text-xs text-muted-foreground text-center">
+                      🚚 Delivery address skipped for now. You can add your delivery address anytime from your Customer Dashboard or at Checkout.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1 md:col-span-2">
+                        <label className="font-bold">Street Address *</label>
+                        <Input placeholder="45 Textile Market, Ring Road" value={address} onChange={(e) => setAddress(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
                       </div>
-                      <div>
-                        <label className="font-bold">Pin Code *</label>
-                        <Input placeholder="395002" value={pinCode} onChange={(e) => setPinCode(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
+                      <div className="space-y-1">
+                        <label className="font-bold">City *</label>
+                        <Input placeholder="Bhopal" value={city} onChange={(e) => setCity(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="font-bold">State *</label>
+                            <Input placeholder="Gujarat" value={state} onChange={(e) => setState(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
+                          </div>
+                          <div>
+                            <label className="font-bold">Pin Code *</label>
+                            <Input placeholder="395002" value={pinCode} onChange={(e) => setPinCode(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex items-start gap-2 pt-1">
-              <input type="checkbox" id="terms" className="mt-0.5 rounded text-primary focus:ring-primary" required disabled={isSubmitting} />
-              <label htmlFor="terms" className="text-[11px] text-muted-foreground">
-                I agree to the <Link href="/policies/terms" className="text-primary hover:underline">Terms of Service</Link> and <Link href="/policies/privacy" className="text-primary hover:underline">Privacy Policy</Link>. {getConsentText()}
-              </label>
-            </div>
+                <div className="flex items-start gap-2 pt-1">
+                  <input type="checkbox" id="terms" className="mt-0.5 rounded text-primary focus:ring-primary" required disabled={isSubmitting} />
+                  <label htmlFor="terms" className="text-[11px] text-muted-foreground">
+                    I agree to the <Link href="/policies/terms" className="text-primary hover:underline">Terms of Service</Link> and <Link href="/policies/privacy" className="text-primary hover:underline">Privacy Policy</Link>. {getConsentText()}
+                  </label>
+                </div>
 
-            <Button type="submit" className="w-full font-bold" disabled={isSubmitting}>
-              {getButtonLabel()}
-            </Button>
-          </form>
+                <Button type="submit" className="w-full font-bold" disabled={isSubmitting}>
+                  {getButtonLabel()}
+                </Button>
+              </form>
 
-          <div className="text-center text-xs border-t pt-4">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary font-bold hover:underline">
-              Sign In
-            </Link>
-          </div>
+              <div className="text-center text-xs border-t pt-4">
+                Already have an account?{" "}
+                <Link href="/login" className="text-primary font-bold hover:underline">
+                  Sign In
+                </Link>
+              </div>
             </>
           )}
         </div>

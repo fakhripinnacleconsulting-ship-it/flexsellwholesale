@@ -46,7 +46,7 @@ async function checkUserPreferences(
   userId: string,
   category: string
 ): Promise<{ push: boolean; email: boolean }> {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" || userId === "admin") {
     return { push: true, email: true };
   }
   try {
@@ -388,7 +388,11 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
 
       // 3. Email Notification for Admin (Checks Preferences)
       if (adminPrefs.email) {
-        await triggerAdminEmailSend();
+        try {
+          await triggerAdminEmailSend();
+        } catch (emailErr) {
+          console.error(`[ADMIN EMAIL ALERT ERROR] Failed to dispatch email for ${eventType}:`, emailErr);
+        }
       }
     }
   }

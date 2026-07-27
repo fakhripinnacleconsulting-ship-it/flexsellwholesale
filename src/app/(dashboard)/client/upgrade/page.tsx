@@ -165,7 +165,7 @@ export default function UpgradeAccountPage() {
                 Your request to upgrade to <strong>{activeCustomer.upgradeRequestedTypes?.join(" & ")}</strong> is currently being reviewed by our verification team. We will approve your account within 24 hours.
               </p>
               <p className="text-xs font-semibold text-muted-foreground pt-1">
-                Need help? Contact support at <a href="mailto:support@flexsell.com" className="text-primary underline">support@flexsell.com</a> or call +91-9826012345.
+                Need help? Contact support at <a href="mailto:support@flexsellwholesale.com" className="text-primary underline">support@flexsellwholesale.com</a> or call +91-9203675004.
               </p>
             </div>
           </CardContent>
@@ -201,9 +201,8 @@ export default function UpgradeAccountPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className={`p-4 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${
-                  requestedTypes.includes("B2B") ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-secondary/20"
-                }`}>
+                <label className={`p-4 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${requestedTypes.includes("B2B") ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-secondary/20"
+                  }`}>
                   <input
                     type="checkbox"
                     className="mt-1 rounded text-primary focus:ring-primary"
@@ -219,9 +218,8 @@ export default function UpgradeAccountPage() {
                   </div>
                 </label>
 
-                <label className={`p-4 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${
-                  requestedTypes.includes("Dropshipping") ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-secondary/20"
-                }`}>
+                <label className={`p-4 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${requestedTypes.includes("Dropshipping") ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-secondary/20"
+                  }`}>
                   <input
                     type="checkbox"
                     className="mt-1 rounded text-primary focus:ring-primary"
@@ -352,11 +350,10 @@ export default function UpgradeAccountPage() {
                       </div>
 
                       <div className="pt-2">
-                        <label className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-bold border transition-colors cursor-pointer ${
-                          fileUrl
-                            ? "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
-                            : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
-                        } ${isUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                        <label className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-bold border transition-colors cursor-pointer ${fileUrl
+                          ? "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
+                          : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                          } ${isUploading ? "opacity-50 pointer-events-none" : ""}`}>
                           <Upload className="h-3.5 w-3.5" />
                           <span>{isUploading ? "Uploading..." : fileUrl ? "Replace File" : "Upload File"}</span>
                           <input
