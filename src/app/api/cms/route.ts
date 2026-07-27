@@ -4,6 +4,8 @@ import CmsContent from "@/models/CmsContent";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 import { revalidateCms } from "@/lib/revalidate";
 
+import { initialDropshippingCMSData } from "@/lib/seedDropshippingCMS";
+
 export async function GET() {
   try {
     await dbConnect();
@@ -14,6 +16,30 @@ export async function GET() {
     contents.forEach(item => {
       config[item.key] = item.value;
     });
+
+    // Auto-seed or deep merge dropshipping_cms with initial default values
+    if (!config.dropshipping_cms) {
+      await CmsContent.findOneAndUpdate(
+        { key: "dropshipping_cms" },
+        { value: initialDropshippingCMSData },
+        { upsert: true, new: true }
+      );
+      config.dropshipping_cms = initialDropshippingCMSData;
+    } else {
+      config.dropshipping_cms = {
+        ...initialDropshippingCMSData,
+        ...config.dropshipping_cms,
+        hero: { ...initialDropshippingCMSData.hero, ...(config.dropshipping_cms.hero || {}) },
+        whyFlexsell: { ...initialDropshippingCMSData.whyFlexsell, ...(config.dropshipping_cms.whyFlexsell || {}) },
+        howItWorks: { ...initialDropshippingCMSData.howItWorks, ...(config.dropshipping_cms.howItWorks || {}) },
+        comparison: { ...initialDropshippingCMSData.comparison, ...(config.dropshipping_cms.comparison || {}) },
+        pricing: { ...initialDropshippingCMSData.pricing, ...(config.dropshipping_cms.pricing || {}) },
+        bankDetails: { ...initialDropshippingCMSData.bankDetails, ...(config.dropshipping_cms.bankDetails || {}) },
+        gstDetails: { ...initialDropshippingCMSData.gstDetails, ...(config.dropshipping_cms.gstDetails || {}) },
+        shippingRates: { ...initialDropshippingCMSData.shippingRates, ...(config.dropshipping_cms.shippingRates || {}) },
+        terms: { ...initialDropshippingCMSData.terms, ...(config.dropshipping_cms.terms || {}) },
+      };
+    }
 
     return NextResponse.json(config);
   } catch (error: unknown) {

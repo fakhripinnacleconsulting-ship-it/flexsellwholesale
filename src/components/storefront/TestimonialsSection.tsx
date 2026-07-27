@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Star, Quote, ChevronLeft, ChevronRight, CheckCircle2, Video, ImageIcon, Building2, Truck, Users } from "lucide-react";
+import useEmblaCarousel from "embla-carousel-react";
+import { Star, Quote, ChevronLeft, ChevronRight, CheckCircle2, Video, ImageIcon, Building2, Truck, Users, Play } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export interface TestimonialItem {
@@ -43,10 +44,17 @@ export function TestimonialsSection({
   const hasMultipleTabs = Boolean(wholesaleTestimonials || dropshipTestimonials || clientTestimonials);
   const [activeTab, setActiveTab] = React.useState<"wholesale" | "dropshipper" | "client">(type);
 
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-  const [isMouseDown, setIsMouseDown] = React.useState(false);
-  const [activeDot, setActiveDot] = React.useState(0);
   const [isHovered, setIsHovered] = React.useState(false);
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [scrollSnaps, setScrollSnaps] = React.useState<number[]>([]);
+
+  // Initialize Embla Carousel with loop & drag physics
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: true,
+    align: "center",
+    skipSnaps: false,
+    dragFree: false,
+  });
 
   const defaultTestimonials: TestimonialItem[] = [
     {
@@ -59,7 +67,7 @@ export function TestimonialsSection({
     },
     {
       name: "Ananya Patel",
-      business: "SmartDrop Online Store",
+      business: "SmartDrop Store",
       location: "Ahmedabad, Gujarat",
       rating: 5,
       text: "The dropshipping fulfillment speed is unmatched. My Shopify orders get dispatched within 24 hours with custom packaging.",
@@ -80,6 +88,14 @@ export function TestimonialsSection({
       rating: 5,
       text: "Instant GST invoices with tax credit. Ordering bulk inventory directly from Surat saved us thousands every month.",
       contentType: "text"
+    },
+    {
+      name: "Pooja Verma",
+      business: "TrendMart E-Com",
+      location: "Mumbai, MH",
+      rating: 5,
+      text: "Extremely reliable dropship partnership! All product listings come pre-vetted with high profit margins.",
+      contentType: "text"
     }
   ];
 
@@ -94,100 +110,50 @@ export function TestimonialsSection({
   }, [hasMultipleTabs, activeTab, wholesaleTestimonials, dropshipTestimonials, clientTestimonials, testimonials]);
 
   const activeItems = rawDataset.filter((item) => item.isActive !== false);
-  const cardWidth = 340; // width step
 
-  // Reset scroll on tab change
+  const scrollPrev = React.useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+  const scrollNext = React.useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+  const scrollTo = React.useCallback((index: number) => emblaApi && emblaApi.scrollTo(index), [emblaApi]);
+
+  const onSelect = React.useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
   React.useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ left: 0, behavior: "smooth" });
-    }
-    setActiveDot(0);
-  }, [activeTab]);
+    if (!emblaApi) return;
+    onSelect();
+    setScrollSnaps(emblaApi.scrollSnapList());
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+  }, [emblaApi, onSelect]);
 
-  // Auto-slide 1 card every 5 seconds (paused when hovered or dragging)
+  // Autoplay timer (4 seconds)
   React.useEffect(() => {
-    if (activeItems.length <= 1 || isHovered || isMouseDown) return;
-    const timer = setInterval(() => {
-      if (scrollContainerRef.current) {
-        const maxScroll = scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth;
-        if (scrollContainerRef.current.scrollLeft >= maxScroll - 10) {
-          scrollContainerRef.current.scrollTo({ left: 0, behavior: "smooth" });
-        } else {
-          scrollContainerRef.current.scrollBy({ left: cardWidth, behavior: "smooth" });
-        }
-      }
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [activeItems.length, isHovered, isMouseDown]);
-
-  // Update active dot indicator on scroll
-  const handleScroll = () => {
-    if (!scrollContainerRef.current) return;
-    const currentScroll = scrollContainerRef.current.scrollLeft;
-    const index = Math.round(currentScroll / cardWidth);
-    setActiveDot(Math.min(index, Math.max(0, activeItems.length - 1)));
-  };
-
-  // Robust Global Window Mouse Drag Handler
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollContainerRef.current) return;
-    const ele = scrollContainerRef.current;
-    const startX = e.pageX - ele.offsetLeft;
-    const initialScrollLeft = ele.scrollLeft;
-    setIsMouseDown(true);
-
-    const handleWindowMouseMove = (moveEvent: MouseEvent) => {
-      moveEvent.preventDefault();
-      const x = moveEvent.pageX - ele.offsetLeft;
-      const walk = (x - startX) * 1.5;
-      ele.scrollLeft = initialScrollLeft - walk;
-    };
-
-    const handleWindowMouseUp = () => {
-      setIsMouseDown(false);
-      window.removeEventListener("mousemove", handleWindowMouseMove);
-      window.removeEventListener("mouseup", handleWindowMouseUp);
-    };
-
-    window.addEventListener("mousemove", handleWindowMouseMove);
-    window.addEventListener("mouseup", handleWindowMouseUp);
-  };
+    if (!emblaApi || isHovered) return;
+    const interval = setInterval(() => {
+      emblaApi.scrollNext();
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [emblaApi, isHovered]);
 
   const sectionTitle = title || (
     activeTab === "dropshipper"
-      ? "Dropship Partner Feedback"
+      ? "Dropship Partner Stories"
       : activeTab === "client"
       ? "Retail Client Reviews"
-      : "Wholesale Buyer Feedback"
+      : "Wholesale Buyer Stories"
   );
   const sectionSubtitle = subtitle || "Verified reviews from commercial buyers, dropshippers, and retail clients using FlexSell.";
 
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -cardWidth, behavior: "smooth" });
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: cardWidth, behavior: "smooth" });
-    }
-  };
-
-  const scrollToIndex = (idx: number) => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ left: idx * cardWidth, behavior: "smooth" });
-    }
-  };
-
   return (
     <section 
-      className="mx-auto max-w-8xl px-4 md:px-6 w-full py-8 select-none"
+      className="mx-auto max-w-8xl px-4 md:px-6 w-full py-12 select-none overflow-hidden"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Header Bar with 3-Tab Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 border-b pb-4 border-border/60 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b pb-4 border-border/60 gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
             {sectionTitle}
@@ -224,138 +190,129 @@ export function TestimonialsSection({
           </div>
         )}
 
-        {/* 1-by-1 Arrow Slide Controls */}
+        {/* Embla Navigation Arrows */}
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={scrollLeft}
-            className="p-2.5 rounded-full border bg-card hover:bg-secondary text-foreground shadow-sm transition-all cursor-pointer hover:scale-105"
-            aria-label="Scroll left 1 card"
+            onClick={scrollPrev}
+            className="p-3 rounded-full border border-border bg-card hover:bg-secondary text-foreground shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
+            aria-label="Previous testimonial"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button
             type="button"
-            onClick={scrollRight}
-            className="p-2.5 rounded-full border bg-card hover:bg-secondary text-foreground shadow-sm transition-all cursor-pointer hover:scale-105"
-            aria-label="Scroll right 1 card"
+            onClick={scrollNext}
+            className="p-3 rounded-full border border-border bg-card hover:bg-secondary text-foreground shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
+            aria-label="Next testimonial"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      {/* Horizontal Smooth Mouse Drag & Touch Container */}
+      {/* Embla Carousel Viewport */}
       <AnimatePresence mode="wait">
         {activeItems.length > 0 ? (
-          <div
-            ref={scrollContainerRef}
-            onScroll={handleScroll}
-            onMouseDown={handleMouseDown}
-            onDragStart={(e) => e.preventDefault()}
-            className={`flex gap-6 overflow-x-auto scrollbar-none pb-4 pt-1 touch-pan-x ${
-              isMouseDown ? "cursor-grabbing select-none" : "cursor-grab"
-            }`}
-          >
-            {activeItems.map((item, idx) => {
-              const activeMedia = item.mediaUpload || item.mediaUrl || "";
-              const activeAvatar = item.avatarUpload || item.avatarUrl || "";
+          <div className="overflow-hidden py-4 cursor-grab active:cursor-grabbing" ref={emblaRef}>
+            <div className="flex gap-6">
+              {activeItems.map((item, idx) => {
+                const activeMedia = item.mediaUpload || item.mediaUrl || "";
+                const activeAvatar = item.avatarUpload || item.avatarUrl || "";
 
-              return (
-                <motion.div
-                  key={`${activeTab}-${idx}`}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  onDragStart={(e) => e.preventDefault()}
-                  className="w-[280px] sm:w-[320px] md:w-[340px] h-[460px] flex-shrink-0 rounded-2xl border border-border bg-card p-6 shadow-md hover:shadow-xl transition-all flex flex-col justify-between relative overflow-hidden group select-none"
-                >
-                  <Quote className="absolute top-3 right-3 h-14 w-14 text-muted/15 pointer-events-none" />
-
-                  {/* Top Details & Ratings */}
-                  <div className="space-y-3 relative z-10 flex-1 flex flex-col justify-between pointer-events-none">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        {/* Star Ratings */}
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-4 w-4 ${
-                                i < (item.rating || 5) ? "fill-amber-400 text-amber-400" : "text-muted"
-                              }`}
-                            />
-                          ))}
-                        </div>
-
-                        {item.contentType !== "text" && (
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-primary/10 text-primary flex items-center gap-1">
-                            {item.contentType === "video" ? <Video className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}
-                            {item.contentType}
-                          </span>
+                return (
+                  <div
+                    key={`${activeTab}-${idx}`}
+                    className="flex-[0_0_260px] sm:flex-[0_0_290px] md:flex-[0_0_310px] aspect-[9/16] max-h-[520px] min-h-[460px] relative rounded-3xl overflow-hidden shadow-xl border border-border/80 bg-card hover:border-emerald-500/60 transition-all duration-300 group select-none flex flex-col justify-between"
+                  >
+                    {/* Dynamic Media Background if uploaded */}
+                    {activeMedia ? (
+                      <div className="absolute inset-0 z-0 bg-slate-950">
+                        {item.contentType === "video" && (activeMedia.includes("http") || activeMedia.includes("video")) ? (
+                          <iframe
+                            src={activeMedia}
+                            className="w-full h-full object-cover opacity-90 pointer-events-none"
+                            title={item.name}
+                            allowFullScreen
+                          />
+                        ) : (
+                          <img
+                            src={activeMedia}
+                            alt={item.name}
+                            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 opacity-85"
+                          />
                         )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-black/60 pointer-events-none z-10" />
+                      </div>
+                    ) : null}
+
+                    {/* Top Bar: Dynamic Star Rating & Optional Content Type Tag */}
+                    <div className="relative z-20 p-5 flex justify-between items-center">
+                      <div className="flex items-center gap-1 bg-background/80 dark:bg-black/60 backdrop-blur-md border border-border/60 px-3 py-1 rounded-full shadow-xs">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-3.5 w-3.5 ${
+                              i < (item.rating || 5) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
+                            }`}
+                          />
+                        ))}
                       </div>
 
-                      {/* Reel Cut Vertical Media Player or Photo Thumbnail */}
-                      {item.contentType !== "text" && activeMedia ? (
-                        <div className="w-full h-[220px] relative rounded-xl overflow-hidden bg-black border border-border mb-3 shadow-inner pointer-events-auto">
-                          {item.contentType === "image" ? (
-                            <Image
-                              src={activeMedia}
-                              alt={item.name}
-                              fill
-                              draggable={false}
-                              className="object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
-                              sizes="340px"
-                            />
-                          ) : (
-                            <div className="w-full h-full relative flex items-center justify-center">
-                              {activeMedia.includes("youtube") || activeMedia.includes("vimeo") ? (
-                                <iframe
-                                  src={activeMedia}
-                                  className="w-full h-full"
-                                  allowFullScreen
-                                  title={item.name}
-                                />
-                              ) : (
-                                <video src={activeMedia} controls className="w-full h-full object-cover" />
-                              )}
-                            </div>
-                          )}
+                      {item.contentType !== "text" && (
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 backdrop-blur-md flex items-center gap-1">
+                          {item.contentType === "video" ? <Video className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}
+                          {item.contentType}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Middle: Dynamic Review Text Box */}
+                    <div className="relative z-20 px-5 my-auto">
+                      <div className={`p-5 rounded-2xl shadow-lg space-y-2 border ${
+                        activeMedia
+                          ? "bg-slate-950/85 backdrop-blur-md border-white/20 text-white"
+                          : "bg-muted/40 dark:bg-slate-900/60 border-border/60 text-foreground"
+                      }`}>
+                        <Quote className="h-5 w-5 text-primary opacity-80 mb-1" />
+                        <p className="text-xs sm:text-sm italic font-medium leading-relaxed line-clamp-5">
+                          "{item.text}"
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom: Dynamic Customer Profile Overlay */}
+                    <div className={`relative z-20 p-5 pt-4 flex items-center gap-3 border-t ${
+                      activeMedia ? "bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent border-white/10" : "border-border/60 bg-card"
+                    }`}>
+                      {activeAvatar ? (
+                        <div className="w-10 h-10 rounded-full overflow-hidden relative border border-primary/30 shrink-0 shadow-xs">
+                          <img src={activeAvatar} alt={item.name} className="w-full h-full object-cover" />
                         </div>
-                      ) : null}
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center border border-primary/20 shrink-0">
+                          {item.name.charAt(0)}
+                        </div>
+                      )}
 
-                      {/* Review Quote Text */}
-                      <p className="text-xs sm:text-sm text-foreground italic leading-relaxed font-medium line-clamp-4">
-                        "{item.text}"
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <h4 className={`font-bold text-xs sm:text-sm flex items-center gap-1.5 truncate ${
+                          activeMedia ? "text-white" : "text-foreground"
+                        }`}>
+                          <span>{item.name}</span>
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                        </h4>
+                        <p className={`text-[11px] truncate font-medium ${
+                          activeMedia ? "text-slate-300" : "text-muted-foreground"
+                        }`}>
+                          {item.business} • {item.location}
+                        </p>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Bottom Customer Info */}
-                  <div className="flex items-center gap-3 pt-4 mt-3 border-t border-border/60 relative z-10 shrink-0 pointer-events-none">
-                    {activeAvatar ? (
-                      <div className="w-10 h-10 rounded-full overflow-hidden relative border border-primary/30 shrink-0">
-                        <Image src={activeAvatar} alt={item.name} fill draggable={false} className="object-cover" />
-                      </div>
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center border border-primary/20 shrink-0">
-                        {item.name.charAt(0)}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-foreground text-xs flex items-center gap-1 truncate">
-                        {item.name} <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                      </h4>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {item.business} • {item.location}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className="p-8 text-center border rounded-2xl bg-card text-muted-foreground text-xs font-medium">
@@ -364,16 +321,18 @@ export function TestimonialsSection({
         )}
       </AnimatePresence>
 
-      {/* Bullet Dots Navigation */}
-      {activeItems.length > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-4">
-          {activeItems.map((_, idx) => (
+      {/* Embla Pagination Dots */}
+      {scrollSnaps.length > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-6">
+          {scrollSnaps.map((_, idx) => (
             <button
               key={idx}
               type="button"
-              onClick={() => scrollToIndex(idx)}
+              onClick={() => scrollTo(idx)}
               className={`h-2.5 rounded-full transition-all cursor-pointer ${
-                activeDot === idx ? "bg-primary w-6" : "bg-muted-foreground/30 hover:bg-muted-foreground/60 w-2.5"
+                selectedIndex === idx
+                  ? "bg-primary w-7 shadow-xs"
+                  : "bg-muted-foreground/30 hover:bg-muted-foreground/60 w-2.5"
               }`}
               aria-label={`Go to slide ${idx + 1}`}
             />

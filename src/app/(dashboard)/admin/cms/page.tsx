@@ -60,7 +60,7 @@ export default function AdminCmsPage() {
   const [blogs, setBlogs] = React.useState<BlogPostItem[]>([]);
   const [faqs, setFaqs] = React.useState<FaqItem[]>([]);
   const [policies, setPolicies] = React.useState<any>({});
-  const [dropshipPage, setDropshipPage] = React.useState<DropshipPageContent>({});
+  const [dropshipPage, setDropshipPage] = React.useState<any>({});
   const [footer, setFooter] = React.useState<any>({});
 
   // Modals
@@ -121,7 +121,7 @@ export default function AdminCmsPage() {
       setBlogs(data.blogs || []);
       setFaqs(data.faqs || []);
       setPolicies(data.policies || {});
-      setDropshipPage(data.dropshipping_page_content || {});
+      setDropshipPage(data.dropshipping_cms || data.dropshipping_page_content || {});
       setFooter(data.footer || {});
     } catch (err: unknown) {
       addToast((err as any).message || "Failed to fetch CMS settings", "error");
