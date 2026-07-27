@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateCustomerKycRequirements, hasUploadedKycDoc } from "../kycValidationHelper";
+import { validateCustomerKycRequirements } from "../kycValidationHelper";
 
 describe("KYC Validation Helper Test Suite", () => {
   it("should pass validation for standard B2C customer without KYC documents", () => {
@@ -12,67 +12,59 @@ describe("KYC Validation Helper Test Suite", () => {
     expect(res.missingFields.length).toBe(0);
   });
 
-  it("should fail validation for B2B customer missing company name and KYC documents", () => {
+  it("should fail validation for B2B customer missing Aadhar or PAN", () => {
     const res = validateCustomerKycRequirements({
       customerTypes: ["B2B"],
-      company: "",
-      gstin: "",
-      kycDocuments: {},
+      company: "Acme Corp",
+      kycDocuments: {
+        gstCertificate: "https://example.com/gst.pdf", // optional for B2B
+      },
     });
     expect(res.isValid).toBe(false);
-    expect(res.missingFields).toContain("Company Name or GSTIN");
-    expect(res.missingFields.some((f) => f.includes("KYC Verification Document"))).toBe(true);
+    expect(res.missingFields).toContain("Aadhar Card Document");
+    expect(res.missingFields).toContain("PAN Card Document");
   });
 
-  it("should fail validation for B2B customer with company name but missing KYC documents", () => {
-    const res = validateCustomerKycRequirements({
-      customerTypes: ["B2B"],
-      company: "Acme Wholesale Corp",
-      gstin: "24AAACA1234A1Z5",
-      kycDocuments: {},
-    });
-    expect(res.isValid).toBe(false);
-    expect(res.missingFields.length).toBe(1);
-    expect(res.missingFields[0]).toContain("KYC Verification Document");
-  });
-
-  it("should pass validation for B2B customer with company name and at least 1 KYC document", () => {
+  it("should pass validation for B2B customer with Company Name, Aadhar Card, and PAN Card", () => {
     const res = validateCustomerKycRequirements({
       customerTypes: ["B2C", "B2B"],
       company: "Acme Wholesale Corp",
       kycDocuments: {
-        gstCertificate: "https://uploads.flexsell.com/docs/gst-cert.pdf",
+        aadharCard: "https://example.com/aadhar.jpg",
+        panCard: "https://example.com/pan.jpg",
       },
     });
     expect(res.isValid).toBe(true);
     expect(res.missingFields.length).toBe(0);
   });
 
-  it("should fail validation for Dropshipping customer missing store name and KYC docs", () => {
+  it("should fail validation for Dropshipping customer missing Store Name, GSTIN, Aadhar, PAN, or GST Cert", () => {
     const res = validateCustomerKycRequirements({
       customerTypes: ["Dropshipping"],
       storeName: "",
-      company: "",
+      gstin: "",
       kycDocuments: {},
     });
     expect(res.isValid).toBe(false);
     expect(res.missingFields).toContain("Online Store Name");
+    expect(res.missingFields).toContain("GSTIN");
+    expect(res.missingFields).toContain("Aadhar Card Document");
+    expect(res.missingFields).toContain("PAN Card Document");
+    expect(res.missingFields).toContain("GST Certificate Document");
   });
 
-  it("should pass validation for Dropshipping customer with store name and 1 KYC doc", () => {
+  it("should pass validation for Dropshipping customer with Store Name, GSTIN, Aadhar, PAN, and GST Cert", () => {
     const res = validateCustomerKycRequirements({
       customerTypes: ["Dropshipping"],
       storeName: "FastShip Store",
+      gstin: "24AAACD1234A1Z5",
       kycDocuments: {
-        panCard: "https://uploads.flexsell.com/docs/pancard.jpg",
+        aadharCard: "https://example.com/aadhar.jpg",
+        panCard: "https://example.com/pan.jpg",
+        gstCertificate: "https://example.com/gst.pdf",
       },
     });
     expect(res.isValid).toBe(true);
-  });
-
-  it("should correctly evaluate hasUploadedKycDoc", () => {
-    expect(hasUploadedKycDoc({})).toBe(false);
-    expect(hasUploadedKycDoc({ gstCertificate: "" })).toBe(false);
-    expect(hasUploadedKycDoc({ aadharCard: "https://example.com/doc.pdf" })).toBe(true);
+    expect(res.missingFields.length).toBe(0);
   });
 });

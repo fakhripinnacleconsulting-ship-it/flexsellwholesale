@@ -425,11 +425,14 @@ export default function AdminCustomersPage() {
                     <span>Company Name</span>
                     {customerTypes.includes("B2B") && <span className="text-destructive text-[10px] uppercase font-bold">* Required for B2B</span>}
                   </label>
-                  <Input placeholder="Company Name" value={company} onChange={(e) => setCompany(e.target.value)} required={customerTypes.includes("B2B") && !gstin} />
+                  <Input placeholder="Company Name" value={company} onChange={(e) => setCompany(e.target.value)} required={customerTypes.includes("B2B")} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="font-bold text-muted-foreground">GSTIN</label>
-                  <Input placeholder="Buyer GSTIN" value={gstin} onChange={(e) => setGstin(e.target.value)} className="font-mono" />
+                  <label className="font-bold text-muted-foreground flex items-center justify-between">
+                    <span>GSTIN</span>
+                    {customerTypes.includes("Dropshipping") && <span className="text-destructive text-[10px] uppercase font-bold">* Required for Dropship</span>}
+                  </label>
+                  <Input placeholder="Buyer GSTIN" value={gstin} onChange={(e) => setGstin(e.target.value)} required={customerTypes.includes("Dropshipping")} className="font-mono" />
                 </div>
               </div>
 
@@ -470,15 +473,19 @@ export default function AdminCustomersPage() {
               {/* Dynamic KYC Requirement Alert Banner */}
               {(customerTypes.includes("B2B") || customerTypes.includes("Dropshipping")) && (
                 <div className="pt-1">
-                  {hasUploadedKycDoc(kycDocs) ? (
+                  {validateCustomerKycRequirements({ customerTypes, company, storeName, gstin, kycDocuments: kycDocs }).isValid ? (
                     <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 text-xs font-bold flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
-                      <span>KYC Document Verification Status: Uploaded & Compliant</span>
+                      <span>KYC Verification Status: All Mandatory Documents & Fields Complete</span>
                     </div>
                   ) : (
                     <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-bold flex items-start gap-2 animate-pulse">
                       <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                      <span>Action Required: At least 1 KYC Verification Document (e.g., GST Cert, PAN Card, or Aadhar) must be uploaded below before saving as B2B / Dropshipping.</span>
+                      <span>
+                        {customerTypes.includes("Dropshipping")
+                          ? "Action Required for Dropshipping: Store Name, GSTIN, Aadhar Card, PAN Card, and GST Certificate are MANDATORY."
+                          : "Action Required for B2B: Company Name, Aadhar Card, and PAN Card are MANDATORY."}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -489,15 +496,15 @@ export default function AdminCustomersPage() {
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-muted-foreground block">KYC Verification Documents (Max 1MB each, PDF/JPG/PNG)</label>
                   {(customerTypes.includes("B2B") || customerTypes.includes("Dropshipping")) && (
-                    <span className="text-destructive font-bold text-[10px] uppercase">* Required</span>
+                    <span className="text-destructive font-bold text-[10px] uppercase">* Mandatory files marked below</span>
                   )}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
-                    { key: "panCard", label: "PAN Card" },
-                    { key: "aadharCard", label: "Aadhar Card" },
-                    { key: "signaturePhoto", label: "Signature" },
-                    { key: "gstCertificate", label: "GST Cert (Optional)" },
+                    { key: "aadharCard", label: "Aadhar Card *" },
+                    { key: "panCard", label: "PAN Card *" },
+                    { key: "gstCertificate", label: customerTypes.includes("Dropshipping") ? "GST Cert *" : "GST Cert (Optional)" },
+                    { key: "signaturePhoto", label: "Signature (Optional)" },
                     { key: "passportPhoto", label: "Passport (Optional)" },
                     { key: "chequePhoto", label: "Cheque (Optional)" },
                   ].map((doc) => {

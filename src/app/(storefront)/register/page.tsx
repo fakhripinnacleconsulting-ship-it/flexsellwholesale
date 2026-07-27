@@ -21,13 +21,13 @@ interface DocSlot {
   required: boolean;
 }
 
-const DOCUMENT_SLOTS: DocSlot[] = [
-  { key: "gstCertificate", label: "GST Certificate", required: false },
-  { key: "signaturePhoto", label: "Signature Photo", required: true },
-  { key: "aadharCard", label: "Aadhar Card", required: true },
-  { key: "passportPhoto", label: "Passport Photo", required: true },
-  { key: "panCard", label: "PAN Card", required: true },
-  { key: "chequePhoto", label: "Cancelled Cheque", required: true },
+const DOCUMENT_SLOTS: { key: keyof KycDocuments; label: string }[] = [
+  { key: "aadharCard", label: "Aadhar Card" },
+  { key: "panCard", label: "PAN Card" },
+  { key: "gstCertificate", label: "GST Certificate" },
+  { key: "signaturePhoto", label: "Signature Photo" },
+  { key: "passportPhoto", label: "Passport Photo" },
+  { key: "chequePhoto", label: "Cancelled Cheque" },
 ];
 
 export default function RegisterPage() {
@@ -136,13 +136,17 @@ export default function RegisterPage() {
     const isRetail = customerTypes[0] === "B2C";
 
     if (!isRetail) {
-      if (customerTypes.includes("Dropshipping") && !storeName.trim()) {
-        addToast("Store Name is required for Dropshipping account", "warning");
-        return;
-      }
-      const missing = DOCUMENT_SLOTS.filter(s => s.required && !kycDocs[s.key]);
-      if (missing.length > 0) {
-        addToast(`Please upload required documents: ${missing.map(m => m.label).join(", ")}`, "error");
+      const { validateCustomerKycRequirements } = require("@/lib/kycValidationHelper");
+      const kycCheck = validateCustomerKycRequirements({
+        customerTypes,
+        company,
+        storeName,
+        gstin,
+        kycDocuments: kycDocs,
+      });
+
+      if (!kycCheck.isValid) {
+        addToast(kycCheck.errorMessage || "Please complete required business fields and upload mandatory KYC documents.", "error");
         return;
       }
     }
@@ -376,8 +380,10 @@ export default function RegisterPage() {
                   {selectedType !== "B2C" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-1">
                       <div className="space-y-1">
-                        <label className="font-bold">Company / Shop Name *</label>
-                        <Input placeholder="Acme Enterprises" value={company} onChange={(e) => setCompany(e.target.value)} required disabled={isSubmitting} className="text-xs" />
+                        <label className="font-bold">
+                          Company / Shop Name {selectedType === "B2B" ? "*" : "(Optional)"}
+                        </label>
+                        <Input placeholder="Acme Enterprises" value={company} onChange={(e) => setCompany(e.target.value)} required={selectedType === "B2B"} disabled={isSubmitting} className="text-xs" />
                       </div>
                       {selectedType === "Dropshipping" && (
                         <div className="space-y-1">
@@ -386,8 +392,10 @@ export default function RegisterPage() {
                         </div>
                       )}
                       <div className="space-y-1">
-                        <label className="font-bold">GSTIN (Optional)</label>
-                        <Input placeholder="24AAACD4521D1Z1" value={gstin} onChange={(e) => setGstin(e.target.value)} disabled={isSubmitting} className="text-xs font-mono" />
+                        <label className="font-bold">
+                          GSTIN {selectedType === "Dropshipping" ? "*" : "(Optional)"}
+                        </label>
+                        <Input placeholder="24AAACD4521D1Z1" value={gstin} onChange={(e) => setGstin(e.target.value)} required={selectedType === "Dropshipping"} disabled={isSubmitting} className="text-xs font-mono" />
                       </div>
                     </div>
                   )}
@@ -396,16 +404,25 @@ export default function RegisterPage() {
                   {selectedType !== "B2C" && (
                     <div className="border-t pt-4 space-y-3">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-primary">3. KYC Document Verification</h3>
-                      <p className="text-[11px] text-muted-foreground">Upload clear scanned copies (Max 1 MB each. PDF, JPG, PNG allowed).</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {selectedType === "Dropshipping"
+                          ? "Aadhar Card, PAN Card, and GST Certificate are mandatory for Dropshipping accounts. Other files are optional."
+                          : "Aadhar Card and PAN Card are mandatory for B2B Wholesale accounts. Other files are optional."}
+                      </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {DOCUMENT_SLOTS.map((slot) => {
                           const url = kycDocs[slot.key];
                           const isUp = uploadingSlot === slot.key;
+                          const isMandatory =
+                            slot.key === "aadharCard" ||
+                            slot.key === "panCard" ||
+                            (selectedType === "Dropshipping" && slot.key === "gstCertificate");
+
                           return (
                             <div key={slot.key} className="border p-2.5 rounded-lg bg-secondary/10 flex flex-col justify-between space-y-1">
                               <div className="flex justify-between items-center">
                                 <span className="text-[11px] font-bold">
-                                  {slot.label} {slot.required ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(Opt)</span>}
+                                  {slot.label} {isMandatory ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(Opt)</span>}
                                 </span>
                                 {url && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
                               </div>

@@ -28,7 +28,25 @@ export async function POST(req: Request) {
     const { email, name } = validatedData;
     const lowerEmail = email.toLowerCase().trim();
 
-    // 2. Check if email already registered
+    // 2. Validate KYC & Business requirements for B2B and Dropshipping
+    const customerTypes = body.customerTypes || ["B2C"];
+    const isRetail = customerTypes.includes("B2C") && customerTypes.length === 1;
+    if (!isRetail) {
+      const { validateCustomerKycRequirements } = require("@/lib/kycValidationHelper");
+      const kycCheck = validateCustomerKycRequirements({
+        customerTypes,
+        company: body.company,
+        storeName: body.storeName,
+        gstin: body.gstin,
+        kycDocuments: body.kycDocuments,
+      });
+
+      if (!kycCheck.isValid) {
+        return NextResponse.json({ message: kycCheck.errorMessage }, { status: 400 });
+      }
+    }
+
+    // 3. Check if email already registered
     const existingCustomer = await Customer.findOne({ email: lowerEmail });
     if (existingCustomer) {
       return NextResponse.json({ message: "An account with this email address is already registered." }, { status: 400 });

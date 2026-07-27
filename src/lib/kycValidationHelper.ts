@@ -15,18 +15,26 @@ export interface CustomerValidationInput {
 }
 
 /**
+ * Checks if a specific document slot has a non-empty uploaded URL.
+ */
+
+export function isDocUploaded(url?: string): boolean {
+  return typeof url === "string" && url.trim().length > 0;
+}
+
+/**
  * Checks if the customer has uploaded at least one valid KYC document.
  */
 export function hasUploadedKycDoc(kycDocs?: KycDocuments): boolean {
   if (!kycDocs || typeof kycDocs !== "object") return false;
-  return Object.values(kycDocs).some(
-    (url) => typeof url === "string" && url.trim().length > 0
-  );
+  return Object.values(kycDocs).some((url) => isDocUploaded(url));
 }
 
 /**
- * Validates business details and KYC document requirements when assigning
- * B2B or Dropshipping customer types.
+ * Validates business details and KYC document requirements based on customer types:
+ * - Dropshipping: Brand/Store Name, GSTIN, Aadhar Card, PAN Card, and GST Certificate are MANDATORY.
+ * - B2B: Company Name, Aadhar Card, and PAN Card are MANDATORY.
+ * - Other documents (Signature, Passport, Cancelled Cheque) are OPTIONAL.
  */
 export function validateCustomerKycRequirements(
   data: CustomerValidationInput
@@ -42,42 +50,45 @@ export function validateCustomerKycRequirements(
     return { isValid: true, missingFields: [] };
   }
 
-  const hasKyc = hasUploadedKycDoc(data.kycDocuments);
+  const kyc = data.kycDocuments || {};
 
-  if (isB2B) {
-    const hasBusinessId = Boolean(
-      (data.company && data.company.trim()) || (data.gstin && data.gstin.trim())
-    );
-    if (!hasBusinessId) {
-      missingFields.push("Company Name or GSTIN");
+  // 1. Dropshipping Mandatory Requirements
+  if (isDropshipping) {
+    if (!data.storeName || !data.storeName.trim()) {
+      missingFields.push("Online Store Name");
     }
-    if (!hasKyc) {
-      missingFields.push("At least 1 KYC Verification Document (e.g. GST Cert, PAN Card, or Aadhar)");
+    if (!data.gstin || !data.gstin.trim()) {
+      missingFields.push("GSTIN");
+    }
+    if (!isDocUploaded(kyc.aadharCard)) {
+      missingFields.push("Aadhar Card Document");
+    }
+    if (!isDocUploaded(kyc.panCard)) {
+      missingFields.push("PAN Card Document");
+    }
+    if (!isDocUploaded(kyc.gstCertificate)) {
+      missingFields.push("GST Certificate Document");
     }
   }
 
-  if (isDropshipping) {
-    const hasStore = Boolean(
-      (data.storeName && data.storeName.trim()) || (data.company && data.company.trim())
-    );
-    if (!hasStore) {
-      missingFields.push("Online Store Name");
+  // 2. B2B Mandatory Requirements
+  if (isB2B) {
+    if (!data.company || !data.company.trim()) {
+      missingFields.push("Company Name");
     }
-    if (!hasKyc) {
-      if (!missingFields.some((f) => f.includes("KYC Verification Document"))) {
-        missingFields.push("At least 1 KYC Verification Document (e.g. PAN Card, Aadhar, or GST Cert)");
-      }
+    if (!isDocUploaded(kyc.aadharCard) && !missingFields.includes("Aadhar Card Document")) {
+      missingFields.push("Aadhar Card Document");
+    }
+    if (!isDocUploaded(kyc.panCard) && !missingFields.includes("PAN Card Document")) {
+      missingFields.push("PAN Card Document");
     }
   }
 
   if (missingFields.length > 0) {
-    const requiredTypesStr = [];
-    if (isB2B) requiredTypesStr.push("B2B");
-    if (isDropshipping) requiredTypesStr.push("Dropshipping");
-
+    const typeLabel = isDropshipping && isB2B ? "B2B & Dropshipping" : isDropshipping ? "Dropshipping" : "B2B";
     return {
       isValid: false,
-      errorMessage: `Cannot save Customer Type as ${requiredTypesStr.join(" / ")}: Mandatory details missing (${missingFields.join("; ")}). Please fill required fields and upload at least one KYC verification document.`,
+      errorMessage: `Cannot proceed for ${typeLabel}: Missing mandatory item(s): ${missingFields.join(", ")}. Please complete required fields and upload mandatory KYC documents.`,
       missingFields,
     };
   }

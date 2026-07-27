@@ -251,8 +251,10 @@ export default function UpgradeAccountPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Company / Business Name *</label>
-                  <Input value={company} onChange={(e) => setCompany(e.target.value)} required placeholder="e.g. Acme Enterprises" className="text-sm font-semibold" />
+                  <label className="text-xs font-bold uppercase text-muted-foreground">
+                    Company / Business Name {requestedTypes.includes("B2B") ? "*" : "(Optional)"}
+                  </label>
+                  <Input value={company} onChange={(e) => setCompany(e.target.value)} required={requestedTypes.includes("B2B")} placeholder="e.g. Acme Enterprises" className="text-sm font-semibold" />
                 </div>
 
                 {requestedTypes.includes("Dropshipping") && (
@@ -263,8 +265,10 @@ export default function UpgradeAccountPage() {
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-muted-foreground">GSTIN (Optional)</label>
-                  <Input value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="23AAACF1001M1Z5" className="text-sm font-mono font-bold" />
+                  <label className="text-xs font-bold uppercase text-muted-foreground">
+                    GSTIN {requestedTypes.includes("Dropshipping") ? "*" : "(Optional)"}
+                  </label>
+                  <Input value={gstin} onChange={(e) => setGstin(e.target.value)} required={requestedTypes.includes("Dropshipping")} placeholder="23AAACF1001M1Z5" className="text-sm font-mono font-bold" />
                 </div>
 
                 <div className="space-y-2">
@@ -309,7 +313,9 @@ export default function UpgradeAccountPage() {
                 KYC Verification Documents
               </CardTitle>
               <CardDescription>
-                Upload required verification documents (Max 1 MB each. Allowed formats: PDF, JPG, JPEG, PNG).
+                {requestedTypes.includes("Dropshipping")
+                  ? "Aadhar Card, PAN Card, and GST Certificate are mandatory for Dropshipping accounts. Other files are optional."
+                  : "Aadhar Card and PAN Card are mandatory for B2B Wholesale accounts. Other files are optional."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -317,13 +323,17 @@ export default function UpgradeAccountPage() {
                 {DOCUMENT_SLOTS.map((slot) => {
                   const fileUrl = kycDocs[slot.key];
                   const isUploading = uploadingSlot === slot.key;
+                  const isMandatory =
+                    slot.key === "aadharCard" ||
+                    slot.key === "panCard" ||
+                    (requestedTypes.includes("Dropshipping") && slot.key === "gstCertificate");
 
                   return (
                     <div key={slot.key} className="border border-border rounded-lg p-3 bg-card space-y-2 flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold text-foreground">
-                            {slot.label} {slot.required ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(Optional)</span>}
+                            {slot.label.replace(" (Optional)", "")} {isMandatory ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(Optional)</span>}
                           </span>
                           {fileUrl && <CheckCircle2 className="h-4 w-4 text-green-500" />}
                         </div>
