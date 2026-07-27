@@ -292,35 +292,37 @@ export function ProductCard({ product }: ProductCardProps) {
             {truncatedTitle}
           </h3>
 
-          {/* Industry Level 5-Star Filled Rating System */}
-          <div className="flex items-center gap-1.5 pt-0.5">
-            <div className="flex items-center text-amber-400">
-              {[1, 2, 3, 4, 5].map((starIdx) => {
-                const ratingVal = product.rating && product.rating > 0 ? product.rating : 4.5;
-                const isFull = ratingVal >= starIdx;
-                const isHalf = !isFull && ratingVal >= starIdx - 0.5;
+          {/* Industry Level 5-Star Filled Rating System - Rendered dynamically only if at least 1 review is available */}
+          {(product.reviewCount ?? 0) >= 1 && (
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <div className="flex items-center text-amber-400">
+                {[1, 2, 3, 4, 5].map((starIdx) => {
+                  const ratingVal = product.rating || 0;
+                  const isFull = ratingVal >= starIdx;
+                  const isHalf = !isFull && ratingVal >= starIdx - 0.5;
 
-                return (
-                  <Star
-                    key={starIdx}
-                    className={`h-3.5 w-3.5 ${
-                      isFull
-                        ? "fill-amber-400 text-amber-400"
-                        : isHalf
-                        ? "fill-amber-400/50 text-amber-400"
-                        : "fill-muted/20 text-muted-foreground/30"
-                    }`}
-                  />
-                );
-              })}
+                  return (
+                    <Star
+                      key={starIdx}
+                      className={`h-3.5 w-3.5 ${
+                        isFull
+                          ? "fill-amber-400 text-amber-400"
+                          : isHalf
+                          ? "fill-amber-400/50 text-amber-400"
+                          : "fill-muted/20 text-muted-foreground/30"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+              <span className="font-bold text-foreground text-xs font-mono">
+                {(product.rating || 0).toFixed(1)}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-normal">
+                ({product.reviewCount})
+              </span>
             </div>
-            <span className="font-bold text-foreground text-xs font-mono">
-              {(product.rating && product.rating > 0 ? product.rating : 4.5).toFixed(1)}
-            </span>
-            <span className="text-[10px] text-muted-foreground font-normal">
-              ({product.reviewCount || 12})
-            </span>
-          </div>
+          )}
         </div>
 
         {/* Bottom Section: Amount on Top / Button Below on Mobile, Side-by-Side on Desktop */}
