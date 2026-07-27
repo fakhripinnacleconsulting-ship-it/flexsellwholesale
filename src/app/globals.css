@@ -142,18 +142,55 @@
 .ql-snow .ql-picker-item.ql-selected {
   color: var(--primary) !important;
 }
-.ql-snow .ql-stroke.ql-selected {
+.ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  background-color: var(--card) !important;
+  padding: 8px 12px !important;
+}
+
+.ql-container.ql-snow {
+  border: none !important;
+  font-family: inherit !important;
+}
+
+.ql-snow .ql-stroke {
+  stroke: var(--muted-foreground) !important;
+}
+
+.ql-snow .ql-fill {
+  fill: var(--muted-foreground) !important;
+}
+
+.ql-snow .ql-picker {
+  color: var(--muted-foreground) !important;
+}
+
+.ql-snow .ql-picker-options {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 0.5rem !important;
+}
+
+.ql-snow .ql-picker-item {
+  color: var(--foreground) !important;
+}
+
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow .ql-toolbar button:hover .ql-stroke,
+.ql-snow.ql-toolbar button.ql-active .ql-stroke,
+.ql-snow .ql-toolbar button.ql-active .ql-stroke {
   stroke: var(--primary) !important;
 }
-.ql-snow .ql-fill.ql-selected {
+
+.ql-snow.ql-toolbar button:hover .ql-fill,
+.ql-snow .ql-toolbar button:hover .ql-fill,
+.ql-snow.ql-toolbar button.ql-active .ql-fill,
+.ql-snow .ql-toolbar button.ql-active .ql-fill {
   fill: var(--primary) !important;
 }
-.ql-snow.ql-toolbar button:hover,
-.ql-snow .ql-toolbar button:hover,
-.ql-snow.ql-toolbar button:focus,
-.ql-snow .ql-toolbar button:focus,
-.ql-snow.ql-toolbar button.ql-active,
-.ql-snow .ql-toolbar button.ql-active,
+
 .ql-snow.ql-toolbar .ql-picker-label:hover,
 .ql-snow .ql-toolbar .ql-picker-label:hover,
 .ql-snow.ql-toolbar .ql-picker-label.ql-active,
@@ -164,21 +201,11 @@
 .ql-snow .ql-toolbar .ql-picker-item.ql-selected {
   color: var(--primary) !important;
 }
-.ql-snow.ql-toolbar button:hover .ql-stroke,
-.ql-snow .ql-toolbar button:hover .ql-stroke,
-.ql-snow.ql-toolbar button.ql-active .ql-stroke,
-.ql-snow .ql-toolbar button.ql-active .ql-stroke {
-  stroke: var(--primary) !important;
-}
-.ql-snow.ql-toolbar button:hover .ql-fill,
-.ql-snow .ql-toolbar button:hover .ql-fill,
-.ql-snow.ql-toolbar button.ql-active .ql-fill,
-.ql-snow .ql-toolbar button.ql-active .ql-fill {
-  fill: var(--primary) !important;
-}
+
 .ql-editor {
-  min-height: 220px;
+  min-height: 240px;
   font-family: inherit;
+  color: var(--foreground);
 }
 
 /* Rich Text Formatting (Prose & Editor UI Fix) */

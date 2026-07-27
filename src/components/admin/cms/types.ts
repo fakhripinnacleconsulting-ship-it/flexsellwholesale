@@ -67,6 +67,7 @@ export interface BlogPostItem {
   excerpt: string;
   content: string;
   coverImage?: string;
+  readTime?: string;
   publishedAt?: string;
   isActive?: boolean;
 }

@@ -131,34 +131,8 @@ export function BasicInfoCard() {
 
         {/* Rich Text Editor for Description */}
         <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <label className="text-sm font-medium">Description *</label>
-            <div className="flex bg-secondary/50 rounded-md p-0.5 border">
-              <button
-                type="button"
-                onClick={() => setEditorMode("edit")}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors flex items-center gap-1 cursor-pointer ${editorMode === "edit" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"}`}
-              >
-                <Code className="h-3 w-3" /> Edit HTML
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditorMode("preview")}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors flex items-center gap-1 cursor-pointer ${editorMode === "preview" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"}`}
-              >
-                <Eye className="h-3 w-3" /> Preview
-              </button>
-            </div>
-          </div>
-
-          {editorMode === "edit" ? (
-            <RichTextEditor value={description} onChange={setDescription} />
-          ) : (
-            <div
-              className="border rounded-md p-4 min-h-[210px] bg-secondary/10 prose prose-sm max-w-none text-foreground overflow-y-auto"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(description) || "<p className='text-muted-foreground italic'>Description preview is empty.</p>" }}
-            />
-          )}
+          <label className="text-sm font-medium block">Description *</label>
+          <RichTextEditor value={description} onChange={setDescription} />
         </div>
       </CardContent>
     </Card>

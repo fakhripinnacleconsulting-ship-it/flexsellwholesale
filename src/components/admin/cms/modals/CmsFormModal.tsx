@@ -1,10 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { X, Upload } from "lucide-react";
+import { X, Upload, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import dynamic from "next/dynamic";
 import { CmsTabType } from "../types";
+
+const RichTextEditor = dynamic(() => import("@/components/admin/RichTextEditor"), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-[300px] bg-secondary/10 border border-input rounded-md flex items-center justify-center text-muted-foreground text-sm font-medium">
+      Loading editor...
+    </div>
+  ),
+});
 
 interface CmsFormModalProps {
   isOpen: boolean;
@@ -27,21 +37,56 @@ export function CmsFormModal({
   onSave,
   onFileUpload
 }: CmsFormModalProps) {
+  const [isFullScreen, setIsFullScreen] = React.useState(true);
+
   if (!isOpen) return null;
 
+  const isWideTab = activeTab === "blogs" || activeTab === "dropship_page" || activeTab === "testimonials";
+  const useFullScreen = isFullScreen || isWideTab;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl animate-fade-in text-foreground">
-        <div className="flex justify-between items-center border-b pb-3">
-          <h3 className="font-bold text-base">
-            {editingIndex === null ? "Add New CMS Entry" : "Edit CMS Entry"} ({activeTab.toUpperCase()})
-          </h3>
-          <button type="button" onClick={onClose} className="p-1 hover:bg-secondary rounded">
-            <X className="h-4 w-4" />
-          </button>
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+      <div
+        className={`bg-card border border-border transition-all duration-300 flex flex-col shadow-2xl animate-fade-in text-foreground ${
+          useFullScreen
+            ? "w-[98vw] h-[95vh] max-w-none rounded-2xl"
+            : "w-full max-w-3xl max-h-[90vh] rounded-2xl"
+        }`}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center border-b px-6 py-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-extrabold text-base sm:text-lg">
+              {editingIndex === null ? "Add New CMS Entry" : "Edit CMS Entry"} ({activeTab.toUpperCase()})
+            </h3>
+            {useFullScreen && (
+              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                Full Screen Dialog
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsFullScreen(!isFullScreen)}
+              className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title={useFullScreen ? "Restore Normal Window" : "Expand Fullscreen Dialog"}
+            >
+              {useFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-4 text-xs">
+        {/* Modal Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Hero Banner Fields */}
           {activeTab === "hero" && (
             <>
@@ -379,22 +424,34 @@ export function CmsFormModal({
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold">Full Article Content (Markdown or HTML supported) *</label>
-                <textarea
-                  rows={6}
-                  className="w-full p-2.5 text-xs border rounded bg-background font-mono"
-                  placeholder="Write full article body text..."
+                <label className="font-bold block">Full Article Content (Rich Formatting) *</label>
+                <RichTextEditor
                   value={formData.content || ""}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  onChange={(val) => {
+                    const textOnly = val.replace(/<[^>]*>/g, "").trim();
+                    const words = textOnly ? textOnly.split(/\s+/).length : 0;
+                    const mins = Math.max(1, Math.ceil(words / 200));
+                    setFormData({
+                      ...formData,
+                      content: val,
+                      readTime: `${mins} min read`
+                    });
+                  }}
+                  placeholder="Write complete article content with headings, images, and rich formatting..."
                 />
               </div>
             </>
           )}
         </div>
 
-        <div className="flex justify-end gap-2 border-t pt-3">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="button" onClick={onSave} className="font-bold">Save Changes</Button>
+        {/* Modal Footer */}
+        <div className="flex items-center justify-end gap-3 border-t px-6 py-3.5 shrink-0 bg-muted/10 rounded-b-2xl">
+          <Button type="button" variant="outline" onClick={onClose} className="font-semibold">
+            Cancel
+          </Button>
+          <Button type="button" onClick={onSave} className="font-bold shadow-md">
+            Save Changes
+          </Button>
         </div>
       </div>
     </div>

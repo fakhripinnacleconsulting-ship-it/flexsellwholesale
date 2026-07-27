@@ -17,8 +17,18 @@ import { Collection, Category, Product, CollectionCondition } from "@/types";
 import { Pagination } from "@/components/ui/Pagination";
 import { productService } from "@/services/productService";
 import { collectionService } from "@/services/collectionService";
+import dynamic from "next/dynamic";
 import { ProductSearchPicker } from "@/components/admin/ProductSearchPicker";
 import { calculateProductRelevanceScore } from "@/services/searchService";
+
+const RichTextEditor = dynamic(() => import("@/components/admin/RichTextEditor"), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-[220px] bg-secondary/10 border border-input rounded-md flex items-center justify-center text-muted-foreground text-sm">
+      Loading editor...
+    </div>
+  ),
+});
 
 interface AdminCollectionsManagerProps {
   initialCollections: Collection[];
@@ -719,12 +729,10 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
 
                     <div>
                       <label className="block text-sm font-bold text-foreground mb-1">Description</label>
-                      <textarea
+                      <RichTextEditor
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        onChange={setDescription}
                         placeholder="Brief summary or marketing copy for this collection..."
-                        rows={4}
-                        className="w-full bg-background border rounded-lg px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary/50 outline-none"
                       />
                     </div>
 
