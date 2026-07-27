@@ -426,16 +426,17 @@ export function CmsFormModal({
               <div className="space-y-1">
                 <label className="font-bold block">Full Article Content (Rich Formatting) *</label>
                 <RichTextEditor
+                  key={editingIndex === null ? "new-blog-editor" : `edit-blog-${editingIndex}`}
                   value={formData.content || ""}
                   onChange={(val) => {
                     const textOnly = val.replace(/<[^>]*>/g, "").trim();
                     const words = textOnly ? textOnly.split(/\s+/).length : 0;
                     const mins = Math.max(1, Math.ceil(words / 200));
-                    setFormData({
-                      ...formData,
+                    setFormData((prev: any) => ({
+                      ...prev,
                       content: val,
                       readTime: `${mins} min read`
-                    });
+                    }));
                   }}
                   placeholder="Write complete article content with headings, images, and rich formatting..."
                 />

@@ -144,6 +144,7 @@ export default function AdminCmsPage() {
       });
       if (!res.ok) throw new Error("Failed to save CMS data");
       addToast(`CMS Section '${key}' updated successfully!`, "success");
+      await fetchCmsData();
     } catch (err: unknown) {
       addToast((err as any).message || "Failed to update CMS section", "error");
     } finally {

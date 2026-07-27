@@ -18,7 +18,8 @@ import {
   Copy,
 } from "lucide-react";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function BlogPostPage({
   params,
@@ -28,7 +29,7 @@ export default async function BlogPostPage({
   const { slug } = await params;
 
   await dbConnect();
-  const cmsBlogsDoc = await CmsContent.findOne({ key: "blogs" });
+  const cmsBlogsDoc = await CmsContent.findOne({ key: "blogs" }).lean();
   const allBlogs: BlogPostItem[] = cmsBlogsDoc?.value || [];
 
   const blog = allBlogs.find((b) => b.slug === slug && b.isActive !== false);

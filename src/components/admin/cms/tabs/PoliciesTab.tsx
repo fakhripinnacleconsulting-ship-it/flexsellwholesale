@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { Save, ShieldCheck, FileText, Truck, RotateCcw, Clock } from "lucide-react";
+import { Save, ShieldCheck, FileText, Truck, RotateCcw, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
@@ -29,50 +29,131 @@ const POLICY_METADATA = [
   { key: "return", label: "Return & Refund Policy", icon: RotateCcw, desc: "Damaged stock return windows, B2B wholesale exchange, and refund rules." },
 ];
 
+const DEFAULT_POLICIES = {
+  privacy: {
+    title: "Corporate Privacy Policy",
+    lastUpdated: "2026-07-27",
+    content: `<h3>1. Scope of Data Gathering</h3><p>We gather business credentials, shipping addresses, GST certificates, and contact details to verify authenticity and streamline wholesale invoicing.</p><h3>2. Data Protection Standards</h3><p>All sensitive payment credentials are encrypted using industry-standard AES-256 protocols. Your trade secrets and supplier details remain confidential.</p>`,
+  },
+  terms: {
+    title: "B2B Terms of Service",
+    lastUpdated: "2026-07-27",
+    content: `<h3>1. Retail Reselling Authorizations</h3><p>Buyers warrant that they are registered businesses purchasing goods for commercial resale or manufacturing purposes, not personal consumption.</p><h3>2. Account Suspension Thresholds</h3><p>We reserve the right to cancel accounts and restrict wholesale pricing for buyers providing fraudulent business IDs or repeatedly returning bulk orders.</p>`,
+  },
+  shipping: {
+    title: "Freight & Shipping Policies",
+    lastUpdated: "2026-07-27",
+    content: `<h3>1. Dispatch Timelines</h3><p>Bulk wholesale orders are packed and dispatched from our Bhopal warehouse within 24-48 working hours. Heavy cargo shipping times range from 3-7 days.</p><h3>2. Remote Region Cargo Surcharges</h3><p>Special transport charges may apply for heavy freight going to Northeast states, J&K, and deep rural regions. Surcharges will be quoted by phone if needed.</p>`,
+  },
+  return: {
+    title: "Bulk Return & Refund Policies",
+    lastUpdated: "2026-07-27",
+    content: `<h3>1. Zero Unsold Returns</h3><p>Because we run at minimal margins, we do not accept returns for unsold goods or change-of-mind situations. All wholesale sales are final.</p><h3>2. Transit Defect Claims</h3><p>A continuous, uncut video showing the opening of the cargo box is mandatory to process shipping transit damage claims. Approved claims receive wallet top-up credits.</p>`,
+  },
+};
+
 export function PoliciesTab({ policies, setPolicies, isSaving, onSave }: PoliciesTabProps) {
   const [activePolicyKey, setActivePolicyKey] = React.useState<string>("privacy");
 
-  const currentPolicy = policies?.[activePolicyKey] || {};
+  // Sync initial policies state with defaults if any policy key is missing
+  React.useEffect(() => {
+    setPolicies((prev: any) => {
+      const merged = {
+        privacy: { ...DEFAULT_POLICIES.privacy, ...(prev?.privacy || {}) },
+        terms: { ...DEFAULT_POLICIES.terms, ...(prev?.terms || {}) },
+        shipping: { ...DEFAULT_POLICIES.shipping, ...(prev?.shipping || {}) },
+        return: { ...DEFAULT_POLICIES.return, ...(prev?.return || {}) },
+      };
+      return merged;
+    });
+  }, [setPolicies]);
+
+  const currentPolicy = policies?.[activePolicyKey] || DEFAULT_POLICIES[activePolicyKey as keyof typeof DEFAULT_POLICIES] || {};
   const currentMeta = POLICY_METADATA.find(p => p.key === activePolicyKey) || POLICY_METADATA[0];
   const Icon = currentMeta.icon;
 
   const handleUpdateCurrentPolicy = (field: string, val: any) => {
-    const updated = {
-      ...policies,
-      [activePolicyKey]: {
-        ...currentPolicy,
-        [field]: val,
-      },
-    };
-    setPolicies(updated);
+    setPolicies((prev: any) => {
+      const current = prev?.[activePolicyKey] || DEFAULT_POLICIES[activePolicyKey as keyof typeof DEFAULT_POLICIES] || {};
+      return {
+        privacy: { ...DEFAULT_POLICIES.privacy, ...(prev?.privacy || {}) },
+        terms: { ...DEFAULT_POLICIES.terms, ...(prev?.terms || {}) },
+        shipping: { ...DEFAULT_POLICIES.shipping, ...(prev?.shipping || {}) },
+        return: { ...DEFAULT_POLICIES.return, ...(prev?.return || {}) },
+        [activePolicyKey]: {
+          ...current,
+          [field]: val,
+        },
+      };
+    });
   };
 
-  const handleSave = () => {
+  const handleSaveCurrentPolicy = () => {
     const todayStr = new Date().toISOString().split("T")[0];
-    const updated = {
-      ...policies,
+    const current = policies?.[activePolicyKey] || DEFAULT_POLICIES[activePolicyKey as keyof typeof DEFAULT_POLICIES] || {};
+    const updatedPolicies = {
+      privacy: { ...DEFAULT_POLICIES.privacy, ...(policies?.privacy || {}) },
+      terms: { ...DEFAULT_POLICIES.terms, ...(policies?.terms || {}) },
+      shipping: { ...DEFAULT_POLICIES.shipping, ...(policies?.shipping || {}) },
+      return: { ...DEFAULT_POLICIES.return, ...(policies?.return || {}) },
       [activePolicyKey]: {
-        ...currentPolicy,
-        lastUpdated: currentPolicy.lastUpdated || todayStr,
+        ...current,
+        title: current.title || currentMeta.label,
+        lastUpdated: current.lastUpdated || todayStr,
       },
     };
-    setPolicies(updated);
-    onSave("policies", updated);
+    setPolicies(updatedPolicies);
+    onSave("policies", updatedPolicies);
+  };
+
+  const handleSaveAllPolicies = () => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const updatedPolicies = {
+      privacy: { ...DEFAULT_POLICIES.privacy, ...(policies?.privacy || {}), lastUpdated: policies?.privacy?.lastUpdated || todayStr },
+      terms: { ...DEFAULT_POLICIES.terms, ...(policies?.terms || {}), lastUpdated: policies?.terms?.lastUpdated || todayStr },
+      shipping: { ...DEFAULT_POLICIES.shipping, ...(policies?.shipping || {}), lastUpdated: policies?.shipping?.lastUpdated || todayStr },
+      return: { ...DEFAULT_POLICIES.return, ...(policies?.return || {}), lastUpdated: policies?.return?.lastUpdated || todayStr },
+    };
+    setPolicies(updatedPolicies);
+    onSave("policies", updatedPolicies);
   };
 
   return (
     <div className="space-y-6 text-foreground">
+      {/* Top Controls Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border p-4 rounded-2xl shadow-sm">
+        <div>
+          <h3 className="font-extrabold text-base">Legal Policies & Compliance Center</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage Privacy, Terms of Service, Shipping, and Returns policies with rich formatting and auto-updating timestamps.
+          </p>
+        </div>
+
+        <Button
+          onClick={handleSaveAllPolicies}
+          disabled={isSaving}
+          size="default"
+          className="font-bold shadow-md self-start sm:self-center flex items-center gap-1.5 shrink-0 bg-primary text-primary-foreground cursor-pointer"
+        >
+          <Save className="h-4 w-4" />
+          <span>Save All 4 Policies</span>
+        </Button>
+      </div>
+
       {/* Sub Tab Navigation Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {POLICY_METADATA.map((pm) => {
           const PIcon = pm.icon;
           const isSelected = activePolicyKey === pm.key;
+          const polData = policies?.[pm.key] || DEFAULT_POLICIES[pm.key as keyof typeof DEFAULT_POLICIES];
+          const hasContent = !!polData?.content?.trim();
+
           return (
             <button
               key={pm.key}
               type="button"
               onClick={() => setActivePolicyKey(pm.key)}
-              className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
+              className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
                 isSelected
                   ? "border-primary bg-primary/10 shadow-sm"
                   : "border-border hover:border-primary/40 bg-card"
@@ -80,14 +161,16 @@ export function PoliciesTab({ policies, setPolicies, isSaving, onSave }: Policie
             >
               <div className="flex items-center justify-between">
                 <PIcon className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                {policies?.[pm.key]?.content && (
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" title="Content Set" />
+                {hasContent && (
+                  <span title="Policy content active">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  </span>
                 )}
               </div>
-              <div className="mt-2">
+              <div className="mt-2.5">
                 <p className="font-bold text-xs text-foreground">{pm.label}</p>
-                <p className="text-[10px] text-muted-foreground truncate mt-0.5">
-                  {policies?.[pm.key]?.lastUpdated ? `Updated: ${policies[pm.key].lastUpdated}` : "Not updated"}
+                <p className="text-[10px] text-muted-foreground truncate mt-0.5 font-medium">
+                  {polData?.lastUpdated ? `Updated: ${polData.lastUpdated}` : "Default Active"}
                 </p>
               </div>
             </button>
@@ -109,10 +192,11 @@ export function PoliciesTab({ policies, setPolicies, isSaving, onSave }: Policie
           </div>
 
           <Button
-            onClick={handleSave}
+            onClick={handleSaveCurrentPolicy}
             disabled={isSaving}
             size="default"
-            className="font-bold shadow-md self-start sm:self-center flex items-center gap-1.5"
+            variant="outline"
+            className="font-bold border-primary/30 text-primary hover:bg-primary/10 self-start sm:self-center flex items-center gap-1.5 cursor-pointer"
           >
             <Save className="h-4 w-4" />
             <span>Save {currentMeta.label}</span>
@@ -133,7 +217,7 @@ export function PoliciesTab({ policies, setPolicies, isSaving, onSave }: Policie
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-foreground flex items-center justify-between">
               <span>Last Updated Date</span>
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
                 <Clock className="h-3 w-3 text-primary" /> YYYY-MM-DD
               </span>
             </label>
@@ -146,12 +230,13 @@ export function PoliciesTab({ policies, setPolicies, isSaving, onSave }: Policie
           </div>
         </div>
 
-        {/* Policy Body Rich Text Editor */}
+        {/* Policy Body Rich Text Editor with key={activePolicyKey} to force remount on tab change */}
         <div className="space-y-2 pt-2">
           <label className="text-xs font-bold text-foreground block">
             Policy Body Content (Rich HTML & Formatting) *
           </label>
           <RichTextEditor
+            key={activePolicyKey}
             value={currentPolicy.content || ""}
             onChange={(val) => handleUpdateCurrentPolicy("content", val)}
             placeholder={`Write full ${currentMeta.label} text with headings, terms, bullet lists, and tables...`}

@@ -5,7 +5,8 @@ import CmsContent from "@/models/CmsContent";
 import { BookOpen, Calendar, User, Clock, Search, ArrowRight, Sparkles } from "lucide-react";
 import { BlogPostItem } from "@/components/admin/cms/types";
 
-export const revalidate = 60; // Refresh every 60 seconds
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function BlogsPage({
   searchParams,
@@ -15,7 +16,7 @@ export default async function BlogsPage({
   const { category, q } = await searchParams;
 
   await dbConnect();
-  const cmsBlogsDoc = await CmsContent.findOne({ key: "blogs" });
+  const cmsBlogsDoc = await CmsContent.findOne({ key: "blogs" }).lean();
   const rawBlogs: BlogPostItem[] = (cmsBlogsDoc?.value || []).filter((b: any) => b.isActive !== false);
 
   // Filter by category and search query if provided

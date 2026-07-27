@@ -7,11 +7,14 @@ import { pagesContent } from "@/config/pagesContent";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { ShieldCheck, FileText, Truck, RotateCcw, Printer, ArrowLeft } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function PolicyPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
   await dbConnect();
-  const cmsPoliciesDoc = await CmsContent.findOne({ key: "policies" });
+  const cmsPoliciesDoc = await CmsContent.findOne({ key: "policies" }).lean();
   const cmsPolicies = cmsPoliciesDoc?.value;
 
   const policyData = cmsPolicies?.[slug] || pagesContent.policies[slug as keyof typeof pagesContent.policies];
