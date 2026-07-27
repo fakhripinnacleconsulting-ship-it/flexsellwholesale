@@ -26,14 +26,14 @@ export function AdminOrdersManager() {
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
 
-  const [activeOrderTab, setActiveOrderTab] = React.useState<"B2B" | "B2C">("B2B");
+  const [activeOrderTab, setActiveOrderTab] = React.useState<"ALL" | "B2B" | "Dropshipping" | "B2C">("ALL");
   const [originFilter, setOriginFilter] = React.useState<"" | "self" | "website">("");
 
   React.useEffect(() => {
     initializeOrders({
       startDate: startDate || undefined,
       endDate: endDate || undefined,
-      orderType: activeOrderTab,
+      orderType: activeOrderTab === "ALL" ? undefined : activeOrderTab,
       origin: originFilter || undefined,
     });
   }, [initializeOrders, startDate, endDate, activeOrderTab, originFilter]);
@@ -296,6 +296,33 @@ export function AdminOrdersManager() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Category Tab Selector */}
+      <div className="flex items-center gap-2 border-b pb-2 overflow-x-auto scrollbar-none">
+        {[
+          { key: "ALL", label: "All Orders", icon: "📦" },
+          { key: "B2B", label: "Wholesale (B2B)", icon: "🏢" },
+          { key: "Dropshipping", label: "Dropshipping", icon: "🚚" },
+          { key: "B2C", label: "Retail (B2C)", icon: "🛒" },
+        ].map((tab) => {
+          const isSelected = activeOrderTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveOrderTab(tab.key as any)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                isSelected
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "bg-card border border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Main Orders Table (Full Width) */}

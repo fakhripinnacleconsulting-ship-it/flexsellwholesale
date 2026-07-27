@@ -164,7 +164,15 @@ export function OrdersListTable({
                           }`}>
                             {order.origin === "self" ? "Self" : "Website"}
                           </span>
-                          <span className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[8px] font-bold uppercase tracking-wide">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wide border ${
+                              order.orderType === "Dropshipping"
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                : order.orderType === "B2C"
+                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                                : "bg-primary/10 text-primary border-primary/30"
+                            }`}
+                          >
                             {order.orderType || "B2B"}
                           </span>
                         </div>

@@ -132,15 +132,18 @@ export async function GET(request: Request) {
     const orderType = searchParams.get("orderType");
     const origin = searchParams.get("origin");
 
-    if (orderType) {
+    if (orderType && orderType !== "ALL" && orderType !== "all") {
       if (orderType === "B2B") {
         andConditions.push({ 
           $or: [
             { orderType: "B2B" }, 
-            { orderType: { $exists: false } }
+            { orderType: { $exists: false } },
+            { orderType: null }
           ] 
         });
-      } else {
+      } else if (orderType === "Dropshipping") {
+        andConditions.push({ orderType: "Dropshipping" });
+      } else if (orderType === "B2C") {
         andConditions.push({ orderType: "B2C" });
       }
     }
