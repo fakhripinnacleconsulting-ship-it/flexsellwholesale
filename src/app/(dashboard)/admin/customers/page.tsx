@@ -12,7 +12,8 @@ import { useOrderStore } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { formatPrice } from "@/lib/utils";
-import { Plus, Eye, Edit2, Trash2, Building } from "lucide-react";
+import { Plus, Eye, Edit2, Trash2, Building, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { validateCustomerKycRequirements, hasUploadedKycDoc } from "@/lib/kycValidationHelper";
 
 const INDIAN_STATES = [
   "Madhya Pradesh",
@@ -171,6 +172,20 @@ export default function AdminCustomersPage() {
 
     if (!editingCustomer && !password) {
       addToast("Password is required for new customer accounts", "warning");
+      return;
+    }
+
+    // Mandatory KYC Document and Business Details validation
+    const kycCheck = validateCustomerKycRequirements({
+      customerTypes,
+      company,
+      storeName: customerTypes.includes("Dropshipping") ? storeName : undefined,
+      gstin,
+      kycDocuments: kycDocs,
+    });
+
+    if (!kycCheck.isValid) {
+      addToast(kycCheck.errorMessage || "Mandatory KYC verification documents or business details missing.", "error");
       return;
     }
 
@@ -406,8 +421,11 @@ export default function AdminCustomersPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-muted-foreground">Company Name</label>
-                  <Input placeholder="Company Name" value={company} onChange={(e) => setCompany(e.target.value)} />
+                  <label className="font-bold text-muted-foreground flex items-center justify-between">
+                    <span>Company Name</span>
+                    {customerTypes.includes("B2B") && <span className="text-destructive text-[10px] uppercase font-bold">* Required for B2B</span>}
+                  </label>
+                  <Input placeholder="Company Name" value={company} onChange={(e) => setCompany(e.target.value)} required={customerTypes.includes("B2B") && !gstin} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="font-bold text-muted-foreground">GSTIN</label>
@@ -449,17 +467,39 @@ export default function AdminCustomersPage() {
                 </div>
               </div>
 
+              {/* Dynamic KYC Requirement Alert Banner */}
+              {(customerTypes.includes("B2B") || customerTypes.includes("Dropshipping")) && (
+                <div className="pt-1">
+                  {hasUploadedKycDoc(kycDocs) ? (
+                    <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 text-xs font-bold flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+                      <span>KYC Document Verification Status: Uploaded & Compliant</span>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-bold flex items-start gap-2 animate-pulse">
+                      <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                      <span>Action Required: At least 1 KYC Verification Document (e.g., GST Cert, PAN Card, or Aadhar) must be uploaded below before saving as B2B / Dropshipping.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* KYC Document Uploads for Admin */}
               <div className="space-y-2 pt-2 border-t">
-                <label className="font-bold text-muted-foreground block">KYC Verification Documents (Max 1MB each, PDF/JPG/PNG)</label>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-muted-foreground block">KYC Verification Documents (Max 1MB each, PDF/JPG/PNG)</label>
+                  {(customerTypes.includes("B2B") || customerTypes.includes("Dropshipping")) && (
+                    <span className="text-destructive font-bold text-[10px] uppercase">* Required</span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
-                    { key: "gstCertificate", label: "GST Cert" },
-                    { key: "signaturePhoto", label: "Signature" },
-                    { key: "aadharCard", label: "Aadhar" },
-                    { key: "passportPhoto", label: "Passport" },
                     { key: "panCard", label: "PAN Card" },
-                    { key: "chequePhoto", label: "Cheque" },
+                    { key: "aadharCard", label: "Aadhar Card" },
+                    { key: "signaturePhoto", label: "Signature" },
+                    { key: "gstCertificate", label: "GST Cert (Optional)" },
+                    { key: "passportPhoto", label: "Passport (Optional)" },
+                    { key: "chequePhoto", label: "Cheque (Optional)" },
                   ].map((doc) => {
                     const url = kycDocs[doc.key as keyof import("@/types").KycDocuments];
                     const isUp = uploadingDocSlot === doc.key;

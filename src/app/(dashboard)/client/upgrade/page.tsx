@@ -26,12 +26,12 @@ interface DocSlot {
 }
 
 const DOCUMENT_SLOTS: DocSlot[] = [
-  { key: "gstCertificate", label: "GST Certificate", required: false },
-  { key: "signaturePhoto", label: "Signature Photo", required: true },
-  { key: "aadharCard", label: "Aadhar Card", required: true },
-  { key: "passportPhoto", label: "Passport Size Photo", required: true },
-  { key: "panCard", label: "PAN Card", required: true },
-  { key: "chequePhoto", label: "Cancelled Cheque Photo", required: true },
+  { key: "panCard", label: "PAN Card", required: false },
+  { key: "aadharCard", label: "Aadhar Card", required: false },
+  { key: "signaturePhoto", label: "Signature Photo", required: false },
+  { key: "gstCertificate", label: "GST Certificate (Optional)", required: false },
+  { key: "passportPhoto", label: "Passport Photo (Optional)", required: false },
+  { key: "chequePhoto", label: "Cancelled Cheque (Optional)", required: false },
 ];
 
 export default function UpgradeAccountPage() {
@@ -107,10 +107,11 @@ export default function UpgradeAccountPage() {
       return;
     }
 
-    // Check required documents
-    const missingDocs = DOCUMENT_SLOTS.filter(s => s.required && !kycDocs[s.key]);
-    if (missingDocs.length > 0) {
-      addToast(`Please upload required documents: ${missingDocs.map(m => m.label).join(", ")}`, "error");
+    // Check that at least 1 KYC Verification Document is uploaded
+    const { hasUploadedKycDoc } = require("@/lib/kycValidationHelper");
+    const hasKyc = hasUploadedKycDoc(kycDocs);
+    if (!hasKyc) {
+      addToast("Please upload at least one valid KYC Verification Document (e.g. PAN Card, Aadhar Card, or GST Cert).", "error");
       return;
     }
 

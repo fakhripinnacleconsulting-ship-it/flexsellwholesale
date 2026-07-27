@@ -4,6 +4,7 @@ import Customer from "@/models/Customer";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { generateNextId } from "@/lib/idGeneratorServer";
+import { validateCustomerKycRequirements } from "@/lib/kycValidationHelper";
 
 // GET: Fetch all customers (restricted to admins)
 export async function GET(request: Request) {
@@ -84,6 +85,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
+    // Validate KYC document and business field requirements for B2B / Dropshipping
+    const kycCheck = validateCustomerKycRequirements({
+      customerTypes: customerTypes || ["B2C"],
+      company,
+      storeName,
+      gstin,
+      kycDocuments: kycDocuments || {},
+    });
+    if (!kycCheck.isValid) {
+      return NextResponse.json({ message: kycCheck.errorMessage }, { status: 400 });
+    }
+
     // Check if email already exists
     const existing = await Customer.findOne({ email: email.toLowerCase() });
     if (existing) {
@@ -153,6 +166,24 @@ export async function PUT(request: Request) {
     const customer = await Customer.findById(_id);
     if (!customer) {
       return NextResponse.json({ message: "Customer not found" }, { status: 404 });
+    }
+
+    // Validate KYC document and business field requirements for B2B / Dropshipping
+    const targetTypes = customerTypes !== undefined ? customerTypes : customer.customerTypes;
+    const targetCompany = company !== undefined ? company : customer.company;
+    const targetStoreName = storeName !== undefined ? storeName : customer.storeName;
+    const targetGstin = gstin !== undefined ? gstin : customer.gstin;
+    const targetKycDocs = kycDocuments !== undefined ? kycDocuments : customer.kycDocuments;
+
+    const kycCheck = validateCustomerKycRequirements({
+      customerTypes: targetTypes,
+      company: targetCompany,
+      storeName: targetStoreName,
+      gstin: targetGstin,
+      kycDocuments: targetKycDocs,
+    });
+    if (!kycCheck.isValid) {
+      return NextResponse.json({ message: kycCheck.errorMessage }, { status: 400 });
     }
 
     if (email && email.toLowerCase() !== customer.email) {

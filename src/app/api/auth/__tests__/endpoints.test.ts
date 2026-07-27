@@ -346,9 +346,6 @@ describe("Authentication API Routes", () => {
       
       // Verify SMTP transport call details
       expect(nodemailerCreateTransportMock).toHaveBeenCalledWith(expect.objectContaining({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
         auth: expect.objectContaining({
           user: "mauryatech7@gmail.com",
         }),

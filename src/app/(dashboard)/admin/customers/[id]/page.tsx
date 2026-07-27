@@ -49,6 +49,25 @@ export default function AdminCustomerDetailPage({ params }: PageProps) {
 
   const handleApprove = () => {
     if (!customer) return;
+
+    const requested = customer.upgradeRequestedTypes || [];
+    const existing = customer.customerTypes || ["B2C"];
+    const targetTypes = Array.from(new Set([...existing, ...requested])) as string[];
+
+    const { validateCustomerKycRequirements } = require("@/lib/kycValidationHelper");
+    const kycCheck = validateCustomerKycRequirements({
+      customerTypes: targetTypes,
+      company: customer.company,
+      storeName: customer.storeName,
+      gstin: customer.gstin,
+      kycDocuments: customer.kycDocuments,
+    });
+
+    if (!kycCheck.isValid) {
+      addToast(kycCheck.errorMessage || "Cannot approve upgrade: Customer missing required KYC documents or business details.", "error");
+      return;
+    }
+
     confirmAction({
       title: "Approve Wholesale Upgrade",
       message: `Are you sure you want to approve the upgrade application for "${customer.name}"? This will combine their requested account tiers and grant wholesale access.`,

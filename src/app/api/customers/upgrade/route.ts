@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Customer from "@/models/Customer";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { validateCustomerKycRequirements } from "@/lib/kycValidationHelper";
 
 // POST: Customer submits an upgrade request to B2B/Dropshipping
 export async function POST(request: Request) {
@@ -104,6 +105,18 @@ export async function PUT(request: Request) {
       const requested = customer.upgradeRequestedTypes || [];
       const existingTypes = customer.customerTypes || ["B2C"];
       const combined = Array.from(new Set([...existingTypes, ...requested])) as ("B2C" | "B2B" | "Dropshipping")[];
+
+      const kycCheck = validateCustomerKycRequirements({
+        customerTypes: combined,
+        company: customer.company,
+        storeName: customer.storeName,
+        gstin: customer.gstin,
+        kycDocuments: customer.kycDocuments,
+      });
+
+      if (!kycCheck.isValid) {
+        return NextResponse.json({ message: kycCheck.errorMessage }, { status: 400 });
+      }
 
       customer.customerTypes = combined;
       customer.upgradeStatus = "approved";
