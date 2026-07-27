@@ -681,7 +681,10 @@ export function useProductFormState(
     const gstRateVal = matchedHsn ? matchedHsn.gstRate : 18;
 
     const finalVariants = variantsList.map((item) => {
-      const validImages = (item.images || []).filter((img: any) => img.url && img.url.trim() !== "");
+      const validImages = (item.images || []).filter((img: any) => {
+        const url = typeof img === "string" ? img : img?.url;
+        return url && url.trim() !== "";
+      });
       const parsedLength = (item.lengthCm !== null && item.lengthCm !== undefined && !isNaN(Number(item.lengthCm)) && Number(item.lengthCm) >= 0) ? Math.max(0, Number(item.lengthCm)) : null;
       const parsedBreadth = (item.breadthCm !== null && item.breadthCm !== undefined && !isNaN(Number(item.breadthCm)) && Number(item.breadthCm) >= 0) ? Math.max(0, Number(item.breadthCm)) : null;
       const parsedHeight = (item.heightCm !== null && item.heightCm !== undefined && !isNaN(Number(item.heightCm)) && Number(item.heightCm) >= 0) ? Math.max(0, Number(item.heightCm)) : null;
@@ -693,7 +696,7 @@ export function useProductFormState(
         heightCm: parsedHeight,
         packagingCharge: Math.max(0, Number(item.packagingCharge) || 0),
         packagingChargeType: item.packagingChargeType || "per_unit",
-        images: validImages.length > 0 ? validImages : [{ url: "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80", alt: `${title || 'Product'} Default Image` }],
+        images: validImages,
         subVariants: (item.subVariants || []).map((sv: any) => {
           const parsedMoq = (sv.b2bMoq !== null && sv.b2bMoq !== undefined && !isNaN(Number(sv.b2bMoq)) && Number(sv.b2bMoq) > 0)
             ? Math.max(1, Math.floor(Number(sv.b2bMoq)))
@@ -721,6 +724,13 @@ export function useProductFormState(
         })
       };
     });
+
+    // Validate image is provided for every variant color
+    const missingImages = finalVariants.some(v => !v.images || v.images.length === 0);
+    if (missingImages) {
+      addToast("At least one image is mandatory for each variant color. Please upload or add an image URL.", "error");
+      return;
+    }
 
     // Validate weight is not empty for any variant
     const missingWeight = finalVariants.some(v => v.subVariants.some((sv: any) => !sv.weight || sv.weight.trim() === ""));

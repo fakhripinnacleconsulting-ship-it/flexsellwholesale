@@ -12,7 +12,7 @@ import { useWishlistStore } from "@/stores/wishlistStore";
 import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
-import { resolvePrice, canPurchase, resolveMoq, isPureB2B } from "@/lib/priceTierHelper";
+import { resolvePrice, canPurchase, resolveMoq, isPureB2B, type PriceTier } from "@/lib/priceTierHelper";
 
 interface ProductCardProps {
   product: Product;
@@ -71,14 +71,22 @@ export function ProductCard({ product }: ProductCardProps) {
     return () => clearInterval(interval);
   }, [allImages.length, isHovered]);
 
-  const customerTypes = customer?.customerTypes || ["B2C"];
-  const purchaseAllowed = !customer || canPurchase(customerTypes);
+  const customerTypes = customer?.customerTypes;
+  const hasCustomerTypes = Boolean(customerTypes && customerTypes.length > 0);
+
+  const effectiveTierOrTypes: PriceTier | string[] = hasCustomerTypes
+    ? customerTypes!
+    : (product.defaultPriceTier || "B2C");
+
+  const purchaseAllowed = !customer || canPurchase(hasCustomerTypes ? customerTypes! : ["B2C"]);
   
-  const moq = defaultSub ? resolveMoq(defaultSub, customerTypes) : 1;
-  const pureB2B = isPureB2B(customerTypes);
+  const moq = defaultSub ? resolveMoq(defaultSub, effectiveTierOrTypes) : 1;
+  const pureB2B = Array.isArray(effectiveTierOrTypes)
+    ? isPureB2B(effectiveTierOrTypes)
+    : effectiveTierOrTypes === "B2B";
   const orderQty = pureB2B ? moq : 1;
 
-  const price = defaultSub ? resolvePrice(defaultSub, customerTypes, orderQty) : 0;
+  const price = defaultSub ? resolvePrice(defaultSub, effectiveTierOrTypes, orderQty) : 0;
   const mrp = defaultSub?.mrp ?? 0;
   const discount = mrp > price && mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
@@ -267,7 +275,7 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
 
         {/* Fixed B2B MOQ Badge */}
-        {(customer?.customerTypes?.includes("B2B") && defaultSub?.b2bMoq) && (
+        {((pureB2B || (Array.isArray(effectiveTierOrTypes) && effectiveTierOrTypes.includes("B2B"))) && defaultSub?.b2bMoq && defaultSub.b2bMoq > 1) && (
           <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] font-mono px-1.5 py-0.5 rounded z-20 shadow-xs">
             MOQ: {defaultSub.b2bMoq} pcs
           </div>

@@ -11,6 +11,7 @@ import { useCartStore } from "@/stores/cartStore";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
 import { Product } from "@/types";
+import { resolvePrice } from "@/lib/priceTierHelper";
 
 export function SuggestedProductsCarousel() {
   const { items, addItem } = useCartStore();
@@ -179,7 +180,7 @@ export function SuggestedProductsCarousel() {
           const firstSubVariant = firstVariant?.subVariants?.[0];
           const firstImg = firstVariant?.images?.[0];
           const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
-          const price = firstSubVariant?.b2cPrice || firstSubVariant?.b2bPrice || 0;
+          const price = firstSubVariant ? resolvePrice(firstSubVariant, product.defaultPriceTier || "B2C") : 0;
           const wholesalePrice = firstSubVariant?.b2bPrice || price;
           const isAdded = addedProductId === product._id;
 

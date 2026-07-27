@@ -290,7 +290,11 @@ export function VariantCard({
         </div>
 
         <div className="space-y-3 pt-4 border-t">
-          <label className="text-xs font-semibold uppercase text-muted-foreground block">Variant Images (1:1 Ratio Only)</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold uppercase text-muted-foreground block">
+              Variant Images (1:1 Ratio Only) <span className="text-destructive font-bold">* Mandatory</span>
+            </label>
+          </div>
 
           {(() => {
             const validImages = (item.images || []).filter((img: any) =>
@@ -298,7 +302,11 @@ export function VariantCard({
             );
 
             if (validImages.length === 0) {
-              return <p className="text-xs text-muted-foreground italic">No images added yet. Add an image or upload one below.</p>;
+              return (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-xs text-destructive font-medium flex items-center gap-2">
+                  <span className="font-bold">⚠️ Action Required:</span> At least one image URL or file upload is required for this variant color.
+                </div>
+              );
             }
 
             return (
@@ -324,7 +332,7 @@ export function VariantCard({
                               alt={imgAlt}
                               className="h-10 w-10 object-cover rounded border bg-secondary mx-auto"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80";
+                                (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E";
                               }}
                             />
                           </td>

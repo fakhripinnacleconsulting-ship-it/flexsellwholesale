@@ -146,7 +146,7 @@ export const colorVariantSchema = z.object({
   heightCm: z.number().nonnegative().nullable().optional().default(null),
   packagingCharge: z.number().nonnegative().optional().default(0),
   packagingChargeType: z.enum(["per_unit", "per_order"]).optional().default("per_unit"),
-  images: z.array(z.any()).optional().default([]),
+  images: z.array(z.any()).min(1, "At least 1 image is required for each variant color"),
   subVariants: z.array(subVariantSchema).min(1, "At least 1 sub-variant is required"),
 });
 
