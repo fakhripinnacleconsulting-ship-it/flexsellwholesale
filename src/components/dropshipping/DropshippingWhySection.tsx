@@ -58,7 +58,7 @@ export function DropshippingWhySection({ data }: DropshippingWhySectionProps) {
           </h2>
           <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
             {data?.subheading ||
-              "FlexSell provides a turnkey solution that handles inventory, catalog research, warehousing, and order fulfillment directly from our Surat hub."}
+              "FlexSell provides a turnkey solution that handles inventory, catalog research, warehousing, and order fulfillment directly from our Bhopal hub."}
           </p>
         </motion.div>
 
@@ -82,7 +82,7 @@ export function DropshippingWhySection({ data }: DropshippingWhySectionProps) {
               Smarter Amazon Selling Model 2026
             </span>
             <span className="text-xs text-slate-300 hidden sm:inline-block">
-              Surat 40,000 Sq Ft Warehousing Facility
+              Bhopal 40,000 Sq Ft Warehousing Facility
             </span>
           </div>
         </motion.div>
@@ -96,12 +96,12 @@ export function DropshippingWhySection({ data }: DropshippingWhySectionProps) {
               (index === 0
                 ? "/images/dropshipping/image27.jpeg"
                 : index === 1
-                ? "/images/dropshipping/image26.jpeg"
-                : index === 4
-                ? "/images/dropshipping/image33.jpeg"
-                : index === 5
-                ? "/images/dropshipping/image47.jpeg"
-                : undefined);
+                  ? "/images/dropshipping/image26.jpeg"
+                  : index === 4
+                    ? "/images/dropshipping/image33.jpeg"
+                    : index === 5
+                      ? "/images/dropshipping/image47.jpeg"
+                      : undefined);
 
             return (
               <motion.div

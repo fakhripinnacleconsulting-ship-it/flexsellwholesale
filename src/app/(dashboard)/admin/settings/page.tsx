@@ -26,7 +26,7 @@ export default function AdminSettingsPage() {
   const [bankName, setBankName] = React.useState("HDFC Bank");
   const [accountNo, setAccountNo] = React.useState("50200084729104");
   const [ifscCode, setIfscCode] = React.useState("HDFC0000024");
-  const [branch, setBranch] = React.useState("Sachin GIDC, Surat");
+  const [branch, setBranch] = React.useState("Sachin GIDC, Bhopal");
 
   // Commerce settings states
   const [minOrderValue, setMinOrderValue] = React.useState("1000");
@@ -207,25 +207,22 @@ export default function AdminSettingsPage() {
       <div className="flex border-b gap-4 overflow-x-auto">
         <button
           onClick={() => handleTabSelect("general")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "general" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "general" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
         >
           General & Bank Settings
         </button>
         <button
           onClick={() => handleTabSelect("id")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "id" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "id" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
         >
           ID Format Manager
         </button>
         <button
           onClick={() => handleTabSelect("theme")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "theme" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "theme" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
         >
           Theme & Appearance
         </button>
@@ -313,11 +310,11 @@ export default function AdminSettingsPage() {
                   <label className="text-sm font-medium">Enable Cash on Delivery (COD)</label>
                   <p className="text-xs text-muted-foreground">Allow COD payment method for buyers.</p>
                 </div>
-                <input 
-                  type="checkbox" 
-                  checked={enableCod} 
-                  onChange={(e) => setEnableCod(e.target.checked)} 
-                  className="h-4 w-4 rounded text-primary focus:ring-primary bg-background border-border cursor-pointer" 
+                <input
+                  type="checkbox"
+                  checked={enableCod}
+                  onChange={(e) => setEnableCod(e.target.checked)}
+                  className="h-4 w-4 rounded text-primary focus:ring-primary bg-background border-border cursor-pointer"
                 />
               </div>
               <div className="flex items-center justify-between pt-2">
@@ -325,11 +322,11 @@ export default function AdminSettingsPage() {
                   <label className="text-sm font-medium">Enable Online Payments</label>
                   <p className="text-xs text-muted-foreground">Allow Razorpay (UPI, Cards, Netbanking).</p>
                 </div>
-                <input 
-                  type="checkbox" 
-                  checked={enableOnlinePayment} 
-                  onChange={(e) => setEnableOnlinePayment(e.target.checked)} 
-                  className="h-4 w-4 rounded text-primary focus:ring-primary bg-background border-border cursor-pointer" 
+                <input
+                  type="checkbox"
+                  checked={enableOnlinePayment}
+                  onChange={(e) => setEnableOnlinePayment(e.target.checked)}
+                  className="h-4 w-4 rounded text-primary focus:ring-primary bg-background border-border cursor-pointer"
                 />
               </div>
             </CardContent>

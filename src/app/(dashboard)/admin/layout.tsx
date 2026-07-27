@@ -19,6 +19,7 @@ import { Notification } from "@/types";
 function AdminNotificationBell() {
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [isOpen, setIsOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   const fetchNotifs = React.useCallback(async () => {
     try {
@@ -35,6 +36,33 @@ function AdminNotificationBell() {
     return () => clearInterval(interval);
   }, [fetchNotifs]);
 
+  // Auto-close on click outside or Escape key
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const handleMarkRead = async (id: string) => {
@@ -48,7 +76,7 @@ function AdminNotificationBell() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-lg hover:bg-secondary text-foreground cursor-pointer transition-colors border border-border bg-card"

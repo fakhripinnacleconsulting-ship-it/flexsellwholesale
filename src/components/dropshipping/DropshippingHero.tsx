@@ -76,7 +76,7 @@ export function DropshippingHero({ data, onRegisterClick }: DropshippingHeroProp
               className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal max-w-2xl"
             >
               {data?.subtitle ||
-                "More Sales. Less Risk. Zero Inventory Investment. We handle product sourcing, quality control, storage, and order dispatch directly to your Amazon customers from our Surat hub."}
+                "More Sales. Less Risk. Zero Inventory Investment. We handle product sourcing, quality control, storage, and order dispatch directly to your Amazon customers from our Bhopal hub."}
             </motion.p>
 
             {/* Highlight Banner */}
@@ -192,7 +192,7 @@ export function DropshippingHero({ data, onRegisterClick }: DropshippingHeroProp
                   <CheckCircle className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-extrabold text-white">Surat 40,000 Sq Ft Hub</h4>
+                  <h4 className="text-xs font-extrabold text-white">Bhopal 40,000 Sq Ft Hub</h4>
                   <p className="text-[11px] text-slate-300">100% Quality Checked & White-labeled Packaging</p>
                 </div>
               </div>

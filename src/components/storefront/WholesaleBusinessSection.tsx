@@ -34,7 +34,7 @@ export function WholesaleBusinessSection({ data }: WholesaleBusinessSectionProps
   const defaultCards: WholesaleCardItem[] = [
     { icon: "price", title: "Direct Factory Prices", desc: "No middle-man wholesalers. Container-loads imported directly from global manufacturers to give you up to 40% higher retail margins.", badge: "Lowest Price Guaranteed" },
     { icon: "quality", title: "Rigorous Quality Line", desc: "Dedicated sorting and packaging line checking electricals, plastic grades, and silicon seals before dispatch.", badge: "Tested & Approved" },
-    { icon: "shipping", title: "Express Freight Cargo", desc: "Partnership with Delhivery, Gati, and V-Trans for safe, fast ground heavy shipment delivery.", badge: "Surat Logistics Hub" },
+    { icon: "shipping", title: "Express Freight Cargo", desc: "Partnership with Delhivery, Gati, and V-Trans for safe, fast ground heavy shipment delivery.", badge: "Bhopal Logistics Hub" },
     { icon: "invoice", title: "Instant GST ITC Invoicing", desc: "Automated GST invoices generated during checkout to claim your full Input Tax Credit.", badge: "100% Tax Compliant" }
   ];
 

@@ -97,7 +97,7 @@ export default function OrderConfirmationPage() {
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8 text-foreground w-full print:bg-white print:text-black">
       {/* Screen layout */}
       <div className="max-w-3xl mx-auto space-y-8 print:hidden">
-        
+
         {/* Success Header Card */}
         <div className="text-center space-y-4">
           <div className="inline-flex items-center justify-center p-3 bg-emerald-500/10 text-emerald-500 rounded-full animate-bounce">
@@ -121,7 +121,7 @@ export default function OrderConfirmationPage() {
 
         {/* Main Details Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
+
           {/* Order Summary */}
           <Card className="md:col-span-2 border-border/60 shadow-sm">
             <CardHeader className="border-b bg-secondary/10">
@@ -130,7 +130,7 @@ export default function OrderConfirmationPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              
+
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wider">Order Reference</span>
@@ -245,7 +245,7 @@ export default function OrderConfirmationPage() {
           sellerInfo={{
             storeName: cmsData?.brandSettings?.storeName || "FlexSell Wholesale",
             gstin: cmsData?.brandSettings?.gstin || "24AAACF1001M1Z5",
-            address: cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Surat, Gujarat - 394230",
+            address: cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
             email: cmsData?.brandSettings?.supportEmail || "support@flexsell.in",
             phone: cmsData?.brandSettings?.supportPhone || "+91 261 2409000",
           }}

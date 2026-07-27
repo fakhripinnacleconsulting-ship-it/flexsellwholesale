@@ -411,7 +411,7 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
                 sellerInfo={{
                   storeName: cmsData?.brandSettings?.storeName || "FlexSell Wholesale",
                   gstin: cmsData?.brandSettings?.gstin || "24AAACF1001M1Z5",
-                  address: cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Surat, Gujarat - 394230",
+                  address: cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
                   email: cmsData?.brandSettings?.supportEmail || "support@flexsell.in",
                   phone: cmsData?.brandSettings?.supportPhone || "+91 261 2409000",
                 }}
@@ -489,7 +489,7 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
                             window.open(data.labelUrl, "_blank");
                             return;
                           }
-                        } catch {}
+                        } catch { }
                       }
                       setShowLabelModal(true);
                     }}
@@ -527,12 +527,11 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
               <div className="relative pl-4 border-l border-border space-y-6 ml-1 text-xs">
                 {order.history && order.history.map((ev, i) => (
                   <div key={i} className="relative space-y-1">
-                    <div className={`absolute -left-[21.5px] top-1 h-3 w-3 rounded-full border-2 bg-background ${
-                      ev.status === "Delivered" ? "border-green-600 bg-green-600" :
-                      ev.status === "Shipped" ? "border-primary bg-primary" :
-                      ev.status === "Cancelled" ? "border-destructive bg-destructive" :
-                      "border-yellow-500 bg-yellow-500"
-                    }`} />
+                    <div className={`absolute -left-[21.5px] top-1 h-3 w-3 rounded-full border-2 bg-background ${ev.status === "Delivered" ? "border-green-600 bg-green-600" :
+                        ev.status === "Shipped" ? "border-primary bg-primary" :
+                          ev.status === "Cancelled" ? "border-destructive bg-destructive" :
+                            "border-yellow-500 bg-yellow-500"
+                      }`} />
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-foreground">{ev.status}</span>
                       <span className="text-[10px] text-muted-foreground">{ev.timestamp}</span>
@@ -635,10 +634,10 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
                               onChange={(e) => handleItemQtyChange(item.id, parseInt(e.target.value, 10) || 1)}
                             />
                           </div>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
                             className="h-8 text-destructive hover:bg-destructive/5"
                             onClick={() => handleRemoveItem(item.id)}
                           >

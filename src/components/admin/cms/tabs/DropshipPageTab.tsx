@@ -695,7 +695,7 @@ export function DropshipPageTab({ data, setData, isSaving, onSave }: DropshipPag
                       ],
                       features: [
                         "5-6 Curated High-Margin Products Listed Monthly",
-                        "Surat 40,000 Sq Ft Warehouse Storage",
+                        "Bhopal 40,000 Sq Ft Warehouse Storage",
                         "Automated Inventory Updates",
                       ],
                       isActive: true,

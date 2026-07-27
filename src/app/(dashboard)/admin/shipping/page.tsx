@@ -238,31 +238,28 @@ export default function AdminShippingPage() {
       <div className="flex border-b border-border text-sm font-bold gap-6">
         <button
           onClick={() => setActiveTab("weight")}
-          className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer ${
-            activeTab === "weight"
+          className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer ${activeTab === "weight"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+            }`}
         >
           Weight-Based Slabs (B2C & Dropshipping)
         </button>
         <button
           onClick={() => setActiveTab("b2b")}
-          className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer ${
-            activeTab === "b2b"
+          className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer ${activeTab === "b2b"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+            }`}
         >
           B2B Cargo Shipping
         </button>
         <button
           onClick={() => setActiveTab("shiprocket")}
-          className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer flex items-center gap-1.5 ${
-            activeTab === "shiprocket"
+          className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer flex items-center gap-1.5 ${activeTab === "shiprocket"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+            }`}
         >
           <Rocket className="h-4 w-4" /> Shiprocket Integration
         </button>
@@ -427,192 +424,192 @@ export default function AdminShippingPage() {
                 </div>
               </CardHeader>
 
-            <CardContent className="space-y-6">
-              {/* Credentials sub-form */}
-              <div className="space-y-4 border p-4 rounded-xl bg-card">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-primary">1. Shiprocket API Credentials</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">Account Email *</label>
-                    <Input
-                      type="email"
-                      placeholder="e.g. shiprocket@flexsell.in"
-                      value={srEmail}
-                      onChange={(e) => setSrEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">Account Password * [Encrypted AES-256-GCM]</label>
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      value={srPassword}
-                      onChange={(e) => setSrPassword(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">Channel ID (Optional)</label>
-                    <Input
-                      placeholder="e.g. 102938"
-                      value={srChannelId}
-                      onChange={(e) => setSrChannelId(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">Webhook Verification Token (Optional)</label>
-                    <Input
-                      placeholder="e.g. secret-webhook-token"
-                      value={srWebhookToken}
-                      onChange={(e) => setSrWebhookToken(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Pickup Address sub-form */}
-              <div className="space-y-4 border p-4 rounded-xl bg-card">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-primary">2. Origin Pickup Address (Warehouse)</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">Contact / Warehouse Name *</label>
-                    <Input
-                      placeholder="e.g. Surat Central Warehouse"
-                      value={pickupName}
-                      onChange={(e) => setPickupName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">Contact Phone *</label>
-                    <Input
-                      placeholder="e.g. 9876543210"
-                      value={pickupPhone}
-                      onChange={(e) => setPickupPhone(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">Street Address *</label>
-                  <Input
-                    placeholder="e.g. Plot 12, GIDC Sachin Industrial Estate"
-                    value={pickupAddress}
-                    onChange={(e) => setPickupAddress(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">City *</label>
-                    <Input
-                      placeholder="Surat"
-                      value={pickupCity}
-                      onChange={(e) => setPickupCity(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">State *</label>
-                    <Input
-                      placeholder="Gujarat"
-                      value={pickupState}
-                      onChange={(e) => setPickupState(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">Pin Code *</label>
-                    <Input
-                      placeholder="395003"
-                      value={pickupPinCode}
-                      onChange={(e) => setPickupPinCode(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Test Connection Button & Results Display [UPDATED-6] */}
-              <div className="p-4 border rounded-xl bg-secondary/10 space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider">Test Connection & Serviceability</h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">Verifies authentication, channel ID, and origin pincode registration.</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleTestConnection}
-                    disabled={isTesting}
-                    className="font-bold flex items-center gap-2 cursor-pointer text-xs"
-                  >
-                    {isTesting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-                    {isTesting ? "Testing..." : "Test Connection"}
-                  </Button>
-                </div>
-
-                {testResult && (
-                  <div className="p-3 bg-background border rounded-lg text-xs space-y-2 font-mono">
-                    <div className="flex items-center gap-2">
-                      {testResult.authOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                      <span>Authentication Check: {testResult.authOk ? "Passed" : "Failed"}</span>
+              <CardContent className="space-y-6">
+                {/* Credentials sub-form */}
+                <div className="space-y-4 border p-4 rounded-xl bg-card">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary">1. Shiprocket API Credentials</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Account Email *</label>
+                      <Input
+                        type="email"
+                        placeholder="e.g. shiprocket@flexsell.in"
+                        value={srEmail}
+                        onChange={(e) => setSrEmail(e.target.value)}
+                      />
                     </div>
-                    <div className="flex items-center gap-2">
-                      {testResult.channelOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                      <span>Channel Verification: {testResult.channelOk ? "Passed" : "Failed / Optional"}</span>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Account Password * [Encrypted AES-256-GCM]</label>
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        value={srPassword}
+                        onChange={(e) => setSrPassword(e.target.value)}
+                      />
                     </div>
-                    <div className="flex items-center gap-2">
-                      {testResult.pickupOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                      <span>Pickup Pincode Serviceability: {testResult.pickupOk ? "Passed" : "Failed"}</span>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Channel ID (Optional)</label>
+                      <Input
+                        placeholder="e.g. 102938"
+                        value={srChannelId}
+                        onChange={(e) => setSrChannelId(e.target.value)}
+                      />
                     </div>
-
-                    {testResult.error && (
-                      <div className="mt-2 text-destructive border-t pt-2 font-sans leading-relaxed">
-                        ⚠ {testResult.error}
-                      </div>
-                    )}
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Webhook Verification Token (Optional)</label>
+                      <Input
+                        placeholder="e.g. secret-webhook-token"
+                        value={srWebhookToken}
+                        onChange={(e) => setSrWebhookToken(e.target.value)}
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
-
-              {/* Webhook URLs display */}
-              <div className="p-4 border rounded-xl bg-card space-y-4">
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Shiprocket Webhook Listener Endpoints</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Copy and paste the URL matching your deployment environment into your Shiprocket Dashboard under <strong>Settings ➔ API ➔ Webhooks</strong>:
-                  </p>
                 </div>
 
-                <div className="space-y-3">
-                  {webhookEndpoints.map((ep) => (
-                    <div key={ep.id} className="p-3 bg-secondary/15 rounded-lg border space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-foreground">{ep.label}</span>
-                        <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary">
-                          {ep.badge}
-                        </span>
+                {/* Pickup Address sub-form */}
+                <div className="space-y-4 border p-4 rounded-xl bg-card">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary">2. Origin Pickup Address (Warehouse)</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Contact / Warehouse Name *</label>
+                      <Input
+                        placeholder="e.g. Bhopal Central Warehouse"
+                        value={pickupName}
+                        onChange={(e) => setPickupName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Contact Phone *</label>
+                      <Input
+                        placeholder="e.g. 9876543210"
+                        value={pickupPhone}
+                        onChange={(e) => setPickupPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold">Street Address *</label>
+                    <Input
+                      placeholder="e.g. Plot 12, GIDC Sachin Industrial Estate"
+                      value={pickupAddress}
+                      onChange={(e) => setPickupAddress(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">City *</label>
+                      <Input
+                        placeholder="Bhopal"
+                        value={pickupCity}
+                        onChange={(e) => setPickupCity(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">State *</label>
+                      <Input
+                        placeholder="Gujarat"
+                        value={pickupState}
+                        onChange={(e) => setPickupState(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Pin Code *</label>
+                      <Input
+                        placeholder="395003"
+                        value={pickupPinCode}
+                        onChange={(e) => setPickupPinCode(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Test Connection Button & Results Display [UPDATED-6] */}
+                <div className="p-4 border rounded-xl bg-secondary/10 space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider">Test Connection & Serviceability</h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">Verifies authentication, channel ID, and origin pincode registration.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleTestConnection}
+                      disabled={isTesting}
+                      className="font-bold flex items-center gap-2 cursor-pointer text-xs"
+                    >
+                      {isTesting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+                      {isTesting ? "Testing..." : "Test Connection"}
+                    </Button>
+                  </div>
+
+                  {testResult && (
+                    <div className="p-3 bg-background border rounded-lg text-xs space-y-2 font-mono">
+                      <div className="flex items-center gap-2">
+                        {testResult.authOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                        <span>Authentication Check: {testResult.authOk ? "Passed" : "Failed"}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Input readOnly value={ep.url} className="font-mono text-xs bg-background" />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyEndpointUrl(ep.url, ep.id)}
-                          className="shrink-0 font-semibold cursor-pointer h-9 px-3"
-                        >
-                          {copiedId === ep.id ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                          <span className="ml-1.5 text-xs">{copiedId === ep.id ? "Copied" : "Copy"}</span>
-                        </Button>
+                        {testResult.channelOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                        <span>Channel Verification: {testResult.channelOk ? "Passed" : "Failed / Optional"}</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                      <div className="flex items-center gap-2">
+                        {testResult.pickupOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                        <span>Pickup Pincode Serviceability: {testResult.pickupOk ? "Passed" : "Failed"}</span>
+                      </div>
 
-              {/* Save Button Bar */}
-              <div className="flex justify-end pt-4 border-t">
-                <Button onClick={handleSave} disabled={isSaving} size="lg" className="font-bold flex items-center gap-2 cursor-pointer bg-primary text-primary-foreground">
-                  <Save className="h-4.5 w-4.5" /> {isSaving ? "Saving Configuration..." : "Save Shiprocket Credentials & Settings"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                      {testResult.error && (
+                        <div className="mt-2 text-destructive border-t pt-2 font-sans leading-relaxed">
+                          ⚠ {testResult.error}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Webhook URLs display */}
+                <div className="p-4 border rounded-xl bg-card space-y-4">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Shiprocket Webhook Listener Endpoints</h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Copy and paste the URL matching your deployment environment into your Shiprocket Dashboard under <strong>Settings ➔ API ➔ Webhooks</strong>:
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {webhookEndpoints.map((ep) => (
+                      <div key={ep.id} className="p-3 bg-secondary/15 rounded-lg border space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-foreground">{ep.label}</span>
+                          <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary">
+                            {ep.badge}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input readOnly value={ep.url} className="font-mono text-xs bg-background" />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyEndpointUrl(ep.url, ep.id)}
+                            className="shrink-0 font-semibold cursor-pointer h-9 px-3"
+                          >
+                            {copiedId === ep.id ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                            <span className="ml-1.5 text-xs">{copiedId === ep.id ? "Copied" : "Copy"}</span>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Save Button Bar */}
+                <div className="flex justify-end pt-4 border-t">
+                  <Button onClick={handleSave} disabled={isSaving} size="lg" className="font-bold flex items-center gap-2 cursor-pointer bg-primary text-primary-foreground">
+                    <Save className="h-4.5 w-4.5" /> {isSaving ? "Saving Configuration..." : "Save Shiprocket Credentials & Settings"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

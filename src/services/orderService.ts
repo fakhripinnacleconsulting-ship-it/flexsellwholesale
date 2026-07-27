@@ -28,7 +28,7 @@ function getLocalOrders(): Order[] {
             lastName: "Doeer",
             email: "jane@retail.com",
             address: "Sector 5, Market Area",
-            city: "Surat",
+            city: "Bhopal",
             state: "Gujarat",
             pinCode: "395003",
             phone: "9876543210"
@@ -58,7 +58,7 @@ function getLocalOrders(): Order[] {
             lastName: "Doeer",
             email: "jane@retail.com",
             address: "Sector 5, Market Area",
-            city: "Surat",
+            city: "Bhopal",
             state: "Gujarat",
             pinCode: "395003",
             phone: "9876543210"
@@ -92,10 +92,10 @@ function saveLocalOrders(orders: Order[]) {
 }
 
 export const orderService = {
-  async getOrders(params?: { 
-    page?: number; 
-    limit?: number; 
-    startDate?: string; 
+  async getOrders(params?: {
+    page?: number;
+    limit?: number;
+    startDate?: string;
     endDate?: string;
     orderType?: string;
     origin?: string;
@@ -138,7 +138,7 @@ export const orderService = {
     if (params?.endDate) queryParams.push(`endDate=${params.endDate}`);
     if (params?.orderType) queryParams.push(`orderType=${params.orderType}`);
     if (params?.origin) queryParams.push(`origin=${params.origin}`);
-    
+
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;
     }
@@ -161,7 +161,7 @@ export const orderService = {
   ): Promise<Order> {
     if (isMockMode) {
       const orders = getLocalOrders();
-      
+
       // Idempotency check for quoteId
       if (quoteId) {
         const existing = orders.find(o => o.quoteId === quoteId);
@@ -177,7 +177,7 @@ export const orderService = {
       // Generate invoice/receipt in local storage
       const invoicesRaw = localStorage.getItem(INVOICES_STORAGE_KEY);
       const invoices = invoicesRaw ? JSON.parse(invoicesRaw) : [];
-      
+
       const newDoc: Invoice = {
         _id: invoiceId,
         type: docType,
@@ -203,7 +203,7 @@ export const orderService = {
         sellerInfo: {
           storeName: "FlexSell Wholesale",
           gstin: "24AAACF1001M1Z5",
-          address: "Plot No. 12, GIDC, Surat, Gujarat - 394230",
+          address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
           email: "support@flexsell.in",
           phone: "+91 261 2409000"
         },
@@ -270,10 +270,10 @@ export const orderService = {
       return newOrder;
     }
 
-    return apiClient.post<Order>("/orders", { 
-      items, 
-      amount, 
-      shippingAddress, 
+    return apiClient.post<Order>("/orders", {
+      items,
+      amount,
+      shippingAddress,
       paymentDetails,
       couponCode,
       couponDiscount,
@@ -283,7 +283,7 @@ export const orderService = {
   },
 
   async updateOrderStatus(
-    id: string, 
+    id: string,
     status: Order["status"],
     paymentDetails?: { paymentStatus: string; paymentMethod: string; transactionId?: string }
   ): Promise<Order> {
@@ -297,9 +297,9 @@ export const orderService = {
         ...match,
         status,
         statusClass: status === "Delivered" ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-400" :
-                     status === "Shipped" ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-400" :
-                     status === "Cancelled" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400" :
-                     "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-400",
+          status === "Shipped" ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-400" :
+            status === "Cancelled" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400" :
+              "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-400",
         paymentStatus: paymentDetails?.paymentStatus ? (paymentDetails.paymentStatus as any) : match.paymentStatus,
         paymentMethod: paymentDetails?.paymentMethod ? (paymentDetails.paymentMethod as any) : match.paymentMethod,
         transactionId: paymentDetails?.transactionId ? paymentDetails.transactionId : match.transactionId,
@@ -327,7 +327,7 @@ export const orderService = {
 
       return updatedOrder;
     }
-    return apiClient.put<Order>(`/orders/${id}/status`, { 
+    return apiClient.put<Order>(`/orders/${id}/status`, {
       status,
       paymentStatus: paymentDetails?.paymentStatus,
       paymentMethod: paymentDetails?.paymentMethod,

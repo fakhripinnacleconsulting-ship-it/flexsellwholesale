@@ -41,7 +41,7 @@ function QuoteContent() {
     return items.map((item) => {
       const liveProduct = products.find(p => p._id === item.productId || p._id === item.product?._id) || item.product;
       const { color: matchingColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(item.selectedVariants);
-      
+
       const activeVariant = liveProduct?.colorVariants?.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
         || liveProduct?.colorVariants?.[0];
       const activeSubVariant = activeVariant?.subVariants?.find((sv: any) =>
@@ -63,7 +63,7 @@ function QuoteContent() {
   const taxDetails = React.useMemo(() => {
     const isIntrastate = (buyerState || "Madhya Pradesh") === "Madhya Pradesh";
     const hsnBreakdown: Record<string, any> = {};
-    
+
     let baseSubtotal = 0;
     let totalCgst = 0;
     let totalSgst = 0;
@@ -151,7 +151,7 @@ function QuoteContent() {
   const sellerInfo: SellerInfo = {
     storeName: bs.storeName || "FlexSell Wholesale",
     gstin: bs.gstin || "24AAACF1001M1Z5",
-    address: bs.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Surat, Gujarat - 394230",
+    address: bs.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
     email: bs.supportEmail || "support@flexsell.in",
     phone: bs.supportPhone || "+91 261 2409000",
   };

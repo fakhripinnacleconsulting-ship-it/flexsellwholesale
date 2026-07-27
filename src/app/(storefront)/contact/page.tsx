@@ -61,7 +61,7 @@ export default function ContactPage() {
       <div className="text-center mb-12">
         <h1 className="text-4xl font-extrabold tracking-tight mb-4">Contact FlexSell B2B Support</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Got bulk inquiries, custom cargo shipping concerns, or looking to schedule a Surat warehouse visit? Reach out directly.
+          Got bulk inquiries, custom cargo shipping concerns, or looking to schedule a Bhopal warehouse visit? Reach out directly.
         </p>
       </div>
 
@@ -79,10 +79,10 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-bold">Central Warehouse & Hub</h3>
-                  <p className="text-sm text-muted-foreground mt-1">D-104, B2B Logistic Zone, Kadodara Road, Surat, Gujarat - 394327</p>
+                  <p className="text-sm text-muted-foreground mt-1">D-104, B2B Logistic Zone, Kadodara Road, Bhopal, Gujarat - 394327</p>
                 </div>
               </div>
-              
+
               <div className="flex gap-4">
                 <div className="bg-primary/10 p-3 rounded-full h-fit shrink-0">
                   <Phone className="h-6 w-6 text-primary" />
@@ -110,8 +110,8 @@ export default function ContactPage() {
           {/* Embedded Google Map */}
           <div className="rounded-xl overflow-hidden border shadow-sm h-64 bg-secondary">
             <iframe
-              title="Surat Warehouse Location Map"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d119066.41709440624!2d72.75225624765377!3d21.16102684534724!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be04e59411d1563%3A0xfe4558290938b042!2sSurat%2C%20Gujarat!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
+              title="Bhopal Warehouse Location Map"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d119066.41709440624!2d72.75225624765377!3d21.16102684534724!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be04e59411d1563%3A0xfe4558290938b042!2sBhopal%2C%20Gujarat!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
               className="w-full h-full border-0"
               allowFullScreen
               loading="lazy"
@@ -149,12 +149,12 @@ export default function ContactPage() {
                     <Input placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} required disabled={isSubmitting} />
                   </div>
                 </div>
-                
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold">Email Address *</label>
                   <Input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={isSubmitting} />
                 </div>
-                
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold">Subject Category *</label>
                   <select
@@ -173,9 +173,9 @@ export default function ContactPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold">Message *</label>
-                  <textarea 
+                  <textarea
                     rows={4}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary" 
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
                     placeholder="How can our B2B team help you?"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}

@@ -96,8 +96,8 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
           <div className="relative flex justify-between items-center max-w-3xl mx-auto">
             {/* Connection Line */}
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted -z-0" />
-            <div 
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary transition-all duration-500 -z-0" 
+            <div
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary transition-all duration-500 -z-0"
               style={{ width: `${(Math.max(0, currentStepIdx) / (steps.length - 1)) * 100}%` }}
             />
 
@@ -106,11 +106,10 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
               const isCurrent = idx === currentStepIdx;
               return (
                 <div key={idx} className="relative z-10 flex flex-col items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-                    isActive 
-                      ? "border-primary bg-primary text-primary-foreground font-bold shadow-md" 
+                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${isActive
+                      ? "border-primary bg-primary text-primary-foreground font-bold shadow-md"
                       : "border-muted bg-background text-muted-foreground"
-                  } ${isCurrent ? "ring-4 ring-primary/20 scale-110" : ""}`}>
+                    } ${isCurrent ? "ring-4 ring-primary/20 scale-110" : ""}`}>
                     {isActive && idx < currentStepIdx ? (
                       <Check className="h-4 w-4 stroke-[3]" />
                     ) : (
@@ -146,7 +145,7 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
                 sellerInfo={{
                   storeName: cmsData?.brandSettings?.storeName || "FlexSell Wholesale",
                   gstin: cmsData?.brandSettings?.gstin || "24AAACF1001M1Z5",
-                  address: cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Surat, Gujarat - 394230",
+                  address: cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
                   email: cmsData?.brandSettings?.supportEmail || "support@flexsell.in",
                   phone: cmsData?.brandSettings?.supportPhone || "+91 261 2409000",
                 }}
@@ -230,12 +229,11 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
               <div className="relative pl-4 border-l border-border space-y-5 ml-1 text-xs">
                 {order.history && order.history.map((ev, i) => (
                   <div key={i} className="relative space-y-1">
-                    <div className={`absolute -left-[21.5px] top-1 h-3 w-3 rounded-full border-2 bg-background ${
-                      ev.status === "Delivered" ? "border-green-600 bg-green-600" :
-                      ev.status === "Shipped" ? "border-primary bg-primary" :
-                      ev.status === "Cancelled" ? "border-destructive bg-destructive" :
-                      "border-yellow-500 bg-yellow-500"
-                    }`} />
+                    <div className={`absolute -left-[21.5px] top-1 h-3 w-3 rounded-full border-2 bg-background ${ev.status === "Delivered" ? "border-green-600 bg-green-600" :
+                        ev.status === "Shipped" ? "border-primary bg-primary" :
+                          ev.status === "Cancelled" ? "border-destructive bg-destructive" :
+                            "border-yellow-500 bg-yellow-500"
+                      }`} />
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-foreground">{ev.status}</span>
                       <span className="text-[10px] text-muted-foreground">{ev.timestamp}</span>

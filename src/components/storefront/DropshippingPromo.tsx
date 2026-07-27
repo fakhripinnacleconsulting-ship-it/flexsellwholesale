@@ -42,7 +42,7 @@ export function DropshippingPromo({ data }: DropshippingPromoProps) {
   if (!activeData) return null;
 
   const heading = activeData.heading || "Start Your B2B Dropshipping Business";
-  const subheading = activeData.subheading || "Zero inventory risk. Ship directly to your retail buyers straight from our 40,000 sq ft Surat logistics hub.";
+  const subheading = activeData.subheading || "Zero inventory risk. Ship directly to your retail buyers straight from our 40,000 sq ft Bhopal logistics hub.";
   const ctaText = activeData.ctaText || "Explore Dropshipping Program & Register";
   const ctaLink = activeData.ctaLink || "/dropshipping";
   const features = activeData.features || [];

@@ -273,7 +273,7 @@ export default function ClientAddressesPage() {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="space-y-1.5">
                 <label className="font-bold text-muted-foreground">Address Label Name *</label>
-                <Input placeholder="e.g. Surat Main Office, Indore Warehouse" value={name} onChange={(e) => setName(e.target.value)} required />
+                <Input placeholder="e.g. Bhopal Main Office, Indore Warehouse" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -129,13 +129,13 @@ export const initialDropshippingCMSData: DropshippingCMSData = {
     stats: [
       { label: "Inventory Investment", value: "₹0" },
       { label: "Warehouse Storage Needed", value: "0 Sq Ft" },
-      { label: "Dispatched from Surat", value: "100% Managed" },
+      { label: "Dispatched from Bhopal", value: "100% Managed" },
       { label: "Handling Time", value: "3 Business Days" }
     ]
   },
   whyFlexsell: {
     heading: "Why Thousands of Sellers Are Moving Towards Smarter Selling",
-    subheading: "FlexSell provides a turnkey solution that handles inventory, catalog research, warehousing, and order fulfillment directly from our Surat hub.",
+    subheading: "FlexSell provides a turnkey solution that handles inventory, catalog research, warehousing, and order fulfillment directly from our Bhopal hub.",
     bannerImage: "/images/dropshipping/image2.png",
     benefits: [
       {
@@ -161,7 +161,7 @@ export const initialDropshippingCMSData: DropshippingCMSData = {
       {
         id: "b4",
         title: "No Warehouse Required",
-        description: "Eliminate storage space and facility costs. All products are safely stored in our Surat facility.",
+        description: "Eliminate storage space and facility costs. All products are safely stored in our Bhopal facility.",
         icon: "warehouse"
       },
       {
@@ -235,7 +235,7 @@ export const initialDropshippingCMSData: DropshippingCMSData = {
       {
         feature: "Warehouse & Storage Costs",
         traditional: "Monthly Storage / FBA Fees",
-        flexsell: "₹0 Storage Costs (Stored in Surat Facility)"
+        flexsell: "₹0 Storage Costs (Stored in Bhopal Facility)"
       },
       {
         feature: "Product Research Effort",
@@ -295,7 +295,7 @@ export const initialDropshippingCMSData: DropshippingCMSData = {
         ],
         features: [
           "5-6 Curated High-Margin Products Listed Monthly",
-          "Surat 40,000 Sq Ft Warehouse Storage & Packing",
+          "Bhopal 40,000 Sq Ft Warehouse Storage & Packing",
           "Real-time Tracking & Amazon Integration",
           "Dedicated Account Manager Assistance",
           "Zero Inventory Storage Fees"

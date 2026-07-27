@@ -29,7 +29,7 @@ async function seedShiprocket() {
       name: "FlexSell Central Warehouse",
       phone: "6263638053",
       address: "Plot 12, GIDC Industrial Estate, Sachin",
-      city: "Surat",
+      city: "Bhopal",
       state: "Gujarat",
       pinCode: "395003",
       country: "India"

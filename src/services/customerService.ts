@@ -52,7 +52,7 @@ export const customerService = {
               email: "jane@retail.com",
               company: "Doe Fashion Store",
               address: "Sector 5, Market Area",
-              city: "Surat",
+              city: "Bhopal",
               state: "Gujarat",
               pinCode: "395003",
               phone: "9876543210",
@@ -83,7 +83,7 @@ export const customerService = {
 
         if (params?.search) {
           const q = params.search.toLowerCase();
-          list = list.filter(c => 
+          list = list.filter(c =>
             c._id.toLowerCase().includes(q) ||
             c.name.toLowerCase().includes(q) ||
             c.email.toLowerCase().includes(q) ||

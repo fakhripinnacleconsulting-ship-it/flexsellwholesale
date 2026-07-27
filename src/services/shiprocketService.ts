@@ -13,10 +13,10 @@ function getLocalShiprocketConfig() {
       webhookToken: "mock-webhook-token-12345",
       channelId: "102938",
       pickupAddress: {
-        name: "FlexSell Surat Central Warehouse",
+        name: "FlexSell Bhopal Central Warehouse",
         phone: "9876543210",
         address: "Plot 12, GIDC Sachin",
-        city: "Surat",
+        city: "Bhopal",
         state: "Gujarat",
         pinCode: "395003",
         country: "India"
@@ -142,9 +142,9 @@ export const shiprocketService = {
           track_status: 1,
           shipment_status: "IN TRANSIT",
           shipment_track_activities: [
-            { date: "2026-07-23 09:30:00", activity: "Out for delivery", location: "Surat Central Hub" },
+            { date: "2026-07-23 09:30:00", activity: "Out for delivery", location: "Bhopal Central Hub" },
             { date: "2026-07-22 18:15:00", activity: "In Transit from Ahmedabad Sorting Facility", location: "Ahmedabad" },
-            { date: "2026-07-22 10:00:00", activity: "Picked up by Courier", location: "Surat Warehouse" }
+            { date: "2026-07-22 10:00:00", activity: "Picked up by Courier", location: "Bhopal Warehouse" }
           ]
         }
       };

@@ -14,7 +14,7 @@ export interface ShippingLabelDocumentProps {
 export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLabelDocumentProps) {
   const seller = sellerInfo || {
     storeName: "FlexSell Wholesale",
-    address: "Plot No. 12, GIDC Industrial Estate, Sachin, Surat, Gujarat - 394230",
+    address: "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
     email: "support@flexsell.in",
     phone: "+91 261 2409000",
     gstin: "24AAACF1001M1Z5",
@@ -43,8 +43,8 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
   const carrierTitle = shipment.type === "shiprocket"
     ? (shipment.shiprocket?.courierName || "Shiprocket Express")
     : shipment.type === "third-party"
-    ? (shipment.carrierName || "Third-Party Logistics")
-    : "FlexSell In-House Cargo Dispatch";
+      ? (shipment.carrierName || "Third-Party Logistics")
+      : "FlexSell In-House Cargo Dispatch";
 
   return (
     <div className="bg-background text-foreground p-4 max-w-2xl mx-auto space-y-4">
@@ -71,7 +71,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
 
       {/* PRINTABLE LABEL CONTAINER (4x6 ratio / A6 / A5 printable card) */}
       <div className="shipping-label-printable border-2 border-black bg-white text-black p-5 rounded-none font-sans space-y-4 shadow-lg print:shadow-none print:border-2 print:border-black print:m-0 print:p-4 print:w-full">
-        
+
         {/* Header Bar: Branding & Barcode */}
         <div className="border-b-2 border-black pb-3 flex justify-between items-start">
           <div>
@@ -101,7 +101,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
           {/* Simulated SVG Barcode */}
           <div className="flex flex-col items-center justify-center my-1.5">
             <div className="h-10 flex items-center gap-[2px] overflow-hidden">
-              {[3,1,2,4,1,3,1,2,3,1,4,2,1,3,2,1,4,1,2,3,1,2,4,1,3,1,2,3,1,4,2,1,3].map((w, i) => (
+              {[3, 1, 2, 4, 1, 3, 1, 2, 3, 1, 4, 2, 1, 3, 2, 1, 4, 1, 2, 3, 1, 2, 4, 1, 3, 1, 2, 3, 1, 4, 2, 1, 3].map((w, i) => (
                 <div key={i} className="bg-black h-full" style={{ width: `${w * 2}px` }} />
               ))}
             </div>
@@ -113,7 +113,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
 
         {/* Address Grid: SHIP TO (Destination) vs SHIP FROM (Origin) */}
         <div className="grid grid-cols-2 gap-4 border-b-2 border-black pb-4 text-xs">
-          
+
           {/* SHIP TO (Recipient) */}
           <div className="space-y-1.5 pr-2 border-r-2 border-black">
             <div className="bg-black text-white font-extrabold text-[10px] uppercase px-1.5 py-0.5 inline-block">

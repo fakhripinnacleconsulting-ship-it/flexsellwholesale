@@ -146,7 +146,7 @@ function LoginForm() {
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 shrink-0" />
-              <span>Surat Cargo Logistics Dispatch</span>
+              <span>Bhopal Cargo Logistics Dispatch</span>
             </div>
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 shrink-0" />

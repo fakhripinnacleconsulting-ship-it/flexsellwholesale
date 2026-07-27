@@ -112,7 +112,7 @@ function getLocalInvoices(): Invoice[] {
           sellerInfo: {
             storeName: "FlexSell Wholesale",
             gstin: "24AAACF1001M1Z5",
-            address: "Plot No. 12, GIDC, Surat, Gujarat - 394230",
+            address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
             email: "support@flexsell.in",
             phone: "+91 261 2409000"
           },
@@ -142,7 +142,7 @@ function getLocalInvoices(): Invoice[] {
             lastName: "Doeer",
             email: "jane@retail.com",
             address: "Sector 5, Market Area",
-            city: "Surat",
+            city: "Bhopal",
             state: "Gujarat",
             pinCode: "395003",
             phone: "9876543210"
@@ -150,7 +150,7 @@ function getLocalInvoices(): Invoice[] {
           sellerInfo: {
             storeName: "FlexSell Wholesale",
             gstin: "24AAACF1001M1Z5",
-            address: "Plot No. 12, GIDC, Surat, Gujarat - 394230",
+            address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
             email: "support@flexsell.in",
             phone: "+91 261 2409000"
           },
@@ -181,7 +181,7 @@ function getLocalInvoices(): Invoice[] {
             lastName: "Doeer",
             email: "jane@retail.com",
             address: "Sector 5, Market Area",
-            city: "Surat",
+            city: "Bhopal",
             state: "Gujarat",
             pinCode: "395003",
             phone: "9876543210"
@@ -189,7 +189,7 @@ function getLocalInvoices(): Invoice[] {
           sellerInfo: {
             storeName: "FlexSell Wholesale",
             gstin: "24AAACF1001M1Z5",
-            address: "Plot No. 12, GIDC, Surat, Gujarat - 394230",
+            address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
             email: "support@flexsell.in",
             phone: "+91 261 2409000"
           },
@@ -361,7 +361,7 @@ export const invoiceService = {
         sellerInfo: data.sellerInfo || {
           storeName: "FlexSell Wholesale",
           gstin: "24AAACF1001M1Z5",
-          address: "Plot No. 12, GIDC, Surat, Gujarat - 394230",
+          address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
           email: "support@flexsell.in",
           phone: "+91 261 2409000"
         },

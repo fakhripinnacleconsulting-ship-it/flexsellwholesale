@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s | FlexSell Wholesale"
   },
   description: "India's leading B2B e-commerce platform for sourcing household products, kitchen tools, utilities, fashion accessories, and electronics directly from manufacturers.",
-  keywords: ["wholesale B2B", "sourcing India", "Deodap wholesale", "dropshipping Surat", "reselling utilities", "cheap kitchen gadgets", "direct importer India"],
+  keywords: ["wholesale B2B", "sourcing India", "Deodap wholesale", "dropshipping Bhopal", "reselling utilities", "cheap kitchen gadgets", "direct importer India"],
   authors: [{ name: "FlexSell Tech Team" }],
   creator: "FlexSell Wholesale",
   publisher: "FlexSell B2B",

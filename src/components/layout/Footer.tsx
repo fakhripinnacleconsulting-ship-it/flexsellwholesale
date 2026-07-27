@@ -23,7 +23,7 @@ export function Footer({ data }: FooterProps) {
   const [newsletterEmail, setNewsletterEmail] = React.useState("");
 
   const description = data?.description || "FlexSell is India's leading wholesale B2B distributor. Directly importing trending kitchen gadgets, household tools, utility items, and home appliances to provide you the lowest manufacturing prices.";
-  const officeAddress = data?.officeAddress || "Block D-104, B2B Textile Market, Near Ring Road, Surat, Gujarat - 395002";
+  const officeAddress = data?.officeAddress || "Block D-104, B2B Textile Market, Near Ring Road, Bhopal, Gujarat - 395002";
   const contactEmail = data?.contactEmail || "support@flexsellwholesale.in";
   const contactPhone = data?.contactPhone || "+91 88877 66655";
   const timings = data?.timings || "9:30 AM to 6:30 PM (Sunday Closed)";
@@ -124,7 +124,7 @@ export function Footer({ data }: FooterProps) {
       {/* Bottom Copyright & Back to Top Bar */}
       <div className="mx-auto max-w-8xl px-4 md:px-6 border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground w-full">
         <p>&copy; {new Date().getFullYear()} FlexSell Wholesale B2B Market. All rights reserved.</p>
-        
+
         <div className="flex items-center gap-6">
           <div className="flex gap-3 text-[10px] font-bold uppercase tracking-wider">
             <span className="bg-secondary px-2 py-0.5 rounded border">UPI</span>

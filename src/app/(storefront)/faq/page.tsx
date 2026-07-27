@@ -92,7 +92,7 @@ export default function FAQPage() {
         <MessageSquare className="h-8 w-8 text-primary mx-auto" />
         <h3 className="text-xl font-bold">Still have questions regarding bulk cargo?</h3>
         <p className="text-xs text-muted-foreground max-w-md mx-auto">
-          Our Surat support team is available Mon-Sat, 9:30 AM to 6:30 PM to assist with custom quotes and shipping queries.
+          Our Bhopal support team is available Mon-Sat, 9:30 AM to 6:30 PM to assist with custom quotes and shipping queries.
         </p>
         <div className="pt-2">
           <Link href="/contact">

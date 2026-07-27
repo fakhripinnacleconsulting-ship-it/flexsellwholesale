@@ -126,7 +126,7 @@ export default function RegisterPage() {
 
   const getHeaderSubtitle = () => {
     if (selectedType === "B2B") return "Register your business to unlock factory pricing and bulk order specs.";
-    if (selectedType === "Dropshipping") return "Join white-label direct delivery partner network from Surat.";
+    if (selectedType === "Dropshipping") return "Join white-label direct delivery partner network from Bhopal.";
     return "Sign up for individual order tracking and personal shopping convenience.";
   };
 
@@ -177,7 +177,7 @@ export default function RegisterPage() {
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 shrink-0" />
-              <span>Express Surat Cargo Shipping</span>
+              <span>Express Bhopal Cargo Shipping</span>
             </div>
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function RegisterPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                     {[
                       { type: "B2B", label: "Wholesale Buyer (B2B)", desc: "Bulk factory sourcing with GST tax invoice credits & tier discounts." },
-                      { type: "Dropshipping", label: "Dropshipper Partner", desc: "White-label direct delivery to your retail customers from Surat." },
+                      { type: "Dropshipping", label: "Dropshipper Partner", desc: "White-label direct delivery to your retail customers from Bhopal." },
                       { type: "B2C", label: "Retail Consumer", desc: "Standard individual utility items & personal order sourcing." }
                     ].map((item) => {
                       const isSelected = customerTypes.includes(item.type as any);
@@ -244,9 +244,8 @@ export default function RegisterPage() {
                         <div
                           key={item.type}
                           onClick={() => setCustomerTypes([item.type as any])}
-                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            isSelected ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-primary/40 bg-background"
-                          }`}
+                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-primary/40 bg-background"
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="font-bold text-foreground">{item.label}</span>
@@ -300,7 +299,7 @@ export default function RegisterPage() {
                   </div>
                   <div className="space-y-1">
                     <label className="font-bold">City *</label>
-                    <Input placeholder="Surat" value={city} onChange={(e) => setCity(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
+                    <Input placeholder="Bhopal" value={city} onChange={(e) => setCity(e.target.value)} required={!skipAddress} disabled={isSubmitting} className="text-xs" />
                   </div>
                   <div className="space-y-1">
                     <div className="grid grid-cols-2 gap-2">

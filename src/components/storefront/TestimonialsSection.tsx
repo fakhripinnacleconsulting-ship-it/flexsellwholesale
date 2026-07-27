@@ -62,7 +62,7 @@ export function TestimonialsSection({
       business: "Sharma Traders",
       location: "Indore, MP",
       rating: 5,
-      text: "FlexSell changed my kitchen gadget retail business. Direct Surat warehouse cargo pricing gave me a 35% margin boost!",
+      text: "FlexSell changed my kitchen gadget retail business. Direct Bhopal warehouse cargo pricing gave me a 35% margin boost!",
       contentType: "text"
     },
     {
@@ -86,7 +86,7 @@ export function TestimonialsSection({
       business: "Gupta Utilities",
       location: "Delhi NCR",
       rating: 5,
-      text: "Instant GST invoices with tax credit. Ordering bulk inventory directly from Surat saved us thousands every month.",
+      text: "Instant GST invoices with tax credit. Ordering bulk inventory directly from Bhopal saved us thousands every month.",
       contentType: "text"
     },
     {
@@ -141,13 +141,13 @@ export function TestimonialsSection({
     activeTab === "dropshipper"
       ? "Dropship Partner Stories"
       : activeTab === "client"
-      ? "Retail Client Reviews"
-      : "Wholesale Buyer Stories"
+        ? "Retail Client Reviews"
+        : "Wholesale Buyer Stories"
   );
   const sectionSubtitle = subtitle || "Verified reviews from commercial buyers, dropshippers, and retail clients using FlexSell.";
 
   return (
-    <section 
+    <section
       className="mx-auto max-w-8xl px-4 md:px-6 w-full py-12 select-none overflow-hidden"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -176,11 +176,10 @@ export function TestimonialsSection({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isActive
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${isActive
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                  }`}
+                    }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   <span>{tab.label}</span>
@@ -252,9 +251,8 @@ export function TestimonialsSection({
                         {Array.from({ length: 5 }).map((_, i) => (
                           <Star
                             key={i}
-                            className={`h-3.5 w-3.5 ${
-                              i < (item.rating || 5) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
-                            }`}
+                            className={`h-3.5 w-3.5 ${i < (item.rating || 5) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
+                              }`}
                           />
                         ))}
                       </div>
@@ -269,11 +267,10 @@ export function TestimonialsSection({
 
                     {/* Middle: Dynamic Review Text Box */}
                     <div className="relative z-20 px-5 my-auto">
-                      <div className={`p-5 rounded-2xl shadow-lg space-y-2 border ${
-                        activeMedia
+                      <div className={`p-5 rounded-2xl shadow-lg space-y-2 border ${activeMedia
                           ? "bg-slate-950/85 backdrop-blur-md border-white/20 text-white"
                           : "bg-muted/40 dark:bg-slate-900/60 border-border/60 text-foreground"
-                      }`}>
+                        }`}>
                         <Quote className="h-5 w-5 text-primary opacity-80 mb-1" />
                         <p className="text-xs sm:text-sm italic font-medium leading-relaxed line-clamp-5">
                           "{item.text}"
@@ -282,9 +279,8 @@ export function TestimonialsSection({
                     </div>
 
                     {/* Bottom: Dynamic Customer Profile Overlay */}
-                    <div className={`relative z-20 p-5 pt-4 flex items-center gap-3 border-t ${
-                      activeMedia ? "bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent border-white/10" : "border-border/60 bg-card"
-                    }`}>
+                    <div className={`relative z-20 p-5 pt-4 flex items-center gap-3 border-t ${activeMedia ? "bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent border-white/10" : "border-border/60 bg-card"
+                      }`}>
                       {activeAvatar ? (
                         <div className="w-10 h-10 rounded-full overflow-hidden relative border border-primary/30 shrink-0 shadow-xs">
                           <img src={activeAvatar} alt={item.name} className="w-full h-full object-cover" />
@@ -296,15 +292,13 @@ export function TestimonialsSection({
                       )}
 
                       <div className="min-w-0 flex-1">
-                        <h4 className={`font-bold text-xs sm:text-sm flex items-center gap-1.5 truncate ${
-                          activeMedia ? "text-white" : "text-foreground"
-                        }`}>
+                        <h4 className={`font-bold text-xs sm:text-sm flex items-center gap-1.5 truncate ${activeMedia ? "text-white" : "text-foreground"
+                          }`}>
                           <span>{item.name}</span>
                           <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                         </h4>
-                        <p className={`text-[11px] truncate font-medium ${
-                          activeMedia ? "text-slate-300" : "text-muted-foreground"
-                        }`}>
+                        <p className={`text-[11px] truncate font-medium ${activeMedia ? "text-slate-300" : "text-muted-foreground"
+                          }`}>
                           {item.business} • {item.location}
                         </p>
                       </div>
@@ -329,11 +323,10 @@ export function TestimonialsSection({
               key={idx}
               type="button"
               onClick={() => scrollTo(idx)}
-              className={`h-2.5 rounded-full transition-all cursor-pointer ${
-                selectedIndex === idx
+              className={`h-2.5 rounded-full transition-all cursor-pointer ${selectedIndex === idx
                   ? "bg-primary w-7 shadow-xs"
                   : "bg-muted-foreground/30 hover:bg-muted-foreground/60 w-2.5"
-              }`}
+                }`}
               aria-label={`Go to slide ${idx + 1}`}
             />
           ))}

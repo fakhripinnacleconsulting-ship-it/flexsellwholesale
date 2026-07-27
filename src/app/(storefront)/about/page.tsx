@@ -55,9 +55,9 @@ export default function AboutPage() {
             </p>
           </div>
           <div className="space-y-4">
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">The Surat Logistics Hub</h2>
+            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">The Bhopal Logistics Hub</h2>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Founded at the heart of Surat's transport corridor, FlexSell handles over 5,000 orders daily. Our 40,000 sq ft centralized warehouse is fully stocked with ready-to-dispatch consumer goods, kitchen gadgets, and utility items.
+              Founded at the heart of Bhopal's transport corridor, FlexSell handles over 5,000 orders daily. Our 40,000 sq ft centralized warehouse is fully stocked with ready-to-dispatch consumer goods, kitchen gadgets, and utility items.
             </p>
           </div>
         </div>

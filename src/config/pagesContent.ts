@@ -39,7 +39,7 @@ export const pagesContent = {
       sections: [
         {
           heading: "1. Dispatch Timelines",
-          text: "Bulk wholesale orders are packed and dispatched from our Surat warehouse within 24-48 working hours. Heavy cargo shipping times range from 3-7 days."
+          text: "Bulk wholesale orders are packed and dispatched from our Bhopal warehouse within 24-48 working hours. Heavy cargo shipping times range from 3-7 days."
         },
         {
           heading: "2. Remote Region Cargo Surcharges",
