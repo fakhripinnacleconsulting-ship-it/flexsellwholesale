@@ -5,7 +5,7 @@ import { useProductStore } from "./productStore";
 import { useToastStore } from "./toastStore";
 import { useAuthStore } from "./authStore";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { resolvePrice, resolveMoq, resolvePriceTierName } from "@/lib/priceTierHelper";
+import { resolvePrice, resolveMoq, resolvePriceTierName, isPureB2B } from "@/lib/priceTierHelper";
 
 interface TaxBreakdown {
   hsnCode: string;
@@ -85,7 +85,7 @@ export const useCartStore = create<CartState>()(
           .join("|");
 
         const availableStock = matchedVariant.stock;
-        const moq = resolveMoq(matchedVariant, customerTypes);
+        const moq = resolveMoq(matchedVariant, customer || customerTypes);
 
         // Check if item exists in cart
         const existingItem = get().items.find(item => item.productId === liveProduct._id && item.id.includes(variantKey));
@@ -109,8 +109,8 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const calculatedPrice = resolvePrice(matchedVariant, customerTypes, targetQty);
-        const resolvedTierName = resolvePriceTierName(matchedVariant, customerTypes, targetQty);
+        const calculatedPrice = resolvePrice(matchedVariant, customer || customerTypes, targetQty);
+        const resolvedTierName = resolvePriceTierName(matchedVariant, customer || customerTypes, targetQty);
         const itemId = `${product._id}-${variantKey}-${resolvedTierName}`;
 
         set((state) => {
@@ -188,13 +188,15 @@ export const useCartStore = create<CartState>()(
         if (!matchedVariant) return;
 
         const availableStock = matchedVariant.stock;
-        const moq = resolveMoq(matchedVariant, customerTypes);
+        const moq = resolveMoq(matchedVariant, customer || customerTypes);
 
         let targetQty = qty;
 
-        // Enforce mandatory MOQ only for Pure B2B
-        if (targetQty < moq) {
-          useToastStore.getState().addToast(`MOQ required for B2B orders: minimum ${moq} units.`, "warning");
+        const isPureB2bCustomer = isPureB2B(customerTypes);
+
+        // Enforce mandatory MOQ constraint (Pure B2B accounts only)
+        if (isPureB2bCustomer && targetQty < moq) {
+          useToastStore.getState().addToast(`MOQ required for Pure B2B orders: minimum ${moq} units.`, "warning");
           targetQty = moq;
         }
 
@@ -204,8 +206,8 @@ export const useCartStore = create<CartState>()(
           targetQty = availableStock;
         }
 
-        const newPricePerUnit = resolvePrice(matchedVariant, customerTypes, targetQty);
-        const newPriceTier = resolvePriceTierName(matchedVariant, customerTypes, targetQty);
+        const newPricePerUnit = resolvePrice(matchedVariant, customer || customerTypes, targetQty);
+        const newPriceTier = resolvePriceTierName(matchedVariant, customer || customerTypes, targetQty);
 
         if (item.pricePerUnit > newPricePerUnit) {
           useToastStore.getState().addToast(`🎉 Wholesale price unlocked! Unit price upgraded to B2B rate.`, "success");
@@ -341,14 +343,14 @@ export const useCartStore = create<CartState>()(
               (!selectedWeight || s.weight.toLowerCase() === selectedWeight.toLowerCase())
             ) || cv?.subVariants?.[0];
 
-            const moq = resolveMoq(sv, customerTypes);
+            const moq = resolveMoq(sv, customer || customerTypes);
             let targetQty = item.quantity;
             if (targetQty < moq) {
               targetQty = moq;
             }
 
-            const updatedPrice = sv ? resolvePrice(sv, customerTypes, targetQty) : item.pricePerUnit;
-            const updatedTierName = sv ? resolvePriceTierName(sv, customerTypes, targetQty) : (item.priceTier || "B2C");
+            const updatedPrice = sv ? resolvePrice(sv, customer || customerTypes, targetQty) : item.pricePerUnit;
+            const updatedTierName = sv ? resolvePriceTierName(sv, customer || customerTypes, targetQty) : (item.priceTier || "B2C");
             const variantKey = Object.entries(item.selectedVariants).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>`${k}:${v}`).join("|");
 
             return {

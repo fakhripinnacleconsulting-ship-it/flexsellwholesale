@@ -12,6 +12,27 @@ export function isHybridB2CAndB2B(customerTypes?: string[]): boolean {
   return customerTypes.includes("B2B") && customerTypes.includes("B2C");
 }
 
+export function isB2bVerified(customer?: any): boolean {
+  if (!customer) return false;
+  if (customer.role === "admin") return true;
+
+  // Explicit approval or rejection checks
+  if (customer.upgradeStatus === "Approved" || customer.upgradeStatus === "approved") {
+    return true;
+  }
+  if (customer.upgradeStatus === "rejected" || customer.upgradeStatus === "pending") {
+    return false;
+  }
+
+  // Check customerTypes on customer object or array
+  const types = Array.isArray(customer) ? customer : customer.customerTypes;
+  if (Array.isArray(types)) {
+    return types.includes("B2B") || types.includes("Dropshipping");
+  }
+
+  return false;
+}
+
 export function resolveCustomerTier(customerTypes?: string[]): PriceTier {
   if (!customerTypes || customerTypes.length === 0) return "B2C";
   if (isPureB2B(customerTypes)) return "B2B";
@@ -21,72 +42,86 @@ export function resolveCustomerTier(customerTypes?: string[]): PriceTier {
   return "B2C";
 }
 
-export function resolveMoq(sv?: SubVariant, tierOrTypes?: PriceTier | string[]): number {
+export function resolveMoq(sv?: SubVariant, tierOrTypes?: PriceTier | string[] | any): number {
   if (!sv) return 1;
 
-  if (Array.isArray(tierOrTypes)) {
-    // Only pure B2B accounts have mandatory MOQ!
-    return isPureB2B(tierOrTypes) ? (sv.b2bMoq || 1) : 1;
+  if (typeof tierOrTypes === "object" && tierOrTypes !== null && !Array.isArray(tierOrTypes)) {
+    return isB2bVerified(tierOrTypes) ? (sv.b2bMoq || 1) : 1;
   }
 
-  // If explicit PriceTier string passed:
+  if (Array.isArray(tierOrTypes)) {
+    return (tierOrTypes.includes("B2B") || tierOrTypes.includes("Dropshipping")) ? (sv.b2bMoq || 1) : 1;
+  }
+
   return tierOrTypes === "B2B" ? (sv.b2bMoq || 1) : 1;
 }
 
 export function resolvePrice(
   sv?: SubVariant,
-  tierOrTypes: PriceTier | string[] = "B2C",
+  customerOrTier: PriceTier | string[] | any = "B2C",
   quantity: number = 1
 ): number {
   if (!sv) return 0;
 
-  if (Array.isArray(tierOrTypes)) {
-    const types = tierOrTypes;
-    if (isPureB2B(types)) {
-      return typeof sv.b2bPrice === "number" && sv.b2bPrice > 0 ? sv.b2bPrice : sv.b2cPrice;
-    }
-    if (isHybridB2CAndB2B(types)) {
-      const b2bMoq = sv.b2bMoq || 1;
-      // If hybrid buyer orders >= b2bMoq, unlock B2B wholesale price!
-      if (quantity >= b2bMoq && typeof sv.b2bPrice === "number" && sv.b2bPrice > 0) {
-        return sv.b2bPrice;
-      }
-      return sv.b2cPrice;
-    }
-    if (types.includes("Dropshipping")) {
-      return typeof sv.dropshippingPrice === "number" && sv.dropshippingPrice > 0
-        ? sv.dropshippingPrice
-        : sv.b2cPrice;
-    }
-    return sv.b2cPrice;
+  let isVerified = false;
+  let isDropshipper = false;
+
+  if (typeof customerOrTier === "object" && customerOrTier !== null && !Array.isArray(customerOrTier)) {
+    isVerified = isB2bVerified(customerOrTier);
+    isDropshipper = (customerOrTier.customerTypes?.includes("Dropshipping") || false) && isVerified;
+  } else if (Array.isArray(customerOrTier)) {
+    isVerified = customerOrTier.includes("B2B") || customerOrTier.includes("Dropshipping");
+    isDropshipper = customerOrTier.includes("Dropshipping");
+  } else if (customerOrTier === "B2B") {
+    isVerified = true;
+  } else if (customerOrTier === "Dropshipping") {
+    isVerified = true;
+    isDropshipper = true;
   }
 
-  // Explicit PriceTier string
-  switch (tierOrTypes) {
-    case "B2B":
-      return typeof sv.b2bPrice === "number" && sv.b2bPrice > 0 ? sv.b2bPrice : sv.b2cPrice;
-    case "Dropshipping":
-      return typeof sv.dropshippingPrice === "number" && sv.dropshippingPrice > 0
-        ? sv.dropshippingPrice
-        : sv.b2cPrice;
-    case "B2C":
-    default:
-      return sv.b2cPrice;
+  const b2bMoq = sv.b2bMoq || 1;
+
+  if (isDropshipper && typeof sv.dropshippingPrice === "number" && sv.dropshippingPrice > 0) {
+    return sv.dropshippingPrice;
   }
+
+  // B2B Wholesale Price qualification: Requires verified B2B status AND quantity >= MOQ
+  if (isVerified && quantity >= b2bMoq && typeof sv.b2bPrice === "number" && sv.b2bPrice > 0) {
+    return sv.b2bPrice;
+  }
+
+  return sv.b2cPrice;
 }
 
 export function resolvePriceTierName(
   sv?: SubVariant,
-  customerTypes?: string[],
+  customerOrTypes?: string[] | any,
   quantity: number = 1
 ): PriceTier {
-  if (!sv || !customerTypes || customerTypes.length === 0) return "B2C";
-  if (isPureB2B(customerTypes)) return "B2B";
-  if (isHybridB2CAndB2B(customerTypes)) {
-    const b2bMoq = sv.b2bMoq || 1;
-    return quantity >= b2bMoq && typeof sv.b2bPrice === "number" && sv.b2bPrice > 0 ? "B2B" : "B2C";
+  if (!sv) return "B2C";
+
+  let isVerified = false;
+  let isDropshipper = false;
+
+  if (typeof customerOrTypes === "object" && customerOrTypes !== null && !Array.isArray(customerOrTypes)) {
+    isVerified = isB2bVerified(customerOrTypes);
+    isDropshipper = (customerOrTypes.customerTypes?.includes("Dropshipping") || false) && isVerified;
+  } else if (Array.isArray(customerOrTypes)) {
+    isVerified = customerOrTypes.includes("B2B") || customerOrTypes.includes("Dropshipping");
+    isDropshipper = customerOrTypes.includes("Dropshipping");
+  } else if (customerOrTypes === "B2B") {
+    isVerified = true;
+  } else if (customerOrTypes === "Dropshipping") {
+    isVerified = true;
   }
-  if (customerTypes.includes("Dropshipping")) return "Dropshipping";
+
+  const b2bMoq = sv.b2bMoq || 1;
+
+  if (isDropshipper) return "Dropshipping";
+  if (isVerified && quantity >= b2bMoq && typeof sv.b2bPrice === "number" && sv.b2bPrice > 0) {
+    return "B2B";
+  }
+
   return "B2C";
 }
 

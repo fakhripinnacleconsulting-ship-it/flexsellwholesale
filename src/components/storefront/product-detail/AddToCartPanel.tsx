@@ -110,6 +110,40 @@ export function AddToCartPanel() {
             </div>
           </div>
 
+          {/* B2C Wholesale Incentive Banner */}
+          {(() => {
+            const { isB2bVerified } = require("@/lib/priceTierHelper");
+            const isVerified = isB2bVerified(customer);
+            if (!isVerified) {
+              return (
+                <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 via-primary/10 to-blue-500/10 rounded-xl border border-primary/30 space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-xs sm:text-sm text-foreground flex items-center gap-1.5">
+                        💼 Want Wholesale Rate ({b2bPrice > 0 ? formatPrice(b2bPrice) : "B2B Price"} / unit)?
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Verify your B2B profile & submit GST/KYC documents to unlock wholesale pricing when ordering {b2bMoq}+ units.
+                      </p>
+                    </div>
+                    <a href={customer ? "/client/upgrade" : "/register?type=b2b"} className="shrink-0">
+                      <button type="button" className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary/90 transition-all cursor-pointer shadow-sm">
+                        Verify B2B Profile
+                      </button>
+                    </a>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20 text-xs text-blue-800 dark:text-blue-300 flex items-center justify-between">
+                <span>
+                  📦 Verified B2B Account • Order <strong>{b2bMoq}+</strong> units to automatically unlock wholesale price ({b2bPrice > 0 ? formatPrice(b2bPrice) : "B2B Rate"} / unit)!
+                </span>
+              </div>
+            );
+          })()}
+
           <div className="flex flex-wrap items-center gap-4 text-xs pt-2">
             {(activeSubVariant?.stock || 0) > b2bMoq * 2 ? (
               <Badge variant="success">In Stock ({activeSubVariant?.stock || 0} available)</Badge>

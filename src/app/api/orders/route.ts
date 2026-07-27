@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import Product from "@/models/Product";
 import Customer from "@/models/Customer";
 import InvoiceModel from "@/models/Invoice";

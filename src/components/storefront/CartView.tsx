@@ -181,7 +181,7 @@ export function CartView() {
         </Link>
       </div>
 
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Shopping Cart</h1>
         {items.length > 0 && (
           <Button
@@ -194,6 +194,32 @@ export function CartView() {
           </Button>
         )}
       </div>
+
+      {/* B2C Wholesale Incentive Banner */}
+      {(() => {
+        const { isB2bVerified } = require("@/lib/priceTierHelper");
+        const isVerified = isB2bVerified(customer);
+        if (!isVerified) {
+          return (
+            <div className="mb-6 p-4 bg-gradient-to-r from-emerald-500/10 via-primary/10 to-blue-500/10 rounded-xl border border-primary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                  💼 Save Up to 40% with B2B Wholesale Pricing!
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  You are currently viewing items at B2C retail rates. Complete your B2B profile & verify GST/KYC documents to unlock wholesale rates when meeting MOQ.
+                </p>
+              </div>
+              <Link href={customer ? "/client/upgrade" : "/register?type=b2b"}>
+                <Button size="sm" className="font-bold whitespace-nowrap bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer shadow-sm">
+                  Verify B2B Profile
+                </Button>
+              </Link>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Side: Items List */}
@@ -221,10 +247,12 @@ export function CartView() {
             const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
             const sku = activeSubVariant?.sku || item.productId;
             
-            const { resolveMoq, resolvePriceTierName } = require("@/lib/priceTierHelper");
+            const { resolveMoq, resolvePriceTierName, isPureB2B } = require("@/lib/priceTierHelper");
             const customerTypes = customer?.customerTypes || ["B2C"];
-            const liveMoq = activeSubVariant ? resolveMoq(activeSubVariant, customerTypes) : 1;
-            const livePriceTier = activeSubVariant ? resolvePriceTierName(activeSubVariant, customerTypes, item.quantity) : (item.priceTier || "B2C");
+            const isPureB2b = isPureB2B(customerTypes);
+            const liveMoq = activeSubVariant ? resolveMoq(activeSubVariant, customer || customerTypes) : 1;
+            const minLimit = isPureB2b ? liveMoq : 1;
+            const livePriceTier = activeSubVariant ? resolvePriceTierName(activeSubVariant, customer || customerTypes, item.quantity) : (item.priceTier || "B2C");
             const maxStock = activeSubVariant?.stock || 0;
 
             return (
@@ -282,9 +310,9 @@ export function CartView() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 w-8 px-0 rounded-r-none text-foreground border-r-0"
+                                className="h-8 w-8 px-0 rounded-r-none text-foreground border-r-0 cursor-pointer"
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                disabled={item.quantity <= liveMoq}
+                                disabled={item.quantity <= minLimit}
                               >
                                 -
                               </Button>
@@ -293,14 +321,14 @@ export function CartView() {
                                 className="h-8 w-16 text-center text-sm font-semibold text-foreground bg-background border border-border focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                                 value={item.quantity}
                                 onChange={(e) => handleQtyInputChange(item.id, e.target.value)}
-                                onBlur={(e) => handleQtyBlur(item.id, e.target.value, liveMoq)}
-                                min={liveMoq}
+                                onBlur={(e) => handleQtyBlur(item.id, e.target.value, minLimit)}
+                                min={minLimit}
                                 max={maxStock}
                               />
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 w-8 px-0 rounded-l-none text-foreground border-l-0"
+                                className="h-8 w-8 px-0 rounded-l-none text-foreground border-l-0 cursor-pointer"
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                 disabled={item.quantity >= maxStock}
                               >
@@ -308,7 +336,7 @@ export function CartView() {
                               </Button>
                             </div>
                             <span className="text-[10px] text-muted-foreground">
-                              (MOQ: {liveMoq} | Stock: {maxStock})
+                              ({liveMoq > 1 ? `B2B MOQ: ${liveMoq}` : `MOQ: 1`} | Stock: {maxStock})
                             </span>
                           </>
                         )}

@@ -38,6 +38,7 @@ export function Header({ categories, collections = [] }: HeaderProps) {
 
   React.useEffect(() => {
     setIsMounted(true);
+    useAuthStore.getState().checkSession().catch(() => {});
   }, []);
 
   return (

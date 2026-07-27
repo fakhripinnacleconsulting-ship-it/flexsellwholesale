@@ -46,13 +46,15 @@ export function VariantSelector() {
   const isB2C = customerTypes.includes("B2C");
   const isDropshipperOnly = customerTypes.length === 1 && customerTypes[0] === "Dropshipping";
 
-  const { resolvePrice, resolveMoq, canPurchase, resolveCustomerTier } = require("@/lib/priceTierHelper");
+  const { resolvePrice, resolveMoq, canPurchase, resolveCustomerTier, isPureB2B } = require("@/lib/priceTierHelper");
   const purchaseAllowed = canPurchase(customerTypes);
+  const isPureB2bCustomer = isPureB2B(customerTypes);
 
   // Determine standard MOQ and active price tier for single selector
   const userTier = resolveCustomerTier(customerTypes);
   const activeCartTier = userTier === "B2B" ? "B2B" : "B2C";
   const itemMoq = activeSubVariant ? resolveMoq(activeSubVariant, activeCartTier) : 1;
+  const minQty = isPureB2bCustomer ? itemMoq : 1;
 
   const handleAddToCart = () => {
     const { useCartStore } = require("@/stores/cartStore");
@@ -66,7 +68,7 @@ export function VariantSelector() {
       return;
     }
 
-    if (qty < itemMoq) {
+    if (isPureB2bCustomer && qty < itemMoq) {
       addToast(`Cannot add to cart. Minimum Order Quantity (MOQ) of ${itemMoq} units is required.`, "warning");
       setQty(itemMoq);
       qtyInputRef.current?.focus();
@@ -257,9 +259,9 @@ export function VariantSelector() {
                 <Button
                   variant="ghost"
                   type="button"
-                  onClick={() => setQty(Math.max(itemMoq, qty - 1))}
+                  onClick={() => setQty(Math.max(minQty, qty - 1))}
                   className="p-1 h-8 w-8 text-foreground cursor-pointer"
-                  disabled={qty <= itemMoq}
+                  disabled={qty <= minQty}
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
@@ -270,14 +272,14 @@ export function VariantSelector() {
                   type="number"
                   className="w-12 text-center text-sm font-extrabold bg-transparent text-foreground focus:outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   value={qty}
-                  min={itemMoq}
+                  min={minQty}
                   max={activeSubVariant?.stock || 0}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10);
                     if (!isNaN(val)) setQty(val);
                   }}
                   onBlur={() => {
-                    if (qty < itemMoq) setQty(itemMoq);
+                    if (qty < minQty) setQty(minQty);
                     if (qty > (activeSubVariant?.stock || 0)) setQty(activeSubVariant?.stock || 0);
                   }}
                 />
