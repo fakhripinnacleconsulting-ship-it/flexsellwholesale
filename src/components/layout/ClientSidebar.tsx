@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, Heart, MapPin, User, Star, Ticket, Bell, LogOut, Menu, ChevronLeft, ChevronRight } from "lucide-react";
+import { Package, Heart, MapPin, User, Star, Ticket, Bell, LogOut, Menu, ChevronLeft, ChevronRight, ArrowUpCircle } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Drawer } from "@/components/ui/Drawer";
 import { Customer } from "@/types";
@@ -53,6 +53,16 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
       { name: "Profile", href: "/client/profile", icon: User },
     ];
 
+    // Show Upgrade Account if customer does not have both B2B and Dropshipping
+    const isFullyUpgraded = customerTypes.includes("B2B") && customerTypes.includes("Dropshipping");
+    if (!isFullyUpgraded) {
+      baseLinks.push({
+        name: activeCustomer.upgradeStatus === "pending" ? "Upgrade (Pending)" : "Upgrade Account",
+        href: "/client/upgrade",
+        icon: ArrowUpCircle
+      });
+    }
+
     if (activeView !== "Dropshipping") {
       baseLinks.push(
         { name: "My Reviews", href: "/client/reviews", icon: Star },
@@ -61,7 +71,7 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
     }
 
     return baseLinks;
-  }, [activeView]);
+  }, [activeView, customerTypes, activeCustomer.upgradeStatus]);
 
   React.useEffect(() => {
     const saved = localStorage.getItem("client_sidebar_open");

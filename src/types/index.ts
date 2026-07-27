@@ -312,6 +312,7 @@ export interface Customer {
   resetPasswordToken?: string;
   resetPasswordExpires?: string;
   company?: string;
+  storeName?: string;
   address: string;
   city: string;
   state: string;
@@ -320,10 +321,22 @@ export interface Customer {
   initials: string;
   gstin?: string;
   customerTypes: ("B2C" | "B2B" | "Dropshipping")[];
+  upgradeStatus?: "none" | "pending" | "approved" | "rejected";
+  upgradeRequestedTypes?: ("B2B" | "Dropshipping")[];
+  kycDocuments?: KycDocuments;
   addresses?: SavedAddress[];
   wishlist?: string[];
   failedLoginAttempts?: number;
   lockUntil?: string | Date | null;
+}
+
+export interface KycDocuments {
+  gstCertificate?: string;
+  signaturePhoto?: string;
+  aadharCard?: string;
+  passportPhoto?: string;
+  panCard?: string;
+  chequePhoto?: string;
 }
 
 export interface Review extends BaseDocument {

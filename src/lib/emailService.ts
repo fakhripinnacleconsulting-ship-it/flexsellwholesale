@@ -30,55 +30,71 @@ export function logEmailToStorage(emailOpt: EmailOptions): void {
   }
 }
 
+function cleanPassword(pass?: string): string {
+  if (!pass) return "";
+  return pass.trim().replace(/^["']|["']$/g, "").replace(/\s+/g, "");
+}
+
 function getSmtpConfig() {
-  // Pre-defined ZeptoMail Configuration
+  const isProd = process.env.NODE_ENV === "production";
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || "").toLowerCase();
+  const providerEnv = (process.env.SMTP_PROVIDER || "").toLowerCase();
+
+  // 1. Pre-defined ZeptoMail Configuration (Production)
   const zeptoConfig = {
     host: "smtp.zeptomail.in",
     port: 465,
     user: "emailapikey",
-    pass: "PHtE6r1fE+7piGUp+hFR4/G4QpWkZoMq/7tmKggWtIdLCPRRTE0H+Y8oxj+2rxgqUaIQFaHKnI8+tezNuumNIznkYGkdDWqyqK3sx/VYSPOZsbq6x00asFwYcULVU4PmdNFj1CTRu93TNA==",
+    pass: cleanPassword("PHtE6r1fE+7piGUp+hFR4/G4QpWkZoMq/7tmKggWtIdLCPRRTE0H+Y8oxj+2rxgqUaIQFaHKnI8+tezNuumNIznkYGkdDWqyqK3sx/VYSPOZsbq6x00asFwYcULVU4PmdNFj1CTRu93TNA=="),
     from: process.env.SMTP_FROM || `"FlexSell Wholesale Support" <noreply@flexsellwholesale.com>`,
     provider: "ZeptoMail"
   };
 
-  // Pre-defined Gmail Configuration
+  // 2. Pre-defined Gmail Configuration (Localhost / Development)
   const gmailConfig = {
     host: "smtp.gmail.com",
     port: 465,
-    user: "mauryatech7@gmail.com",
-    pass: "qfxgglqfymjhbksy",
-    from: process.env.SMTP_FROM || `"FlexSell Wholesale Support" <mauryatech7@gmail.com>`,
+    user: "kuldeepmaurya4296@gmail.com",
+    pass: cleanPassword("jtns mwcp yteo ibxq"),
+    from: `"FlexSell Wholesale Support" <kuldeepmaurya4296@gmail.com>`,
     provider: "Gmail"
   };
 
-  // 1. Explicit Environment Override
+  // 3. Explicit Environment Override (from .env.local)
   if (process.env.SMTP_HOST) {
     const host = process.env.SMTP_HOST.trim();
     const isZepto = host.includes("zeptomail");
+    const isGmail = host.includes("gmail");
+    const user = (process.env.SMTP_USER || (isZepto ? zeptoConfig.user : gmailConfig.user)).trim();
+    const rawPass = process.env.SMTP_PASS || (isZepto ? zeptoConfig.pass : gmailConfig.pass);
+    const pass = isGmail ? cleanPassword(rawPass) : rawPass.trim().replace(/^["']|["']$/g, "");
+
+    const defaultFrom = isGmail
+      ? `"FlexSell Wholesale Support" <${user}>`
+      : isZepto
+      ? zeptoConfig.from
+      : `"FlexSell Support" <${user}>`;
+
     return {
       host,
       port: parseInt(process.env.SMTP_PORT || "465", 10),
-      user: process.env.SMTP_USER || (isZepto ? zeptoConfig.user : gmailConfig.user),
-      pass: process.env.SMTP_PASS || (isZepto ? zeptoConfig.pass : gmailConfig.pass),
-      from: process.env.SMTP_FROM || (isZepto ? zeptoConfig.from : gmailConfig.from),
-      provider: isZepto ? "ZeptoMail" : "Custom/Gmail"
+      user,
+      pass,
+      from: process.env.SMTP_FROM || defaultFrom,
+      provider: isZepto ? "ZeptoMail" : isGmail ? "Gmail" : "Custom SMTP"
     };
   }
 
-  // 2. Domain / Site URL Auto Detection
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || "").toLowerCase();
-  const providerEnv = (process.env.SMTP_PROVIDER || "").toLowerCase();
-
+  // 4. Domain / Site URL Auto Detection
   const isZeptoDomain =
+    isProd ||
     providerEnv === "zeptomail" ||
-    siteUrl.includes("flexsellwholesale.com") ||
-    siteUrl.includes("flexsellwholesale.vercel.app");
+    (siteUrl.includes("flexsellwholesale.com") || siteUrl.includes("flexsellwholesale.vercel.app"));
 
-  if (isZeptoDomain) {
+  if (isZeptoDomain && !siteUrl.includes("localhost")) {
     return zeptoConfig;
   }
 
-  // Default fallback for localhost and flexsell.vercel.app -> Gmail
   return gmailConfig;
 }
 
@@ -106,18 +122,32 @@ export const emailService = {
     }
 
     try {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
+      const isGmail = smtpHost.includes("gmail");
+      const transporter = nodemailer.createTransport(
+        isGmail
+          ? {
+              service: "gmail",
+              auth: {
+                user: smtpUser,
+                pass: smtpPass,
+              },
+            }
+          : {
+              host: smtpHost,
+              port: smtpPort,
+              secure: smtpPort === 465,
+              auth: {
+                user: smtpUser,
+                pass: smtpPass,
+              },
+              tls: {
+                rejectUnauthorized: false
+              },
+              connectionTimeout: 8000,
+              greetingTimeout: 8000,
+              socketTimeout: 8000,
+            }
+      );
 
       await transporter.sendMail({
         from: fromAddress,
@@ -130,8 +160,7 @@ export const emailService = {
       console.log(`[EMAIL SUCCESS - ${config.provider}] Dispatched email successfully to ${options.to}`);
       return true;
     } catch (err: any) {
-      console.error(`[EMAIL DISPATCH ERROR - ${config.provider}] Failed to send email to ${options.to}:`, err.message);
-      // Return true so business transactions don't fail due to mail server timeouts
+      console.error(`[EMAIL DISPATCH ERROR - ${config.provider}] Failed to send email to ${options.to}:`, err.message || err);
       return false;
     }
   },

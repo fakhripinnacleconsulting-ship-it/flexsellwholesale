@@ -52,7 +52,7 @@ export async function POST(req: Request) {
 
     // 5. Parse registered buyer draft data
     const draftData = JSON.parse(otpRecord.registrationData);
-    const { name, password, company, address, city, state, pinCode, phone, gstin, customerTypes } = draftData;
+    const { name, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments } = draftData;
 
     // Check if email registered during the verification window
     const existing = await Customer.findOne({ email: lowerEmail });
@@ -86,6 +86,9 @@ export async function POST(req: Request) {
       isDefault: true
     }] : [];
 
+    const hasB2bOrDropship = customerTypes?.some((t: string) => t === "B2B" || t === "Dropshipping");
+    const requestedTypes = (customerTypes || []).filter((t: string) => t === "B2B" || t === "Dropshipping") as ("B2B" | "Dropshipping")[];
+
     // Create Customer
     const newCustomer = new Customer({
       _id: customerId,
@@ -94,6 +97,7 @@ export async function POST(req: Request) {
       password: hashedPassword,
       role: "customer",
       company: company || "",
+      storeName: storeName || "",
       address: address || "",
       city: city || "",
       state: state || "",
@@ -101,7 +105,10 @@ export async function POST(req: Request) {
       phone,
       initials,
       gstin: gstin || "",
-      customerTypes: customerTypes || ["B2C"],
+      customerTypes: hasB2bOrDropship ? ["B2C"] : (customerTypes || ["B2C"]),
+      upgradeStatus: hasB2bOrDropship ? "pending" : "none",
+      upgradeRequestedTypes: hasB2bOrDropship ? requestedTypes : [],
+      kycDocuments: kycDocuments || {},
       addresses: initialAddresses,
     });
 

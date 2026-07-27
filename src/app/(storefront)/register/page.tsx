@@ -6,12 +6,29 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Eye, EyeOff, ShieldCheck, Truck, Sparkles, Building2 } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck, Truck, Sparkles, Building2, Upload, CheckCircle2, Clock, FileText, X, PhoneCall, Mail } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useToastStore } from "@/stores/toastStore";
+import { customerService } from "@/services/customerService";
+import { KycDocuments } from "@/types";
 import { motion } from "framer-motion";
 
 import { OtpVerificationModal } from "@/components/auth/OtpVerificationModal";
+
+interface DocSlot {
+  key: keyof KycDocuments;
+  label: string;
+  required: boolean;
+}
+
+const DOCUMENT_SLOTS: DocSlot[] = [
+  { key: "gstCertificate", label: "GST Certificate", required: false },
+  { key: "signaturePhoto", label: "Signature Photo", required: true },
+  { key: "aadharCard", label: "Aadhar Card", required: true },
+  { key: "passportPhoto", label: "Passport Photo", required: true },
+  { key: "panCard", label: "PAN Card", required: true },
+  { key: "chequePhoto", label: "Cancelled Cheque", required: true },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,6 +37,7 @@ export default function RegisterPage() {
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [company, setCompany] = React.useState("");
+  const [storeName, setStoreName] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [city, setCity] = React.useState("");
@@ -31,6 +49,10 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [customerTypes, setCustomerTypes] = React.useState<("B2C" | "B2B" | "Dropshipping")[]>(["B2C"]);
 
+  const [kycDocs, setKycDocs] = React.useState<KycDocuments>({});
+  const [uploadingSlot, setUploadingSlot] = React.useState<string | null>(null);
+  const [isPendingConfirmation, setIsPendingConfirmation] = React.useState(false);
+
   // OTP Modal State
   const [isOtpModalOpen, setIsOtpModalOpen] = React.useState(false);
 
@@ -41,6 +63,28 @@ export default function RegisterPage() {
     clearError();
   }, []);
 
+  const handleFileUpload = async (slotKey: keyof KycDocuments, file: File) => {
+    if (file.size > 1024 * 1024) {
+      addToast("File size exceeds 1 MB limit", "error");
+      return;
+    }
+    const allowed = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+    if (!allowed.includes(file.type)) {
+      addToast("Invalid file type. Only PDF, JPG, JPEG, and PNG files are allowed.", "error");
+      return;
+    }
+    setUploadingSlot(slotKey);
+    try {
+      const res = await customerService.uploadDocument(file);
+      setKycDocs(prev => ({ ...prev, [slotKey]: res.url }));
+      addToast("Document uploaded successfully", "success");
+    } catch (err: unknown) {
+      addToast((err as any).message || "Document upload failed", "error");
+    } finally {
+      setUploadingSlot(null);
+    }
+  };
+
   const sendOtpRequest = async (): Promise<boolean> => {
     const fullName = `${firstName} ${lastName}`.trim();
     const isRetail = customerTypes[0] === "B2C";
@@ -49,6 +93,7 @@ export default function RegisterPage() {
       email,
       password,
       company: isRetail ? "" : company,
+      storeName: customerTypes.includes("Dropshipping") ? storeName : undefined,
       address: skipAddress ? "" : address,
       city: skipAddress ? "" : city,
       state: skipAddress ? "" : state,
@@ -57,6 +102,7 @@ export default function RegisterPage() {
       gstin: isRetail ? "" : gstin,
       skipAddress,
       customerTypes,
+      kycDocuments: isRetail ? undefined : kycDocs,
     };
 
     try {
@@ -87,6 +133,20 @@ export default function RegisterPage() {
       return;
     }
 
+    const isRetail = customerTypes[0] === "B2C";
+
+    if (!isRetail) {
+      if (customerTypes.includes("Dropshipping") && !storeName.trim()) {
+        addToast("Store Name is required for Dropshipping account", "warning");
+        return;
+      }
+      const missing = DOCUMENT_SLOTS.filter(s => s.required && !kycDocs[s.key]);
+      if (missing.length > 0) {
+        addToast(`Please upload required documents: ${missing.map(m => m.label).join(", ")}`, "error");
+        return;
+      }
+    }
+
     if (!skipAddress && (!address || !city || !state || !pinCode)) {
       addToast("Please fill in your delivery address or click 'Add Address Later' to skip", "warning");
       return;
@@ -101,12 +161,17 @@ export default function RegisterPage() {
     }
   };
 
-  const handleOtpVerified = async (data: any) => {
+  const handleOtpVerified = async () => {
     setIsOtpModalOpen(false);
-    addToast("Email verified! Wholesale account created successfully.", "success");
     await checkSession();
-    router.push("/client");
-    router.refresh();
+    const isRetail = customerTypes[0] === "B2C";
+    if (isRetail) {
+      addToast("Account created successfully!", "success");
+      router.push("/client");
+      router.refresh();
+    } else {
+      setIsPendingConfirmation(true);
+    }
   };
 
   const selectedType = customerTypes[0] || "B2C";
@@ -184,108 +249,184 @@ export default function RegisterPage() {
 
         {/* Right Registration Form */}
         <div className="md:col-span-8 p-6 sm:p-8 space-y-6">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-black tracking-tight">{getHeaderTitle()}</h1>
-            <p className="text-xs text-muted-foreground">
-              {getHeaderSubtitle()}
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-md border border-destructive/20 text-center font-medium">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">1. Personal & Login Credentials</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="font-bold">First Name *</label>
-                  <Input placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} required disabled={isSubmitting} className="text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold">Last Name *</label>
-                  <Input placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} required disabled={isSubmitting} className="text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold">Email Address *</label>
-                  <Input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={isSubmitting} className="text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold">Phone Number *</label>
-                  <Input type="tel" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} required disabled={isSubmitting} className="text-xs" />
-                </div>
-                <div className="space-y-1 md:col-span-2">
-                  <label className="font-bold">Password *</label>
-                  <div className="relative">
-                    <Input type={showPassword ? "text" : "password"} placeholder="Create password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={isSubmitting} className="pr-10 text-xs" />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="font-bold">Select Business Account Model *</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                    {[
-                      { type: "B2B", label: "Wholesale Buyer (B2B)", desc: "Bulk factory sourcing with GST tax invoice credits & tier discounts." },
-                      { type: "Dropshipping", label: "Dropshipper Partner", desc: "White-label direct delivery to your retail customers from Bhopal." },
-                      { type: "B2C", label: "Retail Consumer", desc: "Standard individual utility items & personal order sourcing." }
-                    ].map((item) => {
-                      const isSelected = customerTypes.includes(item.type as any);
-                      return (
-                        <div
-                          key={item.type}
-                          onClick={() => setCustomerTypes([item.type as any])}
-                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-primary/40 bg-background"
-                            }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-foreground">{item.label}</span>
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? "border-primary bg-primary" : "border-muted-foreground"}`}>
-                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                            </div>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-1 leading-normal">{item.desc}</p>
-                        </div>
-                      );
-                    })}
+          {isPendingConfirmation ? (
+            <div className="py-8 space-y-6 text-center">
+              <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto animate-bounce-slow">
+                <Clock className="h-8 w-8" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black tracking-tight text-foreground">Application Under Review</h2>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                  Thank you for registering as a <strong>{selectedType}</strong> partner! Your business details and KYC verification documents have been submitted to our team.
+                </p>
+                <div className="p-4 bg-secondary/30 rounded-xl border max-w-md mx-auto text-left space-y-2 text-xs">
+                  <p className="font-bold text-foreground flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 text-amber-500" /> Review Timeline: Within 24 Hours
+                  </p>
+                  <p className="text-muted-foreground">
+                    Our onboarding specialists will review your documents and activate your wholesale pricing access shortly.
+                  </p>
+                  <div className="pt-2 border-t space-y-1">
+                    <p className="font-bold text-foreground">Need Urgent Assistance?</p>
+                    <p className="flex items-center gap-2 text-muted-foreground">
+                      <Mail className="h-3.5 w-3.5 text-primary" /> support@flexsell.com
+                    </p>
+                    <p className="flex items-center gap-2 text-muted-foreground">
+                      <PhoneCall className="h-3.5 w-3.5 text-primary" /> +91-9826012345
+                    </p>
                   </div>
                 </div>
               </div>
+              <Button onClick={() => router.push("/client")} size="lg" className="font-bold">
+                Go to Dashboard
+              </Button>
             </div>
-
-            <div className="border-t pt-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-primary">{getSection2Header()}</h3>
-                <button
-                  type="button"
-                  onClick={() => setSkipAddress(!skipAddress)}
-                  className="text-xs font-semibold text-primary hover:underline flex items-center gap-1.5 bg-primary/10 px-2.5 py-1 rounded-md transition-colors"
-                >
-                  {skipAddress ? "＋ Add Delivery Address Now" : "⏱ Add Address Later"}
-                </button>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <h1 className="text-2xl font-black tracking-tight">{getHeaderTitle()}</h1>
+                <p className="text-xs text-muted-foreground">
+                  {getHeaderSubtitle()}
+                </p>
               </div>
 
-              {selectedType !== "B2C" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-1">
-                  <div className="space-y-1">
-                    <label className="font-bold">Company / Shop Name {selectedType === "B2B" ? "*" : "(Optional)"}</label>
-                    <Input placeholder="Doe Enterprises" value={company} onChange={(e) => setCompany(e.target.value)} required={selectedType === "B2B"} disabled={isSubmitting} className="text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold">GSTIN (Optional)</label>
-                    <Input placeholder="24AAACD4521D1Z1" value={gstin} onChange={(e) => setGstin(e.target.value)} disabled={isSubmitting} className="text-xs" />
-                  </div>
+              {error && (
+                <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-md border border-destructive/20 text-center font-medium">
+                  {error}
                 </div>
               )}
+
+              <form onSubmit={handleSubmit} className="space-y-6 text-xs">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">1. Personal & Login Credentials</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="font-bold">First Name *</label>
+                      <Input placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} required disabled={isSubmitting} className="text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold">Last Name *</label>
+                      <Input placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} required disabled={isSubmitting} className="text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold">Email Address *</label>
+                      <Input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={isSubmitting} className="text-xs" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold">Phone Number *</label>
+                      <Input type="tel" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} required disabled={isSubmitting} className="text-xs" />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="font-bold">Password *</label>
+                      <div className="relative">
+                        <Input type={showPassword ? "text" : "password"} placeholder="Create password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={isSubmitting} className="pr-10 text-xs" />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="font-bold">Select Business Account Model *</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                        {[
+                          { type: "B2B", label: "Wholesale Buyer (B2B)", desc: "Bulk factory sourcing with GST tax invoice credits & tier discounts." },
+                          { type: "Dropshipping", label: "Dropshipper Partner", desc: "White-label direct delivery to your retail customers from Bhopal." },
+                          { type: "B2C", label: "Retail Consumer", desc: "Standard individual utility items & personal order sourcing." }
+                        ].map((item) => {
+                          const isSelected = customerTypes.includes(item.type as any);
+                          return (
+                            <div
+                              key={item.type}
+                              onClick={() => setCustomerTypes([item.type as any])}
+                              className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-primary/40 bg-background"
+                                }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-foreground">{item.label}</span>
+                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? "border-primary bg-primary" : "border-muted-foreground"}`}>
+                                  {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground mt-1 leading-normal">{item.desc}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-primary">{getSection2Header()}</h3>
+                    <button
+                      type="button"
+                      onClick={() => setSkipAddress(!skipAddress)}
+                      className="text-xs font-semibold text-primary hover:underline flex items-center gap-1.5 bg-primary/10 px-2.5 py-1 rounded-md transition-colors"
+                    >
+                      {skipAddress ? "＋ Add Delivery Address Now" : "⏱ Add Address Later"}
+                    </button>
+                  </div>
+
+                  {selectedType !== "B2C" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-1">
+                      <div className="space-y-1">
+                        <label className="font-bold">Company / Shop Name *</label>
+                        <Input placeholder="Acme Enterprises" value={company} onChange={(e) => setCompany(e.target.value)} required disabled={isSubmitting} className="text-xs" />
+                      </div>
+                      {selectedType === "Dropshipping" && (
+                        <div className="space-y-1">
+                          <label className="font-bold">Store Name (Dropshipping) *</label>
+                          <Input placeholder="TrendyStore Online" value={storeName} onChange={(e) => setStoreName(e.target.value)} required disabled={isSubmitting} className="text-xs" />
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <label className="font-bold">GSTIN (Optional)</label>
+                        <Input placeholder="24AAACD4521D1Z1" value={gstin} onChange={(e) => setGstin(e.target.value)} disabled={isSubmitting} className="text-xs font-mono" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* KYC Verification Uploads for B2B & Dropshipping */}
+                  {selectedType !== "B2C" && (
+                    <div className="border-t pt-4 space-y-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-primary">3. KYC Document Verification</h3>
+                      <p className="text-[11px] text-muted-foreground">Upload clear scanned copies (Max 1 MB each. PDF, JPG, PNG allowed).</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {DOCUMENT_SLOTS.map((slot) => {
+                          const url = kycDocs[slot.key];
+                          const isUp = uploadingSlot === slot.key;
+                          return (
+                            <div key={slot.key} className="border p-2.5 rounded-lg bg-secondary/10 flex flex-col justify-between space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[11px] font-bold">
+                                  {slot.label} {slot.required ? <span className="text-destructive">*</span> : <span className="text-muted-foreground font-normal">(Opt)</span>}
+                                </span>
+                                {url && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
+                              </div>
+                              <label className="cursor-pointer bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold py-1 px-2 rounded text-center block transition-colors">
+                                {isUp ? "Uploading..." : url ? "Replace File" : "Upload File"}
+                                <input
+                                  type="file"
+                                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleFileUpload(slot.key, f);
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
               {skipAddress ? (
                 <div className="p-3.5 bg-muted/40 rounded-xl border border-dashed text-xs text-muted-foreground text-center">
@@ -335,6 +476,8 @@ export default function RegisterPage() {
               Sign In
             </Link>
           </div>
+            </>
+          )}
         </div>
       </motion.div>
 

@@ -89,19 +89,23 @@ export const apiClient = {
   get: <T>(path: string, options?: RequestInit) => 
     request<T>(path, { ...options, method: "GET" }),
     
-  post: <T>(path: string, body?: unknown, options?: RequestInit) => 
-    request<T>(path, { 
+  post: <T>(path: string, body?: unknown, options?: RequestInit) => {
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+    return request<T>(path, { 
       ...options, 
       method: "POST", 
-      body: body ? JSON.stringify(body) : undefined 
-    }),
+      body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined) 
+    });
+  },
     
-  put: <T>(path: string, body?: unknown, options?: RequestInit) => 
-    request<T>(path, { 
+  put: <T>(path: string, body?: unknown, options?: RequestInit) => {
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+    return request<T>(path, { 
       ...options, 
       method: "PUT", 
-      body: body ? JSON.stringify(body) : undefined 
-    }),
+      body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined) 
+    });
+  },
     
   delete: <T>(path: string, options?: RequestInit) => 
     request<T>(path, { ...options, method: "DELETE" }),

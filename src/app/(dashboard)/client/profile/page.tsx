@@ -189,31 +189,47 @@ export default function ClientProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-muted-foreground">Customer Type *</label>
-                <div className="flex gap-4 items-center pt-1">
-                  {(["B2C", "B2B", "Dropshipping"] as const).map((type) => (
-                    <label key={type} className="flex items-center gap-1.5 text-sm font-semibold cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="rounded text-primary focus:ring-primary bg-background border-border"
-                        checked={customerTypes.includes(type)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setCustomerTypes(prev => [...prev, type]);
-                          } else {
-                            if (customerTypes.length > 1) {
-                              setCustomerTypes(prev => prev.filter(t => t !== type));
-                            } else {
-                              addToast("At least one customer type is required.", "warning");
-                            }
-                          }
-                        }}
-                      />
-                      <span>{type}</span>
-                    </label>
+                <label className="text-xs font-bold uppercase text-muted-foreground">Account Type(s)</label>
+                <div className="flex flex-wrap gap-2 items-center pt-1">
+                  {customerTypes.map((type) => (
+                    <span
+                      key={type}
+                      className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        type === "B2C"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                          : type === "B2B"
+                          ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                      }`}
+                    >
+                      {type}
+                    </span>
                   ))}
+                  {(!customerTypes.includes("B2B") || !customerTypes.includes("Dropshipping")) && (
+                    <a
+                      href="/client/upgrade"
+                      className="text-xs font-bold text-primary hover:underline ml-2 flex items-center gap-1"
+                    >
+                      Want B2B or Dropshipping access? Apply for Upgrade →
+                    </a>
+                  )}
                 </div>
               </div>
+
+              {customerTypes.includes("Dropshipping") && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Store Name (Dropshipping)</label>
+                  <Input
+                    value={activeCustomer.storeName || ""}
+                    onChange={async (e) => {
+                      const val = e.target.value;
+                      setActiveCustomer((prev) => prev ? { ...prev, storeName: val } : prev);
+                    }}
+                    className="text-sm font-semibold"
+                    placeholder="Your Online Store Name"
+                  />
+                </div>
+              )}
 
               <Button type="submit" className="font-bold" disabled={isSubmittingBusiness}>
                 {isSubmittingBusiness ? "Saving..." : "Update Business Profile"}

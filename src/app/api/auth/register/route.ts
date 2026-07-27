@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     await dbConnect();
     const body = await req.json();
     const validatedData = registerSchema.parse(body);
-    const { name, email, password, company, address, city, state, pinCode, phone, gstin, customerTypes } = validatedData;
+    const { name, email, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments } = validatedData;
 
     // Check if email already exists
     const existingCustomer = await Customer.findOne({ email: email.toLowerCase() });
@@ -44,6 +44,9 @@ export async function POST(req: Request) {
       .toUpperCase()
       .substring(0, 2) || "C";
 
+    const hasB2bOrDropship = customerTypes?.some((t) => t === "B2B" || t === "Dropshipping");
+    const requestedTypes = (customerTypes || []).filter((t) => t === "B2B" || t === "Dropshipping") as ("B2B" | "Dropshipping")[];
+
     const newCustomer = new Customer({
       _id: customerId,
       name,
@@ -51,6 +54,7 @@ export async function POST(req: Request) {
       password: hashedPassword,
       role: "customer",
       company: company || "",
+      storeName: storeName || "",
       address,
       city,
       state,
@@ -58,7 +62,11 @@ export async function POST(req: Request) {
       phone,
       initials,
       gstin: gstin || "",
-      customerTypes: customerTypes || ["B2C"],
+      // Customer is created as B2C initial if upgrade is pending, or customerTypes as requested if approved
+      customerTypes: hasB2bOrDropship ? ["B2C"] : (customerTypes || ["B2C"]),
+      upgradeStatus: hasB2bOrDropship ? "pending" : "none",
+      upgradeRequestedTypes: hasB2bOrDropship ? requestedTypes : [],
+      kycDocuments: kycDocuments || {}
     });
 
     await newCustomer.save();

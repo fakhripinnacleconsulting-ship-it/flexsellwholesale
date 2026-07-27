@@ -9,36 +9,77 @@ import { Customer } from "@/types";
 import { customerService } from "@/services/customerService";
 import { useOrderStore } from "@/stores/orderStore";
 import { formatPrice } from "@/lib/utils";
-import { ArrowLeft, User, ShoppingBag, CreditCard, Mail, Phone, MapPin, Building, ShieldAlert, CheckCircle2, Truck, Clock } from "lucide-react";
+import { ArrowLeft, User, ShoppingBag, CreditCard, Mail, Phone, MapPin, Building, ShieldAlert, CheckCircle2, Truck, Clock, Store, FileText, ExternalLink, Download, ArrowUpCircle, XCircle } from "lucide-react";
+import { useToastStore } from "@/stores/toastStore";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
 export default function AdminCustomerDetailPage({ params }: PageProps) {
+  const { addToast } = useToastStore();
   const resolvedParams = React.use(params);
   const customerId = resolvedParams.id;
 
   const { orders, initializeOrders } = useOrderStore();
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isProcessing, setIsProcessing] = React.useState(false);
+
+  const fetchCustomersData = React.useCallback(async () => {
+    try {
+      const data = await customerService.getCustomers();
+      setCustomers(data);
+    } catch (err) {
+      console.error("Failed to load customer detail data", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
     const loadData = async () => {
       try {
         await initializeOrders();
-        const data = await customerService.getCustomers();
-        setCustomers(data);
+        await fetchCustomersData();
       } catch (err) {
         console.error("Failed to load customer detail data", err);
-      } finally {
-        setIsLoading(false);
       }
     };
     loadData();
-  }, [initializeOrders]);
+  }, [initializeOrders, fetchCustomersData]);
 
   const customer = React.useMemo(() => customers.find(c => c._id === customerId), [customers, customerId]);
+
+  const handleApprove = async () => {
+    if (!customer) return;
+    setIsProcessing(true);
+    try {
+      await customerService.approveUpgrade(customer._id);
+      addToast("Customer upgrade approved!", "success");
+      fetchCustomersData();
+    } catch (err: unknown) {
+      addToast((err as any).message || "Failed to approve upgrade", "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!customer) return;
+    const reason = prompt("Enter rejection reason:");
+    if (reason === null) return;
+    setIsProcessing(true);
+    try {
+      await customerService.rejectUpgrade(customer._id, reason || undefined);
+      addToast("Upgrade request rejected.", "info");
+      fetchCustomersData();
+    } catch (err: unknown) {
+      addToast((err as any).message || "Failed to reject upgrade", "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const customerOrders = React.useMemo(() => {
     if (!customer) return [];
@@ -72,6 +113,7 @@ export default function AdminCustomerDetailPage({ params }: PageProps) {
   const pendingOrders = customerOrders.filter(o => o.status === "Processing").length;
   const shippedOrders = customerOrders.filter(o => o.status === "Shipped").length;
   const deliveredOrders = customerOrders.filter(o => o.status === "Delivered").length;
+  const kycDocs = customer.kycDocuments || {};
 
   return (
     <div className="space-y-6 container mx-auto px-4 py-8 text-foreground max-w-6xl">
@@ -92,6 +134,31 @@ export default function AdminCustomerDetailPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Pending Upgrade Alert Banner */}
+      {customer.upgradeStatus === "pending" && (
+        <Card className="border-amber-500/30 bg-amber-500/10">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <ArrowUpCircle className="h-7 w-7 text-amber-500 shrink-0" />
+              <div>
+                <h4 className="font-bold text-amber-600 dark:text-amber-400 text-sm">Upgrade Application Pending</h4>
+                <p className="text-xs text-muted-foreground">
+                  Requested Tiers: <strong>{customer.upgradeRequestedTypes?.join(", ")}</strong>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10 font-bold" onClick={handleReject} disabled={isProcessing}>
+                <XCircle className="h-4 w-4 mr-1" /> Reject
+              </Button>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white font-bold" onClick={handleApprove} disabled={isProcessing}>
+                <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Request
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick stats cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -163,6 +230,12 @@ export default function AdminCustomerDetailPage({ params }: PageProps) {
                 <span className="text-muted-foreground font-semibold flex items-center gap-1.5"><Building className="h-3.5 w-3.5" /> Business Company:</span>
                 <p className="font-bold text-foreground pl-5">{customer.company || "Individual / Direct"}</p>
               </div>
+              {customer.storeName && (
+                <div className="space-y-1">
+                  <span className="text-muted-foreground font-semibold flex items-center gap-1.5"><Store className="h-3.5 w-3.5" /> Store Name (Dropship):</span>
+                  <p className="font-bold text-foreground pl-5">{customer.storeName}</p>
+                </div>
+              )}
               <div className="space-y-1">
                 <span className="text-muted-foreground font-semibold flex items-center gap-1.5"><Building className="h-3.5 w-3.5" /> Customer Types:</span>
                 <div className="pl-5 flex flex-wrap gap-1 mt-0.5">
@@ -194,6 +267,41 @@ export default function AdminCustomerDetailPage({ params }: PageProps) {
                   <p>{customer.city}, {customer.state} - {customer.pinCode}</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* KYC Documents Card */}
+          <Card className="border border-border">
+            <CardHeader className="border-b pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <FileText className="h-4.5 w-4.5 text-primary" /> KYC Verification Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              {[
+                { key: "gstCertificate", label: "GST Certificate" },
+                { key: "signaturePhoto", label: "Signature Photo" },
+                { key: "aadharCard", label: "Aadhar Card" },
+                { key: "passportPhoto", label: "Passport Photo" },
+                { key: "panCard", label: "PAN Card" },
+                { key: "chequePhoto", label: "Cancelled Cheque" },
+              ].map((doc) => {
+                const url = kycDocs[doc.key as keyof typeof kycDocs];
+                return (
+                  <div key={doc.key} className="flex items-center justify-between p-2 rounded-md border text-xs bg-secondary/10">
+                    <span className="font-bold text-foreground">{doc.label}</span>
+                    {url ? (
+                      <div className="flex items-center gap-2">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold text-[11px] flex items-center gap-1">
+                          View <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground italic">Not uploaded</span>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </div>

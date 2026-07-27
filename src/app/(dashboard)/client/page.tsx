@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Package, Clock, Truck, CheckCircle2, ArrowRight } from "lucide-react";
+import { Package, Clock, Truck, CheckCircle2, ArrowRight, ArrowUpCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useOrderStore } from "@/stores/orderStore";
 import { customerService } from "@/services/customerService";
@@ -58,14 +58,39 @@ export default function ClientDashboardPage() {
     return <div className="text-center py-10 text-muted-foreground">Loading dashboard...</div>;
   }
 
+  const isB2COnly = activeCustomer.customerTypes?.length === 1 && activeCustomer.customerTypes[0] === "B2C";
+  const showUpgradeBanner = isB2COnly && activeCustomer.upgradeStatus !== "pending";
+
   return (
     <div className="space-y-6 text-foreground">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
-          <p className="text-muted-foreground mt-1">Hello, {activeCustomer.name} ({activeCustomer.company})</p>
+          <p className="text-muted-foreground mt-1">Hello, {activeCustomer.name} ({activeCustomer.company || "Retail Member"})</p>
         </div>
       </div>
+
+      {/* Upgrade CTA Banner for B2C customers */}
+      {showUpgradeBanner && (
+        <div className="bg-gradient-to-r from-primary/15 via-primary/10 to-amber-500/10 border border-primary/20 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary text-primary-foreground rounded-full">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-foreground">Unlock Wholesale & Dropshipping Pricing!</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Apply for B2B bulk rates or Dropshipping partner access by submitting your business details & KYC.
+              </p>
+            </div>
+          </div>
+          <Link href="/client/upgrade">
+            <Button className="font-bold flex items-center gap-1.5 whitespace-nowrap">
+              <ArrowUpCircle className="h-4 w-4" /> Apply for Upgrade
+            </Button>
+          </Link>
+        </div>
+      )}
       
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

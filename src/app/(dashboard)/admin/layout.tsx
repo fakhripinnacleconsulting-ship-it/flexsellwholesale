@@ -8,13 +8,15 @@ import {
   LayoutDashboard, ShoppingBag, FolderTree, Users,
   Settings, Tags, CreditCard, Menu, Percent, FileText, LogOut,
   ChevronLeft, ChevronRight, MessageSquare, MessageSquarePlus, Truck, Image as ImageIcon, Layers, Megaphone,
-  BarChart, Bell, X, Check
+  BarChart, Bell, X, Check,
+  ArrowUpCircle
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { Avatar } from "@/components/ui/Avatar";
 import { Drawer } from "@/components/ui/Drawer";
 import { notificationService } from "@/services/notificationService";
-import { Notification } from "@/types";
+import { customerService } from "@/services/customerService";
+import { Notification, Customer } from "@/types";
 
 function AdminNotificationBell() {
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
@@ -121,9 +123,8 @@ function AdminNotificationBell() {
               notifications.map((notif) => (
                 <div
                   key={notif._id}
-                  className={`p-3.5 transition-colors flex items-start justify-between gap-2 ${
-                    notif.isRead ? "bg-card opacity-75" : "bg-primary/5 font-medium"
-                  }`}
+                  className={`p-3.5 transition-colors flex items-start justify-between gap-2 ${notif.isRead ? "bg-card opacity-75" : "bg-primary/5 font-medium"
+                    }`}
                 >
                   <div className="space-y-1 pr-2">
                     <span className="font-bold text-foreground block text-xs">{notif.title}</span>
@@ -164,6 +165,7 @@ function AdminNotificationBell() {
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [pendingUpgradesCount, setPendingUpgradesCount] = React.useState(0);
   const pathname = usePathname();
   const logout = useAuthStore((state) => state.logout);
 
@@ -172,6 +174,9 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     if (saved !== null) {
       setIsSidebarOpen(saved === "true");
     }
+    customerService.getUpgradeRequests()
+      .then((list: Customer[]) => setPendingUpgradesCount(list.length))
+      .catch(() => { });
   }, []);
 
   const handleToggleSidebar = () => {
@@ -189,6 +194,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { name: "Orders", href: "/admin/orders", icon: CreditCard },
     { name: "Invoices", href: "/admin/invoices", icon: FileText },
     { name: "Customers", href: "/admin/customers", icon: Users },
+    { name: "Upgrade Requests", href: "/admin/upgrade-requests", icon: ArrowUpCircle, badge: pendingUpgradesCount },
     { name: "Reviews", href: "/admin/reviews", icon: MessageSquare },
     { name: "Inquiries", href: "/admin/inquiries", icon: MessageSquarePlus },
     { name: "HSN Management", href: "/admin/hsn", icon: Percent },
@@ -228,12 +234,17 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                 key={link.name}
                 href={link.href}
                 className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md transition-colors relative group ${isActive
-                    ? "bg-primary/10 text-primary font-bold"
-                    : "hover:bg-secondary hover:text-primary text-foreground"
+                  ? "bg-primary/10 text-primary font-bold"
+                  : "hover:bg-secondary hover:text-primary text-foreground"
                   }`}
               >
                 <Icon className="h-5 w-5 flex-shrink-0" />
                 {!isCollapsed && <span className="transition-opacity duration-300 opacity-100">{link.name}</span>}
+                {Boolean(link.badge && link.badge > 0) && (
+                  <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
+                    {link.badge}
+                  </span>
+                )}
 
                 {/* Tooltip on hover when collapsed */}
                 {isCollapsed && (

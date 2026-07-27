@@ -69,6 +69,15 @@ export async function POST(req: Request) {
     // 6. Dispatch Email
     const emailSent = await emailService.sendRegisterOtp(lowerEmail, rawOtp, name);
     if (!emailSent) {
+      console.warn(`[OTP FALLBACK] Email delivery failed or timed out for ${lowerEmail}. Raw OTP code: ${rawOtp}`);
+      if (process.env.NODE_ENV !== "production") {
+        return NextResponse.json({
+          success: true,
+          message: `Verification code sent to ${lowerEmail} (Dev Code: ${rawOtp})`,
+          resendCooldownSeconds: 60,
+          devOtp: rawOtp,
+        });
+      }
       return NextResponse.json(
         { message: `Failed to deliver verification email to ${lowerEmail}. Please check mail server connection.` },
         { status: 500 }

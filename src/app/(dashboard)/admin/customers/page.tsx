@@ -62,6 +62,7 @@ export default function AdminCustomersPage() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [company, setCompany] = React.useState("");
+  const [storeName, setStoreName] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [city, setCity] = React.useState("");
   const [state, setState] = React.useState(INDIAN_STATES[0]);
@@ -69,6 +70,8 @@ export default function AdminCustomersPage() {
   const [phone, setPhone] = React.useState("");
   const [gstin, setGstin] = React.useState("");
   const [customerTypes, setCustomerTypes] = React.useState<string[]>(["B2C"]);
+  const [kycDocs, setKycDocs] = React.useState<import("@/types").KycDocuments>({});
+  const [uploadingDocSlot, setUploadingDocSlot] = React.useState<string | null>(null);
 
   const fetchCustomers = async () => {
     try {
@@ -101,6 +104,7 @@ export default function AdminCustomersPage() {
     setEmail("");
     setPassword("");
     setCompany("");
+    setStoreName("");
     setAddress("");
     setCity("");
     setState(INDIAN_STATES[0]);
@@ -108,6 +112,7 @@ export default function AdminCustomersPage() {
     setPhone("");
     setGstin("");
     setCustomerTypes(["B2C"]);
+    setKycDocs({});
   };
 
   const handleOpenAddModal = () => {
@@ -119,16 +124,40 @@ export default function AdminCustomersPage() {
     setEditingCustomer(cust);
     setName(cust.name);
     setEmail(cust.email);
-    setPassword(""); // Keep password empty unless changing
+    setPassword("");
     setCompany(cust.company || "");
-    setAddress(cust.address);
-    setCity(cust.city);
+    setStoreName(cust.storeName || "");
+    setAddress(cust.address || "");
+    setCity(cust.city || "");
     setState(cust.state || INDIAN_STATES[0]);
-    setPinCode(cust.pinCode);
-    setPhone(cust.phone);
+    setPinCode(cust.pinCode || "");
+    setPhone(cust.phone || "");
     setGstin(cust.gstin || "");
     setCustomerTypes(cust.customerTypes || ["B2C"]);
+    setKycDocs(cust.kycDocuments || {});
     setIsModalOpen(true);
+  };
+
+  const handleDocUpload = async (slotKey: keyof import("@/types").KycDocuments, file: File) => {
+    if (file.size > 1024 * 1024) {
+      addToast("File size exceeds 1 MB limit", "error");
+      return;
+    }
+    const allowed = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+    if (!allowed.includes(file.type)) {
+      addToast("Invalid file type. Only PDF, JPG, JPEG, and PNG are allowed.", "error");
+      return;
+    }
+    setUploadingDocSlot(slotKey);
+    try {
+      const res = await customerService.uploadDocument(file);
+      setKycDocs(prev => ({ ...prev, [slotKey]: res.url }));
+      addToast("Document uploaded", "success");
+    } catch (err: unknown) {
+      addToast((err as any).message || "Upload failed", "error");
+    } finally {
+      setUploadingDocSlot(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,13 +179,15 @@ export default function AdminCustomersPage() {
         email: email.toLowerCase().trim(),
         password: password || undefined,
         company,
+        storeName: customerTypes.includes("Dropshipping") ? storeName : undefined,
         address,
         city,
         state,
         pinCode,
         phone,
         gstin,
-        customerTypes
+        customerTypes,
+        kycDocuments: kycDocs
       };
 
       let res;
@@ -284,7 +315,7 @@ export default function AdminCustomersPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1 items-center">
                           {(cust.customerTypes || ["B2C"]).map(type => (
                             <span
                               key={type}
@@ -297,6 +328,11 @@ export default function AdminCustomersPage() {
                               {type}
                             </span>
                           ))}
+                          {cust.upgradeStatus === "pending" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 animate-pulse">
+                              ⏳ Upgrade Pending
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center font-bold whitespace-nowrap">{cust.ordersCount} orders</td>
@@ -370,6 +406,13 @@ export default function AdminCustomersPage() {
                 </div>
               </div>
 
+              {customerTypes.includes("Dropshipping") && (
+                <div className="space-y-1.5">
+                  <label className="font-bold text-muted-foreground">Store Name (Dropshipping) *</label>
+                  <Input placeholder="Online Store Name" value={storeName} onChange={(e) => setStoreName(e.target.value)} required />
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="font-bold text-muted-foreground">Customer Type *</label>
                 <div className="flex flex-wrap gap-3 items-center pt-1">
@@ -394,6 +437,46 @@ export default function AdminCustomersPage() {
                       <span>{type}</span>
                     </label>
                   ))}
+                </div>
+              </div>
+
+              {/* KYC Document Uploads for Admin */}
+              <div className="space-y-2 pt-2 border-t">
+                <label className="font-bold text-muted-foreground block">KYC Verification Documents (Max 1MB each, PDF/JPG/PNG)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { key: "gstCertificate", label: "GST Cert" },
+                    { key: "signaturePhoto", label: "Signature" },
+                    { key: "aadharCard", label: "Aadhar" },
+                    { key: "passportPhoto", label: "Passport" },
+                    { key: "panCard", label: "PAN Card" },
+                    { key: "chequePhoto", label: "Cheque" },
+                  ].map((doc) => {
+                    const url = kycDocs[doc.key as keyof import("@/types").KycDocuments];
+                    const isUp = uploadingDocSlot === doc.key;
+                    return (
+                      <div key={doc.key} className="border p-2 rounded bg-secondary/10 flex flex-col justify-between">
+                        <span className="text-[10px] font-bold truncate">{doc.label}</span>
+                        {url ? (
+                          <div className="text-[9px] text-green-600 dark:text-green-400 font-bold truncate mt-1">Uploaded</div>
+                        ) : (
+                          <span className="text-[9px] text-muted-foreground italic">Empty</span>
+                        )}
+                        <label className="mt-1 cursor-pointer bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold py-1 px-1.5 rounded text-center block">
+                          {isUp ? "Uploading..." : url ? "Replace" : "Upload"}
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) handleDocUpload(doc.key as keyof import("@/types").KycDocuments, f);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

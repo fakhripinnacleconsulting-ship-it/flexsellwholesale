@@ -5,6 +5,15 @@ export const loginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+export const kycDocumentsSchema = z.object({
+  gstCertificate: z.string().optional(),
+  signaturePhoto: z.string().optional(),
+  aadharCard: z.string().optional(),
+  passportPhoto: z.string().optional(),
+  panCard: z.string().optional(),
+  chequePhoto: z.string().optional(),
+});
+
 export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email format"),
@@ -13,6 +22,7 @@ export const registerSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
   company: z.string().optional(),
+  storeName: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -24,6 +34,7 @@ export const registerSchema = z.object({
     .min(1, "At least one customer type is required")
     .max(3)
     .default(["B2C"]),
+  kycDocuments: kycDocumentsSchema.optional(),
 });
 
 export const forgotPasswordSchema = z.object({

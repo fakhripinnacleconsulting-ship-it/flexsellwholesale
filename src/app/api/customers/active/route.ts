@@ -43,7 +43,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { name, phone, company, gstin, address, city, state, pinCode, email, wishlist, customerTypes } = body;
+    const { name, phone, company, storeName, gstin, address, city, state, pinCode, email, wishlist, customerTypes, upgradeStatus, upgradeRequestedTypes, kycDocuments } = body;
 
     const customer = await Customer.findById(payload.userId);
     if (!customer) {
@@ -55,6 +55,7 @@ export async function PUT(request: Request) {
     if (name !== undefined) customer.name = name;
     if (phone !== undefined) customer.phone = phone;
     if (company !== undefined) customer.company = company;
+    if (storeName !== undefined) customer.storeName = storeName;
     if (gstin !== undefined) customer.gstin = gstin;
     if (address !== undefined) customer.address = address;
     if (city !== undefined) customer.city = city;
@@ -63,6 +64,9 @@ export async function PUT(request: Request) {
     if (email !== undefined) customer.email = email.toLowerCase();
     if (wishlist !== undefined) customer.wishlist = wishlist;
     if (customerTypes !== undefined) customer.customerTypes = customerTypes;
+    if (upgradeStatus !== undefined) customer.upgradeStatus = upgradeStatus;
+    if (upgradeRequestedTypes !== undefined) customer.upgradeRequestedTypes = upgradeRequestedTypes;
+    if (kycDocuments !== undefined) customer.kycDocuments = kycDocuments;
 
     // Recalculate initials if name changed
     if (name) {

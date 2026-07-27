@@ -26,6 +26,7 @@ const CustomerSchema = new Schema<CustomerType & Document>(
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
     company: { type: String },
+    storeName: { type: String },
     address: { type: String, required: false },
     city: { type: String, required: false },
     state: { type: String, required: false },
@@ -36,6 +37,20 @@ const CustomerSchema = new Schema<CustomerType & Document>(
     customerTypes: {
       type: [{ type: String, enum: ["B2C", "B2B", "Dropshipping"] }],
       default: ["B2C"]
+    },
+    upgradeStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none"
+    },
+    upgradeRequestedTypes: [{ type: String, enum: ["B2B", "Dropshipping"] }],
+    kycDocuments: {
+      gstCertificate: { type: String },
+      signaturePhoto: { type: String },
+      aadharCard: { type: String },
+      passportPhoto: { type: String },
+      panCard: { type: String },
+      chequePhoto: { type: String }
     },
     addresses: [SavedAddressSchema],
     wishlist: [{ type: String }],

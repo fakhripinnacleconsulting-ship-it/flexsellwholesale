@@ -185,5 +185,160 @@ export const customerService = {
       return updated;
     }
     return apiClient.delete<SavedAddress[]>(`/customers/addresses?id=${id}`);
+  },
+
+  async uploadDocument(file: File): Promise<{ url: string }> {
+    if (file.size > 1024 * 1024) {
+      throw new Error("File size exceeds 1 MB limit");
+    }
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error("Invalid file type. Only PDF, JPG, JPEG, and PNG files are allowed.");
+    }
+
+    if (isMockMode) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve({ url: reader.result as string });
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiClient.post<{ url: string }>("/customers/upload-document", formData);
+  },
+
+  async submitUpgradeRequest(data: {
+    requestedTypes: ("B2B" | "Dropshipping")[];
+    company?: string;
+    storeName?: string;
+    address: string;
+    city: string;
+    state: string;
+    pinCode: string;
+    phone: string;
+    gstin?: string;
+    kycDocuments: import("@/types").KycDocuments;
+  }): Promise<Customer> {
+    if (isMockMode) {
+      if (typeof window === "undefined") throw new Error("Window unavailable");
+      const raw = localStorage.getItem("flexsell-customers-storage");
+      const list: Customer[] = raw ? JSON.parse(raw) : [];
+      
+      const { useAuthStore } = await import("@/stores/authStore");
+      const currentCustomer = useAuthStore.getState().customer;
+      const custId = currentCustomer?._id || "FSW-CUST-00001";
+
+      const updatedList = list.map(c => {
+        if (c._id === custId || c.email === currentCustomer?.email) {
+          return {
+            ...c,
+            company: data.company || c.company,
+            storeName: data.storeName || c.storeName,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            pinCode: data.pinCode,
+            phone: data.phone,
+            gstin: data.gstin || c.gstin,
+            upgradeStatus: "pending" as const,
+            upgradeRequestedTypes: data.requestedTypes,
+            kycDocuments: data.kycDocuments
+          };
+        }
+        return c;
+      });
+
+      localStorage.setItem("flexsell-customers-storage", JSON.stringify(updatedList));
+      const target = updatedList.find(c => c._id === custId || c.email === currentCustomer?.email)!;
+      useAuthStore.setState({ customer: target });
+      return target;
+    }
+
+    return apiClient.post<Customer>("/customers/upgrade", data);
+  },
+
+  async getUpgradeRequests(): Promise<Customer[]> {
+    if (isMockMode) {
+      if (typeof window === "undefined") return [];
+      const raw = localStorage.getItem("flexsell-customers-storage");
+      const list: Customer[] = raw ? JSON.parse(raw) : [];
+      return list.filter(c => c.upgradeStatus === "pending");
+    }
+
+    return apiClient.get<Customer[]>("/customers/upgrade");
+  },
+
+  async approveUpgrade(customerId: string): Promise<Customer> {
+    if (isMockMode) {
+      if (typeof window === "undefined") throw new Error("Window unavailable");
+      const raw = localStorage.getItem("flexsell-customers-storage");
+      let list: Customer[] = raw ? JSON.parse(raw) : [];
+
+      let updatedCustomer: Customer | undefined;
+      list = list.map(c => {
+        if (c._id === customerId) {
+          const requested = c.upgradeRequestedTypes || [];
+          const existingTypes = c.customerTypes || ["B2C"];
+          const newTypes = Array.from(new Set([...existingTypes, ...requested])) as ("B2C" | "B2B" | "Dropshipping")[];
+          updatedCustomer = {
+            ...c,
+            customerTypes: newTypes,
+            upgradeStatus: "approved" as const,
+          };
+          return updatedCustomer;
+        }
+        return c;
+      });
+
+      localStorage.setItem("flexsell-customers-storage", JSON.stringify(list));
+      if (!updatedCustomer) throw new Error("Customer not found");
+
+      const { useAuthStore } = await import("@/stores/authStore");
+      const current = useAuthStore.getState().customer;
+      if (current && current._id === customerId) {
+        useAuthStore.setState({ customer: updatedCustomer });
+      }
+
+      return updatedCustomer;
+    }
+
+    return apiClient.put<Customer>("/customers/upgrade", { customerId, action: "approve" });
+  },
+
+  async rejectUpgrade(customerId: string, reason?: string): Promise<Customer> {
+    if (isMockMode) {
+      if (typeof window === "undefined") throw new Error("Window unavailable");
+      const raw = localStorage.getItem("flexsell-customers-storage");
+      let list: Customer[] = raw ? JSON.parse(raw) : [];
+
+      let updatedCustomer: Customer | undefined;
+      list = list.map(c => {
+        if (c._id === customerId) {
+          updatedCustomer = {
+            ...c,
+            upgradeStatus: "rejected" as const,
+          };
+          return updatedCustomer;
+        }
+        return c;
+      });
+
+      localStorage.setItem("flexsell-customers-storage", JSON.stringify(list));
+      if (!updatedCustomer) throw new Error("Customer not found");
+
+      const { useAuthStore } = await import("@/stores/authStore");
+      const current = useAuthStore.getState().customer;
+      if (current && current._id === customerId) {
+        useAuthStore.setState({ customer: updatedCustomer });
+      }
+
+      return updatedCustomer;
+    }
+
+    return apiClient.put<Customer>("/customers/upgrade", { customerId, action: "reject", reason });
   }
 };
