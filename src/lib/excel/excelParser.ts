@@ -4,7 +4,7 @@ import { plainTextToHtml } from "./htmlConverter";
 import { ExcelValidationError } from "./excelTypes";
 
 export async function parseAndValidateExcel(
-  fileData: ArrayBuffer,
+  fileData: ArrayBuffer | Buffer,
   categories: Category[],
   hsns: HsnRecord[],
   systemProducts: Product[] = []
@@ -18,22 +18,31 @@ export async function parseAndValidateExcel(
   };
 }> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(fileData);
+  const buffer = Buffer.isBuffer(fileData) ? fileData : Buffer.from(fileData);
+  await workbook.xlsx.load(buffer as any);
 
-  // Find the data sheet (first sheet that isn't "Instructions")
+  // Find the data sheet intelligently:
+  // 1. Look for a sheet named "products" (case-insensitive) with data
+  // 2. Otherwise look for the first non-"instructions" sheet with data
+  // 3. Fallback to first available sheet
   let ws: ExcelJS.Worksheet | undefined;
-  for (const sheet of workbook.worksheets) {
-    if (sheet.name.toLowerCase() !== "instructions") {
-      ws = sheet;
-      break;
-    }
+  
+  const productSheet = workbook.worksheets.find(
+    (s) => s.name.toLowerCase() === "products" && (s.rowCount > 0 || s.actualRowCount > 0)
+  );
+  if (productSheet) {
+    ws = productSheet;
+  } else {
+    ws = workbook.worksheets.find(
+      (s) => s.name.toLowerCase() !== "instructions" && (s.rowCount > 0 || s.actualRowCount > 0)
+    );
   }
   if (!ws) ws = workbook.worksheets[0];
 
-  if (!ws || ws.rowCount === 0) {
+  if (!ws || ws.rowCount === 0 || ws.actualRowCount === 0) {
     return {
       products: [],
-      errors: [{ row: 1, column: "File", message: "The sheet is empty", type: "error" }],
+      errors: [{ row: 1, column: "File", message: "The sheet is empty or contains no readable data rows.", type: "error" }],
       stats: { productsCount: 0, variantsCount: 0, combinationsCount: 0 },
     };
   }
@@ -364,6 +373,15 @@ export async function parseAndValidateExcel(
       colorVariants,
     });
   });
+
+  if (assembledProducts.length === 0 && errors.length === 0) {
+    errors.push({
+      row: 1,
+      column: "File / Products",
+      message: "No product rows were found in the uploaded sheet. Please make sure product data is filled starting from row 3 (below header and guidelines).",
+      type: "error",
+    });
+  }
 
   return {
     products: assembledProducts,

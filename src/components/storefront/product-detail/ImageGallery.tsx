@@ -31,7 +31,7 @@ export function ImageGallery() {
       ? mainImageObj
       : mainImageObj.url || ""
     : "";
-  const mainImage = sanitizeImgUrl(rawMainImage, "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80");
+  const mainImage = sanitizeImgUrl(rawMainImage);
   const mainImageAlt = mainImageObj && typeof mainImageObj !== "string"
     ? mainImageObj.alt
     : product.title;
@@ -54,7 +54,11 @@ export function ImageGallery() {
                   activeImageIdx === i ? "border-primary scale-95 shadow-sm" : "border-border hover:border-primary/50"
                 }`}
               >
-                <Image src={url} alt={alt} fill sizes="80px" className="object-cover" />
+                {url ? (
+                  <Image src={url} alt={alt} fill sizes="80px" className="object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-secondary flex items-center justify-center text-[9px] text-muted-foreground">No Image</div>
+                )}
               </button>
             );
           })}
@@ -63,14 +67,20 @@ export function ImageGallery() {
 
       {/* Large Main Image */}
       <div className="flex-1 w-full aspect-square bg-card rounded-xl overflow-hidden border border-border shadow-sm flex items-center justify-center relative">
-        <Image
-          src={mainImage}
-          alt={mainImageAlt}
-          fill
-          sizes="(max-width: 768px) 100vw, 50vw"
-          priority
-          className="object-cover hover:scale-102 transition-transform duration-300"
-        />
+        {mainImage ? (
+          <Image
+            src={mainImage}
+            alt={mainImageAlt}
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            priority
+            className="object-cover hover:scale-102 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground">
+            No Image Available
+          </div>
+        )}
         {activeSubVariant && activeSubVariant.discount > 0 && (
           <span className="absolute top-4 left-4 bg-destructive text-destructive-foreground text-xs font-black px-2.5 py-1 rounded shadow animate-pulse">
             {activeSubVariant.discount}% DISCOUNT

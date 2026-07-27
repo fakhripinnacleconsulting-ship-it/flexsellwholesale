@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
 import { Edit, Trash2, ExternalLink, Download } from "lucide-react";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { Product } from "@/types";
 import { resolvePrice } from "@/lib/priceTierHelper";
 
@@ -86,7 +86,8 @@ export function ProductTable({
                       }
                     }
                   }
-                  const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+                  const rawImgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+                  const imgUrl = rawImgUrl ? sanitizeImgUrl(rawImgUrl) : "";
                   const defaultVariant = product.colorVariants?.[0];
                   const variantsCount = product.colorVariants?.length || 0;
                   const isSelected = selectedProductIds.includes(product._id);
@@ -104,7 +105,11 @@ export function ProductTable({
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-md bg-secondary overflow-hidden flex-shrink-0 border">
-                            {imgUrl && <Image src={imgUrl} alt={product.title} width={40} height={40} className="w-full h-full object-cover" />}
+                            {imgUrl ? (
+                              <Image src={imgUrl} alt={product.title} width={40} height={40} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-secondary flex items-center justify-center text-[10px] text-muted-foreground font-semibold">No Image</div>
+                            )}
                           </div>
                           <div>
                             <p className="font-bold line-clamp-1">{product.title}</p>

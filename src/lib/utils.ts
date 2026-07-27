@@ -28,34 +28,45 @@ export function truncate(str: string, length: number) {
 
 export function sanitizeImgUrl(
   url: string,
-  fallback: string = "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80"
+  fallback: string = ""
 ): string {
   if (!url) return fallback;
   const trimmed = url.trim();
-
-  // Redirect known 404/dead unsplash image IDs to working product photo
   if (
-    trimmed.includes("photo-1537655780520-1e392edd816a") ||
-    trimmed.includes("photo-1610970881699-44a5587caa9a") ||
-    trimmed.includes("photo-1590794056226-79ef3a8147e1")
+    !trimmed ||
+    trimmed === "null" ||
+    trimmed === "undefined" ||
+    trimmed.includes("[link removed]") ||
+    trimmed.includes("[link]") ||
+    trimmed.includes("<") ||
+    trimmed.includes(">")
   ) {
-    return "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80";
+    return fallback;
   }
 
-  if (
-    trimmed.startsWith("http://") ||
-    trimmed.startsWith("https://") ||
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("data:") ||
-    trimmed.startsWith("blob:")
-  ) {
+  if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
     return trimmed;
   }
-  if (trimmed.startsWith("//")) {
-    return `https:${trimmed}`;
+
+  let formatted = trimmed;
+  if (formatted.startsWith("//")) {
+    formatted = `https:${formatted}`;
+  } else if (!formatted.startsWith("http://") && !formatted.startsWith("https://") && !formatted.startsWith("/")) {
+    if (formatted.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/|$)/)) {
+      formatted = `https://${formatted}`;
+    } else {
+      formatted = `/${formatted}`;
+    }
   }
-  if (trimmed.match(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/|$)/)) {
-    return `https://${trimmed}`;
+
+  if (formatted.startsWith("http://") || formatted.startsWith("https://")) {
+    try {
+      new URL(formatted);
+      return formatted;
+    } catch {
+      return fallback;
+    }
   }
-  return `/${trimmed}`;
+
+  return formatted;
 }

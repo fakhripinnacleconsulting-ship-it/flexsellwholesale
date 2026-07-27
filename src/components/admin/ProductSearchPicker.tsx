@@ -6,7 +6,7 @@ import { Search, Check, X, Tag, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Product } from "@/types";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { searchService } from "@/services/searchService";
 import { resolvePrice } from "@/lib/priceTierHelper";
 
@@ -100,7 +100,7 @@ export function ProductSearchPicker({
               const price = firstSv ? resolvePrice(firstSv, p.defaultPriceTier || "B2C") : 0;
               const firstImg = firstCv?.images?.[0];
               const rawImg = typeof firstImg === "string" ? firstImg : (firstImg as any)?.url || "";
-              const validImgSrc = rawImg && rawImg.trim() ? rawImg.trim() : "/placeholder.png";
+              const validImgSrc = rawImg ? sanitizeImgUrl(rawImg) : "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80";
 
               // Gather all variant SKUs for badges
               const skus: string[] = [];

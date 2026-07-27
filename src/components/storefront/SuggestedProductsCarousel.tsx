@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, ShoppingCart, Sparkles, Star, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { useCartStore } from "@/stores/cartStore";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
@@ -179,7 +179,8 @@ export function SuggestedProductsCarousel() {
           const firstVariant = product.colorVariants?.[0];
           const firstSubVariant = firstVariant?.subVariants?.[0];
           const firstImg = firstVariant?.images?.[0];
-          const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+          const rawImgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
+          const imgUrl = rawImgUrl ? sanitizeImgUrl(rawImgUrl) : "";
           const price = firstSubVariant ? resolvePrice(firstSubVariant, product.defaultPriceTier || "B2C") : 0;
           const wholesalePrice = firstSubVariant?.b2bPrice || price;
           const isAdded = addedProductId === product._id;
@@ -190,15 +191,19 @@ export function SuggestedProductsCarousel() {
               className="w-[240px] flex-shrink-0 border-border hover:border-primary/50 transition-all hover:shadow-md overflow-hidden bg-card flex flex-col justify-between group"
             >
               <Link href={`/products/${product.slug}`} draggable={false} className="block flex-1">
-                <div className="aspect-square relative bg-secondary overflow-hidden">
-                  <Image
-                    src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"}
-                    alt={product.title}
-                    fill
-                    draggable={false}
-                    sizes="240px"
-                    className="object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
-                  />
+                <div className="aspect-square relative bg-secondary overflow-hidden flex items-center justify-center">
+                  {imgUrl ? (
+                    <Image
+                      src={imgUrl}
+                      alt={product.title}
+                      fill
+                      draggable={false}
+                      sizes="240px"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                    />
+                  ) : (
+                    <div className="text-xs text-muted-foreground font-semibold">No Image</div>
+                  )}
                   {product.rating && (
                     <span className="absolute top-2 left-2 bg-background/80 backdrop-blur-sm text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> {product.rating}

@@ -56,9 +56,6 @@ export function ProductCard({ product }: ProductCardProps) {
         }
       });
     });
-    if (imgs.length === 0) {
-      imgs.push("https://placehold.co/400x400/10b981/ffffff?text=Product");
-    }
     return imgs;
   }, [product.colorVariants]);
 
@@ -88,11 +85,11 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const price = defaultSub ? resolvePrice(defaultSub, effectiveTierOrTypes, orderQty) : 0;
   const mrp = defaultSub?.mrp ?? 0;
-  const discount = mrp > price && mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
+  const discount = defaultSub?.discount || (mrp > price && mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0);
 
-  const isBestseller = product.cardTags?.some(tag => tag.toLowerCase() === "bestseller" || tag.toLowerCase() === "best seller");
-  const isNew = product.cardTags?.some(tag => tag.toLowerCase() === "new");
-  const isTrending = product.cardTags?.some(tag => tag.toLowerCase() === "trending" || tag.toLowerCase() === "hot");
+  const isBestseller = product.cardTags?.some((t) => t.toLowerCase() === "bestseller");
+  const isNew = product.cardTags?.some((t) => t.toLowerCase() === "new");
+  const isTrending = product.cardTags?.some((t) => t.toLowerCase() === "trending");
 
   // Title truncation to max 50 characters
   const truncatedTitle = product.title.length > 50 ? product.title.slice(0, 50).trim() + "..." : product.title;
@@ -101,20 +98,16 @@ export function ProductCard({ product }: ProductCardProps) {
     router.push(`/products/${product.slug}`);
   };
 
-  const nextImage = (e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    setCurrentImgIndex((prev) => (prev + 1) % allImages.length);
+  const prevImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (allImages.length === 0) return;
+    setCurrentImgIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
   };
 
-  const prevImage = (e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    setCurrentImgIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+  const nextImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (allImages.length === 0) return;
+    setCurrentImgIndex((prev) => (prev + 1) % allImages.length);
   };
 
   // Touch Swipe Handlers (Mobile & Tablet)
@@ -129,7 +122,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const handleTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
     const diffX = touchStartX.current - touchEndX.current;
-    const minSwipeDistance = 30;
+    const minSwipeDistance = 35;
 
     if (diffX > minSwipeDistance) {
       nextImage();
@@ -216,23 +209,29 @@ export function ProductCard({ product }: ProductCardProps) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div 
-          className="flex w-full h-full transition-transform duration-500 ease-out"
-          style={{ transform: `translateX(-${currentImgIndex * 100}%)` }}
-        >
-          {allImages.map((imgSrc, i) => (
-            <div key={i} className="w-full h-full flex-shrink-0 relative">
-              <Image
-                src={imgSrc}
-                alt={`${product.title} - Image ${i + 1}`}
-                fill
-                sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                priority={i === 0}
-              />
-            </div>
-          ))}
-        </div>
+        {allImages.length > 0 ? (
+          <div 
+            className="flex w-full h-full transition-transform duration-500 ease-out"
+            style={{ transform: `translateX(-${currentImgIndex * 100}%)` }}
+          >
+            {allImages.map((imgSrc, i) => (
+              <div key={i} className="w-full h-full flex-shrink-0 relative">
+                <Image
+                  src={imgSrc}
+                  alt={`${product.title} - Image ${i + 1}`}
+                  fill
+                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  priority={i === 0}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="w-full h-full bg-secondary flex items-center justify-center text-xs text-muted-foreground font-semibold">
+            No Image
+          </div>
+        )}
 
         {/* Carousel Arrow Controls */}
         {allImages.length > 1 && (
