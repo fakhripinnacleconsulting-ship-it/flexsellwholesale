@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
 import { DropshippingPlan } from "@/lib/seedDropshippingCMS";
+import { dispatchEvent } from "@/lib/events/eventDispatcher";
 
 interface DropshippingRegisterFormProps {
   selectedPlan?: string;
@@ -88,6 +89,37 @@ export function DropshippingRegisterForm({ selectedPlan, plans }: DropshippingRe
 
       if (!res.ok) {
         throw new Error(data.message || "Failed to submit application");
+      }
+
+      // Dispatch event locally for instant sandbox drawer updates
+      try {
+        dispatchEvent({
+          eventType: "INQUIRY_SUBMITTED",
+          category: "quotes",
+          actor: {
+            id: data.inquiry?._id || `inq_${Date.now()}`,
+            name: `${firstName} ${lastName}`,
+            role: "customer"
+          },
+          recipient: {
+            role: "both",
+            email: formData.email,
+            name: `${firstName} ${lastName}`
+          },
+          entity: {
+            type: "inquiry",
+            id: data.inquiry?._id || `inq_${Date.now()}`
+          },
+          data: {
+            subject: `Dropshipping Partner Application — ${formData.planChoice}`,
+            message: formData.message || "Dropshipping partner onboarding request",
+            customerName: `${firstName} ${lastName}`,
+            email: formData.email,
+            company: formData.amazonStoreName || "Amazon Seller"
+          }
+        });
+      } catch (evtErr) {
+        console.warn("Client dispatch event failed:", evtErr);
       }
 
       setSubmitted(true);

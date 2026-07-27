@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Inquiry from "@/models/Inquiry";
+import Notification from "@/models/Notification";
+import { emailService } from "@/lib/emailService";
+import { dispatchEvent } from "@/lib/events/eventDispatcher";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 
 export async function GET(request: Request) {
@@ -69,6 +72,84 @@ export async function POST(request: Request) {
       productInterests: body.productInterests || [],
       status: "new"
     });
+
+    const customerName = `${newInquiry.firstName} ${newInquiry.lastName}`.trim();
+
+    // 1. Create In-App Notification document for Admin in MongoDB
+    try {
+      await Notification.create({
+        customerId: "admin",
+        recipientRole: "admin",
+        title: `New ${body.category === "dropshipping" ? "Dropshipping" : "Wholesale"} Inquiry: ${newInquiry.subject}`,
+        message: `${customerName} (${newInquiry.email}) submitted: "${newInquiry.subject}".`,
+        type: "info",
+        isRead: false,
+        link: "/admin/inquiries",
+        actionType: "INQUIRY_SUBMITTED",
+        entityId: newInquiry._id.toString()
+      });
+    } catch (notifErr) {
+      console.error("[INQUIRY NOTIFICATION ERROR] Failed to create admin notification:", notifErr);
+    }
+
+    // 2. Dispatch SMTP Email Alert to Admin
+    try {
+      await emailService.sendAdminInquiryAlert({
+        customerName,
+        email: newInquiry.email,
+        subject: newInquiry.subject,
+        message: newInquiry.message,
+        _id: newInquiry._id.toString()
+      });
+    } catch (mailErr) {
+      console.error("[INQUIRY EMAIL ERROR] Admin email alert failed:", mailErr);
+    }
+
+    // 3. Dispatch SMTP Confirmation Email to Customer/Applicant
+    try {
+      await emailService.sendCustomerInquiryConfirmation(
+        {
+          customerName,
+          subject: newInquiry.subject,
+          message: newInquiry.message,
+          _id: newInquiry._id.toString()
+        },
+        newInquiry.email
+      );
+    } catch (mailErr) {
+      console.error("[INQUIRY EMAIL ERROR] Customer confirmation email failed:", mailErr);
+    }
+
+    // 4. Dispatch System Event for Push & Client Notifications
+    try {
+      dispatchEvent({
+        eventType: "INQUIRY_SUBMITTED",
+        category: "quotes",
+        actor: {
+          id: newInquiry._id.toString(),
+          name: customerName,
+          role: "customer"
+        },
+        recipient: {
+          role: "both",
+          email: newInquiry.email,
+          name: customerName
+        },
+        entity: {
+          type: "inquiry",
+          id: newInquiry._id.toString()
+        },
+        data: {
+          subject: newInquiry.subject,
+          message: newInquiry.message,
+          email: newInquiry.email,
+          customerName,
+          company: newInquiry.company
+        }
+      });
+    } catch (evtErr) {
+      console.error("[INQUIRY EVENT ERROR] Failed to dispatch system event:", evtErr);
+    }
 
     return NextResponse.json({ message: "Inquiry submitted successfully", inquiry: newInquiry }, { status: 201 });
   } catch (error: unknown) {
