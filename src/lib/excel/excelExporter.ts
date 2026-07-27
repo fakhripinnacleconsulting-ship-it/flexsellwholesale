@@ -184,6 +184,13 @@ export async function exportToExcel(
     formulae: ['"TRUE,FALSE"'],
   });
 
+  // Packaging Charge Type dropdown (Column AG)
+  (ws as any).dataValidations.add("AG3:AG2000", {
+    type: "list",
+    allowBlank: true,
+    formulae: ['"per_unit,per_order"'],
+  });
+
   // ── Populate Data Rows (for update export) ────────────────────────────
   if (!onlyTemplate && products.length > 0) {
     let rowIdx = 3;
@@ -228,7 +235,10 @@ export async function exportToExcel(
             sv.stock !== undefined ? sv.stock : 0,
             sv.sku || "",
             sv.b2bPrice !== undefined ? sv.b2bPrice : "",
-            sv.dropshippingPrice !== undefined ? sv.dropshippingPrice : ""
+            sv.dropshippingPrice !== undefined ? sv.dropshippingPrice : "",
+            sv.weightGrams !== undefined && sv.weightGrams !== null ? sv.weightGrams : "",
+            p.packagingCharge !== undefined ? p.packagingCharge : 0,
+            p.packagingChargeType || "per_unit"
           );
 
           row.values = values;

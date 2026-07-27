@@ -157,6 +157,11 @@ export async function parseAndValidateExcel(
     const sku = cleanStr(getCellVal(28));
     const b2bPrice = cleanNum(getCellVal(29), 0);
     const dropshippingPrice = cleanNum(getCellVal(30), 0);
+    const weightGramsVal = cleanNum(getCellVal(31), 0);
+    const weightGrams = weightGramsVal > 0 ? weightGramsVal : null;
+    const packagingCharge = cleanNum(getCellVal(32), 0);
+    const rawPkgType = cleanStr(getCellVal(33)).toLowerCase();
+    const packagingChargeType = rawPkgType === "per_order" ? "per_order" : "per_unit";
 
     // ── Validations ──────────────────────────────────────────────────
     if (!title) {
@@ -281,6 +286,8 @@ export async function parseAndValidateExcel(
           categoryId,
           hsnCode,
           priceIncludesGst,
+          packagingCharge,
+          packagingChargeType,
           defaultPriceTier: "B2C",
           tags,
           cardTags,
@@ -313,6 +320,7 @@ export async function parseAndValidateExcel(
     colorGroup.subVariants.push({
       size,
       weight,
+      weightGrams,
       b2cPrice,
       b2bPrice: b2bPrice > 0 ? b2bPrice : b2cPrice,
       dropshippingPrice: dropshippingPrice > 0 ? dropshippingPrice : b2cPrice,

@@ -38,6 +38,9 @@ export const HEADERS = [
   "SKU",                    // AB (27)
   "B2B Price",              // AC (28)
   "Dropshipping Price",     // AD (29)
+  "Weight (grams)",         // AE (30)
+  "Packaging Charge",       // AF (31)
+  "Packaging Charge Type",  // AG (32) — dropdown per_unit/per_order
 ];
 
 export const GUIDELINES = [
@@ -65,6 +68,9 @@ export const GUIDELINES = [
   "Required. Max 40 chars. Must be unique across all variants.",
   "Optional. B2B Trade Price. Number > 0.",
   "Optional. Dropshipping Price. Number > 0.",
+  "Optional. Numeric weight in grams (e.g. 250, 1000) for shipping calculation.",
+  "Optional. Extra packaging fee in ₹ (e.g. 10, 25). Default: 0.",
+  "Optional. Select from dropdown: per_unit or per_order. Default: per_unit.",
 ];
 
 export const COL_WIDTHS = [
@@ -91,4 +97,7 @@ export const COL_WIDTHS = [
   18, // SKU
   14, // B2B Price
   16, // Dropshipping Price
+  16, // Weight (grams)
+  18, // Packaging Charge
+  22, // Packaging Charge Type
 ];
