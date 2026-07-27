@@ -74,7 +74,7 @@ const InvoiceSchema = new Schema<InvoiceType & Document>(
     generatedAt: { type: String, required: true },
     generatedBy: { type: String, required: true, default: "system" },
     salesperson: { type: String },
-    isArchived: { type: Boolean, default: false, index: true },
+    isArchived: { type: Boolean, default: false },
     status: {
       type: String,
       required: true,
