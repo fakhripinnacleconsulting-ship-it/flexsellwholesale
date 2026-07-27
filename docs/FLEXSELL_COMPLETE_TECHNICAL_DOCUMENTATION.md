@@ -1,6 +1,6 @@
 # FlexSell Wholesale — Master Technical Documentation Suite
 
-> **Last Updated:** 2026-07-24T06:21:11.409Z  
+> **Last Updated:** 2026-07-27T06:26:34.586Z  
 > **Application Version:** 0.1.0  
 > **Framework:** Next.js 16.2.10 (App Router) | React 19.2.4 | TypeScript 5.0  
 > **Database:** MongoDB Atlas (Mongoose ^9.7.4)  
@@ -26,7 +26,7 @@
 15. [EVENT DISPATCHER & NOTIFICATION FLOW DIAGRAM](#15-event-dispatcher--notification-flow-diagram)
 16. [ADMINISTRATIVE DASHBOARD MODULES (18 MODULES)](#16-administrative-dashboard-modules-18-modules)
 17. [REST API ENDPOINT REFERENCE (63 ROUTES)](#17-rest-api-endpoint-reference-63-routes)
-18. [SERVICES & BUSINESS LOGIC LAYER (13 SERVICES)](#18-services--business-logic-layer-13-services)
+18. [SERVICES & BUSINESS LOGIC LAYER (14 SERVICES)](#18-services--business-logic-layer-14-services)
 19. [STATE MANAGEMENT ARCHITECTURE (14 ZUSTAND STORES)](#19-state-management-architecture-14-zustand-stores)
 20. [CONTENT MANAGEMENT SYSTEM (CMS) ARCHITECTURE](#20-content-management-system-cms-architecture)
 21. [EXCEL & BULK DATA OPERATIONS](#21-excel--bulk-data-operations)
@@ -102,7 +102,7 @@ graph TD
 - `src/app/(dashboard)/admin` — Administrative management dashboard.
 - `src/app/(dashboard)/client` — Customer account & order tracking portal.
 - `src/app/api/` — REST API controllers (63 domain routes).
-- `src/services/` — Unified client-side service wrappers (13 services).
+- `src/services/` — Unified client-side service wrappers (14 services).
 - `src/stores/` — Zustand client state stores (14 stores).
 - `src/models/` — Mongoose schemas for MongoDB (17 schemas).
 
@@ -436,9 +436,10 @@ Discovered Route Endpoints:
 
 ---
 
-# 18. SERVICES & BUSINESS LOGIC LAYER (13 SERVICES)
+# 18. SERVICES & BUSINESS LOGIC LAYER (14 SERVICES)
 
 Active Services:
+- `barcodeResolver`
 - `categoryService`
 - `collectionService`
 - `couponService`
