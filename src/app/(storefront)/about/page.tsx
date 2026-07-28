@@ -69,7 +69,7 @@ export default function AboutPage() {
             {[
               { icon: <BadgePercent className="h-7 w-7 text-primary" />, title: "Direct Factory Pricing", desc: "No middle-man wholesalers. Container-load imports distributed directly." },
               { icon: <ShieldCheck className="h-7 w-7 text-primary" />, title: "Rigorous Quality Screening", desc: "Dedicated sorting lines check electricals, plastic grades, and silicon seals." },
-              { icon: <Truck className="h-7 w-7 text-primary" />, title: "Express Cargo Shipping", desc: "Partnership with Delhivery, Gati, and V-Trans for heavy freight." }
+              { icon: <Truck className="h-7 w-7 text-primary" />, title: "Express Order Shipping", desc: "Partnership with Delhivery, Gati, and V-Trans for heavy freight." }
             ].map((item, idx) => (
               <div key={idx} className="p-6 bg-card border rounded-2xl space-y-3 shadow-sm hover:shadow-md transition-shadow">
                 <div className="p-3 bg-primary/10 rounded-xl w-max">{item.icon}</div>

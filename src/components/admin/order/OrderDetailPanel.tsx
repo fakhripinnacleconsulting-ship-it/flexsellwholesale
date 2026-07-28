@@ -273,10 +273,10 @@ export function OrderDetailPanel({
           </div>
         </div>
 
-        {/* Order Cargo Items */}
+        {/* Order Items */}
         <div className="border-t pt-4">
           <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            Order Cargo Items:
+            Order Items:
           </h4>
           {order.items && order.items.length > 0 ? (
             <div className="space-y-3">

@@ -13,6 +13,7 @@ import { useCategoryStore } from "@/stores/categoryStore";
 import { useHsnStore } from "@/stores/hsnStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
+import { generateDocumentTitle } from "@/lib/pdfPrintHelper";
 import { Product, Category, ColorVariant, SubVariant } from "@/types";
 import { BarcodeScanner } from "./BarcodeScanner";
 import { Barcode } from "@/components/ui/Barcode";
@@ -316,7 +317,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Bulk Print Barcodes</title>
+          <title>${generateDocumentTitle("Barcode_Labels", "Bulk")}</title>
           <style>
             @page {
               size: auto;
@@ -360,7 +361,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Print Label - ${sv.sku}</title>
+          <title>${generateDocumentTitle("Barcode_Label", sv.sku)}</title>
           <style>
             @page {
               size: auto;

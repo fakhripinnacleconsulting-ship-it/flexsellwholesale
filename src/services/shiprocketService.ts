@@ -84,7 +84,7 @@ export const shiprocketService = {
             },
             {
               courier_company_id: 42,
-              courier_name: "DTDC Express Cargo",
+              courier_name: "DTDC Express Premium",
               rate: 180,
               etd: "1-2 Days",
               cod: 1,

@@ -252,7 +252,7 @@ export default function AdminShippingPage() {
               : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
-          B2B Cargo Shipping
+          B2B Order Shipping
         </button>
         <button
           onClick={() => setActiveTab("shiprocket")}

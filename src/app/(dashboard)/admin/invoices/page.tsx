@@ -61,7 +61,7 @@ export default function AdminInvoicesPage() {
       "Prices represent verified factory-direct wholesale pricing.",
       "Quote valid for 15 calendar days from generation date.",
       "Prices inclusive of GST as per Indian tax norms.",
-      "Shipping charges calculated dynamically based on cargo weight/B2B flat rate.",
+      "Shipping charges calculated dynamically based on order weight/B2B flat rate.",
       "Subject to stock availability at time of order placement."
     ]
   });

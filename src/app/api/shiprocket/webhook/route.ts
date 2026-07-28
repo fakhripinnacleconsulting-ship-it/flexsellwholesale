@@ -102,12 +102,12 @@ export async function POST(request: NextRequest) {
       case 1: // AWB Assigned
       case 2: // Pickup Scheduled
         newFlexStatus = "Awaiting Shipment";
-        description = `Cargo package ready at warehouse. AWB: ${awbCode || order.shipmentDetails.shiprocket.awbCode}. Status: ${statusName}`;
+        description = `Package ready at warehouse. AWB: ${awbCode || order.shipmentDetails.shiprocket.awbCode}. Status: ${statusName}`;
         break;
 
       case 6: // Shipped / Picked up
         newFlexStatus = "Shipped";
-        description = `Cargo picked up by courier (${order.shipmentDetails.shiprocket.courierName || 'Carrier'}). Waybill: ${awbCode}`;
+        description = `Package picked up by courier (${order.shipmentDetails.shiprocket.courierName || 'Carrier'}). Waybill: ${awbCode}`;
         break;
 
       case 17: // In Transit
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
       case 7: // Delivered
         newFlexStatus = "Delivered";
-        description = `Order cargo successfully delivered to customer dock. Verified by Shiprocket.`;
+        description = `Order successfully delivered to customer dock. Verified by Shiprocket.`;
         order.shipmentDetails.deliveredAt = new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
         break;
 

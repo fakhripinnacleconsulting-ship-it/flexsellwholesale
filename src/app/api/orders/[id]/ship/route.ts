@@ -39,7 +39,7 @@ export async function PUT(
     });
 
     const carrierInfo = shipmentDetails.type === "self" 
-      ? "local transport cargo (Self)" 
+      ? "local transport (Self)" 
       : `${shipmentDetails.carrierName} courier`;
 
     const newEvent = {

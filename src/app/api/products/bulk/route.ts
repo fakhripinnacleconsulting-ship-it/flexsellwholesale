@@ -126,8 +126,8 @@ export async function POST(request: Request) {
 
         // Auto-generate SEO metadata if blank
         const seoTitle = imported.seoTitle || `${imported.title} | FlexSell B2B Wholesale`;
-        const seoDescription = imported.seoDescription || `Buy ${imported.title} in bulk at wholesale price.   B2B cargo supply. MOQ: ${imported.moq || 1} units.`;
-        const seoKeywords = imported.seoKeywords || `${imported.title.toLowerCase()}, wholesale, B2B cargo`;
+        const seoDescription = imported.seoDescription || `Buy ${imported.title} in bulk at wholesale price. Premium B2B wholesale supply. MOQ: ${imported.moq || 1} units.`;
+        const seoKeywords = imported.seoKeywords || `${imported.title.toLowerCase()}, wholesale, B2B supply`;
 
         if (match) {
           // UPDATE EXISTING PRODUCT

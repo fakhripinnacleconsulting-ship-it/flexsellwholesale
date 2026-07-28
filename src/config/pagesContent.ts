@@ -39,10 +39,10 @@ export const pagesContent = {
       sections: [
         {
           heading: "1. Dispatch Timelines",
-          text: "Bulk wholesale orders are packed and dispatched from our Bhopal warehouse within 24-48 working hours. Heavy cargo shipping times range from 3-7 days."
+          text: "Bulk wholesale orders are packed and dispatched from our Bhopal warehouse within 24-48 working hours. Heavy freight shipping times range from 3-7 days."
         },
         {
-          heading: "2. Remote Region Cargo Surcharges",
+          heading: "2. Remote Region Logistics Surcharges",
           text: "Special transport charges may apply for heavy freight going to Northeast states, J&K, and deep rural regions. Surcharges will be quoted by phone if needed."
         }
       ]
@@ -57,7 +57,7 @@ export const pagesContent = {
         },
         {
           heading: "2. Transit Defect Claims",
-          text: "A continuous, uncut video showing the opening of the cargo box is mandatory to process shipping transit damage claims. Approved claims receive wallet top-up credits."
+          text: "A continuous, uncut video showing the opening of the parcel package is mandatory to process shipping transit damage claims. Approved claims receive wallet top-up credits."
         }
       ]
     }

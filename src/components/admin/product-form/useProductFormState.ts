@@ -653,7 +653,7 @@ export function useProductFormState(
     const selectedCat = activeCategories.find(c => c._id === categoryId);
     const catName = selectedCat ? selectedCat.name : "Wholesale Supply";
     setSeoTitle(`${title} | Buy Bulk Online at Wholesale Price`);
-    setSeoDescription(`Purchase ${title} in bulk direct from manufacturers.   B2B cargo supply. Department: ${catName}. GST claimable tax invoice supplied.`);
+    setSeoDescription(`Purchase ${title} in bulk direct from manufacturers. Premium B2B wholesale supply. Department: ${catName}. GST claimable tax invoice supplied.`);
     setSeoKeywords(`${title.toLowerCase()}, wholesale ${title.toLowerCase()}, B2B bulk buy, ${catName.toLowerCase()} supply`);
     addToast("SEO metadata tags successfully auto-generated!", "success");
   };

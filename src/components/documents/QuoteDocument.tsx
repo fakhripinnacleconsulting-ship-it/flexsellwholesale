@@ -5,6 +5,7 @@ import Image from "next/image";
 import { CartItem, TaxBreakdown, SellerInfo, HsnSlab } from "@/types";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { sanitizeImgUrl } from "@/lib/utils";
+import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
 export interface QuoteDocumentProps {
   quoteId: string;
@@ -27,7 +28,9 @@ export function QuoteDocument({
   shippingConfig,
   salesperson,
 }: QuoteDocumentProps) {
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    triggerPrintWithTitle("Quote", quoteId);
+  };
 
   const dateStr = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -115,7 +118,7 @@ export function QuoteDocument({
             <p className="text-gray-500 mt-1">
               Delivery State: <strong className="text-gray-800">{buyerState}</strong>
             </p>
-            <p className="text-gray-500">Domestic cargo delivery across India</p>
+            <p className="text-gray-500">Domestic order delivery across India</p>
           </div>
           <div>
             <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-2">
@@ -237,7 +240,7 @@ export function QuoteDocument({
                   <li>Prices inclusive of GST as per Indian tax norms.</li>
                   <li>
                     {shippingCharge > 0 ? (
-                      "Shipping charges calculated dynamically based on cargo weight/B2B flat rate."
+                      "Shipping charges calculated dynamically based on order weight/B2B flat rate."
                     ) : (
                       "Free delivery for wholesale volume orders."
                     )}
@@ -286,7 +289,7 @@ export function QuoteDocument({
             )}
 
             <div className="flex justify-between text-gray-600">
-              <span>Shipping (B2B Cargo Flat Rate):</span>
+              <span>Shipping (B2B Flat Rate):</span>
               <span className="font-semibold">
                 {shippingCharge > 0 ? `₹${shippingCharge.toFixed(2)}` : "Free Delivery"}
               </span>

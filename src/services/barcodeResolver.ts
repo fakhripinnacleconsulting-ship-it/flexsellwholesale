@@ -126,5 +126,5 @@ export function getWarehouseLocation(catId: string): string {
     cat_hardware: "Aisle E, Rack 03 (Tools & DIY)",
     cat_toys: "Aisle F, Rack 09 (Kids Section)"
   };
-  return sections[catId] || "Aisle G, Rack 01 (General Cargo)";
+  return sections[catId] || "Aisle G, Rack 01 (General Storage)";
 }

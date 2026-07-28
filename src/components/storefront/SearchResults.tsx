@@ -278,7 +278,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b pb-6 border-border/60">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Search Results</h1>
-          <p className="text-muted-foreground mt-1">Showing cargo matches for query: <span className="font-semibold text-primary">&quot;{query}&quot;</span></p>
+          <p className="text-muted-foreground mt-1">Showing product matches for query: <span className="font-semibold text-primary">&quot;{query}&quot;</span></p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {/* Mobile Filter toggle */}
@@ -421,7 +421,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
         {/* Right Column: Search Results Grid/List */}
         <div className="flex-1 w-full space-y-6">
           <div className="flex justify-between items-center text-xs text-muted-foreground">
-            <p>Showing {sortedProducts.length} cargo matches for query</p>
+            <p>Showing {sortedProducts.length} product matches for query</p>
           </div>
 
           {sortedProducts.length === 0 ? (

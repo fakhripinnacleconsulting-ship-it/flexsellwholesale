@@ -135,7 +135,7 @@ function LoginForm() {
               India's Premier Factory Sourcing Platform
             </h2>
             <p className="text-xs text-white/90 leading-relaxed">
-              Access container-load pricing, verified quality checks, and nationwide cargo shipping directly from manufacturers.
+              Access container-load pricing, verified quality checks, and nationwide order shipping directly from manufacturers.
             </p>
           </div>
 
@@ -146,7 +146,7 @@ function LoginForm() {
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 shrink-0" />
-              <span>Bhopal Cargo Logistics Dispatch</span>
+              <span>Bhopal Logistics & Order Dispatch</span>
             </div>
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 shrink-0" />

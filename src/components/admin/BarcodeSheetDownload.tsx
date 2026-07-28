@@ -8,6 +8,8 @@ import { getBarcodeSvgString } from "@/lib/barcodeHelper";
 import { useToastStore } from "@/stores/toastStore";
 import { Printer, X, CheckSquare, Square, Search, Layers, FileText } from "lucide-react";
 
+import { triggerPrintWithTitle, generateDocumentTitle } from "@/lib/pdfPrintHelper";
+
 interface BarcodeSheetDownloadProps {
   isOpen: boolean;
   onClose: () => void;
@@ -138,7 +140,7 @@ export function BarcodeSheetDownload({ isOpen, onClose, products }: BarcodeSheet
       <!DOCTYPE html>
       <html>
         <head>
-          <title>FlexSell A4 Barcode Sheet - (${totalLabelsToPrint} Labels)</title>
+          <title>${generateDocumentTitle("Barcode_Labels", "Sheet")}</title>
           <style>
             @page {
               size: A4 portrait;

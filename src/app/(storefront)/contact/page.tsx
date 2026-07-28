@@ -61,7 +61,7 @@ export default function ContactPage() {
       <div className="text-center mb-12">
         <h1 className="text-4xl font-extrabold tracking-tight mb-4">Contact FlexSell B2B Support</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Got bulk inquiries, custom cargo shipping concerns, or looking to schedule a Bhopal warehouse visit? Reach out directly.
+          Got bulk inquiries, custom shipping concerns, or looking to schedule a Bhopal warehouse visit? Reach out directly.
         </p>
       </div>
 
@@ -166,7 +166,7 @@ export default function ContactPage() {
                     <option value="Bulk Sourcing Quote">Bulk Sourcing Quote</option>
                     <option value="Dropshipping Partnership">Dropshipping Partnership</option>
                     <option value="Franchise Application">Franchise Application</option>
-                    <option value="Damaged Cargo Claim">Damaged Cargo Claim</option>
+                    <option value="Damaged Shipment Claim">Damaged Shipment Claim</option>
                     <option value="Logistics/Customs Delay">Logistics/Customs Delay</option>
                   </select>
                 </div>

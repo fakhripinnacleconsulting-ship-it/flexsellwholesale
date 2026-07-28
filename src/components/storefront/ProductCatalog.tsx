@@ -255,7 +255,7 @@ export function ProductCatalog({ initialProducts, initialCategories }: ProductCa
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b pb-6 border-border/60">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Wholesale Hub</h1>
-          <p className="text-muted-foreground mt-1">Industrial B2B cargo directly sourced from verified factory partners.</p>
+          <p className="text-muted-foreground mt-1">Industrial B2B products directly sourced from verified factory partners.</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {/* Mobile Filter toggle */}

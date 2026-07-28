@@ -90,7 +90,7 @@ export default function FAQPage() {
       {/* Still Have Questions CTA */}
       <Card className="border bg-secondary/20 text-center p-8 space-y-4">
         <MessageSquare className="h-8 w-8 text-primary mx-auto" />
-        <h3 className="text-xl font-bold">Still have questions regarding bulk cargo?</h3>
+        <h3 className="text-xl font-bold">Still have questions regarding bulk orders?</h3>
         <p className="text-xs text-muted-foreground max-w-md mx-auto">
           Our Bhopal support team is available Mon-Sat, 9:30 AM to 6:30 PM to assist with custom quotes and shipping queries.
         </p>

@@ -39,7 +39,7 @@ export async function PUT(
     if (status === "Processing") {
       description = "Order packaging and B2B validation completed.";
     } else if (status === "Delivered") {
-      description = "Order cargo delivered safely to customer dock.";
+      description = "Order delivered safely to customer dock.";
     } else if (status === "Cancelled") {
       description = "Order has been cancelled by administrator.";
     }

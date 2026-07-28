@@ -32,7 +32,7 @@ export function RelatedProducts() {
         <div className="border-t pt-10">
           <ProductCarousel
             title="Recently Viewed Products"
-            subtitle="Cargo lines you checked in this session"
+            subtitle="Product lines you checked in this session"
             products={recentProducts}
           />
         </div>

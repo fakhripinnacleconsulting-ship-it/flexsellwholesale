@@ -1218,7 +1218,7 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
                         {seoTitle || title || "Collection Title | Wholesale Portal"}
                       </div>
                       <div className="text-xs text-[#4d5156] leading-relaxed line-clamp-2">
-                        {seoDescription || description || "Shop bulk products online at wholesale prices. Flexible pricing tiers and fast cargo deliveries."}
+                        {seoDescription || description || "Shop bulk products online at wholesale prices. Flexible pricing tiers and fast order deliveries."}
                       </div>
                     </div>
                   </div>

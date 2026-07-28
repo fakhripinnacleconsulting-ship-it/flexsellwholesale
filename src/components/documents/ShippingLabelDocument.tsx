@@ -4,6 +4,7 @@ import * as React from "react";
 import { Order, SellerInfo } from "@/types";
 import { Printer, X, Package, ShieldCheck, MapPin, Phone, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
 export interface ShippingLabelDocumentProps {
   order: Order;
@@ -23,7 +24,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
   const shipment = order.shipmentDetails || {
     type: "self",
     trackingId: `FLEX-${order._id}`,
-    carrierName: "FlexSell In-House Cargo",
+    carrierName: "FlexSell In-House Transport",
   };
 
   const isCod = order.paymentMethod === "COD";
@@ -36,7 +37,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
   const totalWeightKg = (totalWeightGrams / 1000).toFixed(2);
 
   const handlePrint = () => {
-    window.print();
+    triggerPrintWithTitle("Shipping_Label", order._id);
   };
 
   const trackingCode = shipment.shiprocket?.awbCode || shipment.trackingId || order._id;
@@ -44,7 +45,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
     ? (shipment.shiprocket?.courierName || "Shiprocket Express")
     : shipment.type === "third-party"
       ? (shipment.carrierName || "Third-Party Logistics")
-      : "FlexSell In-House Cargo Dispatch";
+      : "FlexSell In-House Transport Dispatch";
 
   return (
     <div className="bg-background text-foreground p-4 max-w-2xl mx-auto space-y-4">
@@ -52,7 +53,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
       <div className="flex justify-between items-center no-print bg-secondary/30 p-3 rounded-lg border border-border">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-primary" />
-          <span className="font-bold text-sm">Cargo Dispatch Label Preview</span>
+          <span className="font-bold text-sm">Order Dispatch Label Preview</span>
           <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-mono font-bold">
             {shipment.type.toUpperCase()}
           </span>
@@ -70,7 +71,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
       </div>
 
       {/* PRINTABLE LABEL CONTAINER (4x6 ratio / A6 / A5 printable card) */}
-      <div className="shipping-label-printable border-2 border-black bg-white text-black p-5 rounded-none font-sans space-y-4 shadow-lg print:shadow-none print:border-2 print:border-black print:m-0 print:p-4 print:w-full">
+      <div className="shipping-label-document shipping-label-printable print-container border-2 border-black bg-white text-black p-5 rounded-none font-sans space-y-4 shadow-lg print:shadow-none print:border-2 print:border-black print:m-0 print:p-4 print:w-full">
 
         {/* Header Bar: Branding & Barcode */}
         <div className="border-b-2 border-black pb-3 flex justify-between items-start">
@@ -79,7 +80,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
               {seller.storeName}
             </h1>
             <p className="text-[10px] font-bold tracking-widest uppercase text-gray-700 mt-1">
-              B2B WHOLESALE CARGO DISPATCH
+              B2B WHOLESALE ORDER DISPATCH
             </p>
           </div>
 
@@ -156,7 +157,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
           </div>
         </div>
 
-        {/* Cargo Package Specs & Items Manifest Summary */}
+        {/* Package Specs & Items Manifest Summary */}
         <div className="space-y-2 text-xs">
           <div className="flex justify-between items-center bg-gray-100 p-2 border border-black font-bold text-[11px]">
             <span>Total Units: {order.itemsCount} Items</span>
@@ -213,7 +214,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
         {/* Footer Warning & Security Badge */}
         <div className="border-t-2 border-black pt-2 flex justify-between items-center text-[9px] text-gray-700 uppercase font-bold">
           <span className="flex items-center gap-1">
-            <ShieldCheck className="h-3 w-3 text-black shrink-0" /> Verified FlexSell B2B Cargo Dispatch
+            <ShieldCheck className="h-3 w-3 text-black shrink-0" /> Verified FlexSell B2B Order Dispatch
           </span>
           <span>Handle With Care • Keep Dry</span>
         </div>

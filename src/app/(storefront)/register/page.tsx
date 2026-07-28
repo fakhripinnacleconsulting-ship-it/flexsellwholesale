@@ -246,7 +246,7 @@ export default function RegisterPage() {
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 shrink-0" />
-              <span>Express Bhopal Cargo Shipping</span>
+              <span>Express Bhopal Order Shipping</span>
             </div>
           </div>
         </div>

@@ -343,13 +343,17 @@
 
   .print-container, .print-container *,
   .invoice-document, .invoice-document *,
-  .quote-document, .quote-document * {
+  .quote-document, .quote-document *,
+  .shipping-label-document, .shipping-label-document *,
+  .shipping-label-printable, .shipping-label-printable * {
     visibility: visible !important;
   }
 
   .print-container,
   .invoice-document,
-  .quote-document {
+  .quote-document,
+  .shipping-label-document,
+  .shipping-label-printable {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
@@ -357,7 +361,7 @@
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 10mm 15mm !important;
+    padding: 5mm !important;
     box-sizing: border-box !important;
     border: none !important;
     box-shadow: none !important;

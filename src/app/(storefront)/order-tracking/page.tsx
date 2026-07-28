@@ -72,7 +72,7 @@ export default function OrderTrackingPage() {
               <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center shadow-inner">
                 <PackageSearch className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-2xl font-black uppercase tracking-tight">Track Your B2B Cargo</CardTitle>
+              <CardTitle className="text-2xl font-black uppercase tracking-tight">Track Your B2B Order</CardTitle>
               <CardDescription>Enter your Order ID and company email address to track real-time logistics dispatch statuses.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -181,7 +181,7 @@ export default function OrderTrackingPage() {
                       <div>
                         <span className="text-muted-foreground">Logistics Type:</span>
                         <p className="font-bold capitalize mt-0.5">
-                          {trackedOrder.shipmentDetails.type === "shiprocket" ? "🚀 Shiprocket Cargo API" : trackedOrder.shipmentDetails.type === "self" ? "FlexSell Cargo (Self)" : "Third-Party Courier"}
+                          {trackedOrder.shipmentDetails.type === "shiprocket" ? "🚀 Shiprocket Express API" : trackedOrder.shipmentDetails.type === "self" ? "FlexSell Transport (Self)" : "Third-Party Courier"}
                         </p>
                       </div>
                       {(trackedOrder.shipmentDetails.carrierName || trackedOrder.shipmentDetails.shiprocket?.courierName) && (

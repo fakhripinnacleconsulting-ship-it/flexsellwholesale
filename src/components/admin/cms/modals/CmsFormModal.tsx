@@ -164,7 +164,7 @@ export function CmsFormModal({
 
               <div className="space-y-1 border-t pt-2 mt-2">
                 <label className="font-bold text-primary">Text Overlay Title (Optional)</label>
-                <Input placeholder="e.g. Next-Gen B2B Cargo Sourcing" value={formData.overlayTitle || ""} onChange={(e) => setFormData({ ...formData, overlayTitle: e.target.value })} className="text-xs" />
+                <Input placeholder="e.g. Next-Gen B2B Order Sourcing" value={formData.overlayTitle || ""} onChange={(e) => setFormData({ ...formData, overlayTitle: e.target.value })} className="text-xs" />
               </div>
 
               <div className="space-y-1">

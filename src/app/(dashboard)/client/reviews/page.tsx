@@ -79,7 +79,7 @@ export default function ClientReviewsPage() {
             <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
             <h3 className="text-lg font-bold">No reviews written</h3>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto mt-1 mb-6">
-              You haven't left any B2B product reviews yet. Go to your orders and share your cargo feedback!
+              You haven't left any B2B product reviews yet. Go to your orders and share your product feedback!
             </p>
             <Link href="/client/orders">
               <Button>Browse Purchased Products</Button>

@@ -6,6 +6,7 @@ import { Printer, X } from "lucide-react";
 import { Invoice } from "@/types";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { CompanyInfoData } from "./CompanyInformationTab";
+import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
 interface InvoicePreviewModalProps {
   selectedInvoice: Invoice | null;
@@ -49,7 +50,10 @@ export function InvoicePreviewModal({
             )}
 
             <Button
-              onClick={() => window.print()}
+              onClick={() => {
+                const docLabel = selectedInvoice?.type === "receipt" ? "RECEIPT" : selectedInvoice?.type === "quote" ? "Quote" : "Invoice";
+                triggerPrintWithTitle(docLabel, selectedInvoice?._id);
+              }}
               className="flex items-center gap-1.5 font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer px-3 py-1.5 h-8.5"
             >
               <Printer className="h-4 w-4" /> Print / Save PDF

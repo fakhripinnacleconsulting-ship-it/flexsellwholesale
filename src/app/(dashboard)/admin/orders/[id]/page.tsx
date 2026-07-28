@@ -15,6 +15,7 @@ import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { ShippingLabelDocument } from "@/components/documents/ShippingLabelDocument";
 import { FulfillmentForm } from "@/components/admin/order/FulfillmentForm";
 import { ShipmentDetails } from "@/stores/orderStore";
+import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -115,11 +116,11 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
   const handleShipSubmit = async (details: ShipmentDetails) => {
     try {
       await shipOrder(orderId, details);
-      addToast("Order cargo dispatched successfully!", "success");
+      addToast("Order shipment dispatched successfully!", "success");
       setIsShipModalOpen(false);
       initializeOrders();
     } catch (err: any) {
-      addToast(err.message || "Failed to dispatch cargo", "error");
+      addToast(err.message || "Failed to dispatch shipment", "error");
     }
   };
 
@@ -221,7 +222,7 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
     return (
       <div className="container mx-auto px-4 py-16 text-center text-foreground">
         <h2 className="text-xl font-bold mb-2">Loading Order Invoice...</h2>
-        <p className="text-muted-foreground">Fetching cargo dispatch logs from database.</p>
+        <p className="text-muted-foreground">Fetching order dispatch logs from database.</p>
       </div>
     );
   }
@@ -240,7 +241,8 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
   }
 
   const handlePrint = () => {
-    window.print();
+    const docLabel = invoice?.type === "receipt" ? "RECEIPT" : invoice?.type === "quote" ? "Quote" : "Invoice";
+    triggerPrintWithTitle(docLabel, orderId);
   };
 
   return (
@@ -495,7 +497,7 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
                     }}
                     className="w-full font-bold flex items-center justify-center gap-2 text-xs border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
                   >
-                    <FileText className="h-4 w-4" /> Print Cargo Shipping Label
+                    <FileText className="h-4 w-4" /> Print Order Shipping Label
                   </Button>
                 </div>
               </CardContent>

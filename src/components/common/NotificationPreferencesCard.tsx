@@ -163,7 +163,7 @@ export function NotificationPreferencesCard({ userId = "current", role = "custom
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               { key: "orders", label: "Purchase Orders & Status Updates", icon: <ShoppingBag className="h-4 w-4 text-emerald-500" />, desc: "Order creation, status updates & modifications" },
-              { key: "shipments", label: "Cargo & Shipment Dispatch", icon: <Truck className="h-4 w-4 text-blue-500" />, desc: "Courier tracking IDs and dispatch notices" },
+              { key: "shipments", label: "Shipments & Order Dispatch", icon: <Truck className="h-4 w-4 text-blue-500" />, desc: "Courier tracking IDs and dispatch notices" },
               { key: "payments", label: "Payments & Verification", icon: <CreditCard className="h-4 w-4 text-purple-500" />, desc: "Payment confirmations & receipts" },
               { key: "quotes", label: "Proforma Quotes & RFQs", icon: <FileText className="h-4 w-4 text-indigo-500" />, desc: "Wholesale proforma quotes and pricing negotiations" },
               { key: "invoices", label: "GST Tax Invoices & Billing", icon: <FileText className="h-4 w-4 text-teal-500" />, desc: "Official GST tax invoices issued for orders" },

@@ -232,7 +232,7 @@ export function AdminHsnManager() {
                     {filteredHsns.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
-                          No HSN registry found. Add one to associate with B2B cargo.
+                          No HSN registry found. Add one to associate with B2B orders & products.
                         </td>
                       </tr>
                     ) : (

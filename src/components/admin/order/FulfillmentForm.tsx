@@ -147,7 +147,7 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
               onChange={(e) => setShipType(e.target.value as any)}
               className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md font-semibold cursor-pointer h-10"
             >
-              <option value="self">FlexSell Self Dispatch (In-House Cargo)</option>
+              <option value="self">FlexSell Self Dispatch (In-House Transport)</option>
               <option value="third-party">Third-Party Courier Services (Manual)</option>
               {srStatus.enabled && srStatus.configured && (
                 <option value="shiprocket">🚀 Shiprocket (Automated API Booking)</option>

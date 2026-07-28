@@ -62,7 +62,7 @@ export function TestimonialsSection({
       business: "Sharma Traders",
       location: "Indore, MP",
       rating: 5,
-      text: "FlexSell changed my kitchen gadget retail business. Direct Bhopal warehouse cargo pricing gave me a 35% margin boost!",
+      text: "FlexSell changed my kitchen gadget retail business. Direct Bhopal warehouse wholesale pricing gave me a 35% margin boost!",
       contentType: "text"
     },
     {
@@ -78,7 +78,7 @@ export function TestimonialsSection({
       business: "Malhotra Gifts",
       location: "Jaipur, Rajasthan",
       rating: 5,
-      text: "Zero damaged goods in transit. Their packaging line quality screening makes buying container cargo safe and easy.",
+      text: "Zero damaged goods in transit. Their packaging line quality screening makes buying bulk inventory safe and easy.",
       contentType: "text"
     },
     {

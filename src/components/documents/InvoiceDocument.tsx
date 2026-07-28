@@ -7,6 +7,8 @@ import { Order, CartItem, TaxBreakdown, SellerInfo, HsnSlab } from "@/types";
 import { useProductStore } from "@/stores/productStore";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 
+import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
+
 export interface InvoiceDocumentProps {
   type: "invoice" | "receipt" | "quote";
   documentNumber: string;
@@ -102,7 +104,11 @@ export function InvoiceDocument({
   const rawShipping = order.amount - itemTotalWithGst + couponDiscount;
   const shippingCharge = rawShipping > 0.01 ? parseFloat(rawShipping.toFixed(2)) : 0;
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const docLabel = type === "invoice" ? "Invoice" : type === "receipt" ? "RECEIPT" : "Quote";
+    const refId = documentNumber && documentNumber !== "DRAFT-PREVIEW" ? documentNumber : order._id;
+    triggerPrintWithTitle(docLabel, refId);
+  };
 
   return (
     <div className="invoice-document bg-white text-gray-900 max-w-4xl mx-auto">
@@ -372,7 +378,7 @@ export function InvoiceDocument({
               </div>
             )}
             <div className="flex justify-between text-gray-600">
-              <span>Shipping & Cargo Handling:</span>
+              <span>Shipping & Order Delivery:</span>
               <span className="font-semibold">
                 {shippingCharge > 0 ? `₹${shippingCharge.toFixed(2)}` : "Free"}
               </span>

@@ -6,6 +6,7 @@ import { Product, Category } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Printer, X, QrCode, Building2, Mail, Calendar, ShieldCheck, Layers, Trash2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
 interface B2BCatalogPrintModalProps {
   isOpen: boolean;
@@ -396,7 +397,7 @@ export function B2BCatalogPrintModal({
   const handlePrint = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    window.print();
+    triggerPrintWithTitle("Wholesale_Catalog", catalogTitle);
   };
 
   const modalContent = (

@@ -109,9 +109,9 @@ export default async function HomePage() {
       posterUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1920&q=80",
       imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1920&q=80",
       redirectUrl: "/products",
-      altText: "FlexSell Wholesale B2B Cargo Freight & Sourcing",
+      altText: "FlexSell Wholesale B2B Freight & Sourcing",
       overlayTitle: "Global B2B Wholesale & Logistics Platform",
-      overlaySubtitle: "Direct factory sourcing, bulk discounts, and streamlined cargo logistics worldwide.",
+      overlaySubtitle: "Direct factory sourcing, bulk discounts, and streamlined order logistics worldwide.",
       ctaText: "Browse Catalogue"
     },
     {

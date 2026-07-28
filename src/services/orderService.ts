@@ -351,7 +351,7 @@ export const orderService = {
           {
             status: "Shipped",
             timestamp: new Date().toLocaleString("en-US"),
-            description: `Cargo dispatched via ${shipmentDetails.type === "self" ? "Self Shipment" : shipmentDetails.carrierName} with Tracking ID: ${shipmentDetails.trackingId}`
+            description: `Order dispatched via ${shipmentDetails.type === "self" ? "Self Shipment" : shipmentDetails.carrierName} with Tracking ID: ${shipmentDetails.trackingId}`
           },
           ...match.history
         ]

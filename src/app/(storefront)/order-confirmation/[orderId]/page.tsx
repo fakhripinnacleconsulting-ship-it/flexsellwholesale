@@ -10,6 +10,7 @@ import { orderService } from "@/services/orderService";
 import { Order } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
+import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
 export default function OrderConfirmationPage() {
   const params = useParams();
@@ -57,7 +58,7 @@ export default function OrderConfirmationPage() {
   }, [orderId]);
 
   const handlePrint = () => {
-    window.print();
+    triggerPrintWithTitle("Invoice", order?._id || (orderId as string));
   };
 
   if (loading) {
@@ -142,7 +143,7 @@ export default function OrderConfirmationPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wider">Payment Term</span>
-                  <span className="font-semibold text-emerald-600">Pending Cargo Verification</span>
+                  <span className="font-semibold text-emerald-600">Pending Shipment Verification</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wider">Fulfillment Status</span>

@@ -90,10 +90,10 @@ export function AdminOrdersManager() {
     if (!activeSelectedOrder) return;
     try {
       await shipOrder(activeSelectedOrder._id, details);
-      addToast("Order cargo dispatched successfully!", "success");
+      addToast("Order shipment dispatched successfully!", "success");
       setIsFulfilling(false);
     } catch (err: any) {
-      addToast(err.message || "Failed to dispatch cargo.", "error");
+      addToast(err.message || "Failed to dispatch shipment.", "error");
     }
   };
 

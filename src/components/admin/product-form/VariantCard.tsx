@@ -6,6 +6,7 @@ import { Trash2, Upload, Download, CheckCircle2 } from "lucide-react";
 import { Barcode } from "@/components/ui/Barcode";
 import { getBarcodeSvgString } from "@/lib/barcodeHelper";
 import { parseWeightToGrams, parseDimensionsToCm } from "@/lib/priceTierHelper";
+import { generateDocumentTitle } from "@/lib/pdfPrintHelper";
 
 interface VariantCardProps {
   idx: number;
@@ -534,7 +535,7 @@ export function VariantCard({
                         <!DOCTYPE html>
                         <html>
                           <head>
-                            <title>Barcode Print - ${sv.sku || "Variant"}</title>
+                            <title>${generateDocumentTitle("Barcode_Label", sv.sku || "Variant")}</title>
                             <style>
                               @page {
                                 size: auto;

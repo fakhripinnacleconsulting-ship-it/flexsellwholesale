@@ -22,33 +22,39 @@ interface PoliciesTabProps {
   onSave: (key: string, data: any) => void;
 }
 
+interface PolicyData {
+  title: string;
+  lastUpdated: string;
+  content: string;
+}
+
 const POLICY_METADATA = [
   { key: "privacy", label: "Privacy Policy", icon: ShieldCheck, desc: "Data protection, buyer privacy disclosures, and cookie policies." },
   { key: "terms", label: "Terms of Service", icon: FileText, desc: "B2B wholesale trading terms, ordering rules, and buyer compliance." },
-  { key: "shipping", label: "Shipping & Logistics Policy", icon: Truck, desc: "Dispatch SLAs, Bhopal cargo terms, freight charges, and tracking terms." },
+  { key: "shipping", label: "Shipping & Logistics Policy", icon: Truck, desc: "Dispatch SLAs, Bhopal delivery terms, freight charges, and tracking terms." },
   { key: "return", label: "Return & Refund Policy", icon: RotateCcw, desc: "Damaged stock return windows, B2B wholesale exchange, and refund rules." },
 ];
 
-const DEFAULT_POLICIES = {
+const DEFAULT_POLICIES: Record<string, PolicyData> = {
   privacy: {
-    title: "Corporate Privacy Policy",
+    title: "Privacy Policy & Data Security",
     lastUpdated: "2026-07-27",
-    content: `<h3>1. Scope of Data Gathering</h3><p>We gather business credentials, shipping addresses, GST certificates, and contact details to verify authenticity and streamline wholesale invoicing.</p><h3>2. Data Protection Standards</h3><p>All sensitive payment credentials are encrypted using industry-standard AES-256 protocols. Your trade secrets and supplier details remain confidential.</p>`,
+    content: `<h3>1. Buyer Data Privacy</h3><p>We strictly store and protect your business details including GST numbers, delivery addresses, and purchasing logs according to IT Act rules.</p><h3>2. Data Encryption</h3><p>All sensitive transactions are encrypted via SSL to ensure enterprise-grade security for bulk buyers.</p>`,
   },
   terms: {
-    title: "B2B Terms of Service",
+    title: "B2B Wholesale Terms of Service",
     lastUpdated: "2026-07-27",
-    content: `<h3>1. Retail Reselling Authorizations</h3><p>Buyers warrant that they are registered businesses purchasing goods for commercial resale or manufacturing purposes, not personal consumption.</p><h3>2. Account Suspension Thresholds</h3><p>We reserve the right to cancel accounts and restrict wholesale pricing for buyers providing fraudulent business IDs or repeatedly returning bulk orders.</p>`,
+    content: `<h3>1. Business Registration</h3><p>FlexSell is an exclusive B2B wholesale platform. Buyers must present valid business credentials or GST numbers for tax invoice generation.</p><h3>2. Minimum Order Quantities (MOQ)</h3><p>All wholesale orders must meet specified SKU quantity thresholds to qualify for tiered tier pricing.</p>`,
   },
   shipping: {
     title: "Freight & Shipping Policies",
     lastUpdated: "2026-07-27",
-    content: `<h3>1. Dispatch Timelines</h3><p>Bulk wholesale orders are packed and dispatched from our Bhopal warehouse within 24-48 working hours. Heavy cargo shipping times range from 3-7 days.</p><h3>2. Remote Region Cargo Surcharges</h3><p>Special transport charges may apply for heavy freight going to Northeast states, J&K, and deep rural regions. Surcharges will be quoted by phone if needed.</p>`,
+    content: `<h3>1. Dispatch Timelines</h3><p>Bulk wholesale orders are packed and dispatched from our Bhopal warehouse within 24-48 working hours. Heavy freight shipping times range from 3-7 days.</p><h3>2. Remote Region Logistics Surcharges</h3><p>Special transport charges may apply for heavy freight going to Northeast states, J&K, and deep rural regions. Surcharges will be quoted by phone if needed.</p>`,
   },
   return: {
     title: "Bulk Return & Refund Policies",
     lastUpdated: "2026-07-27",
-    content: `<h3>1. Zero Unsold Returns</h3><p>Because we run at minimal margins, we do not accept returns for unsold goods or change-of-mind situations. All wholesale sales are final.</p><h3>2. Transit Defect Claims</h3><p>A continuous, uncut video showing the opening of the cargo box is mandatory to process shipping transit damage claims. Approved claims receive wallet top-up credits.</p>`,
+    content: `<h3>1. Zero Unsold Returns</h3><p>Because we run at minimal margins, we do not accept returns for unsold goods or change-of-mind situations. All wholesale sales are final.</p><h3>2. Transit Defect Claims</h3><p>A continuous, uncut video showing the opening of the parcel package is mandatory to process shipping transit damage claims. Approved claims receive wallet top-up credits.</p>`,
   },
 };
 

@@ -348,14 +348,14 @@ export function ProductInfoTabs() {
               <Truck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-foreground">Express Bhopal Central Dispatch</p>
-                <p>All wholesale cargo orders are packed and handed over to Delhivery, V-Trans, or Gati transport within 24-48 working hours.</p>
+                <p>All wholesale orders are packed and handed over to Delhivery, V-Trans, or Gati transport within 24-48 working hours.</p>
               </div>
             </div>
             <div className="flex gap-3 p-3 bg-primary/5 rounded-lg border border-primary/20">
               <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-foreground">Transit Damage Replacement Guarantee</p>
-                <p>Comprehensive cargo replacement guarantee for breakages in transit when an unboxing video is provided within 48 hours of receipt.</p>
+                <p>Comprehensive product replacement guarantee for breakages in transit when an unboxing video is provided within 48 hours of receipt.</p>
               </div>
             </div>
           </motion.div>

@@ -162,7 +162,7 @@ export function OrderSummary({
               <span>
                 {formatPrice(shippingCharge)}
                 {hasB2B && hasB2C && <span className="text-[10px] text-muted-foreground font-normal block">(B2B flat + B2C slabs)</span>}
-                {hasB2B && !hasB2C && <span className="text-[10px] text-muted-foreground font-normal block">(B2B Flat Cargo Rate)</span>}
+                {hasB2B && !hasB2C && <span className="text-[10px] text-muted-foreground font-normal block">(B2B Flat Shipping Rate)</span>}
                 {!hasB2B && hasB2C && <span className="text-[10px] text-muted-foreground font-normal block">({(b2cWeightGrams / 1000).toFixed(2)} kg pkg weight)</span>}
               </span>
             ) : "Free Shipping"}
@@ -206,7 +206,7 @@ export function OrderSummary({
       </Button>
 
       <p className="text-xs text-center text-muted-foreground">
-        By placing your order, you agree to our B2B Sourcing Terms of Service and Cargo Liability Rules.
+        By placing your order, you agree to our B2B Sourcing Terms of Service and Shipping Liability Rules.
       </p>
     </div>
   );

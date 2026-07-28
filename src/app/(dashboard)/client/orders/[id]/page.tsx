@@ -6,9 +6,10 @@ import { useOrderStore } from "@/stores/orderStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
-import { ArrowLeft, Printer, Truck, Calendar, CheckCircle, Clock, AlertTriangle, FileText, Check } from "lucide-react";
+import { ArrowLeft, Printer, Truck, Calendar, CheckCircle, Clock, AlertTriangle, FileText, Check, MapPin } from "lucide-react";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { SellerInfo } from "@/types";
+import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -42,11 +43,16 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
 
   const order = React.useMemo(() => orders.find(o => o._id === orderId), [orders, orderId]);
 
+  const handlePrint = () => {
+    const docLabel = invoice?.type === "receipt" ? "RECEIPT" : invoice?.type === "quote" ? "Quote" : "Invoice";
+    triggerPrintWithTitle(docLabel, orderId);
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-16 text-center text-foreground">
         <h2 className="text-xl font-bold mb-2">Loading Order Invoice...</h2>
-        <p className="text-muted-foreground">Retrieving cargo status information.</p>
+        <p className="text-muted-foreground">Retrieving order status information.</p>
       </div>
     );
   }
@@ -54,17 +60,15 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
   if (!order) {
     return (
       <div className="container mx-auto px-4 py-16 text-center text-foreground">
-        <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-3" />
-        <h2 className="text-2xl font-bold mb-2">Order Not Found</h2>
-        <p className="text-muted-foreground mb-6">We couldn't find any order matching ID "{orderId}".</p>
+        <h2 className="text-xl font-bold mb-2">Order Not Found</h2>
+        <p className="text-muted-foreground mb-4">The order specified could not be located in your account ledger.</p>
         <Link href="/client/orders">
-          <Button><ArrowLeft className="mr-2 h-4 w-4" /> Back to Orders</Button>
+          <Button variant="outline">Back to Order History</Button>
         </Link>
       </div>
     );
   }
 
-  // Determine active steps for horizontal stepper [UPDATED-4]
   const isShiprocket = order.shipmentDetails?.type === "shiprocket";
   const steps = isShiprocket
     ? ["Placed", "Processing", "Awaiting Shipment", "In Transit", "Delivered"]
@@ -72,68 +76,94 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
   const currentStepIdx = steps.indexOf(order.status);
   const isCancelled = order.status === "Cancelled";
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
-    <div className="space-y-6 container mx-auto px-4 py-8 text-foreground max-w-5xl">
-      {/* Back Bar */}
-      <div className="flex justify-between items-center no-print">
-        <Link href="/client/orders">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to My Orders
+    <div className="container mx-auto px-4 py-8 space-y-6 text-foreground">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Link href="/client/orders">
+              <Button variant="ghost" size="sm" className="p-0 h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-bold tracking-tight">Order #{order._id}</h1>
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase ${
+              order.status === "Delivered" ? "bg-green-100 text-green-800" :
+              order.status === "Shipped" || order.status === "In Transit" ? "bg-blue-100 text-blue-800" :
+              order.status === "Cancelled" ? "bg-red-100 text-red-800" :
+              "bg-yellow-100 text-yellow-800"
+            }`}>
+              {order.status}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Placed on {order.date}</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button onClick={handlePrint} variant="outline" size="sm" className="font-bold flex items-center gap-1 shadow-sm">
+            <Printer className="h-4 w-4" /> Print Commercial Invoice
           </Button>
-        </Link>
-        <Button onClick={handlePrint} variant="outline" className="font-bold flex items-center gap-1.5 shadow-sm">
-          <Printer className="h-4 w-4" /> Print Commercial Invoice
-        </Button>
+        </div>
       </div>
 
-      {/* Visual Stepper Tracker */}
-      {!isCancelled ? (
-        <Card className="border border-border p-6 bg-card shadow-sm no-print">
-          <div className="relative flex justify-between items-center max-w-3xl mx-auto">
-            {/* Connection Line */}
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted -z-0" />
-            <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary transition-all duration-500 -z-0"
-              style={{ width: `${(Math.max(0, currentStepIdx) / (steps.length - 1)) * 100}%` }}
-            />
+      {/* Grid: Stepper & Delivery Address */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Fulfillment Status Tracker</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {!isCancelled ? (
+              <div className="relative flex justify-between items-center max-w-md mx-auto my-4">
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted -z-0" />
+                <div 
+                  className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary transition-all duration-500 -z-0" 
+                  style={{ width: `${(Math.max(0, currentStepIdx) / (steps.length - 1)) * 100}%` }}
+                />
 
-            {steps.map((step, idx) => {
-              const isActive = idx <= currentStepIdx;
-              const isCurrent = idx === currentStepIdx;
-              return (
-                <div key={idx} className="relative z-10 flex flex-col items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${isActive
-                      ? "border-primary bg-primary text-primary-foreground font-bold shadow-md"
-                      : "border-muted bg-background text-muted-foreground"
-                    } ${isCurrent ? "ring-4 ring-primary/20 scale-110" : ""}`}>
-                    {isActive && idx < currentStepIdx ? (
-                      <Check className="h-4 w-4 stroke-[3]" />
-                    ) : (
-                      <span className="text-xs">{idx + 1}</span>
-                    )}
-                  </div>
-                  <span className={`text-xs font-bold ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{step}</span>
-                </div>
-              );
-            })}
-          </div>
+                {steps.map((step, idx) => {
+                  const isActive = idx <= currentStepIdx;
+                  return (
+                    <div key={idx} className="relative z-10 flex flex-col items-center gap-1.5">
+                      <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${
+                        isActive ? "border-primary bg-primary text-primary-foreground font-bold" : "border-muted bg-background text-muted-foreground"
+                      }`}>
+                        <span className="text-xs">{idx + 1}</span>
+                      </div>
+                      <span className={`text-[10px] font-bold ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{step}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-xs font-bold text-destructive">
+                This order has been cancelled. If you believe this is an error, please reach out to customer support.
+              </div>
+            )}
+          </CardContent>
         </Card>
-      ) : (
-        <Card className="border border-destructive/25 p-4 bg-destructive/5 flex items-center gap-3 no-print">
-          <AlertTriangle className="h-5 w-5 text-destructive" />
-          <p className="text-xs font-bold text-destructive">
-            This order has been Cancelled. If you have questions, please reach out to wholesale B2B support.
-          </p>
-        </Card>
-      )}
 
-      {/* Order details grid */}
+        <Card className="border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <MapPin className="h-4 w-4 text-primary" /> Delivery Dock Address
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-2 text-xs space-y-1">
+            <p className="font-bold text-foreground text-sm">{order.shippingAddress.firstName} {order.shippingAddress.lastName}</p>
+            {order.shippingAddress.company && <p className="font-semibold text-muted-foreground">{order.shippingAddress.company}</p>}
+            <p>{order.shippingAddress.address}{order.shippingAddress.apartment ? `, ${order.shippingAddress.apartment}` : ""}</p>
+            <p>{order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pinCode}</p>
+            <p className="font-mono pt-1 text-muted-foreground">Ph: {order.shippingAddress.phone}</p>
+            {order.shippingAddress.gstin && <p className="font-mono text-primary font-bold">GSTIN: {order.shippingAddress.gstin}</p>}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left Column: Items details */}
+        {/* Left Column: Commercial Invoice */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="border border-border">
             <CardContent className="p-6">
@@ -169,7 +199,7 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
                   <div>
                     <span className="text-muted-foreground">Dispatch Method:</span>
                     <p className="font-bold capitalize mt-0.5">
-                      {order.shipmentDetails.type === "shiprocket" ? "🚀 Shiprocket Cargo API" : order.shipmentDetails.type === "self" ? "FlexSell Cargo (Self)" : "Third-Party Courier"}
+                      {order.shipmentDetails.type === "shiprocket" ? "🚀 Shiprocket Express API" : order.shipmentDetails.type === "self" ? "FlexSell Transport (Self)" : "Third-Party Courier"}
                     </p>
                   </div>
                   {(order.shipmentDetails.carrierName || order.shipmentDetails.shiprocket?.courierName) && (

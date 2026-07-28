@@ -54,7 +54,7 @@ export function Footer({ data }: FooterProps) {
           {/* Trust Highlights */}
           <div className="flex flex-col gap-2 pt-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-2 font-medium"><ShieldCheck className="h-4 w-4 text-primary shrink-0" /> Verified Factory Importer</span>
-            <span className="flex items-center gap-2 font-medium"><Truck className="h-4 w-4 text-primary shrink-0" /> Nationwide Cargo Freight Dispatch</span>
+            <span className="flex items-center gap-2 font-medium"><Truck className="h-4 w-4 text-primary shrink-0" /> Nationwide Express Freight Dispatch</span>
             <span className="flex items-center gap-2 font-medium"><RefreshCw className="h-4 w-4 text-primary shrink-0" /> Direct Transit Damage Replacement</span>
           </div>
 
@@ -66,20 +66,6 @@ export function Footer({ data }: FooterProps) {
           </div>
         </div>
 
-        {/* Wholesale B2B */}
-        <div>
-          <h4 className="font-bold text-sm mb-4 text-foreground uppercase tracking-wider">Wholesale Sourcing</h4>
-          <ul className="space-y-2.5 text-xs text-muted-foreground">
-            <li><Link href="/products" className="hover:text-primary transition-colors">Wholesale Bulk Catalog</Link></li>
-            <li><Link href="/categories" className="hover:text-primary transition-colors">Factory Direct Categories</Link></li>
-            <li><Link href="/quote" className="hover:text-primary transition-colors">Get Bulk Sourcing Quote</Link></li>
-            <li><Link href="/documentation" className="hover:text-primary transition-colors text-primary font-bold">App Documentation</Link></li>
-            <li><Link href="/about" className="hover:text-primary transition-colors">About FlexSell B2B</Link></li>
-            <li><Link href="/contact" className="hover:text-primary transition-colors">Warehouse Sourcing Contact</Link></li>
-            <li><Link href="/system-diagnostics" className="hover:text-primary transition-colors text-emerald-600 font-bold">System Diagnostics</Link></li>
-          </ul>
-
-        </div>
 
         {/* Dropshipping Hub */}
         <div>
@@ -130,7 +116,7 @@ export function Footer({ data }: FooterProps) {
             <span className="bg-secondary px-2 py-0.5 rounded border">UPI</span>
             <span className="bg-secondary px-2 py-0.5 rounded border">Razorpay</span>
             <span className="bg-secondary px-2 py-0.5 rounded border">GST Invoice</span>
-            <span className="bg-secondary px-2 py-0.5 rounded border">Cargo Transport</span>
+            <span className="bg-secondary px-2 py-0.5 rounded border">Express Transport</span>
           </div>
 
           <button

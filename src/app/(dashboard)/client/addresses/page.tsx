@@ -187,7 +187,7 @@ export default function ClientAddressesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Saved Addresses</h1>
-          <p className="text-muted-foreground mt-1">Manage billing, shipping, and cargo dispatch addresses.</p>
+          <p className="text-muted-foreground mt-1">Manage billing, shipping, and order dispatch addresses.</p>
         </div>
         <Button onClick={handleOpenAddModal} className="font-bold flex items-center gap-1.5 shadow">
           <Plus className="h-4.5 w-4.5" /> Add New Address

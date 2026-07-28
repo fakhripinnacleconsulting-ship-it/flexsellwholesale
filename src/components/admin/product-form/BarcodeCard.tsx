@@ -9,6 +9,7 @@ import { useProductForm } from "./ProductFormContext";
 import { Upload, Download, Trash2, CheckCircle2, ShieldCheck, Printer } from "lucide-react";
 import { getBarcodeSvgString } from "@/lib/barcodeHelper";
 import { useToastStore } from "@/stores/toastStore";
+import { generateDocumentTitle } from "@/lib/pdfPrintHelper";
 
 export function BarcodeCard() {
   const { addToast } = useToastStore();
@@ -52,7 +53,7 @@ export function BarcodeCard() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Sticker Print - ${activeBarcodeVal}</title>
+          <title>${generateDocumentTitle("Barcode_Label", activeBarcodeVal)}</title>
           <style>
             @page {
               size: ${targetDim.w} ${targetDim.h};

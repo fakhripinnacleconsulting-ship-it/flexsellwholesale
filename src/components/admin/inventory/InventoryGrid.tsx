@@ -67,7 +67,7 @@ export function InventoryGrid() {
             {paginatedVariants.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground italic">
-                  No active cargo lines match filters.
+                  No active product lines match filters.
                 </td>
               </tr>
             ) : (

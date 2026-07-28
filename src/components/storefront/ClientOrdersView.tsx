@@ -241,7 +241,7 @@ export function ClientOrdersView() {
             <Card className="sticky top-24 bg-secondary/10 border-dashed border-2">
               <CardContent className="py-16 text-center text-muted-foreground flex flex-col items-center">
                 <Info className="h-8 w-8 mb-2 text-muted-foreground" />
-                <p className="text-sm">Select an order row from the table to view delivery cargo details and itemized invoices.</p>
+                <p className="text-sm">Select an order row from the table to view shipment details and itemized invoices.</p>
               </CardContent>
             </Card>
           )}
