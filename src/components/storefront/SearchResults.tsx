@@ -26,6 +26,7 @@ import Image from "next/image";
 import { Pagination } from "@/components/ui/Pagination";
 import { formatPrice } from "@/lib/utils";
 import { ProductCard } from "./ProductCard";
+import { GlobalSearchInput } from "./GlobalSearchInput";
 
 interface SearchResultsProps {
   query: string;
@@ -246,13 +247,19 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
     return sortedProducts.slice(start, start + ITEMS_PER_PAGE);
   }, [sortedProducts, currentPage]);
 
-
   const parentCategories = React.useMemo(() => {
     return categories.filter(c => !c.parentId);
   }, [categories]);
 
   return (
-    <div className="mx-auto max-w-8xl px-4 md:px-6 py-8 text-foreground w-full">
+    <div className="mx-auto max-w-8xl px-4 md:px-6 py-6 text-foreground w-full">
+      {/* Prominent Global Search Bar at the Top of Search Page */}
+      <div className="mb-6 max-w-3xl mx-auto">
+        <GlobalSearchInput
+          placeholder="Search wholesale products, SKUs, titles, categories..."
+        />
+      </div>
+
       {/* Exact SKU Match Banner */}
       {exactSkuMatch && (
         <div className="mb-6 p-4 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between flex-wrap gap-3">
@@ -277,8 +284,14 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b pb-6 border-border/60">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Search Results</h1>
-          <p className="text-muted-foreground mt-1">Showing product matches for query: <span className="font-semibold text-primary">&quot;{query}&quot;</span></p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Search Results</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">
+            {query ? (
+              <>Showing product matches for query: <span className="font-semibold text-primary">&quot;{query}&quot;</span></>
+            ) : (
+              "Explore full wholesale catalog & search products above."
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {/* Mobile Filter toggle */}

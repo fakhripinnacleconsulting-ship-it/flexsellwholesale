@@ -26,6 +26,7 @@ interface HeaderProps {
 export function Header({ categories, collections = [] }: HeaderProps) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = React.useState(false);
 
   const cartItemsCount = useCartStore((state) => state.getCartItemsCount());
   const wishlistItemsCount = useWishlistStore((state) => state.items.length);
@@ -89,6 +90,18 @@ export function Header({ categories, collections = [] }: HeaderProps) {
             />
           )}
 
+          {/* Mobile-only Search Toggle Icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden cursor-pointer h-9 w-9 p-0 flex items-center justify-center text-foreground"
+            title="Search Products"
+            aria-label="Search"
+            onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+          >
+            <Search className="h-5 w-5 text-foreground" />
+          </Button>
+
           {/* Mobile-only Wishlist / Like Icon */}
           <Link href="/wishlist" className="md:hidden" aria-label="Wishlist">
             <Button variant="ghost" size="icon" className="relative cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title="Wishlist" aria-label="Wishlist">
@@ -150,6 +163,17 @@ export function Header({ categories, collections = [] }: HeaderProps) {
           </div>
         </div>
       </div>
+
+      {/* Mobile Search Input Row */}
+      {isMobileSearchOpen && (
+        <div className="md:hidden px-3 pb-3 pt-1 border-t border-border/50 bg-background/95 shadow-sm">
+          <GlobalSearchInput
+            placeholder="Search products, SKUs, categories..."
+            isMobile
+            onSearchSubmitted={() => setIsMobileSearchOpen(false)}
+          />
+        </div>
+      )}
 
       {/* Category Nav - Desktop Only */}
       <MegaMenu categories={categories} collections={collections} />

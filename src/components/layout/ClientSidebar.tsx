@@ -137,6 +137,7 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
             <Link
               key={link.name}
               href={link.href}
+              prefetch={true}
               className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-colors relative group ${
                 isActive 
                   ? "bg-primary/10 text-primary font-bold" 

@@ -83,6 +83,7 @@ export function MobileBottomNav() {
               <Link
                 key={item.id}
                 href={item.href}
+                prefetch={true}
                 className="flex flex-col items-center justify-center -mt-6 cursor-pointer relative z-10"
               >
                 <div
@@ -105,6 +106,7 @@ export function MobileBottomNav() {
             <Link
               key={item.id}
               href={item.href}
+              prefetch={true}
               className={`flex flex-col items-center justify-center py-1.5 px-2.5 rounded-xl transition-all cursor-pointer relative min-w-[54px] ${
                 isActive
                   ? "text-primary font-extrabold"
