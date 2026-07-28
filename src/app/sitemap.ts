@@ -6,9 +6,10 @@ import { collectionService } from "@/services/collectionService";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.in";
 
-  // Static routes
+  // Static Core Landing Pages
   const staticRoutes = [
     "",
+    "/products",
     "/about",
     "/contact",
     "/faq",
@@ -21,8 +22,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ].map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date(),
-    changeFrequency: "daily" as const,
-    priority: route === "" ? 1.0 : 0.8,
+    changeFrequency: route === "" || route === "/products" ? ("daily" as const) : ("weekly" as const),
+    priority: route === "" ? 1.0 : route === "/products" ? 0.9 : 0.8,
   }));
 
   try {
@@ -32,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${baseUrl}/products/${product.slug}`,
       lastModified: product.updatedAt ? new Date(product.updatedAt) : new Date(),
       changeFrequency: "weekly" as const,
-      priority: 0.7,
+      priority: 0.8,
     }));
 
     // Dynamic categories routes
@@ -41,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${baseUrl}/categories/${category.slug}`,
       lastModified: category.updatedAt ? new Date(category.updatedAt) : new Date(),
       changeFrequency: "weekly" as const,
-      priority: 0.6,
+      priority: 0.7,
     }));
 
     // Dynamic collections routes
@@ -52,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${baseUrl}/collections/${collection.slug}`,
         lastModified: collection.updatedAt ? new Date(collection.updatedAt) : new Date(),
         changeFrequency: "weekly" as const,
-        priority: 0.6,
+        priority: 0.7,
       }));
 
     return [...staticRoutes, ...productRoutes, ...categoryRoutes, ...collectionRoutes];

@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { NotificationInitializer } from "@/components/common/NotificationInitializer";
+import { generateOrganizationSchema, generateWebSiteSchema, generateLocalBusinessSchema } from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -41,27 +42,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "FlexSell Wholesale",
-    "url": "https://flexsellwholesale.in",
-    "logo": "https://flexsellwholesale.in/Flexsell%20Logo.png",
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "telephone": "+91-88877-66655",
-      "contactType": "customer service",
-      "areaServed": "IN",
-      "availableLanguage": ["en", "hi"]
-    }
-  };
+  const orgSchema = generateOrganizationSchema();
+  const websiteSchema = generateWebSiteSchema();
+  const localBusinessSchema = generateLocalBusinessSchema();
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
         />
       </head>
       <body className={`${inter.variable} ${outfit.variable} font-sans antialiased`} suppressHydrationWarning>
