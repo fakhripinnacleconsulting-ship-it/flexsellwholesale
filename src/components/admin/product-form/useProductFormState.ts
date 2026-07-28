@@ -423,7 +423,7 @@ export function useProductFormState(
     );
 
     if (currentImages.length >= 9) {
-      addToast("You can only add a maximum of 9 images per color variant.", "error");
+      addToast("You can only add a maximum of 9 images per variation.", "error");
       e.target.value = "";
       return;
     }
@@ -474,7 +474,7 @@ export function useProductFormState(
     );
 
     if (currentImages.length >= 9) {
-      addToast("You can only add a maximum of 9 images per color variant.", "error");
+      addToast("You can only add a maximum of 9 images per variation.", "error");
       return;
     }
 
@@ -667,13 +667,13 @@ export function useProductFormState(
     }
 
     if (!variantsList || variantsList.length === 0) {
-      addToast("At least one color variant is required to save the product.", "error");
+      addToast("At least one variation is required to save the product.", "error");
       return;
     }
 
     const hasEmptySubVariants = variantsList.some(v => !v.subVariants || v.subVariants.length === 0);
     if (hasEmptySubVariants) {
-      addToast("Each color variant must have at least one sub-variant combination.", "error");
+      addToast("Each variation must have at least one combination.", "error");
       return;
     }
 
@@ -863,6 +863,6 @@ export function useProductFormState(
     barcodeSource,
     setBarcodeSource,
     barcodeImage,
-    setBarcodeImage
+    setBarcodeImage,
   };
 }

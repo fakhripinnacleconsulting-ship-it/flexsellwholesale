@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/Button";
 import { useProductForm } from "./ProductFormContext";
-import { Plus, Edit2, Trash2, Maximize2, Minimize2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Maximize2, Minimize2, Copy } from "lucide-react";
 import { useToastStore } from "@/stores/toastStore";
 import { VariantCard } from "./VariantCard";
 

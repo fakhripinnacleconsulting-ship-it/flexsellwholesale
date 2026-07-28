@@ -8,96 +8,87 @@ export interface ExcelValidationError {
 }
 
 export const HEADERS = [
-  "Product Name",           // A (0)
-  "Description",            // B (1)
-  "Category",               // C (2)  — dropdown
-  "HSN Code",               // D (3)  — dropdown
-  "Price Includes GST",     // E (4)  — dropdown TRUE/FALSE
-  "Min Order Qty (MOQ)",    // F (5)
-  "Tags",                   // G (6)
-  "Card Tags",              // H (7)
-  "SEO Title",              // I (8)
-  "SEO Description",        // J (9)
-  "SEO Keywords",           // K (10)
-  "Color",                  // L (11)
-  "Dimensions",             // M (12)
-  "Image URL 1",            // N (13)
-  "Image URL 2",            // O (14)
-  "Image URL 3",            // P (15)
-  "Image URL 4",            // Q (16)
-  "Image URL 5",            // R (17)
-  "Image URL 6",            // S (18)
-  "Image URL 7",            // T (19)
-  "Image URL 8",            // U (20)
-  "Image URL 9",            // V (21)
-  "Size",                   // W (22)
-  "Weight",                 // X (23)
-  "B2C Price",              // Y (24)
-  "MRP",                    // Z (25)
-  "Stock",                  // AA (26)
-  "SKU",                    // AB (27)
-  "B2B Price",              // AC (28)
-  "Dropshipping Price",     // AD (29)
-  "Weight (grams)",         // AE (30)
-  "Packaging Charge",       // AF (31)
-  "Packaging Charge Type",  // AG (32) — dropdown per_unit/per_order
+  "SKU",                     // A (0)
+  "Product Name",            // B (1)
+  "Description",             // C (2)
+  "Category",                // D (3) — dropdown
+  "HSN Code (Tax %)",        // E (4) — dropdown with tax %
+  "Price Includes GST",      // F (5) — dropdown TRUE/FALSE
+  "MRP",                     // G (6)
+  "B2C Price",               // H (7)
+  "B2B Price",               // I (8)
+  "Min Order Qty (MOQ)",     // J (9)
+  "Dropshipping Price",      // K (10)
+  "Stock",                   // L (11)
+  "Variation Type",          // M (12)
+  "Dimensions",              // N (13)
+  "Image URL 1",             // O (14)
+  "Image URL 2",             // P (15)
+  "Image URL 3",             // Q (16)
+  "Image URL 4",             // R (17)
+  "Image URL 5",             // S (18)
+  "Image URL 6",             // T (19)
+  "Image URL 7",             // U (20)
+  "Image URL 8",             // V (21)
+  "Image URL 9",             // W (22)
+  "Size",                    // X (23)
+  "Weight",                  // Y (24)
+  "Weight (grams)",          // Z (25)
+  "Tags",                    // AA (26)
+  "Card Tags",               // AB (27)
+  "Packaging Charge",        // AC (28)
+  "Packaging Charge Type",   // AD (29) — dropdown per_unit/per_order
 ];
 
 export const GUIDELINES = [
-  "Required. Max 200 chars. Rows with same name are grouped into one product.",
-  "Required. Max 5000 chars. Enter normal plain text (emojis, lists, etc. are supported). Use single newlines for breaks, double newlines for paragraphs.",
-  "Required. Select from dropdown.",
-  "Required. Select from dropdown.",
-  "Optional. Default: TRUE.",
-  "Optional B2B Minimum Order Quantity. Defaults to 1 if left blank. Integer >= 1.",
-  "Optional. Comma-separated. e.g.  , kitchen.",
-  "Optional. Comma-separated. e.g. Hot, New, Bestseller.",
-  "Optional. Max 60 chars. Auto-generated if blank.",
-  "Optional. Max 160 chars. Auto-generated if blank.",
-  "Optional. Comma-separated. Auto-generated if blank.",
-  "Required. e.g. Red, Blue. Use 'Default' for single-color products.",
-  "Optional. e.g. 15x12x8 cm.",
-  "Required. Min 1 image URL per color variant.",
-  "Optional.", "Optional.", "Optional.", "Optional.",
-  "Optional.", "Optional.", "Optional.", "Optional.",
-  "Required. e.g. Standard, L, XL, 500g.",
-  "Optional. e.g. 250g, 1kg.",
-  "Required. B2C Selling Price. Number > 0.",
-  "Required. Maximum Retail Price. Must be >= B2C Price.",
-  "Required. Integer >= 0. Inventory count.",
-  "Required. Max 40 chars. Must be unique across all variants.",
-  "Optional. B2B Trade Price. Number > 0.",
-  "Optional. Dropshipping Price. Number > 0.",
-  "Optional. Numeric weight in grams (e.g. 250, 1000) for shipping calculation.",
-  "Optional. Extra packaging fee in ₹ (e.g. 10, 25). Default: 0.",
-  "Optional. Select from dropdown: per_unit or per_order. Default: per_unit.",
+  "Required. Max 40 chars. Must be unique across all variants.", // SKU
+  "Required. Max 200 chars. Rows with same name are grouped into one product.", // Product Name
+  "Required. Max 5000 chars. Enter normal plain text. Use single newlines for breaks, double newlines for paragraphs.", // Description
+  "Required. Select from dropdown.", // Category
+  "Required. Select from dropdown. Shows HSN code with GST tax rate for reference.", // HSN Code (Tax %)
+  "Optional. Select TRUE/FALSE. Defaults to TRUE if left blank.", // Price Includes GST
+  "Required. Maximum Retail Price. Must be >= B2C Price.", // MRP
+  "Required. B2C Selling Price. Number > 0.", // B2C Price
+  "Optional. B2B Trade Price. Number > 0. Defaults to B2C Price if left blank.", // B2B Price
+  "Optional B2B Minimum Order Quantity. Defaults to 1 if left blank. Integer >= 1.", // MOQ
+  "Optional. Dropshipping Price. Number > 0. Defaults to B2C Price if left blank.", // Dropshipping Price
+  "Required. Integer >= 0. Inventory count.", // Stock
+  "Required. e.g. Red, Standard, Wooden. Use 'Default' for single-color/single-style products.", // Variation Type
+  "Optional. e.g. 15x12x8 cm. Used for volumetric shipping calculation.", // Dimensions
+  "Required. Min 1 image URL per variation type.", // Image URL 1
+  "Optional.", "Optional.", "Optional.", "Optional.", "Optional.", "Optional.", "Optional.", "Optional.", // Image URLs 2-9
+  "Required. e.g. Standard, S, M, L, XL, 500g.", // Size
+  "Optional. Text label e.g. 250g, 1kg, 500ml.", // Weight
+  "Optional. Numeric weight in grams (e.g. 250, 1000) for shipping calculation.", // Weight (grams)
+  "Optional. Comma-separated. e.g. eco-friendly, kitchen.", // Tags
+  "Optional. Comma-separated. e.g. Hot, New, Bestseller.", // Card Tags
+  "Optional. Extra packaging fee in ₹ (e.g. 10, 25). Default: 0.", // Packaging Charge
+  "Optional. Select from dropdown: per_unit or per_order. Default: per_unit.", // Packaging Charge Type
 ];
 
 export const COL_WIDTHS = [
+  18, // SKU
   28, // Product Name
   45, // Description
   20, // Category
-  14, // HSN Code
+  18, // HSN Code (Tax %)
   18, // Price Includes GST
+  12, // MRP
+  14, // B2C Price
+  14, // B2B Price
   18, // MOQ
-  22, // Tags
-  20, // Card Tags
-  22, // SEO Title
-  28, // SEO Description
-  22, // SEO Keywords
-  14, // Color
+  16, // Dropshipping Price
+  10, // Stock
+  16, // Variation Type
   16, // Dimensions
   32, // Image URL 1
-  32, 32, 32, 32, 32, 32, 32, 32, // Image URLs 2–9
+  32, 32, 32, 32, 32, 32, 32, 32, // Image URLs 2-9
   14, // Size
   12, // Weight
-  14, // B2C Price
-  12, // MRP
-  10, // Stock
-  18, // SKU
-  14, // B2B Price
-  16, // Dropshipping Price
   16, // Weight (grams)
+  22, // Tags
+  20, // Card Tags
   18, // Packaging Charge
   22, // Packaging Charge Type
 ];
+

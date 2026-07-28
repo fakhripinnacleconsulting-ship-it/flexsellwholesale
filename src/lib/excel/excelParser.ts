@@ -136,40 +136,40 @@ export async function parseAndValidateExcel(
       return cell.value;
     };
 
-    const title = cleanStr(getCellVal(1));
-    const description = plainTextToHtml(cleanStr(getCellVal(2)));
-    const categoryVal = cleanStr(getCellVal(3));
-    const hsnCode = cleanStr(getCellVal(4));
-    const priceIncludesGst = cleanBool(getCellVal(5), true);
-    const b2bMoq = cleanNum(getCellVal(6), 1);
-    const tags = cleanStr(getCellVal(7)).split(",").map((t) => t.trim()).filter(Boolean);
-    const cardTags = cleanStr(getCellVal(8)).split(",").map((t) => t.trim()).filter(Boolean);
-    const seoTitle = cleanStr(getCellVal(9));
-    const seoDescription = cleanStr(getCellVal(10));
-    const seoKeywords = cleanStr(getCellVal(11));
+    const sku = cleanStr(getCellVal(1));
+    const title = cleanStr(getCellVal(2));
+    const description = plainTextToHtml(cleanStr(getCellVal(3)));
+    const categoryVal = cleanStr(getCellVal(4));
+    
+    // HSN parsing: strip "(xx%)" suffix if present
+    const rawHsn = cleanStr(getCellVal(5));
+    const hsnCode = rawHsn.replace(/\s*\(.*\)$/, "").trim();
 
-    const color = cleanStr(getCellVal(12)) || "Default";
-    const dimensions = cleanStr(getCellVal(13));
+    const priceIncludesGst = cleanBool(getCellVal(6), true);
+    const mrp = cleanNum(getCellVal(7), -1);
+    const b2cPrice = cleanNum(getCellVal(8), -1);
+    const b2bPrice = cleanNum(getCellVal(9), 0);
+    const b2bMoq = cleanNum(getCellVal(10), 1);
+    const dropshippingPrice = cleanNum(getCellVal(11), 0);
+    const stock = cleanNum(getCellVal(12), 0);
+    const color = cleanStr(getCellVal(13)) || "Default";
+    const dimensions = cleanStr(getCellVal(14));
 
-    // Parse 9 individual image URL columns (columns 14–22)
+    // Parse 9 individual image URL columns (columns 15–23)
     const imageUrls: string[] = [];
-    for (let i = 14; i <= 22; i++) {
+    for (let i = 15; i <= 23; i++) {
       const url = cleanStr(getCellVal(i));
       if (url) imageUrls.push(url);
     }
 
-    const size = cleanStr(getCellVal(23)) || "Standard";
-    const weight = cleanStr(getCellVal(24));
-    const b2cPrice = cleanNum(getCellVal(25), -1);
-    const mrp = cleanNum(getCellVal(26), -1);
-    const stock = cleanNum(getCellVal(27), 0);
-    const sku = cleanStr(getCellVal(28));
-    const b2bPrice = cleanNum(getCellVal(29), 0);
-    const dropshippingPrice = cleanNum(getCellVal(30), 0);
-    const weightGramsVal = cleanNum(getCellVal(31), 0);
+    const size = cleanStr(getCellVal(24)) || "Standard";
+    const weight = cleanStr(getCellVal(25));
+    const weightGramsVal = cleanNum(getCellVal(26), 0);
     const weightGrams = weightGramsVal > 0 ? weightGramsVal : null;
-    const packagingCharge = cleanNum(getCellVal(32), 0);
-    const rawPkgType = cleanStr(getCellVal(33)).toLowerCase();
+    const tags = cleanStr(getCellVal(27)).split(",").map((t) => t.trim()).filter(Boolean);
+    const cardTags = cleanStr(getCellVal(28)).split(",").map((t) => t.trim()).filter(Boolean);
+    const packagingCharge = cleanNum(getCellVal(29), 0);
+    const rawPkgType = cleanStr(getCellVal(30)).toLowerCase();
     const packagingChargeType = rawPkgType === "per_order" ? "per_order" : "per_unit";
 
     // ── Validations ──────────────────────────────────────────────────
@@ -300,9 +300,6 @@ export async function parseAndValidateExcel(
           defaultPriceTier: "B2C",
           tags,
           cardTags,
-          seoTitle,
-          seoDescription,
-          seoKeywords,
           isActive: true,
         },
         variants: new Map(),

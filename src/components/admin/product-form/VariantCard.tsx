@@ -2,11 +2,12 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Trash2, Upload, Download, CheckCircle2 } from "lucide-react";
+import { Trash2, Upload, Download, CheckCircle2, Copy, AlertCircle } from "lucide-react";
 import { Barcode } from "@/components/ui/Barcode";
 import { getBarcodeSvgString } from "@/lib/barcodeHelper";
 import { parseWeightToGrams, parseDimensionsToCm } from "@/lib/priceTierHelper";
 import { generateDocumentTitle } from "@/lib/pdfPrintHelper";
+import { useProductForm } from "./ProductFormContext";
 
 interface VariantCardProps {
   idx: number;
@@ -51,27 +52,35 @@ export function VariantCard({
   handleAddImageUrl,
   addToast
 }: VariantCardProps) {
+  const { isSaving } = useProductForm();
   const [bulkMoqVal, setBulkMoqVal] = React.useState<string>("");
 
   return (
-    <Card className="border border-border relative bg-card text-foreground group shadow-sm hover:shadow">
-      {variantsListLength > 1 && (
-        <button
-          type="button"
-          onClick={() => removeVariant(idx)}
-          className="absolute top-4 right-4 text-destructive hover:bg-destructive/10 p-1.5 rounded-full transition-colors cursor-pointer"
-          title="Delete Variant"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      )}
+    <Card className="border relative bg-card text-foreground group shadow-sm hover:shadow border-border">
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        {variantsListLength > 1 && (
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => removeVariant(idx)}
+            className="text-destructive hover:bg-destructive/10 p-1.5 rounded-full transition-colors cursor-pointer disabled:opacity-50"
+            title="Delete Variant"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
 
       <CardContent className="p-6 space-y-6">
-        <h4 className="font-bold text-sm text-primary uppercase tracking-wider">Varient Line #{idx + 1}</h4>
+        <div className="flex items-center gap-2">
+          <h4 className="font-bold text-sm text-primary uppercase tracking-wider">Variant Line #{idx + 1}</h4>
+        </div>
 
         <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase text-muted-foreground">Variation Type</label>
+            <label className="text-xs font-semibold uppercase text-muted-foreground">
+              Variation Type *
+            </label>
             <Input
               placeholder="e.g. Slate Gray"
               value={item.color}
@@ -208,10 +217,13 @@ export function VariantCard({
                   const actualWeightGrams = (sv.weightGrams !== undefined && sv.weightGrams !== null && sv.weightGrams > 0)
                     ? sv.weightGrams
                     : calcGrams;
+
                   return (
                     <tr key={sv.id} className="border-b bg-background">
                       <td className="px-4 py-2 font-medium">
-                        {sv.size} - {sv.weight}
+                        <div className="flex flex-col">
+                          <span>{sv.size} - {sv.weight}</span>
+                        </div>
                       </td>
                       <td className="px-4 py-2">
                         <Input
@@ -223,68 +235,75 @@ export function VariantCard({
                           onChange={e => updateSubVariantField(idx, sv.id, "weightGrams", e.target.value === "" ? null : Number(e.target.value))}
                         />
                       </td>
-                    <td className="px-4 py-2">
-                      <Input className="h-8 text-xs" value={sv.sku} onChange={e => updateSubVariantField(idx, sv.id, "sku", e.target.value)} required />
-                    </td>
-                    <td className="px-4 py-2">
-                      <Input type="number" className="h-8 text-xs w-24" value={sv.mrp ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "mrp", e.target.value === "" ? 0 : Number(e.target.value))} required />
-                    </td>
-                    <td className="px-4 py-2">
-                      <Input type="number" className="h-8 text-xs w-24" value={sv.b2cPrice ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "b2cPrice", e.target.value === "" ? 0 : Number(e.target.value))} required />
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="space-y-1.5">
+                      <td className="px-4 py-2">
                         <Input
-                          type="number"
-                          className="h-8 text-xs w-28"
-                          placeholder="Price (₹)"
-                          value={sv.b2bPrice ?? ""}
-                          onChange={e => updateSubVariantField(idx, sv.id, "b2bPrice", e.target.value === "" ? 0 : Number(e.target.value))}
+                          className="h-8 text-xs font-semibold"
+                          value={sv.sku}
+                          placeholder="e.g. CWB-RED-500"
+                          onChange={e => updateSubVariantField(idx, sv.id, "sku", e.target.value)}
+                          required
                         />
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">MOQ:</span>
+                      </td>
+                      <td className="px-4 py-2">
+                        <Input type="number" className="h-8 text-xs w-24" value={sv.mrp ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "mrp", e.target.value === "" ? 0 : Number(e.target.value))} required />
+                      </td>
+                      <td className="px-4 py-2">
+                        <Input type="number" className="h-8 text-xs w-24" value={sv.b2cPrice ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "b2cPrice", e.target.value === "" ? 0 : Number(e.target.value))} required />
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="space-y-1.5">
                           <Input
                             type="number"
-                            min="1"
-                            className="h-7 text-xs w-18 border-primary/50 font-bold text-primary focus:border-primary bg-primary/5"
-                            placeholder="1"
-                            value={sv.b2bMoq ?? ""}
-                            onChange={e => updateSubVariantField(idx, sv.id, "b2bMoq", e.target.value === "" ? null : Number(e.target.value))}
+                            className="h-8 text-xs w-28"
+                            placeholder="Price (₹)"
+                            value={sv.b2bPrice ?? ""}
+                            onChange={e => updateSubVariantField(idx, sv.id, "b2bPrice", e.target.value === "" ? 0 : Number(e.target.value))}
                           />
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">MOQ:</span>
+                            <Input
+                              type="number"
+                              min="1"
+                              className="h-7 text-xs w-18 border-primary/50 font-bold text-primary focus:border-primary bg-primary/5"
+                              placeholder="1"
+                              value={sv.b2bMoq ?? ""}
+                              onChange={e => updateSubVariantField(idx, sv.id, "b2bMoq", e.target.value === "" ? null : Number(e.target.value))}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2">
-                      <Input type="number" className="h-8 text-xs w-24" value={sv.dropshippingPrice ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "dropshippingPrice", e.target.value === "" ? 0 : Number(e.target.value))} />
-                    </td>
-                    <td className="px-4 py-2">
-                      <Input type="number" className="h-8 text-xs w-24" value={sv.stock ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "stock", e.target.value === "" ? 0 : Number(e.target.value))} required />
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={sv.isActive ?? true}
-                        onChange={e => updateSubVariantField(idx, sv.id, "isActive", e.target.checked)}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                      />
-                      <span className="text-xs ml-1.5 font-medium">{sv.isActive !== false ? "Active" : "Inactive"}</span>
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-                        onClick={() => removeSubVariant(idx, sv.id)}
-                        disabled={item.subVariants.length <= 1}
-                        title="Remove this combination"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="px-4 py-2">
+                        <Input type="number" className="h-8 text-xs w-24" value={sv.dropshippingPrice ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "dropshippingPrice", e.target.value === "" ? 0 : Number(e.target.value))} />
+                      </td>
+                      <td className="px-4 py-2">
+                        <Input type="number" className="h-8 text-xs w-24" value={sv.stock ?? ""} onChange={e => updateSubVariantField(idx, sv.id, "stock", e.target.value === "" ? 0 : Number(e.target.value))} required />
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={sv.isActive ?? true}
+                          disabled={isSaving}
+                          onChange={e => updateSubVariantField(idx, sv.id, "isActive", e.target.checked)}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer disabled:opacity-50"
+                        />
+                        <span className="text-xs ml-1.5 font-medium">{sv.isActive !== false ? "Active" : "Inactive"}</span>
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isSaving || item.subVariants.length <= 1}
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer disabled:opacity-50"
+                          onClick={() => removeSubVariant(idx, sv.id)}
+                          title="Remove this combination"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

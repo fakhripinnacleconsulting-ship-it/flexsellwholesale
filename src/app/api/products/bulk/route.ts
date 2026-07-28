@@ -83,13 +83,13 @@ export async function POST(request: Request) {
         // Search for matching product in database by Title or any imported variant SKU
         let match: any = null;
 
-        // Match by Title first
+        // 1. Match by Title first
         const titleKey = imported.title.toLowerCase().trim();
         if (existingByTitle.has(titleKey)) {
           match = existingByTitle.get(titleKey);
         }
 
-        // If no Title match, check if any imported SKU belongs to an existing product
+        // 2. If no Title match, check if any imported SKU belongs to an existing product
         if (!match && Array.isArray(imported.colorVariants)) {
           for (const cv of imported.colorVariants) {
             if (Array.isArray(cv.subVariants)) {

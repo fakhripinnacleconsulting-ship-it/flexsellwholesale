@@ -306,6 +306,9 @@ export function BulkOperationsModal({
             <BulkValidationPanel
               importStats={importStats}
               validationErrors={validationErrors}
+              parsedData={parsedData}
+              setParsedData={setParsedData}
+              setImportStats={setImportStats}
             />
           )}
 
