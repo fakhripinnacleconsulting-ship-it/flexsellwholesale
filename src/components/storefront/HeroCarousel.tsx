@@ -127,7 +127,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       ref={sectionRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative w-full h-[280px] sm:h-[380px] md:h-[480px] lg:h-[560px] 2xl:h-[640px] bg-black overflow-hidden group select-none"
+      className="relative w-full aspect-[16/9] sm:aspect-[21/9] md:aspect-[24/9] min-h-[220px] max-h-[640px] bg-black overflow-hidden group select-none flex items-center justify-center"
     >
       <AnimatePresence initial={false} custom={direction}>
         <motion.div
@@ -141,10 +141,11 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
             x: { type: "spring", stiffness: 300, damping: 30 },
             opacity: { duration: 0.3 }
           }}
-          drag="x"
+          drag={slides.length > 1 ? "x" : false}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.2}
           onDragEnd={(_, { offset, velocity }) => {
+            if (slides.length <= 1) return;
             const swipe = Math.abs(offset.x) * velocity.x;
             if (swipe < -10000 || offset.x < -100) {
               nextSlide();
@@ -153,11 +154,11 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
             }
           }}
           onClick={() => handleBannerClick(currentSlide.redirectUrl || "/products")}
-          className="absolute inset-0 w-full h-full cursor-pointer"
+          className="absolute inset-0 w-full h-full cursor-pointer flex items-center justify-center"
         >
           {/* VIDEO BANNER SLIDE */}
           {isVideo ? (
-            <div className="relative w-full h-full bg-black">
+            <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
               {/* Desktop / Main Video */}
               <video
                 key={currentSlide.videoUrl}
@@ -205,42 +206,48 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               </button>
             </div>
           ) : (
-            /* IMAGE BANNER SLIDE (or Fallback if Video Error) */
-            <>
+            /* IMAGE BANNER SLIDE (Responsive 100% Uncropped Display) */
+            <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
+              {/* Soft Blurred Background Image Fill for Zero Black Bars */}
+              <div
+                className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-110"
+                style={{ backgroundImage: `url(${fallbackImage})` }}
+              />
+
               {/* Desktop Banner Image */}
-              <div className={`relative w-full h-full ${currentSlide.mobileImageUrl ? "hidden sm:block" : "block"}`}>
+              <div className={`relative w-full h-full z-10 ${currentSlide.mobileImageUrl ? "hidden sm:block" : "block"}`}>
                 <Image
                   src={fallbackImage}
                   alt={currentSlide.altText || "FlexSell Wholesale Banner"}
                   fill
                   priority={current === 0}
-                  className="object-cover"
+                  className="object-contain sm:object-cover w-full h-full"
                   sizes="100vw"
                 />
               </div>
 
               {/* Mobile Specific Image if available */}
               {currentSlide.mobileImageUrl && (
-                <div className="relative w-full h-full block sm:hidden">
+                <div className="relative w-full h-full z-10 block sm:hidden">
                   <Image
                     src={currentSlide.mobileImageUrl}
                     alt={currentSlide.altText || "FlexSell Wholesale Banner"}
                     fill
                     priority={current === 0}
-                    className="object-cover"
+                    className="object-contain w-full h-full"
                     sizes="100vw"
                   />
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {/* Dynamic Gradient & Glassmorphism Text Overlay */}
           {(currentSlide.overlayTitle || currentSlide.overlaySubtitle || currentSlide.ctaText) && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end sm:items-center p-6 sm:p-12 md:p-16 z-10 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end sm:items-center p-6 sm:p-12 md:p-16 z-20 pointer-events-none">
               <div className="max-w-2xl space-y-3 pointer-events-auto">
                 {currentSlide.overlayTitle && (
-                  <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-md leading-tight">
+                  <h1 className="text-xl sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-md leading-tight">
                     {currentSlide.overlayTitle}
                   </h1>
                 )}
@@ -257,7 +264,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                         e.stopPropagation();
                         handleBannerClick(currentSlide.redirectUrl || "/products");
                       }}
-                      className="px-5 py-2.5 sm:px-6 sm:py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm rounded-xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center gap-2"
+                      className="px-4 py-2 sm:px-6 sm:py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm rounded-xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center gap-2"
                     >
                       {currentSlide.ctaText} &rarr;
                     </button>
@@ -269,7 +276,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
         </motion.div>
       </AnimatePresence>
 
-      {/* Nav Arrow Controls */}
+      {/* Nav Arrow Controls (Only when > 1 slide) */}
       {slides.length > 1 && (
         <>
           <button
@@ -278,7 +285,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               e.stopPropagation();
               prevSlide();
             }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-20 cursor-pointer hover:scale-110 border border-white/20"
+            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
             aria-label="Previous Slide"
           >
             <ChevronLeft className="h-6 w-6" />
@@ -289,14 +296,14 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               e.stopPropagation();
               nextSlide();
             }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-20 cursor-pointer hover:scale-110 border border-white/20"
+            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
             aria-label="Next Slide"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
 
           {/* Bullet Indicators */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-30 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
             {slides.map((_, idx) => (
               <button
                 key={idx}

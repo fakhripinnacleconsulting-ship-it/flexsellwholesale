@@ -178,7 +178,7 @@ export function ProductCard({ product }: ProductCardProps) {
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group border border-border/80 cursor-pointer select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
+      className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 cursor-pointer select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
     >
       {/* Fixed Floating Overlay Badges */}
       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 pointer-events-none">
@@ -233,7 +233,7 @@ export function ProductCard({ product }: ProductCardProps) {
                   alt={`${product.title} - Image ${i + 1}`}
                   fill
                   sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="object-cover transition-transform duration-500 group-hover/card:scale-105"
                   priority={i === 0}
                 />
               </div>
@@ -251,7 +251,7 @@ export function ProductCard({ product }: ProductCardProps) {
             <button
               type="button"
               onClick={prevImage}
-              className="absolute left-1 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow"
+              className="absolute left-1 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover/card:opacity-100 transition-opacity cursor-pointer shadow"
               title="Previous Image"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -259,7 +259,7 @@ export function ProductCard({ product }: ProductCardProps) {
             <button
               type="button"
               onClick={nextImage}
-              className="absolute right-1 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow"
+              className="absolute right-1 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover/card:opacity-100 transition-opacity cursor-pointer shadow"
               title="Next Image"
             >
               <ChevronRight className="h-4 w-4" />

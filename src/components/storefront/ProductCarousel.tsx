@@ -40,7 +40,7 @@ export function ProductCarousel({ title, subtitle, products }: ProductCarouselPr
   if (!products || products.length === 0) return null;
 
   return (
-    <div className="space-y-6 relative group">
+    <div className="space-y-6 relative group/carousel">
       <div>
         <h3 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">{title}</h3>
         {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
@@ -50,14 +50,14 @@ export function ProductCarousel({ title, subtitle, products }: ProductCarouselPr
         {/* Navigation Buttons */}
         <button
           onClick={scrollPrev}
-          className="absolute -left-4 top-1/2 -translate-y-1/2 bg-background border border-border text-foreground p-2 rounded-full shadow hover:bg-secondary transition-all z-20 cursor-pointer opacity-0 group-hover:opacity-100"
+          className="absolute -left-4 top-1/2 -translate-y-1/2 bg-background border border-border text-foreground p-2 rounded-full shadow hover:bg-secondary transition-all z-20 cursor-pointer opacity-0 group-hover/carousel:opacity-100"
           title="Scroll Left"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
         <button
           onClick={scrollNext}
-          className="absolute -right-4 top-1/2 -translate-y-1/2 bg-background border border-border text-foreground p-2 rounded-full shadow hover:bg-secondary transition-all z-20 cursor-pointer opacity-0 group-hover:opacity-100"
+          className="absolute -right-4 top-1/2 -translate-y-1/2 bg-background border border-border text-foreground p-2 rounded-full shadow hover:bg-secondary transition-all z-20 cursor-pointer opacity-0 group-hover/carousel:opacity-100"
           title="Scroll Right"
         >
           <ChevronRight className="h-5 w-5" />

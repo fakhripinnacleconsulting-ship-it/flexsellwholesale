@@ -37,7 +37,7 @@ function ProductDetailInner() {
   const favorited = isInWishlist(product._id);
 
   return (
-    <div className="mx-auto max-w-8xl px-4 md:px-6 py-8 text-foreground w-full">
+    <div className="mx-auto max-w-8xl px-4 md:px-6 pt-4 md:pt-6 pb-12 text-foreground w-full">
       {/* Breadcrumb Header */}
       <div className="mb-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <Breadcrumb items={[
@@ -56,7 +56,7 @@ function ProductDetailInner() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start mb-8 md:mb-12">
         {/* Left: Interactive Image Gallery */}
         <ImageGallery />
 
@@ -70,7 +70,9 @@ function ProductDetailInner() {
       </div>
 
       {/* Bottom Carousel Feeds & Marketing Material */}
-      <RelatedProducts />
+      <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-border/80">
+        <RelatedProducts />
+      </div>
     </div>
   );
 }

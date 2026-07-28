@@ -254,57 +254,97 @@ export function VariantSelector() {
 
           {/* Quantity Selector & Action buttons */}
           {activeVariant && (
-            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t items-stretch">
-              <div className="flex items-center gap-2 border border-border rounded-lg p-1 bg-secondary/10 justify-between px-3 w-full sm:w-36">
-                <Button
-                  variant="ghost"
-                  type="button"
-                  onClick={() => setQty(Math.max(minQty, qty - 1))}
-                  className="p-1 h-8 w-8 text-foreground cursor-pointer"
-                  disabled={qty <= minQty}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
+            <>
+              {/* Inline Desktop & Mobile Cart Controls */}
+              <div className="flex flex-row items-center gap-2 sm:gap-4 pt-4 border-t w-full">
+                <div className="flex items-center border border-border rounded-xl p-1 bg-secondary/10 justify-between px-2 w-28 sm:w-36 shrink-0 h-11">
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={() => setQty(Math.max(minQty, qty - 1))}
+                    className="p-1 h-8 w-8 text-foreground cursor-pointer shrink-0"
+                    disabled={qty <= minQty}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
 
-                {/* Quantity Input Box */}
-                <input
-                  ref={qtyInputRef}
-                  type="number"
-                  className="w-12 text-center text-sm font-extrabold bg-transparent text-foreground focus:outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  value={qty}
-                  min={minQty}
-                  max={activeSubVariant?.stock || 0}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val)) setQty(val);
-                  }}
-                  onBlur={() => {
-                    if (qty < minQty) setQty(minQty);
-                    if (qty > (activeSubVariant?.stock || 0)) setQty(activeSubVariant?.stock || 0);
-                  }}
-                />
+                  {/* Quantity Input Box */}
+                  <input
+                    ref={qtyInputRef}
+                    type="number"
+                    className="w-10 sm:w-12 text-center text-xs sm:text-sm font-black bg-transparent text-foreground focus:outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    value={qty}
+                    min={minQty}
+                    max={activeSubVariant?.stock || 0}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val)) setQty(val);
+                    }}
+                    onBlur={() => {
+                      if (qty < minQty) setQty(minQty);
+                      if (qty > (activeSubVariant?.stock || 0)) setQty(activeSubVariant?.stock || 0);
+                    }}
+                  />
+
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={() => setQty(Math.min(activeSubVariant?.stock || 0, qty + 1))}
+                    className="p-1 h-8 w-8 text-foreground cursor-pointer shrink-0"
+                    disabled={qty >= (activeSubVariant?.stock || 0)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
 
                 <Button
-                  variant="ghost"
+                  size="lg"
                   type="button"
-                  onClick={() => setQty(Math.min(activeSubVariant?.stock || 0, qty + 1))}
-                  className="p-1 h-8 w-8 text-foreground cursor-pointer"
-                  disabled={qty >= (activeSubVariant?.stock || 0)}
+                  className="flex-1 h-11 font-extrabold flex items-center justify-center gap-2 shadow-md cursor-pointer rounded-xl text-xs sm:text-sm"
+                  onClick={handleAddToCart}
+                  disabled={(activeSubVariant?.stock || 0) <= 0}
                 >
-                  <Plus className="h-4 w-4" />
+                  <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span>{(activeSubVariant?.stock || 0) <= 0 ? "Out of Stock" : "Add to Cart"}</span>
                 </Button>
               </div>
 
-              <Button
-                size="lg"
-                type="button"
-                className="flex-1 font-bold flex items-center justify-center gap-2 shadow cursor-pointer"
-                onClick={handleAddToCart}
-                disabled={(activeSubVariant?.stock || 0) <= 0}
-              >
-                <ShoppingCart className="h-5 w-5" /> Add to Cart
-              </Button>
-            </div>
+              {/* Mobile Floating Sticky Bottom Cart Action Bar */}
+              <div className="md:hidden fixed bottom-[72px] left-3 right-3 z-40 bg-background/95 backdrop-blur-md border border-border p-2.5 rounded-2xl shadow-2xl flex items-center gap-2 animate-in slide-in-from-bottom duration-300">
+                <div className="flex items-center border border-border rounded-xl p-1 bg-secondary/10 justify-between px-2 w-28 shrink-0 h-11">
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={() => setQty(Math.max(minQty, qty - 1))}
+                    className="p-1 h-8 w-8 text-foreground cursor-pointer shrink-0"
+                    disabled={qty <= minQty}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs font-black text-foreground w-8 text-center">{qty}</span>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={() => setQty(Math.min(activeSubVariant?.stock || 0, qty + 1))}
+                    className="p-1 h-8 w-8 text-foreground cursor-pointer shrink-0"
+                    disabled={qty >= (activeSubVariant?.stock || 0)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <Button
+                  size="lg"
+                  type="button"
+                  className="flex-1 h-11 font-extrabold flex items-center justify-center gap-2 shadow-md cursor-pointer rounded-xl text-xs"
+                  onClick={handleAddToCart}
+                  disabled={(activeSubVariant?.stock || 0) <= 0}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  <span>{(activeSubVariant?.stock || 0) <= 0 ? "Out of Stock" : "Add to Cart"}</span>
+                </Button>
+              </div>
+            </>
           )}
         </>
       ) : (

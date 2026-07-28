@@ -89,15 +89,10 @@ export function Header({ categories, collections = [] }: HeaderProps) {
             />
           )}
 
-          <Link href={customer ? (customer.role === "admin" ? "/admin" : "/client/profile") : "/login"} aria-label={customer ? "My Account" : "Sign In"}>
-            <Button variant="ghost" size="icon" className="cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title={customer ? "My Account" : "Sign In"} aria-label={customer ? "My Account" : "Sign In"}>
-              <User className="h-4.5 w-4.5 text-foreground" />
-            </Button>
-          </Link>
-
-          <Link href="/wishlist" aria-label="Wishlist">
+          {/* Mobile-only Wishlist / Like Icon */}
+          <Link href="/wishlist" className="md:hidden" aria-label="Wishlist">
             <Button variant="ghost" size="icon" className="relative cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title="Wishlist" aria-label="Wishlist">
-              <Heart className="h-4.5 w-4.5 text-foreground" />
+              <Heart className="h-5 w-5 text-foreground" />
               {isMounted && wishlistItemsCount > 0 && (
                 <motion.span
                   initial={{ scale: 0 }}
@@ -111,23 +106,48 @@ export function Header({ categories, collections = [] }: HeaderProps) {
             </Button>
           </Link>
 
-          {!isDropshipperOnly && (
-            <Link href="/cart" aria-label="Shopping Cart">
-              <Button variant="ghost" size="icon" className="relative cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title="Cart" aria-label="Shopping Cart">
-                <ShoppingCart className="h-4.5 w-4.5 text-foreground" />
-                {isMounted && cartItemsCount > 0 && (
+          {/* Desktop-only Account, Wishlist & Cart Icons */}
+          <div className="hidden md:flex items-center gap-2">
+            <Link href={customer ? (customer.role === "admin" ? "/admin" : "/client/profile") : "/login"} aria-label={customer ? "My Account" : "Sign In"}>
+              <Button variant="ghost" size="icon" className="cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title={customer ? "My Account" : "Sign In"} aria-label={customer ? "My Account" : "Sign In"}>
+                <User className="h-4.5 w-4.5 text-foreground" />
+              </Button>
+            </Link>
+
+            <Link href="/wishlist" aria-label="Wishlist">
+              <Button variant="ghost" size="icon" className="relative cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title="Wishlist" aria-label="Wishlist">
+                <Heart className="h-4.5 w-4.5 text-foreground" />
+                {isMounted && wishlistItemsCount > 0 && (
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    key={cartItemsCount}
-                    className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[9px] text-primary-foreground font-bold shadow-sm"
+                    key={wishlistItemsCount}
+                    className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-[9px] text-destructive-foreground font-bold shadow-sm"
                   >
-                    {cartItemsCount}
+                    {wishlistItemsCount}
                   </motion.span>
                 )}
               </Button>
             </Link>
-          )}
+
+            {!isDropshipperOnly && (
+              <Link href="/cart" aria-label="Shopping Cart">
+                <Button variant="ghost" size="icon" className="relative cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title="Cart" aria-label="Shopping Cart">
+                  <ShoppingCart className="h-4.5 w-4.5 text-foreground" />
+                  {isMounted && cartItemsCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      key={cartItemsCount}
+                      className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[9px] text-primary-foreground font-bold shadow-sm"
+                    >
+                      {cartItemsCount}
+                    </motion.span>
+                  )}
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 

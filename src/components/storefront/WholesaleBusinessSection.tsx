@@ -79,9 +79,10 @@ export function WholesaleBusinessSection({ data }: WholesaleBusinessSectionProps
             </p>
           </div>
 
-          <Link href={ctaLink}>
-            <Button size="lg" className="font-bold shadow-md gap-2 shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer">
-              {ctaText} <ArrowRight className="h-4 w-4" />
+          <Link href={ctaLink} className="w-full sm:w-auto">
+            <Button size="lg" className="w-full sm:w-auto font-extrabold shadow-md gap-2 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer text-xs sm:text-sm px-4 sm:px-6 py-3 rounded-xl flex items-center justify-center text-center leading-snug whitespace-normal sm:whitespace-nowrap">
+              <span>{ctaText}</span>
+              <ArrowRight className="h-4 w-4 shrink-0" />
             </Button>
           </Link>
         </div>

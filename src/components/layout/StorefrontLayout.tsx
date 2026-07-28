@@ -7,6 +7,8 @@ import { collectionService } from "@/services/collectionService";
 import dbConnect from "@/lib/dbConnect";
 import CmsContent from "@/models/CmsContent";
 
+import { MobileBottomNav } from "./MobileBottomNav";
+
 interface StorefrontLayoutProps {
   children: React.ReactNode;
 }
@@ -39,7 +41,7 @@ export async function StorefrontLayout({ children }: StorefrontLayoutProps) {
   const footerData = cmsFooter?.value || undefined;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col pb-16 md:pb-0">
       {/* Top Announcement Bar Carousel */}
       <AnnouncementBar messages={messages} />
 
@@ -50,6 +52,9 @@ export async function StorefrontLayout({ children }: StorefrontLayoutProps) {
       </main>
 
       <Footer data={footerData} />
+
+      {/* Floating Mobile Bottom App-Style Navigation Bar */}
+      <MobileBottomNav />
     </div>
   );
 }

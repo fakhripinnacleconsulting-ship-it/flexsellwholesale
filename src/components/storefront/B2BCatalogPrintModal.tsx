@@ -425,12 +425,17 @@ export function B2BCatalogPrintModal({
           <div className="flex flex-col sm:flex-row justify-between items-start gap-6">
             
             {/* Left Header: Brand & Catalog Information */}
-            <div className="space-y-2 max-w-xl">
-              <div className="flex items-center gap-2">
-                <span className="bg-primary/10 text-primary border border-primary/20 text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full">
-                  FlexSell Wholesale
+            <div className="space-y-2.5 max-w-xl">
+              <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                <img
+                  src="/Flexsell%20Logo.png"
+                  alt="FlexSell Wholesale Logo"
+                  className="h-8 sm:h-9 w-auto object-contain shrink-0"
+                />
+                <div className="h-5 w-px bg-border/80 hidden sm:block" />
+                <span className="bg-primary/10 text-primary border border-primary/20 text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shrink-0">
+                  B2B Sourcing Specification
                 </span>
-                <span className="text-xs text-muted-foreground font-mono">B2B Sourcing Specification</span>
               </div>
 
               <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight uppercase">

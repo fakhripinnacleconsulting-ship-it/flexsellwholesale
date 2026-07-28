@@ -15,10 +15,10 @@ export function RelatedProducts() {
   if (!product) return null;
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-10 md:space-y-14">
       {/* Related Products Carousel */}
       {relatedProducts.length > 0 && (
-        <div className="border-t pt-10">
+        <div>
           <ProductCarousel
             title="Related Products"
             subtitle="Top wholesale items from the same category"
@@ -29,7 +29,7 @@ export function RelatedProducts() {
 
       {/* Recently Viewed Products Carousel */}
       {recentProducts.length > 0 && (
-        <div className="border-t pt-10">
+        <div className={relatedProducts.length > 0 ? "border-t border-border/80 pt-8 md:pt-10" : ""}>
           <ProductCarousel
             title="Recently Viewed Products"
             subtitle="Product lines you checked in this session"
@@ -40,7 +40,7 @@ export function RelatedProducts() {
 
       {/* A+ Content Section */}
       {product.aPlusContent && product.aPlusContent.length > 0 && (
-        <div className="border-t pt-10">
+        <div className="border-t border-border/80 pt-8 md:pt-10">
           <h3 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground mb-6 text-center">
             Manufacturer A+ Marketing Material
           </h3>
@@ -64,7 +64,7 @@ export function RelatedProducts() {
 
       {/* Other Products Carousel */}
       {otherProducts.length > 0 && (
-        <div className="border-t pt-10">
+        <div className="border-t border-border/80 pt-8 md:pt-10">
           <ProductCarousel
             title="Other Wholesale Deals"
             subtitle="Explore hot items from our wholesale catalog"

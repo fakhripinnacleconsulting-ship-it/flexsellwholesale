@@ -99,9 +99,10 @@ export function DropshippingBusinessSection({ data }: DropshippingBusinessSectio
           <Button 
             size="lg" 
             onClick={handleApplyClick}
-            className="font-bold shadow-md gap-2 shrink-0 bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
+            className="w-full sm:w-auto font-extrabold shadow-md gap-2 bg-purple-600 hover:bg-purple-700 text-white cursor-pointer text-xs sm:text-sm px-4 sm:px-6 py-3 rounded-xl flex items-center justify-center text-center leading-snug whitespace-normal sm:whitespace-nowrap"
           >
-            {ctaText} <ArrowRight className="h-4 w-4" />
+            <span>{ctaText}</span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
           </Button>
         </div>
 
