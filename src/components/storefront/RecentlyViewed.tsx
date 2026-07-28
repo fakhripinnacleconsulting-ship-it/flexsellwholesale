@@ -10,9 +10,11 @@ import { History, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface RecentlyViewedProps {
   initialProducts?: Product[];
+  title?: string;
+  subtitle?: string;
 }
 
-export function RecentlyViewed({ initialProducts = [] }: RecentlyViewedProps) {
+export function RecentlyViewed({ initialProducts = [], title, subtitle }: RecentlyViewedProps) {
   const { products } = useProductStore();
   const [recentProducts, setRecentProducts] = React.useState<Product[]>([]);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -83,9 +85,11 @@ export function RecentlyViewed({ initialProducts = [] }: RecentlyViewedProps) {
       <div className="flex justify-between items-end mb-6 border-b pb-4 border-border/60">
         <div>
           <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-            <History className="h-6 w-6 text-primary" /> Recently Viewed
+            <History className="h-6 w-6 text-primary" /> {title || "Recommended Products for Your Store"}
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Products you previously explored in this session.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {subtitle || "Products you previously explored in this session."}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button

@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { useAuthStore } from "@/stores/authStore";
 import { Package, TrendingUp, Zap, Sparkles, ArrowRight, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -26,19 +27,35 @@ interface DropshippingBusinessSectionProps {
 }
 
 export function DropshippingBusinessSection({ data }: DropshippingBusinessSectionProps) {
-  const heading = data?.heading || "Automated Dropshipping Partner Program";
-  const subheading = data?.subheading || "Sell retail online without stocking inventory. We store, quality check, and white-label dispatch directly to your end buyers.";
-  const ctaText = data?.ctaText || "Apply for Dropshipper Access";
-  const ctaLink = data?.ctaLink || "/dropshipping";
+  const router = useRouter();
+  const customer = useAuthStore((state: any) => state.customer);
+
+  const heading = data?.heading || "Automated Dropshipping Program";
+  const subheading = data?.subheading || "Sell online without buying or storing stock. We hold inventory in our Bhopal warehouse, pack orders with your brand label, and ship direct to your customers.";
+  
+  // Clean CTA text to ensure "& API" is removed
+  const rawCtaText = data?.ctaText || "Apply for Dropshipper Access";
+  const ctaText = rawCtaText.replace(/\s*&\s*API/gi, "").trim() || "Apply for Dropshipper Access";
 
   const defaultCards: DropshipCardItem[] = [
-    { icon: "package", title: "Zero Inventory Investment", desc: "No upfront capital needed. We manage warehousing and stock holding for over 5,000+ utility SKUs.", badge: "Risk-Free Business" },
-    { icon: "trending-up", title: "30-50% Profit Margins", desc: "Access specialized dropshipping tier pricing to keep high retail markups on every Shopify/WooCommerce order.", badge: "High Retail Profits" },
-    { icon: "zap", title: "24-48 hr White-Label Dispatch", desc: "Boxes shipped directly to your customer with your store brand label. No FlexSell branding inside.", badge: "White-Label Box" },
-    { icon: "shield", title: "Automated Wallet & API Sync", desc: "Auto-sync products, top-up account wallet balance, and retrieve courier tracking IDs in bulk.", badge: "Instant Tracking Sync" }
+    { icon: "package", title: "Zero Stock Investment", desc: "No upfront money needed. Sell 5,000+ items stored in our central Bhopal facility.", badge: "Zero Risk" },
+    { icon: "trending-up", title: "High Retail Profits", desc: "Get special dropshipping prices so you earn strong profit margins on every customer order.", badge: "Good Profits" },
+    { icon: "zap", title: "24-48 Hr Fast Packing", desc: "Parcels shipped directly to your customer with your store brand label. No FlexSell name inside.", badge: "White-Label Box" },
+    { icon: "shield", title: "Easy Wallet & Order Sync", desc: "Easily sync items, add wallet funds, and get tracking numbers instantly.", badge: "Auto Sync" }
   ];
 
   const cards = data?.cards && data.cards.length > 0 ? data.cards : defaultCards;
+
+  const handleApplyClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (customer) {
+      router.push("/dropshipping");
+    } else {
+      router.push("/register");
+    }
+  };
 
   const getCardIcon = (iconName: string) => {
     switch (iconName.toLowerCase()) {
@@ -79,11 +96,13 @@ export function DropshippingBusinessSection({ data }: DropshippingBusinessSectio
             </p>
           </div>
 
-          <Link href={ctaLink}>
-            <Button size="lg" className="font-bold shadow-md gap-2 shrink-0 bg-purple-600 hover:bg-purple-700 text-white cursor-pointer">
-              {ctaText} <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button 
+            size="lg" 
+            onClick={handleApplyClick}
+            className="font-bold shadow-md gap-2 shrink-0 bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
+          >
+            {ctaText} <ArrowRight className="h-4 w-4" />
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

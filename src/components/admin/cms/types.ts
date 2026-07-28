@@ -36,6 +36,7 @@ export interface BusinessSectionData {
 export interface TestimonialItem {
   name: string;
   business: string;
+  roleBadge?: string;
   location: string;
   rating: number;
   text: string;
@@ -83,7 +84,43 @@ export interface DropshipPageContent {
   orderVolumeOptions?: string[];
 }
 
+export interface HomepageHeadingsData {
+  categoriesTitle?: string;
+  categoriesSubtitle?: string;
+  collectionsTitle?: string;
+  collectionsSubtitle?: string;
+  trendingTitle?: string;
+  trendingSubtitle?: string;
+  newArrivalsTitle?: string;
+  newArrivalsSubtitle?: string;
+  recommendedTitle?: string;
+  testimonialsTitle?: string;
+  testimonialsSubtitle?: string;
+}
+
+export interface HomepageVisibilityData {
+  showHeroBanners?: boolean;
+  showTrustBar?: boolean;
+  showCategories?: boolean;
+  showFeaturedCollections?: boolean;
+  showWholesaleBiz?: boolean;
+  showTrendingProducts?: boolean;
+  showNewArrivals?: boolean;
+  showDropshipBiz?: boolean;
+  showBrandPartners?: boolean;
+  showRecommendedProducts?: boolean;
+  showTestimonials?: boolean;
+}
+
+export interface HomepageSeoData {
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+  ogImageUrl?: string;
+}
+
 export type CmsTabType =
+  | "homepage"
   | "hero"
   | "announcements"
   | "trust"
@@ -94,6 +131,8 @@ export type CmsTabType =
   | "testimonials_dropship"
   | "testimonials_client"
   | "partners"
+  | "homepage_visibility"
+  | "homepage_seo"
   | "blogs"
   | "dropship_page"
   | "faqs"

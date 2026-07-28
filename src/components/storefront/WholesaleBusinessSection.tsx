@@ -26,16 +26,16 @@ interface WholesaleBusinessSectionProps {
 }
 
 export function WholesaleBusinessSection({ data }: WholesaleBusinessSectionProps) {
-  const heading = data?.heading || "Factory Direct B2B Wholesale Sourcing";
-  const subheading = data?.subheading || "Direct importer bulk inventory prices for Indian shop owners, resellers, and commercial bulk buyers.";
-  const ctaText = data?.ctaText || "Explore Wholesale Catalog & Get Quotes";
+  const heading = data?.heading || "Direct Factory Wholesale Sourcing";
+  const subheading = data?.subheading || "Get direct factory prices for your shop. Easy bulk ordering, 100% genuine GST tax invoices, and fast transport delivery from Bhopal.";
+  const ctaText = data?.ctaText || "Browse Wholesale Catalog";
   const ctaLink = data?.ctaLink || "/products";
 
   const defaultCards: WholesaleCardItem[] = [
-    { icon: "price", title: "Direct Factory Prices", desc: "No middle-man wholesalers. Container-loads imported directly from global manufacturers to give you up to 40% higher retail margins.", badge: "Lowest Price Guaranteed" },
-    { icon: "quality", title: "Rigorous Quality Line", desc: "Dedicated sorting and packaging line checking electricals, plastic grades, and silicon seals before dispatch.", badge: "Tested & Approved" },
-    { icon: "shipping", title: "Express Freight Transport", desc: "Partnership with Delhivery, Gati, and V-Trans for safe, fast ground shipment delivery.", badge: "Bhopal Logistics Hub" },
-    { icon: "invoice", title: "Instant GST ITC Invoicing", desc: "Automated GST invoices generated during checkout to claim your full Input Tax Credit.", badge: "100% Tax Compliant" }
+    { icon: "price", title: "Lowest Factory Rates", desc: "No middleman margin. Buy goods at direct factory prices for higher shop profits.", badge: "Best Factory Price" },
+    { icon: "quality", title: "100% Checked Quality", desc: "Every piece tested and checked carefully before packing in our central warehouse.", badge: "Quality Assured" },
+    { icon: "shipping", title: "Fast Transport Delivery", desc: "Quick transport and parcel dispatch across India with full tracking updates.", badge: "Bhopal Warehouse Hub" },
+    { icon: "invoice", title: "Genuine GST Tax Bill", desc: "Get proper GST invoice with every order to easily claim your input tax credit.", badge: "100% Tax Compliant" }
   ];
 
   const cards = data?.cards && data.cards.length > 0 ? data.cards : defaultCards;

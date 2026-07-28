@@ -143,6 +143,68 @@ export async function GET() {
       };
     }
 
+    const defaultHomepageHeadings = {
+      categoriesTitle: "Shop Top Product Categories",
+      categoriesSubtitle: "Direct factory products sourced at lowest wholesale rates from Central India.",
+      collectionsTitle: "Special Sourcing Lines & Collections",
+      collectionsSubtitle: "Handpicked winning products ready for bulk order procurement.",
+      trendingTitle: "Fast Selling Consumer Products",
+      trendingSubtitle: "Our highest demand products selling fast across Indian retail shops.",
+      newArrivalsTitle: "Fresh Stock & New Arrivals",
+      newArrivalsSubtitle: "Latest wholesale stock items added to our warehouse this week.",
+      recommendedTitle: "Recommended Products for Your Store",
+      testimonialsTitle: "What Our Retailers & Partners Say",
+      testimonialsSubtitle: "Real reviews from shopkeepers, online sellers, and dropship partners across India.",
+    };
+
+    if (!config.homepage_section_headings) {
+      config.homepage_section_headings = defaultHomepageHeadings;
+    } else {
+      config.homepage_section_headings = {
+        ...defaultHomepageHeadings,
+        ...config.homepage_section_headings,
+      };
+    }
+
+    const defaultHomepageSettings = {
+      showHeroBanners: true,
+      showTrustBar: true,
+      showCategories: true,
+      showFeaturedCollections: true,
+      showWholesaleBiz: true,
+      showTrendingProducts: true,
+      showNewArrivals: true,
+      showDropshipBiz: true,
+      showBrandPartners: true,
+      showRecommendedProducts: true,
+      showTestimonials: true,
+    };
+
+    if (!config.homepage_settings) {
+      config.homepage_settings = defaultHomepageSettings;
+    } else {
+      config.homepage_settings = {
+        ...defaultHomepageSettings,
+        ...config.homepage_settings,
+      };
+    }
+
+    const defaultHomepageSeo = {
+      seoTitle: "FlexSell Wholesale | Direct Factory Wholesale Sourcing Platform India",
+      seoDescription: "Buy bulk wholesale products at lowest factory rates direct from Bhopal Central Warehouse. Fast dispatch, GST invoice, and zero-inventory dropshipping.",
+      seoKeywords: "wholesale market Bhopal, B2B wholesale India, factory rate products, dropshipping supplier, bulk buy online",
+      ogImageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
+    };
+
+    if (!config.homepage_seo) {
+      config.homepage_seo = defaultHomepageSeo;
+    } else {
+      config.homepage_seo = {
+        ...defaultHomepageSeo,
+        ...config.homepage_seo,
+      };
+    }
+
     // Keep brandDetails, bankDetails, and brandSettings unified
     const fullAddress = `${config.businessSettings.companyAddress || ""}, ${config.businessSettings.city || ""}, ${config.businessSettings.state || ""} - ${config.businessSettings.pinCode || ""}`;
 

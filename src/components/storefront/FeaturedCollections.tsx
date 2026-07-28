@@ -9,9 +9,11 @@ import { Layers } from "lucide-react";
 interface FeaturedCollectionsProps {
   collections: Collection[];
   productCounts: Record<string, number>;
+  title?: string;
+  subtitle?: string;
 }
 
-export function FeaturedCollections({ collections, productCounts }: FeaturedCollectionsProps) {
+export function FeaturedCollections({ collections, productCounts, title, subtitle }: FeaturedCollectionsProps) {
   const featured = collections.filter(c => c.isActive && c.isFeatured).slice(0, 4);
 
   if (featured.length === 0) return null;
@@ -22,10 +24,10 @@ export function FeaturedCollections({ collections, productCounts }: FeaturedColl
         <div>
           <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
             <Layers className="h-7 w-7 text-primary" />
-            Curated B2B Sourcing Lines
+            {title || "Curated B2B Sourcing Lines"}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Factory direct supply chains categorized for optimal bulk inventory procurement.
+            {subtitle || "Factory direct supply chains categorized for optimal bulk inventory procurement."}
           </p>
         </div>
         <Link href="/collections" className="text-sm font-semibold text-primary hover:underline flex items-center gap-1">

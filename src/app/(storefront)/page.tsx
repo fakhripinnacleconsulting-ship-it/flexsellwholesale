@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { categoryService } from "@/services/categoryService";
@@ -20,6 +21,41 @@ import { FeaturedCollections } from "@/components/storefront/FeaturedCollections
 
 export const revalidate = 60; // ISR revalidation every 60s
 
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    await dbConnect();
+    const seoRes = await CmsContent.findOne({ key: "homepage_seo" }).lean();
+    const seo = seoRes?.value || {};
+
+    const title = seo.seoTitle || "FlexSell Wholesale | India's Leading B2B Sourcing Platform";
+    const description = seo.seoDescription || "Direct factory wholesale sourcing, automated dropshipping fulfillment, and bulk tier pricing for Indian retailers and e-commerce sellers.";
+    const keywords = seo.seoKeywords || "wholesale India, B2B sourcing, dropshipping partner, bulk buy";
+    const ogImage = seo.ogImageUrl || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80";
+
+    return {
+      title,
+      description,
+      keywords,
+      openGraph: {
+        title,
+        description,
+        images: [{ url: ogImage }],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: [ogImage],
+      },
+    };
+  } catch (err) {
+    return {
+      title: "FlexSell Wholesale | India's Leading B2B Sourcing Platform",
+      description: "Direct factory wholesale sourcing and bulk tier pricing for Indian retailers.",
+    };
+  }
+}
+
 export default async function HomePage() {
   let cmsHeroBanners: any = null;
   let cmsTrustStats: any = null;
@@ -29,6 +65,7 @@ export default async function HomePage() {
   let cmsTestimonialsDropshipper: any = null;
   let cmsTestimonialsClient: any = null;
   let cmsBrandPartners: any = null;
+  let cmsSettings: any = null;
 
   let categories: any[] = [];
   let products: any[] = [];
@@ -49,6 +86,7 @@ export default async function HomePage() {
       testimonialsDropshipperRes,
       testimonialsClientRes,
       brandPartnersRes,
+      settingsRes,
       categoriesRes,
       trendingRes,
       newArrivalsRes,
@@ -63,6 +101,7 @@ export default async function HomePage() {
       CmsContent.findOne({ key: "testimonials_dropshipper" }).lean(),
       CmsContent.findOne({ key: "testimonials_client" }).lean(),
       CmsContent.findOne({ key: "brand_partners" }).lean(),
+      CmsContent.findOne({ key: "homepage_settings" }).lean(),
       categoryService.getCategories(),
       productService.getTrendingProducts(),
       productService.getNewArrivals(),
@@ -78,6 +117,7 @@ export default async function HomePage() {
     cmsTestimonialsDropshipper = testimonialsDropshipperRes;
     cmsTestimonialsClient = testimonialsClientRes;
     cmsBrandPartners = brandPartnersRes;
+    cmsSettings = settingsRes;
     categories = categoriesRes;
     trendingProducts = trendingRes;
     newArrivals = newArrivalsRes;
@@ -127,23 +167,27 @@ export default async function HomePage() {
 
   const topLevelCategories = categories.filter(c => !c.parentId);
 
+  const settings = cmsSettings?.value || {};
+
   return (
     <div className="flex flex-col gap-10 md:gap-14 pb-16">
       {/* High Performance Video & Image Hero Banner Carousel */}
-      <HeroCarousel slides={heroBanners} />
+      {settings.showHeroBanners !== false && <HeroCarousel slides={heroBanners} />}
 
       {/* Trust Stats Bar */}
-      <TrustBar stats={cmsTrustStats?.value} />
+      {settings.showTrustBar !== false && <TrustBar stats={cmsTrustStats?.value} />}
 
-      {/* Categories Grid Section (Appears only if categories exist) */}
-      {topLevelCategories.length > 0 && (
+      {/* Categories Grid Section */}
+      {settings.showCategories !== false && topLevelCategories.length > 0 && (
         <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4">
           <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
             <div>
               <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
-                Shop by Category
+                Shop Top Product Categories
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Sourced direct from global factory lines.</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Direct factory products sourced at lowest wholesale rates from Central India.
+              </p>
             </div>
             <Link href="/categories" className="text-xs sm:text-sm font-semibold text-primary hover:underline flex items-center gap-1">
               View All Categories &rarr;
@@ -173,23 +217,28 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Featured Collections Section (Appears only if featured collections exist) */}
-      {featuredCols.length > 0 && (
-        <FeaturedCollections collections={collections} productCounts={productCounts} />
+      {/* Featured Collections Section */}
+      {settings.showFeaturedCollections !== false && featuredCols.length > 0 && (
+        <FeaturedCollections
+          collections={collections}
+          productCounts={productCounts}
+        />
       )}
 
       {/* Independent B2B Wholesale Business Section */}
-      <WholesaleBusinessSection data={cmsWholesaleBiz?.value} />
+      {settings.showWholesaleBiz !== false && <WholesaleBusinessSection data={cmsWholesaleBiz?.value} />}
 
-      {/* Trending Products Grid Section (Appears only if trending products exist) */}
-      {trendingProducts && trendingProducts.length > 0 && (
+      {/* Trending Products Grid Section */}
+      {settings.showTrendingProducts !== false && trendingProducts && trendingProducts.length > 0 && (
         <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4">
           <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
             <div>
               <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
-                Trending Consumer Gadgets
+                Fast Selling Consumer Products
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Our fastest selling consumer products and gadgets.</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Our highest demand products selling fast across Indian retail shops.
+              </p>
             </div>
             <Link href="/products" className="text-xs sm:text-sm font-semibold text-primary hover:underline flex items-center gap-1">
               View All &rarr;
@@ -200,15 +249,17 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* New Arrivals Section (Appears only if new arrivals exist) */}
-      {newArrivals.length > 0 && (
+      {/* New Arrivals Section */}
+      {settings.showNewArrivals !== false && newArrivals.length > 0 && (
         <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4 animate-in fade-in duration-700">
           <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
             <div>
               <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
-                New Arrivals
+                Fresh Stock & New Arrivals
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Our latest wholesale products added in the last 7 days.</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Latest wholesale stock items added to our warehouse this week.
+              </p>
             </div>
             <Link href="/products?sort=newest" className="text-xs sm:text-sm font-semibold text-primary hover:underline flex items-center gap-1">
               View All &rarr;
@@ -224,26 +275,28 @@ export default async function HomePage() {
       )}
 
       {/* Independent Dropshipping Business Section */}
-      <DropshippingBusinessSection data={cmsDropshipBiz?.value} />
+      {settings.showDropshipBiz !== false && <DropshippingBusinessSection data={cmsDropshipBiz?.value} />}
 
-      {/* Brand Partners Marquee Bar (Appears only if brand partners exist) */}
-      {cmsBrandPartners?.value && cmsBrandPartners.value.length > 0 && (
+      {/* Brand Partners Marquee Bar */}
+      {settings.showBrandPartners !== false && cmsBrandPartners?.value && cmsBrandPartners.value.length > 0 && (
         <BrandPartnersBar partners={cmsBrandPartners.value} />
       )}
 
-      {/* Recently Viewed Carousel (Appears only if products exist) */}
-      {products && products.length > 0 && (
+      {/* Recently Viewed / Recommended Carousel */}
+      {settings.showRecommendedProducts !== false && products && products.length > 0 && (
         <RecentlyViewed initialProducts={products} />
       )}
 
       {/* Unified Single Frame Testimonials with 3-Tab Options */}
-      <TestimonialsSection
-        title="Partner & Client Feedback"
-        subtitle="Verified reviews across wholesale buyers, dropshipper partners, and retail clients."
-        wholesaleTestimonials={cmsTestimonialsWholesale?.value}
-        dropshipTestimonials={cmsTestimonialsDropshipper?.value}
-        clientTestimonials={cmsTestimonialsClient?.value}
-      />
+      {settings.showTestimonials !== false && (
+        <TestimonialsSection
+          title="What Our Retailers & Partners Say"
+          subtitle="Real reviews from shopkeepers, online sellers, and dropship partners across India."
+          wholesaleTestimonials={cmsTestimonialsWholesale?.value}
+          dropshipTestimonials={cmsTestimonialsDropshipper?.value}
+          clientTestimonials={cmsTestimonialsClient?.value}
+        />
+      )}
     </div>
   );
 }

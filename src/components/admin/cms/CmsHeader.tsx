@@ -13,10 +13,10 @@ export function CmsHeader({ onOpenSeedModal }: CmsHeaderProps) {
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-4">
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <Layers className="h-8 w-8 text-primary" /> Centralized Website CMS Manager
+          <Layers className="h-8 w-8 text-primary" /> Website Content & CMS Manager
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage public storefront sections, image banners, business details, testimonials, FAQs, and corporate policies.
+          Easily update homepage banners, section titles, shop details, customer reviews, FAQs, and store policies.
         </p>
       </div>
 

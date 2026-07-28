@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Upload, Maximize2, Minimize2 } from "lucide-react";
+import { X, Upload, Maximize2, Minimize2, Star, User, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import dynamic from "next/dynamic";
@@ -164,12 +164,12 @@ export function CmsFormModal({
 
               <div className="space-y-1 border-t pt-2 mt-2">
                 <label className="font-bold text-primary">Text Overlay Title (Optional)</label>
-                <Input placeholder="e.g. Next-Gen B2B Order Sourcing" value={formData.overlayTitle || ""} onChange={(e) => setFormData({ ...formData, overlayTitle: e.target.value })} className="text-xs" />
+                <Input placeholder="e.g. Direct Factory Wholesale Supply" value={formData.overlayTitle || ""} onChange={(e) => setFormData({ ...formData, overlayTitle: e.target.value })} className="text-xs" />
               </div>
 
               <div className="space-y-1">
                 <label className="font-bold text-primary">Text Overlay Subtitle (Optional)</label>
-                <Input placeholder="e.g. Direct factory wholesale pricing & fast freight delivery" value={formData.overlaySubtitle || ""} onChange={(e) => setFormData({ ...formData, overlaySubtitle: e.target.value })} className="text-xs" />
+                <Input placeholder="e.g. Lowest factory rates & fast dispatch from Bhopal Central Warehouse" value={formData.overlaySubtitle || ""} onChange={(e) => setFormData({ ...formData, overlaySubtitle: e.target.value })} className="text-xs" />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -238,57 +238,176 @@ export function CmsFormModal({
             </>
           )}
 
-          {/* Testimonials */}
+          {/* Testimonials (Customer Reviews) Form */}
           {activeTab.startsWith("testimonials") && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold">Reviewer Name *</label>
-                  <Input value={formData.name || ""} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="text-xs" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold">Business Name</label>
-                  <Input value={formData.business || ""} onChange={(e) => setFormData({ ...formData, business: e.target.value })} className="text-xs" />
+            <div className="space-y-4">
+              {/* Star Rating Selection */}
+              <div className="space-y-1.5 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5">
+                <label className="font-bold text-xs text-foreground flex items-center justify-between">
+                  <span>Star Rating (1 to 5 Stars) *</span>
+                  <span className="text-amber-500 font-extrabold text-xs">
+                    {formData.rating || 5} Out of 5 Stars
+                  </span>
+                </label>
+                <div className="flex items-center gap-2 pt-1">
+                  {[1, 2, 3, 4, 5].map((starVal) => {
+                    const isSelected = (formData.rating || 5) >= starVal;
+                    return (
+                      <button
+                        key={starVal}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, rating: starVal })}
+                        className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                        title={`${starVal} Star${starVal > 1 ? "s" : ""}`}
+                      >
+                        <Star
+                          className={`h-7 w-7 ${
+                            isSelected
+                              ? "fill-amber-400 text-amber-400 drop-shadow-xs"
+                              : "text-muted-foreground/30 hover:text-amber-300"
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Reviewer Name & Business Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold">Location</label>
-                  <Input value={formData.location || ""} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className="text-xs" />
+                  <label className="font-bold text-xs">Reviewer Name *</label>
+                  <Input
+                    placeholder="e.g. Rajesh Sharma"
+                    value={formData.name || ""}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="text-xs"
+                    required
+                  />
                 </div>
                 <div className="space-y-1">
-                  <label className="font-bold">Content Format</label>
+                  <label className="font-bold text-xs">Business / Store Name</label>
+                  <Input
+                    placeholder="e.g. Sharma Electronics & Traders"
+                    value={formData.business || ""}
+                    onChange={(e) => setFormData({ ...formData, business: e.target.value })}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Role Badge & Location */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-xs">Reviewer Role / Sub-Badge Label</label>
+                  <Input
+                    placeholder="e.g. Verified Wholesale Buyer / Retailer"
+                    value={formData.roleBadge || ""}
+                    onChange={(e) => setFormData({ ...formData, roleBadge: e.target.value })}
+                    className="text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-xs">Location / City</label>
+                  <Input
+                    placeholder="e.g. Indore, MP"
+                    value={formData.location || ""}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Content Format & Avatar Upload */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-xs">Content Format</label>
                   <select
                     value={formData.contentType || "text"}
                     onChange={(e) => setFormData({ ...formData, contentType: e.target.value })}
-                    className="w-full h-9 rounded border border-input bg-background px-2 text-xs"
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs font-medium"
                   >
                     <option value="text">Text Only</option>
-                    <option value="image">With Image</option>
-                    <option value="video">With Video</option>
+                    <option value="image">With Photo Review</option>
+                    <option value="video">With Video Review</option>
                   </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-xs">Reviewer Avatar / Profile Photo</label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Image URL or upload photo..."
+                      value={formData.avatarUrl || ""}
+                      onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                      className="text-xs"
+                    />
+                    <label className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 border rounded-md cursor-pointer font-bold flex items-center gap-1 shrink-0 text-xs">
+                      <Upload className="h-3.5 w-3.5" /> Upload
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => onFileUpload(e, "avatarUrl")}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
+              {/* Media File Upload (If Image or Video format) */}
               {formData.contentType !== "text" && (
-                <div className="space-y-1 border-t pt-2">
-                  <label className="font-bold text-primary">Media File Upload / Embed URL</label>
+                <div className="space-y-1 border-t pt-3">
+                  <label className="font-bold text-xs text-primary">
+                    {formData.contentType === "image" ? "Photo Review Image Upload / URL *" : "Video Review Video Upload / URL *"}
+                  </label>
                   <div className="flex gap-2">
-                    <Input placeholder="URL..." value={formData.mediaUrl || ""} onChange={(e) => setFormData({ ...formData, mediaUrl: e.target.value })} className="text-xs" />
-                    <label className="px-3 py-1.5 bg-secondary border rounded cursor-pointer font-bold flex items-center gap-1 shrink-0">
+                    <Input
+                      placeholder={formData.contentType === "image" ? "https://... /photo.jpg" : "https://... /video.mp4"}
+                      value={formData.mediaUrl || ""}
+                      onChange={(e) => setFormData({ ...formData, mediaUrl: e.target.value })}
+                      className="text-xs"
+                    />
+                    <label className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 border rounded-md cursor-pointer font-bold flex items-center gap-1 shrink-0 text-xs">
                       <Upload className="h-3.5 w-3.5" /> Upload File
-                      <input type="file" accept={formData.contentType === "image" ? "image/*" : "video/*"} className="hidden" onChange={(e) => onFileUpload(e, "mediaUrl")} />
+                      <input
+                        type="file"
+                        accept={formData.contentType === "image" ? "image/*" : "video/*"}
+                        className="hidden"
+                        onChange={(e) => onFileUpload(e, "mediaUrl")}
+                      />
                     </label>
                   </div>
                 </div>
               )}
 
+              {/* Review Content / Comment Text */}
               <div className="space-y-1">
-                <label className="font-bold">Review Content *</label>
-                <textarea rows={3} className="w-full p-2.5 text-xs border rounded bg-background" value={formData.text || ""} onChange={(e) => setFormData({ ...formData, text: e.target.value })} />
+                <label className="font-bold text-xs">Review Content / Customer Comment *</label>
+                <textarea
+                  rows={3}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="e.g. Direct Bhopal warehouse wholesale pricing gave me a 35% margin boost..."
+                  value={formData.text || ""}
+                  onChange={(e) => setFormData({ ...formData, text: e.target.value })}
+                  required
+                />
               </div>
-            </>
+
+              {/* Display Status Toggle */}
+              <div className="flex items-center gap-2 pt-2 border-t">
+                <input
+                  type="checkbox"
+                  id="testimonial-active"
+                  checked={formData.isActive !== false}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer"
+                />
+                <label htmlFor="testimonial-active" className="text-xs font-bold text-foreground cursor-pointer">
+                  Display on Live Storefront (Active Status)
+                </label>
+              </div>
+            </div>
           )}
 
           {/* Brand Partner */}

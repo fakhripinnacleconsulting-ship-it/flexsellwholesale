@@ -16,11 +16,15 @@ import {
   BrandPartner,
   FaqItem,
   BlogPostItem,
-  DropshipPageContent
+  DropshipPageContent,
+  HomepageHeadingsData,
+  HomepageVisibilityData,
+  HomepageSeoData
 } from "@/components/admin/cms/types";
 
 import { CmsHeader } from "@/components/admin/cms/CmsHeader";
 import { CmsTabsNav } from "@/components/admin/cms/CmsTabsNav";
+import { CmsSubTabsNav } from "@/components/admin/cms/CmsSubTabsNav";
 
 import { BannersTab } from "@/components/admin/cms/tabs/BannersTab";
 import { AnnouncementsTab } from "@/components/admin/cms/tabs/AnnouncementsTab";
@@ -33,6 +37,8 @@ import { DropshipPageTab } from "@/components/admin/cms/tabs/DropshipPageTab";
 import { FaqsTab } from "@/components/admin/cms/tabs/FaqsTab";
 import { PoliciesTab } from "@/components/admin/cms/tabs/PoliciesTab";
 import { FooterTab } from "@/components/admin/cms/tabs/FooterTab";
+import { SectionVisibilityTab } from "@/components/admin/cms/tabs/SectionVisibilityTab";
+import { HomepageSeoTab } from "@/components/admin/cms/tabs/HomepageSeoTab";
 
 import { CmsFormModal } from "@/components/admin/cms/modals/CmsFormModal";
 import { CmsViewModal } from "@/components/admin/cms/modals/CmsViewModal";
@@ -62,6 +68,8 @@ export default function AdminCmsPage() {
   const [policies, setPolicies] = React.useState<any>({});
   const [dropshipPage, setDropshipPage] = React.useState<any>({});
   const [footer, setFooter] = React.useState<any>({});
+  const [homepageSettings, setHomepageSettings] = React.useState<HomepageVisibilityData>({});
+  const [homepageSeo, setHomepageSeo] = React.useState<HomepageSeoData>({});
 
   // Modals
   const [formModalOpen, setFormModalOpen] = React.useState(false);
@@ -90,7 +98,9 @@ export default function AdminCmsPage() {
 
   const handleTabSelect = (tab: CmsTabType) => {
     let targetTab = tab;
-    if (tab === "testimonials") {
+    if (tab === "homepage") {
+      targetTab = "hero";
+    } else if (tab === "testimonials") {
       targetTab = "testimonials_wholesale";
     }
     setActiveTab(targetTab);
@@ -123,6 +133,8 @@ export default function AdminCmsPage() {
       setPolicies(data.policies || {});
       setDropshipPage(data.dropshipping_cms || data.dropshipping_page_content || {});
       setFooter(data.footer || {});
+      if (data.homepage_settings) setHomepageSettings(data.homepage_settings);
+      if (data.homepage_seo) setHomepageSeo(data.homepage_seo);
     } catch (err: unknown) {
       addToast((err as any).message || "Failed to fetch CMS settings", "error");
     } finally {
@@ -369,6 +381,21 @@ export default function AdminCmsPage() {
     );
   }
 
+  const isHomePageSection =
+    activeTab === "homepage" ||
+    activeTab === "hero" ||
+    activeTab === "announcements" ||
+    activeTab === "trust" ||
+    activeTab === "wholesale_biz" ||
+    activeTab === "dropship_biz" ||
+    activeTab === "testimonials" ||
+    activeTab === "testimonials_wholesale" ||
+    activeTab === "testimonials_dropship" ||
+    activeTab === "testimonials_client" ||
+    activeTab === "partners" ||
+    activeTab === "homepage_visibility" ||
+    activeTab === "homepage_seo";
+
   const isTestimonialSection =
     activeTab === "testimonials" ||
     activeTab === "testimonials_wholesale" ||
@@ -382,6 +409,23 @@ export default function AdminCmsPage() {
       ? "testimonials_client"
       : "testimonials_wholesale";
 
+  const homeSubTabs: { id: CmsTabType; label: string; icon: string }[] = [
+    { id: "hero", label: "Hero Banners", icon: "🖼️" },
+    { id: "announcements", label: "Announcements", icon: "📢" },
+    { id: "trust", label: "Trust Stats", icon: "📊" },
+    { id: "wholesale_biz", label: "Wholesale Business", icon: "🏢" },
+    { id: "dropship_biz", label: "Dropship Business", icon: "🚀" },
+    { id: "testimonials_wholesale", label: "Customer Reviews", icon: "⭐" },
+    { id: "partners", label: "Brand Partners", icon: "🤝" },
+    { id: "homepage_visibility", label: "Section Visibility", icon: "👁️" },
+    { id: "homepage_seo", label: "Homepage SEO", icon: "🔍" },
+  ];
+
+  const getActiveHomeSubTab = () => {
+    if (isTestimonialSection) return "testimonials_wholesale";
+    return activeTab;
+  };
+
   return (
     <div className="space-y-6">
       <CmsHeader onOpenSeedModal={() => setSeedModalOpen(true)} />
@@ -390,21 +434,39 @@ export default function AdminCmsPage() {
 
       <Card>
         <CardContent className="p-6 space-y-6">
-          {/* Section Header */}
+          {/* Main Section Header */}
           <div className="flex justify-between items-center border-b pb-3">
-            <h2 className="font-bold text-lg text-foreground uppercase tracking-wider text-xs">
-              Tabular Management — {activeTab.replace("_", " ").toUpperCase()}
-            </h2>
-            {activeTab !== "footer" && activeTab !== "policies" && activeTab !== "dropship_page" && (
+            <div>
+              <h2 className="font-bold text-base text-foreground uppercase tracking-wider flex items-center gap-2">
+                {isHomePageSection ? "🏠 Home Page Content & Banner Settings" : `Section Settings — ${activeTab.replace("_", " ").toUpperCase()}`}
+              </h2>
+              {isHomePageSection && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Easily update homepage banners, announcements, trust stats, shop details, customer reviews, and section titles.
+                </p>
+              )}
+            </div>
+            {activeTab !== "footer" && activeTab !== "policies" && activeTab !== "dropship_page" && activeTab !== "homepage_visibility" && activeTab !== "homepage_seo" && (
               <Button type="button" onClick={openAddModal} className="font-bold text-xs gap-1.5 cursor-pointer">
                 <Plus className="h-4 w-4" /> Add New Entry
               </Button>
             )}
           </div>
 
-          {/* Customer Reviews Sub-Tabs Header */}
+          {/* Unified Home Page Sub-Tabs Navigation Bar (Mouse drag, Wheel, Touch, Arrows) */}
+          {isHomePageSection && (
+            <CmsSubTabsNav
+              subTabs={homeSubTabs}
+              activeTab={activeTab}
+              getActiveSubTab={getActiveHomeSubTab}
+              onSelectSubTab={handleTabSelect}
+            />
+          )}
+
+          {/* Customer Reviews Sub-Filters */}
           {isTestimonialSection && (
-            <div className="flex border-b text-xs font-bold gap-6 pb-0 mb-4 overflow-x-auto">
+            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-dashed">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mr-2">Review Type:</span>
               {[
                 { id: "testimonials_wholesale", label: "Wholesale Reviews" },
                 { id: "testimonials_dropship", label: "Dropship Reviews" },
@@ -414,10 +476,10 @@ export default function AdminCmsPage() {
                   key={sub.id}
                   type="button"
                   onClick={() => handleTabSelect(sub.id as CmsTabType)}
-                  className={`pb-2.5 border-b-2 transition-all cursor-pointer whitespace-nowrap -mb-[2px] ${
+                  className={`px-3 py-1 rounded-full text-xs transition-all cursor-pointer font-semibold ${
                     currentTestimonialSubTab === sub.id
-                      ? "border-primary text-primary font-bold"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {sub.label}
@@ -435,6 +497,8 @@ export default function AdminCmsPage() {
           {activeTab === "testimonials_dropship" && <TestimonialsTab testimonials={testimonialsDropshipper} onView={openViewModal} onEdit={openEditModal} onDelete={openDeleteModal} />}
           {activeTab === "testimonials_client" && <TestimonialsTab testimonials={testimonialsClient} onView={openViewModal} onEdit={openEditModal} onDelete={openDeleteModal} />}
           {activeTab === "partners" && <BrandPartnersTab brandPartners={brandPartners} onEdit={openEditModal} onDelete={openDeleteModal} />}
+          {activeTab === "homepage_visibility" && <SectionVisibilityTab data={homepageSettings} setData={setHomepageSettings} isSaving={isSaving} onSave={handleSaveCmsKey} />}
+          {activeTab === "homepage_seo" && <HomepageSeoTab data={homepageSeo} setData={setHomepageSeo} isSaving={isSaving} onSave={handleSaveCmsKey} onFileUpload={handleFileUpload} />}
           {activeTab === "blogs" && <BlogsTab blogs={blogs} onEdit={openEditModal} onDelete={openDeleteModal} />}
           {activeTab === "dropship_page" && <DropshipPageTab data={dropshipPage} setData={setDropshipPage} isSaving={isSaving} onSave={handleSaveCmsKey} />}
           {activeTab === "faqs" && <FaqsTab faqs={faqs} onEdit={openEditModal} onDelete={openDeleteModal} />}
