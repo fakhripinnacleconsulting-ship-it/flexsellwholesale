@@ -1,17 +1,32 @@
 {
-  "name": "FlexSell Wholesale",
+  "name": "FlexSell Wholesale - B2B Commerce & Sourcing Platform",
   "short_name": "FlexSell",
-  "description": "  B2B Wholesale Commerce Platform",
+  "description": "Direct factory wholesale sourcing, automated dropshipping fulfillment, and bulk tier pricing for Indian retailers.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
-  "theme_color": "#0F172A",
+  "theme_color": "#059669",
+  "categories": ["shopping", "business", "commerce"],
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/Favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Favicon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/Flexsell%20Logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

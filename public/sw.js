@@ -1,5 +1,87 @@
-// FlexSell Wholesale Service Worker for Web Push Notifications
+// FlexSell Wholesale Progressive Web App (PWA) & Web Push Service Worker
 
+const CACHE_NAME = "flexsell-pwa-v1";
+const OFFLINE_URL = "/offline.html";
+
+const PRECACHE_ASSETS = [
+  "/",
+  OFFLINE_URL,
+  "/Favicon.png",
+  "/Flexsell%20Logo.png",
+  "/manifest.json"
+];
+
+// Install Event — Precache core PWA assets & offline fallback
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRECACHE_ASSETS);
+    }).then(() => self.skipWaiting())
+  );
+});
+
+// Activate Event — Cleanup legacy caches
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((name) => {
+          if (name !== CACHE_NAME) {
+            return caches.delete(name);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+// Fetch Event — Network-first for dynamic navigation, Cache-first for images/static assets, Offline page fallback
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+
+  const url = new URL(event.request.url);
+
+  // Exclude API requests & admin dashboard from static caching
+  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/admin")) {
+    return;
+  }
+
+  // Navigation Request (HTML page) -> Network First with Offline Fallback
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match(OFFLINE_URL);
+      })
+    );
+    return;
+  }
+
+  // Static Assets (Images, Fonts, Scripts) -> Cache First with Network Fallback
+  if (
+    event.request.destination === "image" ||
+    event.request.destination === "style" ||
+    event.request.destination === "script" ||
+    event.request.destination === "font"
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+});
+
+// Push Notification Event Listener
 self.addEventListener("push", function (event) {
   if (!event.data) return;
 
@@ -8,8 +90,8 @@ self.addEventListener("push", function (event) {
     const title = payload.title || "FlexSell Wholesale Alert";
     const options = {
       body: payload.body || payload.message || "",
-      icon: payload.icon || "/Flexsell%20Logo.png",
-      badge: payload.badge || "/icon.png",
+      icon: payload.icon || "/Favicon.png",
+      badge: payload.badge || "/Favicon.png",
       data: {
         url: payload.url || payload.link || "/",
         entityId: payload.entityId || "",
@@ -25,6 +107,7 @@ self.addEventListener("push", function (event) {
   }
 });
 
+// Notification Click Handler
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
 

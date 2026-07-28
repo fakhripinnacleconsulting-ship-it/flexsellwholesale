@@ -26,15 +26,28 @@ export const metadata: Metadata = {
     index: true,
     follow: true
   },
+  icons: {
+    icon: [
+      { url: "/Favicon.png", type: "image/png" },
+      { url: "/Flexsell%20Logo.png", type: "image/png" }
+    ],
+    shortcut: ["/Favicon.png"],
+    apple: [{ url: "/Favicon.png", sizes: "180x180", type: "image/png" }]
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "FlexSell Wholesale",
+    statusBarStyle: "default"
+  },
   openGraph: {
     type: "website",
     locale: "en_IN",
     url: "https://flexsellwholesale.in",
-    title: "FlexSell Wholesale -   B2B Sourcing",
-    description: "Source   quality household utility gadgets directly from manufacturers. Low MOQs, dynamic pricing, and nationwide shipping.",
+    title: "FlexSell Wholesale - B2B Sourcing",
+    description: "Source quality household utility gadgets directly from manufacturers. Low MOQs, dynamic pricing, and nationwide shipping.",
     siteName: "FlexSell Wholesale"
-  },
-  manifest: "/manifest.json"
+  }
 };
 
 export default function RootLayout({
@@ -49,6 +62,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/Favicon.png" type="image/png" sizes="any" />
+        <link rel="shortcut icon" href="/Favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/Favicon.png" />
+        <meta name="theme-color" content="#059669" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
