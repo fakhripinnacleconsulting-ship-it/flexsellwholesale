@@ -12,7 +12,7 @@ Complete technical documentation, architecture diagrams, ERD database schemas, R
 - 🌐 **Interactive Public Portal:** `/documentation`
 - 🔄 **Regenerate Documentation Command:** `npm run update-docs`
 
----
+--- 
 
 ## 🎯 Architectural Core & Tech Stack
 
