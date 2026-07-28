@@ -244,11 +244,24 @@ export default function OrderConfirmationPage() {
           order={order}
           customerId={invoice?.customerId}
           sellerInfo={{
-            storeName: cmsData?.brandSettings?.storeName || "FlexSell Wholesale",
-            gstin: cmsData?.brandSettings?.gstin || "24AAACF1001M1Z5",
-            address: cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
-            email: cmsData?.brandSettings?.supportEmail || "support@flexsell.in",
-            phone: cmsData?.brandSettings?.supportPhone || "+91 261 2409000",
+            storeName: cmsData?.businessSettings?.storeName || cmsData?.brandSettings?.storeName || "FlexSell Wholesale",
+            gstin: cmsData?.businessSettings?.gstin || cmsData?.brandSettings?.gstin || "24AAACF1001M1Z5",
+            address: cmsData?.businessSettings?.companyAddress
+              ? `${cmsData.businessSettings.companyAddress}, ${cmsData.businessSettings.city || ""}, ${cmsData.businessSettings.state || ""} - ${cmsData.businessSettings.pinCode || ""}`
+              : cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Madhya Pradesh - 394230",
+            email: cmsData?.businessSettings?.supportEmail || cmsData?.brandSettings?.supportEmail || "support@flexsellwholesale.in",
+            phone: cmsData?.businessSettings?.supportPhone || cmsData?.brandSettings?.supportPhone || "+91 88877 66655",
+            signatureUrl: cmsData?.businessSettings?.signatureUrl,
+            bankDetails: cmsData?.businessSettings?.bankName
+              ? {
+                  bankName: cmsData.businessSettings.bankName,
+                  accountName: cmsData.businessSettings.accountName,
+                  accountNumber: cmsData.businessSettings.accountNumber,
+                  ifscCode: cmsData.businessSettings.ifscCode,
+                  branchName: cmsData.businessSettings.branchName
+                }
+              : undefined,
+            termsAndConditions: cmsData?.businessSettings?.termsAndConditions
           }}
           showActions={false}
         />

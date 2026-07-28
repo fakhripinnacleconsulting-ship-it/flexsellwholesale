@@ -106,9 +106,73 @@ export async function GET() {
       }
     ];
 
-    if (!config.blogs || !Array.isArray(config.blogs) || config.blogs.length === 0) {
-      config.blogs = defaultBlogs;
+    const defaultBusinessSettings = {
+      storeName: "FlexSell Wholesale",
+      legalName: "FlexSell Wholesale Sourcing Pvt Ltd",
+      gstin: "24AAACF1001M1Z5",
+      pan: "AAACF1001M",
+      cin: "U51909MP2024PTC012345",
+      companyAddress: "Plot No. 12, GIDC Industrial Estate, Sachin",
+      city: "Bhopal",
+      state: "Madhya Pradesh",
+      pinCode: "394230",
+      supportEmail: "support@flexsellwholesale.in",
+      supportPhone: "+91 88877 66655",
+      websiteUrl: "https://flexsellwholesale.in",
+      timings: "9:30 AM to 6:30 PM (Sunday Closed)",
+      signatureUrl: "",
+      bankName: "HDFC Bank",
+      accountName: "FlexSell B2B Private Limited",
+      accountNumber: "50200084729104",
+      ifscCode: "HDFC0000024",
+      branchName: "Sachin GIDC, Bhopal",
+      termsAndConditions: [
+        "All invoices are subject to Bhopal jurisdiction only.",
+        "Interest @ 18% p.a. will be charged on payments delayed beyond agreed credit SLAs.",
+        "Physical inspection of delivered packages must be reported within 24 hours of arrival.",
+        "GST E-Way Bill details are generated directly via API for verified B2B transport."
+      ]
+    };
+
+    if (!config.businessSettings) {
+      config.businessSettings = defaultBusinessSettings;
+    } else {
+      config.businessSettings = {
+        ...defaultBusinessSettings,
+        ...config.businessSettings,
+      };
     }
+
+    // Keep brandDetails, bankDetails, and brandSettings unified
+    const fullAddress = `${config.businessSettings.companyAddress || ""}, ${config.businessSettings.city || ""}, ${config.businessSettings.state || ""} - ${config.businessSettings.pinCode || ""}`;
+
+    config.brandDetails = {
+      storeName: config.businessSettings.storeName,
+      legalName: config.businessSettings.legalName,
+      supportEmail: config.businessSettings.supportEmail,
+      supportPhone: config.businessSettings.supportPhone,
+      companyAddress: fullAddress,
+      gstin: config.businessSettings.gstin,
+      ...(config.brandDetails || {}),
+    };
+
+    config.bankDetails = {
+      beneficiaryName: config.businessSettings.accountName,
+      bankName: config.businessSettings.bankName,
+      accountNo: config.businessSettings.accountNumber,
+      ifscCode: config.businessSettings.ifscCode,
+      branch: config.businessSettings.branchName,
+      ...(config.bankDetails || {}),
+    };
+
+    config.brandSettings = {
+      storeName: config.businessSettings.storeName,
+      gstin: config.businessSettings.gstin,
+      companyAddress: fullAddress,
+      supportEmail: config.businessSettings.supportEmail,
+      supportPhone: config.businessSettings.supportPhone,
+      ...(config.brandSettings || {}),
+    };
 
     return NextResponse.json(config);
   } catch (error: unknown) {
@@ -141,6 +205,39 @@ export async function POST(request: Request) {
       { $set: { value } },
       { upsert: true, new: true }
     ).lean();
+
+    // Cross-sync alias keys when updating businessSettings, brandDetails, or bankDetails
+    if (key === "businessSettings" && value) {
+      const fullAddress = `${value.companyAddress || ""}, ${value.city || ""}, ${value.state || ""} - ${value.pinCode || ""}`;
+      const brandDetailsVal = {
+        storeName: value.storeName,
+        legalName: value.legalName,
+        supportEmail: value.supportEmail,
+        supportPhone: value.supportPhone,
+        companyAddress: fullAddress,
+        gstin: value.gstin,
+      };
+      const bankDetailsVal = {
+        beneficiaryName: value.accountName,
+        bankName: value.bankName,
+        accountNo: value.accountNumber,
+        ifscCode: value.ifscCode,
+        branch: value.branchName,
+      };
+      const brandSettingsVal = {
+        storeName: value.storeName,
+        gstin: value.gstin,
+        companyAddress: fullAddress,
+        supportEmail: value.supportEmail,
+        supportPhone: value.supportPhone,
+      };
+
+      await Promise.all([
+        CmsContent.findOneAndUpdate({ key: "brandDetails" }, { $set: { value: brandDetailsVal } }, { upsert: true }),
+        CmsContent.findOneAndUpdate({ key: "bankDetails" }, { $set: { value: bankDetailsVal } }, { upsert: true }),
+        CmsContent.findOneAndUpdate({ key: "brandSettings" }, { $set: { value: brandSettingsVal } }, { upsert: true }),
+      ]);
+    }
 
     revalidateCms();
     return NextResponse.json(updated);

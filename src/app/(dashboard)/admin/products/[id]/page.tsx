@@ -1,7 +1,7 @@
 import * as React from "react";
 import { productService } from "@/services/productService";
 import { categoryService } from "@/services/categoryService";
-import { AdminProductForm } from "@/components/admin/AdminProductForm";
+import { AdminProductForm } from "@/components/admin/product-form";
 
 export default async function AdminEditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

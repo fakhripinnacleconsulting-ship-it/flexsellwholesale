@@ -8,25 +8,41 @@ import { useToastStore } from "@/stores/toastStore";
 import { ThemeEditor } from "@/components/admin/ThemeEditor";
 import { DEFAULT_ID_FORMATS, IdFormatConfig, formatIdPreview } from "@/lib/idGenerator";
 import { Search, Hash, RefreshCw, Save, Layers, CreditCard, FileText, Users, ShoppingBag, FolderTree, Tags, MessageSquare, MessageSquarePlus, Percent, HelpCircle } from "lucide-react";
+import { CompanyInformationTab, CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
 
 export default function AdminSettingsPage() {
   const { addToast } = useToastStore();
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
 
-  // Brand details states
-  const [storeName, setStoreName] = React.useState("FlexSell Wholesale");
-  const [supportEmail, setSupportEmail] = React.useState("support@flexsell.in");
-  const [supportPhone, setSupportPhone] = React.useState("+91 98765 43210");
-  const [companyAddress, setCompanyAddress] = React.useState("123 Business Hub, Indore, MP");
-  const [gstin, setGstin] = React.useState("23AAACD1234D1Z0");
-
-  // Bank details states
-  const [beneficiaryName, setBeneficiaryName] = React.useState("FlexSell B2B Private Limited");
-  const [bankName, setBankName] = React.useState("HDFC Bank");
-  const [accountNo, setAccountNo] = React.useState("50200084729104");
-  const [ifscCode, setIfscCode] = React.useState("HDFC0000024");
-  const [branch, setBranch] = React.useState("Sachin GIDC, Bhopal");
+  // Unified Company & Brand Information state
+  const [companyInfo, setCompanyInfo] = React.useState<CompanyInfoData>({
+    storeName: "FlexSell Wholesale",
+    legalName: "FlexSell Wholesale Sourcing Pvt Ltd",
+    gstin: "24AAACF1001M1Z5",
+    pan: "AAACF1001M",
+    cin: "U51909MP2024PTC012345",
+    companyAddress: "Plot No. 12, GIDC Industrial Estate, Sachin",
+    city: "Bhopal",
+    state: "Madhya Pradesh",
+    pinCode: "394230",
+    supportEmail: "support@flexsellwholesale.in",
+    supportPhone: "+91 88877 66655",
+    websiteUrl: "https://flexsellwholesale.in",
+    timings: "9:30 AM to 6:30 PM (Sunday Closed)",
+    signatureUrl: "",
+    bankName: "HDFC Bank",
+    accountName: "FlexSell B2B Private Limited",
+    accountNumber: "50200084729104",
+    ifscCode: "HDFC0000024",
+    branchName: "Sachin GIDC, Bhopal",
+    termsAndConditions: [
+      "All invoices are subject to Bhopal jurisdiction only.",
+      "Interest @ 18% p.a. will be charged on payments delayed beyond agreed credit SLAs.",
+      "Physical inspection of delivered packages must be reported within 24 hours of arrival.",
+      "GST E-Way Bill details are generated directly via API for verified B2B transport."
+    ]
+  });
 
   // Commerce settings states
   const [minOrderValue, setMinOrderValue] = React.useState("1000");
@@ -67,21 +83,16 @@ export default function AdminSettingsPage() {
         const res = await fetch("/api/cms");
         if (res.ok) {
           const data = await res.json();
-          const brand = data.brandDetails || {};
-          const bank = data.bankDetails || {};
+          const bs = data.businessSettings || {};
           const commerce = data.commerceSettings || {};
 
-          if (brand.storeName) setStoreName(brand.storeName);
-          if (brand.supportEmail) setSupportEmail(brand.supportEmail);
-          if (brand.supportPhone) setSupportPhone(brand.supportPhone);
-          if (brand.companyAddress) setCompanyAddress(brand.companyAddress);
-          if (brand.gstin) setGstin(brand.gstin);
-
-          if (bank.beneficiaryName) setBeneficiaryName(bank.beneficiaryName);
-          if (bank.bankName) setBankName(bank.bankName);
-          if (bank.accountNo) setAccountNo(bank.accountNo);
-          if (bank.ifscCode) setIfscCode(bank.ifscCode);
-          if (bank.branch) setBranch(bank.branch);
+          setCompanyInfo((prev) => ({
+            ...prev,
+            ...bs,
+            termsAndConditions: Array.isArray(bs.termsAndConditions) && bs.termsAndConditions.length > 0
+              ? bs.termsAndConditions
+              : prev.termsAndConditions
+          }));
 
           if (commerce.minOrderValue) setMinOrderValue(commerce.minOrderValue);
           if (commerce.defaultTaxRate) setDefaultTaxRate(commerce.defaultTaxRate);
@@ -117,19 +128,16 @@ export default function AdminSettingsPage() {
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
-      const brandDetails = { storeName, supportEmail, supportPhone, companyAddress, gstin };
-      const bankDetails = { beneficiaryName, bankName, accountNo, ifscCode, branch };
       const commerceSettings = { minOrderValue, defaultTaxRate, enableCod, enableOnlinePayment };
 
       const saveReqs = [
-        fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "brandDetails", value: brandDetails }) }),
-        fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "bankDetails", value: bankDetails }) }),
+        fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "businessSettings", value: companyInfo }) }),
         fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "commerceSettings", value: commerceSettings }) }),
         fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "idFormats", value: idFormatsList }) }),
       ];
 
       await Promise.all(saveReqs);
-      addToast("System settings & ID Formats saved successfully!", "success");
+      addToast("Centralized Company & System Settings saved successfully!", "success");
     } catch (err: unknown) {
       addToast((err as any).message || "Failed to save settings", "error");
     } finally {
@@ -229,66 +237,9 @@ export default function AdminSettingsPage() {
       </div>
 
       {activeTab === "general" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Store & Company Info */}
-          <Card className="border border-border">
-            <CardHeader>
-              <CardTitle>Company & Support Details</CardTitle>
-              <CardDescription>Displayed on invoices, purchase orders, and customer notifications.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Store Name</label>
-                <Input value={storeName} onChange={(e) => setStoreName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Support Email</label>
-                <Input value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} type="email" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Support Phone</label>
-                <Input value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Corporate GSTIN</label>
-                <Input value={gstin} onChange={(e) => setGstin(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Warehouse / Billing Address</label>
-                <Input value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Bank Account Details */}
-          <Card className="border border-border">
-            <CardHeader>
-              <CardTitle>Bank Account Details (NEFT / RTGS)</CardTitle>
-              <CardDescription>Printed on B2B invoices and proforma quotes for direct bank wire transfers.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Beneficiary Name</label>
-                <Input value={beneficiaryName} onChange={(e) => setBeneficiaryName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Bank Name</label>
-                <Input value={bankName} onChange={(e) => setBankName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Account Number</label>
-                <Input value={accountNo} onChange={(e) => setAccountNo(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">IFSC Code</label>
-                <Input value={ifscCode} onChange={(e) => setIfscCode(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Branch Location</label>
-                <Input value={branch} onChange={(e) => setBranch(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-6">
+          {/* Single Unified Company & Brand Manager */}
+          <CompanyInformationTab companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} />
 
           {/* Checkout & Commerce Config */}
           <Card className="border border-border lg:col-span-2">

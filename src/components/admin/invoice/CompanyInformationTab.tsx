@@ -14,12 +14,13 @@ export interface CompanyInfoData {
   pan?: string;
   cin?: string;
   companyAddress: string;
-  city: string;
-  state: string;
-  pinCode: string;
+  city?: string;
+  state?: string;
+  pinCode?: string;
   supportEmail: string;
   supportPhone: string;
-  websiteUrl: string;
+  websiteUrl?: string;
+  timings?: string;
   signatureUrl: string;
   bankName: string;
   accountName: string;
@@ -50,7 +51,7 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
         }),
       });
       if (!res.ok) throw new Error("Failed to save company settings");
-      addToast("Company Information & Document Terms saved successfully!", "success");
+      addToast("Centralized Company & Brand Settings saved successfully!", "success");
     } catch (err: any) {
       addToast(err.message || "Failed to save settings", "error");
     } finally {
@@ -83,21 +84,21 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
   const handleAddTermLine = () => {
     setCompanyInfo(prev => ({
       ...prev,
-      termsAndConditions: [...prev.termsAndConditions, ""],
+      termsAndConditions: [...(prev.termsAndConditions || []), ""],
     }));
   };
 
   const handleRemoveTermLine = (index: number) => {
     setCompanyInfo(prev => ({
       ...prev,
-      termsAndConditions: prev.termsAndConditions.filter((_, i) => i !== index),
+      termsAndConditions: (prev.termsAndConditions || []).filter((_, i) => i !== index),
     }));
   };
 
   const handleUpdateTermLine = (index: number, text: string) => {
     setCompanyInfo(prev => ({
       ...prev,
-      termsAndConditions: prev.termsAndConditions.map((item, i) => (i === index ? text : item)),
+      termsAndConditions: (prev.termsAndConditions || []).map((item, i) => (i === index ? text : item)),
     }));
   };
 
@@ -106,15 +107,15 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-4">
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Building className="h-5 w-5 text-primary" /> Company & Document Settings
+            <Building className="h-5 w-5 text-primary" /> Centralized Company & Brand Settings
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Configure static company metadata, digital signatures, bank payment details, and terms & conditions for generated invoices, quotes, and receipts.
+            Configure all corporate profile details, GST, contact info, operational timings, digital signatures, bank payment details, and invoice terms in one single place.
           </p>
         </div>
-        <Button onClick={handleSaveCompanyInfo} disabled={isSavingCompanyInfo} className="font-semibold gap-2 cursor-pointer">
+        <Button onClick={handleSaveCompanyInfo} disabled={isSavingCompanyInfo} className="font-semibold gap-2 cursor-pointer bg-primary text-primary-foreground">
           {isSavingCompanyInfo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {isSavingCompanyInfo ? "Saving..." : "Save Settings"}
+          {isSavingCompanyInfo ? "Saving..." : "Save All Company Settings"}
         </Button>
       </div>
 
@@ -127,7 +128,7 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
           <div>
             <label className="font-semibold block mb-1 text-muted-foreground">Store / Brand Name *</label>
             <Input
-              value={companyInfo.storeName}
+              value={companyInfo.storeName || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, storeName: e.target.value }))}
               placeholder="e.g. FlexSell Wholesale"
               className="text-xs"
@@ -145,9 +146,9 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
           <div>
             <label className="font-semibold block mb-1 text-muted-foreground">GSTIN (GST Identification Number) *</label>
             <Input
-              value={companyInfo.gstin}
+              value={companyInfo.gstin || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, gstin: e.target.value.toUpperCase() }))}
-              placeholder="e.g. 23AAACD1234D1Z0"
+              placeholder="e.g. 24AAACF1001M1Z5"
               className="font-mono uppercase text-xs"
             />
           </div>
@@ -156,7 +157,7 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
             <Input
               value={companyInfo.pan || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, pan: e.target.value.toUpperCase() }))}
-              placeholder="e.g. AAACD1234D"
+              placeholder="e.g. AAACF1001M"
               className="font-mono uppercase text-xs"
             />
           </div>
@@ -165,35 +166,89 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
             <Input
               value={companyInfo.cin || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, cin: e.target.value.toUpperCase() }))}
-              placeholder="e.g. U74999MP2026PTC012345"
+              placeholder="e.g. U51909MP2024PTC012345"
               className="font-mono uppercase text-xs"
             />
           </div>
           <div>
-            <label className="font-semibold block mb-1 text-muted-foreground">Support Email</label>
+            <label className="font-semibold block mb-1 text-muted-foreground">Website Domain URL</label>
             <Input
-              value={companyInfo.supportEmail}
+              value={companyInfo.websiteUrl || ""}
+              onChange={(e) => setCompanyInfo(prev => ({ ...prev, websiteUrl: e.target.value }))}
+              placeholder="e.g. https://flexsellwholesale.in"
+              className="text-xs"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Grid Section 2: Contact, Address & Footer Timings */}
+      <div className="space-y-4 pt-4 border-t">
+        <h3 className="font-bold text-xs text-primary uppercase tracking-wider border-b pb-1">
+          2. Contact Information, Address & Support Hours (Syncs with Footer)
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div>
+            <label className="font-semibold block mb-1 text-muted-foreground">Support Email *</label>
+            <Input
+              value={companyInfo.supportEmail || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, supportEmail: e.target.value }))}
-              placeholder="e.g. support@flexsell.in"
+              placeholder="e.g. support@flexsellwholesale.in"
               className="text-xs"
             />
           </div>
           <div>
-            <label className="font-semibold block mb-1 text-muted-foreground">Support Phone</label>
+            <label className="font-semibold block mb-1 text-muted-foreground">Support Phone / Helpline *</label>
             <Input
-              value={companyInfo.supportPhone}
+              value={companyInfo.supportPhone || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, supportPhone: e.target.value }))}
-              placeholder="e.g. +91 98765 43210"
+              placeholder="e.g. +91 88877 66655"
+              className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="font-semibold block mb-1 text-muted-foreground">Operational Support Hours</label>
+            <Input
+              value={companyInfo.timings || ""}
+              onChange={(e) => setCompanyInfo(prev => ({ ...prev, timings: e.target.value }))}
+              placeholder="e.g. 9:30 AM to 6:30 PM (Sunday Closed)"
               className="text-xs"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="font-semibold block mb-1 text-muted-foreground">Registered Business Address</label>
+            <label className="font-semibold block mb-1 text-muted-foreground">Registered Street Address *</label>
             <Input
-              value={companyInfo.companyAddress}
+              value={companyInfo.companyAddress || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, companyAddress: e.target.value }))}
-              placeholder="e.g. 123 Business Hub, Indore, MP - 452001"
+              placeholder="e.g. Plot No. 12, GIDC Industrial Estate, Sachin"
               className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="font-semibold block mb-1 text-muted-foreground">City</label>
+            <Input
+              value={companyInfo.city || ""}
+              onChange={(e) => setCompanyInfo(prev => ({ ...prev, city: e.target.value }))}
+              placeholder="e.g. Bhopal"
+              className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="font-semibold block mb-1 text-muted-foreground">State</label>
+            <Input
+              value={companyInfo.state || ""}
+              onChange={(e) => setCompanyInfo(prev => ({ ...prev, state: e.target.value }))}
+              placeholder="e.g. Madhya Pradesh"
+              className="text-xs"
+            />
+          </div>
+          <div>
+            <label className="font-semibold block mb-1 text-muted-foreground">Postal Pin Code</label>
+            <Input
+              value={companyInfo.pinCode || ""}
+              onChange={(e) => setCompanyInfo(prev => ({ ...prev, pinCode: e.target.value }))}
+              placeholder="e.g. 394230"
+              className="font-mono text-xs"
             />
           </div>
         </div>

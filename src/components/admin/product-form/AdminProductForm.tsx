@@ -5,13 +5,13 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Product, Category } from "@/types";
-import { ProductFormProvider, useProductForm } from "./product-form/ProductFormContext";
-import { BasicInfoCard } from "./product-form/BasicInfoCard";
-import { TaxComplianceCard } from "./product-form/TaxComplianceCard";
-import { FieldVisibilityCard } from "./product-form/FieldVisibilityCard";
-import { VariantEditor } from "./product-form/VariantEditor";
-import { SEOCard } from "./product-form/SEOCard";
-import { APlusContentCard } from "./product-form/APlusContentCard";
+import { ProductFormProvider, useProductForm } from "./ProductFormContext";
+import { BasicInfoCard } from "./BasicInfoCard";
+import { TaxComplianceCard } from "./TaxComplianceCard";
+import { FieldVisibilityCard } from "./FieldVisibilityCard";
+import { VariantEditor } from "./VariantEditor";
+import { SEOCard } from "./SEOCard";
+import { APlusContentCard } from "./APlusContentCard";
 
 interface AdminProductFormProps {
   productId?: string;
@@ -35,7 +35,7 @@ function ProductFormInner() {
             {existingProduct ? "Edit Product" : "Add New Product"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {existingProduct ? `Modify B2B catalogue parameters for ${existingProduct.title}` : "Publish new  inventory item"}
+            {existingProduct ? `Modify B2B catalogue parameters for ${existingProduct.title}` : "Publish new inventory item"}
           </p>
         </div>
       </div>

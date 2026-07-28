@@ -4,6 +4,8 @@ export interface BaseDocument {
   updatedAt?: string;
 }
 
+export type { CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
+
 export interface Category extends BaseDocument {
   name: string;
   slug: string;
