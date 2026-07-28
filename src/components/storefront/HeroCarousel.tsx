@@ -127,7 +127,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       ref={sectionRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative w-full aspect-[16/9] sm:aspect-[21/9] md:aspect-[24/9] min-h-[220px] max-h-[640px] bg-black overflow-hidden group select-none flex items-center justify-center"
+      className="relative w-full aspect-[3.2/1] sm:aspect-[21/9] md:aspect-[24/9] max-h-[600px] overflow-hidden group select-none bg-background flex items-center justify-center"
     >
       <AnimatePresence initial={false} custom={direction}>
         <motion.div
@@ -158,7 +158,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
         >
           {/* VIDEO BANNER SLIDE */}
           {isVideo ? (
-            <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
+            <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
               {/* Desktop / Main Video */}
               <video
                 key={currentSlide.videoUrl}
@@ -206,14 +206,8 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               </button>
             </div>
           ) : (
-            /* IMAGE BANNER SLIDE (Responsive 100% Uncropped Display) */
-            <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
-              {/* Soft Blurred Background Image Fill for Zero Black Bars */}
-              <div
-                className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-110"
-                style={{ backgroundImage: `url(${fallbackImage})` }}
-              />
-
+            /* IMAGE BANNER SLIDE (Seamless Full Width - No Background Bars) */
+            <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
               {/* Desktop Banner Image */}
               <div className={`relative w-full h-full z-10 ${currentSlide.mobileImageUrl ? "hidden sm:block" : "block"}`}>
                 <Image
@@ -221,7 +215,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                   alt={currentSlide.altText || "FlexSell Wholesale Banner"}
                   fill
                   priority={current === 0}
-                  className="object-contain sm:object-cover w-full h-full"
+                  className="object-cover w-full h-full"
                   sizes="100vw"
                 />
               </div>
@@ -234,7 +228,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                     alt={currentSlide.altText || "FlexSell Wholesale Banner"}
                     fill
                     priority={current === 0}
-                    className="object-contain w-full h-full"
+                    className="object-cover w-full h-full"
                     sizes="100vw"
                   />
                 </div>
@@ -244,27 +238,27 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
 
           {/* Dynamic Gradient & Glassmorphism Text Overlay */}
           {(currentSlide.overlayTitle || currentSlide.overlaySubtitle || currentSlide.ctaText) && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end sm:items-center p-6 sm:p-12 md:p-16 z-20 pointer-events-none">
-              <div className="max-w-2xl space-y-3 pointer-events-auto">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end sm:items-center p-4 sm:p-12 md:p-16 z-20 pointer-events-none">
+              <div className="max-w-2xl space-y-2 sm:space-y-3 pointer-events-auto">
                 {currentSlide.overlayTitle && (
-                  <h1 className="text-xl sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-md leading-tight">
+                  <h1 className="text-lg sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-md leading-tight">
                     {currentSlide.overlayTitle}
                   </h1>
                 )}
                 {currentSlide.overlaySubtitle && (
-                  <p className="text-xs sm:text-base md:text-lg text-white/90 font-medium line-clamp-2 drop-shadow">
+                  <p className="text-[11px] sm:text-base md:text-lg text-white/90 font-medium line-clamp-2 drop-shadow">
                     {currentSlide.overlaySubtitle}
                   </p>
                 )}
                 {currentSlide.ctaText && (
-                  <div className="pt-2">
+                  <div className="pt-1 sm:pt-2">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleBannerClick(currentSlide.redirectUrl || "/products");
                       }}
-                      className="px-4 py-2 sm:px-6 sm:py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm rounded-xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center gap-2"
+                      className="px-3.5 py-1.5 sm:px-6 sm:py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[11px] sm:text-sm rounded-xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center gap-1.5 sm:gap-2"
                     >
                       {currentSlide.ctaText} &rarr;
                     </button>
@@ -285,10 +279,10 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               e.stopPropagation();
               prevSlide();
             }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 sm:p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
             aria-label="Previous Slide"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6" />
           </button>
           <button
             type="button"
@@ -296,14 +290,14 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               e.stopPropagation();
               nextSlide();
             }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 sm:p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
             aria-label="Next Slide"
           >
-            <ChevronRight className="h-6 w-6" />
+            <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6" />
           </button>
 
           {/* Bullet Indicators */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-30 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+          <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-30 bg-black/40 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/10">
             {slides.map((_, idx) => (
               <button
                 key={idx}
@@ -313,8 +307,8 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                   setDirection(idx > current ? 1 : -1);
                   setCurrent(idx);
                 }}
-                className={`h-2.5 rounded-full transition-all cursor-pointer ${
-                  current === idx ? "bg-primary w-6" : "bg-white/50 hover:bg-white w-2.5"
+                className={`h-2 sm:h-2.5 rounded-full transition-all cursor-pointer ${
+                  current === idx ? "bg-primary w-5 sm:w-6" : "bg-white/50 hover:bg-white w-2 sm:w-2.5"
                 }`}
                 aria-label={`Go to slide ${idx + 1}`}
               />
