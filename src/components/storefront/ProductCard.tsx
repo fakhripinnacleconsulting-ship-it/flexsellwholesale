@@ -59,14 +59,26 @@ export function ProductCard({ product }: ProductCardProps) {
     return imgs;
   }, [product.colorVariants]);
 
-  // Auto-slide effect (every 2.8 seconds on hover)
+  // Auto-slide effect (every 1.2 seconds on hover)
   React.useEffect(() => {
     if (allImages.length <= 1 || !isHovered) return;
     const interval = setInterval(() => {
       setCurrentImgIndex((prev) => (prev + 1) % allImages.length);
-    }, 2800);
+    }, 1200);
     return () => clearInterval(interval);
   }, [allImages.length, isHovered]);
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (allImages.length > 1) {
+      setCurrentImgIndex((prev) => (prev + 1) % allImages.length);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setCurrentImgIndex(0);
+  };
 
   const customerTypes = customer?.customerTypes;
   const hasCustomerTypes = Boolean(customerTypes && customerTypes.length > 0);
@@ -164,8 +176,8 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Card 
       onClick={handleCardClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group border border-border/80 cursor-pointer select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
     >
       {/* Fixed Floating Overlay Badges */}

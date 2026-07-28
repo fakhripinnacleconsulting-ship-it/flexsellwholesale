@@ -28,7 +28,7 @@ interface DropshippingBusinessSectionProps {
 export function DropshippingBusinessSection({ data }: DropshippingBusinessSectionProps) {
   const heading = data?.heading || "Automated Dropshipping Partner Program";
   const subheading = data?.subheading || "Sell retail online without stocking inventory. We store, quality check, and white-label dispatch directly to your end buyers.";
-  const ctaText = data?.ctaText || "Apply for Dropshipper Access & API";
+  const ctaText = data?.ctaText || "Apply for Dropshipper Access";
   const ctaLink = data?.ctaLink || "/dropshipping";
 
   const defaultCards: DropshipCardItem[] = [
