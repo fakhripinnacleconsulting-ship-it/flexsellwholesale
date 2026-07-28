@@ -4,6 +4,8 @@ import * as React from "react";
 import { Package, Truck, MapPin, Users, Award, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
+
 export interface TrustStatItem {
   icon: string;
   count: string;
@@ -52,13 +54,15 @@ export function TrustBar({ stats }: TrustBarProps) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: idx * 0.1 }}
-            className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card/60 backdrop-blur-sm shadow-sm hover:border-primary/40 hover:shadow-md transition-all"
+            className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card/60 backdrop-blur-sm shadow-sm hover:border-primary/40 hover:shadow-md transition-all hover:scale-[1.02]"
           >
             <div className="p-3 bg-primary/10 rounded-xl flex-shrink-0">
               {getStatIcon(item.icon)}
             </div>
             <div>
-              <p className="text-xl md:text-2xl font-black text-foreground tracking-tight">{item.count}</p>
+              <p className="text-xl md:text-2xl font-black text-foreground tracking-tight">
+                <AnimatedCounter value={item.count} duration={2000} />
+              </p>
               <p className="text-xs text-muted-foreground font-medium mt-0.5">{item.label}</p>
             </div>
           </motion.div>
