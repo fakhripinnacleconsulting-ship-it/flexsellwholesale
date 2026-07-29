@@ -4,8 +4,7 @@ import { PolicyLayout } from "@/components/storefront/PolicyLayout";
 import { getPolicyData } from "@/lib/getPolicyData";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 3600; // ISR revalidation every 1 hour
 
 export async function generateMetadata(): Promise<Metadata> {
   const policy = await getPolicyData("return");
