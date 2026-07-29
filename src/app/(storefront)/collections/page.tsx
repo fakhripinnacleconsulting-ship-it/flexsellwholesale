@@ -1,9 +1,19 @@
-import * as React from "react";
+import type { Metadata } from "next";
 import { collectionService } from "@/services/collectionService";
 import { CollectionCard } from "@/components/storefront/CollectionCard";
 import { Layers } from "lucide-react";
+import { constructMetadata } from "@/lib/seo";
 
 export const revalidate = 60; // ISR revalidation every 60s
+
+export async function generateMetadata(): Promise<Metadata> {
+  return constructMetadata({
+    title: "Curated Product Sourcing Collections",
+    description: "Browse hand-picked and automated wholesale product collections. Direct factory lines, trending utilities, and high-margin dropshipping segments.",
+    keywords: ["wholesale collections", "curated sourcing", "trending catalog", "factory direct collections"],
+    path: "/collections",
+  });
+}
 
 export default async function CollectionsPage() {
   const collections = await collectionService.getCollections();

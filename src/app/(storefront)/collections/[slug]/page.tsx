@@ -8,21 +8,26 @@ import { ExportCatalogButton } from "@/components/storefront/ExportCatalogButton
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Layers, AlertCircle, ShoppingBag } from "lucide-react";
 
+import { constructMetadata, generateCollectionSchema, generateBreadcrumbSchema } from "@/lib/seo";
+
 export const revalidate = 60; // ISR revalidation every 60s
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   try {
     const collection = await collectionService.getCollectionBySlug(slug);
-    return {
+    return constructMetadata({
       title: collection.seoTitle || `${collection.title} | Curated Wholesale Sourcing`,
       description: collection.seoDescription || collection.description || `Shop the ${collection.title} collection at direct wholesale prices.`,
       keywords: collection.seoKeywords || `${collection.title}, wholesale sourcing, bulk procurement, factory direct`,
-    };
+      image: collection.bannerImage,
+      path: `/collections/${collection.slug}`,
+    });
   } catch (err) {
-    return {
-      title: "Collection Sourcing Slabs | FlexSell Wholesale",
-    };
+    return constructMetadata({
+      title: "Collection Sourcing Slabs",
+      path: `/collections/${slug}`,
+    });
   }
 }
 
@@ -50,7 +55,12 @@ export default async function CollectionDetailPage({ params }: { params: Promise
     return notFound();
   }
 
-  // Define breadcrumb items
+  const collectionJsonLd = generateCollectionSchema(collection);
+  const breadcrumbJsonLd = generateBreadcrumbSchema([
+    { label: "Collections", href: "/collections" },
+    { label: toTitleCase(collection.title), href: `/collections/${collection.slug}` }
+  ]);
+
   const breadcrumbItems = [
     { label: "Home", href: "/" },
     { label: "Collections", href: "/collections" },
@@ -58,7 +68,16 @@ export default async function CollectionDetailPage({ params }: { params: Promise
   ];
 
   return (
-    <div className="mx-auto max-w-8xl px-4 md:px-6 py-6 md:py-10 text-foreground select-none">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <div className="mx-auto max-w-8xl px-4 md:px-6 py-6 md:py-10 text-foreground select-none">
       {/* Breadcrumbs */}
       <div className="mb-6">
         <Breadcrumb items={breadcrumbItems} />
@@ -133,5 +152,6 @@ export default async function CollectionDetailPage({ params }: { params: Promise
         </div>
       )}
     </div>
+    </>
   );
 }

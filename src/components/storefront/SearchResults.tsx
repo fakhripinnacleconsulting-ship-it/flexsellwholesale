@@ -27,6 +27,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { formatPrice } from "@/lib/utils";
 import { ProductCard } from "./ProductCard";
 import { GlobalSearchInput } from "./GlobalSearchInput";
+import { normalizeQueryWithTypos, fuzzyMatchesToken } from "@/lib/fuzzySearch";
 
 interface SearchResultsProps {
   query: string;
@@ -107,9 +108,11 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
     return null;
   }, [activeProducts, lowercaseQuery]);
 
-  // Search Results base match list with SKU priority sorting
+  // Search Results base match list with SKU priority & typo-tolerant fuzzy matching
   const results = React.useMemo(() => {
     if (!lowercaseQuery) return activeProducts;
+
+    const { canonicalQuery, tokens } = normalizeQueryWithTypos(lowercaseQuery);
 
     const listWithScore = activeProducts
       .map((p) => {
@@ -117,40 +120,64 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
         let matchedBySku = false;
 
         // 1. Exact Product ID match (+100)
-        if (p._id.toLowerCase() === lowercaseQuery) score += 100;
+        if (p._id.toLowerCase() === lowercaseQuery || p._id.toLowerCase() === canonicalQuery) score += 100;
 
         // 2. SKU and Barcode match (+95 exact, +70 partial)
         p.colorVariants?.forEach((cv) => {
           cv.subVariants?.forEach((sv) => {
             const skuLower = (sv.sku || "").toLowerCase();
             const barcodeLower = (sv.barcode || "").toLowerCase();
-            if (skuLower === lowercaseQuery || barcodeLower === lowercaseQuery) {
+            if (skuLower === lowercaseQuery || barcodeLower === lowercaseQuery || skuLower === canonicalQuery) {
               score += 95;
               matchedBySku = true;
-            } else if (skuLower.startsWith(lowercaseQuery)) {
+            } else if (skuLower.startsWith(lowercaseQuery) || skuLower.startsWith(canonicalQuery)) {
               score += 70;
               matchedBySku = true;
-            } else if (skuLower.includes(lowercaseQuery) || barcodeLower.includes(lowercaseQuery)) {
+            } else if (skuLower.includes(lowercaseQuery) || barcodeLower.includes(lowercaseQuery) || skuLower.includes(canonicalQuery)) {
               score += 50;
               matchedBySku = true;
             }
           });
         });
 
-        // 3. Title match (+60 exact, +40 start, +25 includes)
+        // 3. Title match (exact/starts/includes for raw & canonical, plus token fuzzy score)
         const titleLower = p.title.toLowerCase();
-        if (titleLower === lowercaseQuery) score += 60;
-        else if (titleLower.startsWith(lowercaseQuery)) score += 40;
-        else if (titleLower.includes(lowercaseQuery)) score += 25;
+        if (titleLower === lowercaseQuery || titleLower === canonicalQuery) score += 60;
+        else if (titleLower.startsWith(lowercaseQuery) || titleLower.startsWith(canonicalQuery)) score += 40;
+        else if (titleLower.includes(lowercaseQuery) || titleLower.includes(canonicalQuery)) score += 25;
 
-        // 4. Category Name match (+30)
+        // Title Token Fuzzy Match (+15 per matched token)
+        const titleWords = titleLower.split(/\s+/);
+        tokens.forEach((t) => {
+          if (titleWords.some((w) => fuzzyMatchesToken(w, t))) {
+            score += 15;
+          }
+        });
+
+        // 4. Category Name match (+30 exact/includes, +15 fuzzy)
         const category = categories.find((c) => c._id === p.categoryId);
-        if (category && category.name.toLowerCase().includes(lowercaseQuery)) score += 30;
+        if (category) {
+          const catLower = category.name.toLowerCase();
+          if (catLower.includes(lowercaseQuery) || catLower.includes(canonicalQuery)) {
+            score += 30;
+          } else if (tokens.some((t) => fuzzyMatchesToken(catLower, t))) {
+            score += 15;
+          }
+        }
 
-        // 5. Tags & HSN Code (+20)
-        if (p.hsnCode && p.hsnCode.toLowerCase().includes(lowercaseQuery)) score += 20;
-        if (p.tags?.some((t) => t.toLowerCase().includes(lowercaseQuery))) score += 20;
-        if ((p.description || "").toLowerCase().includes(lowercaseQuery)) score += 10;
+        // 5. Tags & HSN Code (+20 exact, +10 fuzzy)
+        if (p.hsnCode && (p.hsnCode.toLowerCase().includes(lowercaseQuery) || p.hsnCode.toLowerCase().includes(canonicalQuery))) {
+          score += 20;
+        }
+        if (p.tags?.some((t) => t.toLowerCase().includes(lowercaseQuery) || t.toLowerCase().includes(canonicalQuery))) {
+          score += 20;
+        } else if (p.tags?.some((t) => tokens.some((qt) => fuzzyMatchesToken(t, qt)))) {
+          score += 12;
+        }
+
+        if ((p.description || "").toLowerCase().includes(lowercaseQuery) || (p.description || "").toLowerCase().includes(canonicalQuery)) {
+          score += 10;
+        }
 
         return { product: p, score, matchedBySku };
       })

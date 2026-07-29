@@ -31,7 +31,7 @@ function LoginForm() {
       if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
         try {
           (window as any).google.accounts.id.initialize({
-            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "652908610181-88s80steoogb6d6lsg60eo5vsc7pn5ff.apps.googleusercontent.com",
+            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "327707227008-017vqk7dtsdl5c5pbqcokf0a1752lqc3.apps.googleusercontent.com",
             callback: handleGoogleResponse,
           });
 

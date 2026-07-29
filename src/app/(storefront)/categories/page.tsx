@@ -5,7 +5,19 @@ import { Card } from "@/components/ui/Card";
 import { categoryService } from "@/services/categoryService";
 import { productService } from "@/services/productService";
 
+import type { Metadata } from "next";
+import { constructMetadata } from "@/lib/seo";
+
 export const revalidate = 60;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return constructMetadata({
+    title: "Browse All Wholesale Product Categories",
+    description: "Explore factory wholesale categories including kitchen tools, household gadgets, home utilities, and trending e-commerce items.",
+    keywords: ["wholesale categories", "kichen gadgets category", "home utlities catalog", "bulk buying categories"],
+    path: "/categories",
+  });
+}
 
 export default async function CategoriesPage() {
   const categories = await categoryService.getCategories();

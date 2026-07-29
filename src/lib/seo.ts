@@ -6,13 +6,35 @@ export const DOMAIN_ALT = "https://flexsellwholesale.com";
 export const BRAND_NAME = "FlexSell Wholesale";
 export const BRAND_SHORT = "FlexSell";
 
-// Default System Keywords for General SEO & AI Generative Search Engines
+// Default System Keywords for General SEO & AI Generative Search Engines (Including Misspelling & Typo Variations)
 export const DEFAULT_KEYWORDS = [
+  // Primary Brand & Misspellings / Typos
   "FlexSell", "FlexSell Wholesale", "FlexSellWholesale", "FlexSell India", "FlexSell B2B",
+  "Flexsel", "Flexsell", "Fleksell", "Flex sell", "Flxsell", "Flex cell", "Flexcel", "Flexsale",
+  "Flex sell wholesale", "Flexsel wholesale", "Flexsell login", "Flexsell app", "Flexsell marketplace",
+  
+  // B2B & Wholesale Terminology & Typos
   "wholesale marketplace India", "factory direct wholesale", "B2B ecommerce Bhopal",
   "dropshipping supplier India", "bulk buying India", "manufacturer price online",
+  "wholesale market", "bulk buy India", "factory price", "reseller supplier", "B2B marketplace",
+  "wholesail", "holesale", "wohlesale", "wholestore", "bulksale", "bluk buy", "bluk purchasing", "reseler", "resseller", "factory direct rate",
+
+  // Competitor & Market Terms (Targeted Alternatives & Typos)
+  "Deodap alternative", "Deodap wholesale", "India B2B portal",
+  "Diodap", "Deodapp", "Deodap wholesal", "Deodap dropshiping", "Diodap wholesale",
+
+  // Category, Household & Product Terms & Typos
   "kitchen gadgets wholesale", "household products direct importer", "reseller wholesale portal",
-  "FlexSell login", "FlexSell app", "FlexSell marketplace", "FlexSell products"
+  "kitchen gadgets", "household utilities", "smart home products", "home organizer",
+  "kichen gadgets", "kichen tools", "home utlities", "home utillities", "house hold items", "smart kichen", "organiser home",
+
+  // Dropshipping & E-Commerce Terms & Typos
+  "dropshipping supplier India", "blind dropshipping", "zero investment business",
+  "dropshiping", "dropshipin", "drop sping", "dropshippin", "blind dropshiping", "ecomerce sourcing",
+
+  // Geographic & Location Terms & Typos
+  "wholesale Bhopal", "Madhya Pradesh B2B", "Central India wholesaler",
+  "wholsale Bhopal", "Bhopal wholesail", "MP wholesale"
 ];
 
 interface DynamicSEOProps {
@@ -334,3 +356,90 @@ export function generateFAQSchema(faqs: { question: string; answer: string }[]) 
     }))
   };
 }
+
+/** Blog Article / Post Schema */
+export function generateBlogArticleSchema(article: {
+  title: string;
+  description?: string;
+  slug: string;
+  coverImage?: string;
+  author?: string;
+  publishedAt?: string;
+  updatedAt?: string;
+}) {
+  const articleUrl = `${SITE_URL}/blogs/${article.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "@id": `${articleUrl}#article`,
+    "url": articleUrl,
+    "headline": article.title,
+    "description": article.description || article.title,
+    "image": article.coverImage ? [article.coverImage] : [`${SITE_URL}/Flexsell%20Logo.png`],
+    "datePublished": article.publishedAt || new Date().toISOString(),
+    "dateModified": article.updatedAt || article.publishedAt || new Date().toISOString(),
+    "author": {
+      "@type": "Person",
+      "name": article.author || "FlexSell Editorial Team"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": BRAND_NAME,
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${SITE_URL}/Flexsell%20Logo.png`
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": articleUrl
+    }
+  };
+}
+
+/** Collection Schema */
+export function generateCollectionSchema(collection: {
+  title: string;
+  description?: string;
+  slug: string;
+  bannerImage?: string;
+}) {
+  const collectionUrl = `${SITE_URL}/collections/${collection.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${collectionUrl}#collection`,
+    "url": collectionUrl,
+    "name": collection.title,
+    "description": collection.description || `Browse ${collection.title} at direct factory wholesale rates.`,
+    "image": collection.bannerImage ? [collection.bannerImage] : [`${SITE_URL}/Flexsell%20Logo.png`],
+    "publisher": {
+      "@type": "Organization",
+      "name": BRAND_NAME
+    }
+  };
+}
+
+/** Category Schema */
+export function generateCategorySchema(category: {
+  name: string;
+  description?: string;
+  slug: string;
+  image?: string;
+}) {
+  const categoryUrl = `${SITE_URL}/categories/${category.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${categoryUrl}#category`,
+    "url": categoryUrl,
+    "name": category.name,
+    "description": category.description || `Sourcing factory direct wholesale items in ${category.name}.`,
+    "image": category.image ? [category.image] : [`${SITE_URL}/Flexsell%20Logo.png`],
+    "publisher": {
+      "@type": "Organization",
+      "name": BRAND_NAME
+    }
+  };
+}
+

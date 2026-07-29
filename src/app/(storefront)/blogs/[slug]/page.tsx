@@ -18,8 +18,36 @@ import {
   Copy,
 } from "lucide-react";
 
+import type { Metadata } from "next";
+import { constructMetadata, generateBlogArticleSchema, generateBreadcrumbSchema } from "@/lib/seo";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    await dbConnect();
+    const cmsBlogsDoc = await CmsContent.findOne({ key: "blogs" }).lean();
+    const allBlogs: BlogPostItem[] = cmsBlogsDoc?.value || [];
+    const blog = allBlogs.find((b) => b.slug === slug && b.isActive !== false);
+
+    if (!blog) {
+      return constructMetadata({ title: "Article Not Found", noIndex: true });
+    }
+
+    return constructMetadata({
+      title: blog.title,
+      description: blog.excerpt || blog.title,
+      keywords: [blog.category || "E-commerce", "FlexSell Blog", "wholesale guide", "dropshipping tips"],
+      image: blog.coverImage,
+      type: "article",
+      path: `/blogs/${blog.slug}`,
+    });
+  } catch (err) {
+    return constructMetadata({ title: "FlexSell Industry Blog", path: `/blogs/${slug}` });
+  }
+}
 
 export default async function BlogPostPage({
   params,
@@ -41,10 +69,30 @@ export default async function BlogPostPage({
   // Related articles in same category
   const relatedBlogs = allBlogs
     .filter((b) => b.slug !== slug && b.isActive !== false && b.category === blog.category)
-    .slice(0, 3);
+  const articleJsonLd = generateBlogArticleSchema({
+    title: blog.title,
+    description: blog.excerpt,
+    slug: blog.slug,
+    coverImage: blog.coverImage,
+    author: blog.author,
+    publishedAt: blog.publishedAt,
+  });
+  const breadcrumbJsonLd = generateBreadcrumbSchema([
+    { label: "Blogs", href: "/blogs" },
+    { label: blog.title, href: `/blogs/${blog.slug}` }
+  ]);
 
   return (
-    <article className="container mx-auto px-4 py-10 max-w-4xl space-y-8 text-foreground">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <article className="container mx-auto px-4 py-10 max-w-4xl space-y-8 text-foreground">
       {/* Top Breadcrumb Header */}
       <div className="flex items-center justify-between border-b pb-4">
         <Link
@@ -176,5 +224,6 @@ export default async function BlogPostPage({
         </div>
       )}
     </article>
+    </>
   );
 }

@@ -5,8 +5,20 @@ import CmsContent from "@/models/CmsContent";
 import { BookOpen, Calendar, User, Clock, Search, ArrowRight, Sparkles } from "lucide-react";
 import { BlogPostItem } from "@/components/admin/cms/types";
 
+import type { Metadata } from "next";
+import { constructMetadata } from "@/lib/seo";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return constructMetadata({
+    title: "Wholesale & Dropshipping E-Commerce Industry Blogs",
+    description: "Insights, guides, and sourcing tips for Indian retailers, reseller businesses, e-commerce brands, and dropshippers.",
+    keywords: ["b2b blog", "dropshipping guide India", "reseller tips", "wholesale insights"],
+    path: "/blogs",
+  });
+}
 
 export default async function BlogsPage({
   searchParams,

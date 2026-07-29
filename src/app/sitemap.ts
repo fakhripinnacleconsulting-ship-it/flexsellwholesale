@@ -56,7 +56,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
       }));
 
-    return [...staticRoutes, ...productRoutes, ...categoryRoutes, ...collectionRoutes];
+    // Dynamic blogs routes
+    let blogRoutes: MetadataRoute.Sitemap = [];
+    try {
+      const dbConnect = (await import("@/lib/dbConnect")).default;
+      const CmsContent = (await import("@/models/CmsContent")).default;
+      await dbConnect();
+      const cmsBlogsDoc = await CmsContent.findOne({ key: "blogs" }).lean();
+      if (cmsBlogsDoc?.value && Array.isArray(cmsBlogsDoc.value)) {
+        blogRoutes = cmsBlogsDoc.value
+          .filter((b: any) => b.isActive !== false && b.slug)
+          .map((b: any) => ({
+            url: `${baseUrl}/blogs/${b.slug}`,
+            lastModified: b.publishedAt ? new Date(b.publishedAt) : new Date(),
+            changeFrequency: "weekly" as const,
+            priority: 0.7,
+          }));
+      }
+    } catch (err) {
+      console.error("Sitemap blog fetch notice:", err);
+    }
+
+    return [...staticRoutes, ...productRoutes, ...categoryRoutes, ...collectionRoutes, ...blogRoutes];
   } catch (error) {
     console.error("Sitemap generation error, falling back to static routes:", error);
     return staticRoutes;

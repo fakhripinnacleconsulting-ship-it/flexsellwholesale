@@ -19,6 +19,8 @@ import { TestimonialsSection } from "@/components/storefront/TestimonialsSection
 import { BrandPartnersBar } from "@/components/storefront/BrandPartnersBar";
 import { FeaturedCollections } from "@/components/storefront/FeaturedCollections";
 
+import { constructMetadata } from "@/lib/seo";
+
 export const revalidate = 60; // ISR revalidation every 60s
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,30 +31,22 @@ export async function generateMetadata(): Promise<Metadata> {
 
     const title = seo.seoTitle || "FlexSell Wholesale | India's Leading B2B Sourcing Platform";
     const description = seo.seoDescription || "Direct factory wholesale sourcing, automated dropshipping fulfillment, and bulk tier pricing for Indian retailers and e-commerce sellers.";
-    const keywords = seo.seoKeywords || "wholesale India, B2B sourcing, dropshipping partner, bulk buy";
+    const keywords = seo.seoKeywords || "";
     const ogImage = seo.ogImageUrl || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80";
 
-    return {
+    return constructMetadata({
       title,
       description,
       keywords,
-      openGraph: {
-        title,
-        description,
-        images: [{ url: ogImage }],
-      },
-      twitter: {
-        card: "summary_large_image",
-        title,
-        description,
-        images: [ogImage],
-      },
-    };
+      image: ogImage,
+      path: "/",
+    });
   } catch (err) {
-    return {
+    return constructMetadata({
       title: "FlexSell Wholesale | India's Leading B2B Sourcing Platform",
       description: "Direct factory wholesale sourcing and bulk tier pricing for Indian retailers.",
-    };
+      path: "/",
+    });
   }
 }
 
