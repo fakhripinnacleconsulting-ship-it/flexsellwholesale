@@ -20,4 +20,7 @@ const CouponSchema = new Schema<CouponType & Document>(
   { timestamps: true }
 );
 
+CouponSchema.index({ code: 1, isActive: 1 });
+CouponSchema.index({ isActive: 1 });
+
 export default mongoose.models.Coupon || mongoose.model("Coupon", CouponSchema);

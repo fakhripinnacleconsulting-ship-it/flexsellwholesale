@@ -17,5 +17,7 @@ const ReviewSchema = new Schema<ReviewType & Document>(
 
 // Compound index to ensure a customer can only review a product once
 ReviewSchema.index({ productId: 1, customerId: 1 }, { unique: true });
+ReviewSchema.index({ productId: 1, status: 1 });
+ReviewSchema.index({ status: 1 });
 
 export default mongoose.models.Review || mongoose.model("Review", ReviewSchema);

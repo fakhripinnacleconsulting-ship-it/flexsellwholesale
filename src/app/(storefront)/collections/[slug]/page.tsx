@@ -88,11 +88,13 @@ export default async function CollectionDetailPage({ params }: { params: Promise
         {/* Banner image or fallback   gradient */}
         {collection.bannerImage ? (
           <div className="absolute inset-0 z-0 bg-secondary">
-            <img
+            <Image
               src={collection.bannerImage}
               alt={collection.title}
-              className="absolute inset-0 w-full h-full object-cover brightness-[0.7] saturate-[1.1] scale-100 group-hover:scale-105 transition-transform duration-700"
-              loading="eager"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover brightness-[0.7] saturate-[1.1] scale-100 group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-gradient-to-tr from-background/95 via-background/60 to-transparent" />
           </div>

@@ -8,8 +8,7 @@ import { BlogPostItem } from "@/components/admin/cms/types";
 import type { Metadata } from "next";
 import { constructMetadata } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300; // 5 min ISR caching for fast static rendering
 
 export async function generateMetadata(): Promise<Metadata> {
   return constructMetadata({

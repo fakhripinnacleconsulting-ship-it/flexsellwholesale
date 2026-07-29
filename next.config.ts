@@ -16,8 +16,16 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // Public read-only API routes — allow CDN edge caching
       {
-        source: "/api/:path*",
+        source: "/api/(products|categories|collections|search|cms|reviews|health)(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=60, stale-while-revalidate=120" },
+        ],
+      },
+      // Auth, admin, and state-changing API routes — never cache
+      {
+        source: "/api/(auth|admin|orders|invoices|customers|notifications|coupons|push|razorpay|shipping|shiprocket|upload|inventory)(.*)",
         headers: [
           { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, proxy-revalidate" },
           { key: "Pragma", value: "no-cache" },

@@ -1,6 +1,25 @@
+import { cache } from "react";
 import { Collection, Product, CollectionCondition, CollectionRules } from "@/types";
 import { apiClient, isMockMode } from "@/lib/apiClient";
 import { productService } from "./productService";
+
+const fetchCollectionBySlug = cache(async (slug: string): Promise<Collection> => {
+  if (typeof window === "undefined") {
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    await dbConnect();
+    const CollectionModel = (await import("@/models/Collection")).default;
+    const collection = await CollectionModel.findOne({ slug }).lean();
+    if (!collection) throw new Error("Collection not found");
+    return JSON.parse(JSON.stringify(collection));
+  }
+
+  if (isMockMode) {
+    const collection = getLocalCollections().find(c => c.slug === slug);
+    if (!collection) throw new Error("Collection not found");
+    return collection;
+  }
+  return apiClient.get<Collection>(`/collections/slug/${slug}`);
+});
 
 const STORAGE_KEY = "flexsell-collections-storage";
 
@@ -159,22 +178,8 @@ export const collectionService = {
     return apiClient.get<Collection>(`/collections/${id}`);
   },
 
-  async getCollectionBySlug(slug: string): Promise<Collection> {
-    if (typeof window === "undefined") {
-      const dbConnect = (await import("@/lib/dbConnect")).default;
-      await dbConnect();
-      const CollectionModel = (await import("@/models/Collection")).default;
-      const collection = await CollectionModel.findOne({ slug }).lean();
-      if (!collection) throw new Error("Collection not found");
-      return JSON.parse(JSON.stringify(collection));
-    }
-
-    if (isMockMode) {
-      const collection = getLocalCollections().find(c => c.slug === slug);
-      if (!collection) throw new Error("Collection not found");
-      return collection;
-    }
-    return apiClient.get<Collection>(`/collections/slug/${slug}`);
+  getCollectionBySlug(slug: string): Promise<Collection> {
+    return fetchCollectionBySlug(slug);
   },
 
   async createCollection(

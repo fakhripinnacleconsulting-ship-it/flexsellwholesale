@@ -47,10 +47,15 @@ async function request<T>(
     }
   }
 
+  // Only force no-store for state-changing methods; allow GET requests to use
+  // browser/CDN default caching. Callers can still pass cache: "no-store" via options.
+  const method = options.method?.toUpperCase() || "GET";
+  const isStateChanging = ["POST", "PUT", "DELETE"].includes(method);
+
   const config: RequestInit = {
     ...options,
     headers,
-    cache: "no-store",
+    ...(isStateChanging && !options.cache ? { cache: "no-store" as RequestCache } : {}),
   };
 
   try {

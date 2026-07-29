@@ -211,7 +211,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const orders = await Order.find(query).sort({ createdAt: -1 }).lean();
+    const orders = await Order.find(query).sort({ createdAt: -1 }).limit(100).lean();
     return NextResponse.json(orders);
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to fetch orders" }, { status: 500 });

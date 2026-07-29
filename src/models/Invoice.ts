@@ -108,6 +108,7 @@ const InvoiceSchema = new Schema<InvoiceType & Document>(
   { timestamps: true }
 );
 
+InvoiceSchema.index({ orderId: 1, type: 1 });
 InvoiceSchema.index({ type: 1 });
 InvoiceSchema.index({ orderId: 1 });
 InvoiceSchema.index({ customerId: 1 });

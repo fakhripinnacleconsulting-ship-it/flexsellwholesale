@@ -30,11 +30,12 @@ export function CollectionCard({ collection, productCount = 0 }: CollectionCardP
         {/* Background Image / Placeholder */}
         <div className="absolute inset-0 bg-secondary overflow-hidden z-0">
           {collection.image ? (
-            <img
+            <Image
               src={collection.image}
               alt={formattedTitle}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 brightness-[0.8] group-hover:brightness-[0.7]"
-              loading="lazy"
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-700 brightness-[0.8] group-hover:brightness-[0.7]"
             />
           ) : (
             <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-primary/10 via-secondary to-background" />

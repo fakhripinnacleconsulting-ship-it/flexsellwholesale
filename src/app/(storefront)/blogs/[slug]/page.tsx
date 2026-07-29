@@ -21,8 +21,7 @@ import {
 import type { Metadata } from "next";
 import { constructMetadata, generateBlogArticleSchema, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300; // 5 min ISR caching for fast static rendering
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

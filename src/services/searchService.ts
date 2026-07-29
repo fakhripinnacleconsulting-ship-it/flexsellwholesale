@@ -172,10 +172,27 @@ export const searchService = {
       const allCategories: Category[] = await CategoryModel.find({ isActive: true }).lean();
       const categoryMap = new Map<string, Category>(allCategories.map((c) => [c._id, c]));
 
-      let rawProducts: Product[] = await ProductModel.find(filter).lean();
-      rawProducts = JSON.parse(JSON.stringify(rawProducts));
-
       const queryStr = options.query || options.sku || "";
+
+      let queryObj = ProductModel.find(filter);
+      if (queryStr.trim()) {
+        const regex = new RegExp(queryStr.trim().replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"), "i");
+        filter.$or = [
+          { _id: queryStr.trim() },
+          { title: regex },
+          { tags: regex },
+          { seoKeywords: regex },
+          { "colorVariants.subVariants.sku": regex },
+          { "colorVariants.subVariants.barcode": regex },
+          { hsnCode: regex }
+        ];
+        queryObj = ProductModel.find(filter).limit(200);
+      } else {
+        queryObj = ProductModel.find(filter).limit(300);
+      }
+
+      let rawProducts: Product[] = await queryObj.lean();
+      rawProducts = JSON.parse(JSON.stringify(rawProducts));
 
       // Relevancy & filtering
       let scoredList: Array<{ product: Product; score: number; matchedSku?: string }> = [];
@@ -322,13 +339,26 @@ export const searchService = {
       const categories: Category[] = await CategoryModel.find({ isActive: true }).lean();
       const categoryMap = new Map<string, Category>(categories.map((c) => [c._id, c]));
 
-      const rawProducts: Product[] = await ProductModel.find({ isActive: true }).lean();
+      const qLower = q.toLowerCase();
+      const regex = new RegExp(q.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"), "i");
+
+      const rawProducts: Product[] = await ProductModel.find({
+        isActive: true,
+        $or: [
+          { title: regex },
+          { tags: regex },
+          { seoKeywords: regex },
+          { "colorVariants.subVariants.sku": regex },
+          { "colorVariants.subVariants.barcode": regex },
+        ],
+      })
+        .limit(50)
+        .lean();
+
       const parsedProducts: Product[] = JSON.parse(JSON.stringify(rawProducts));
 
       const scoredList: Array<{ product: Product; score: number; matchedSku?: string }> = [];
       const matchedSkus: SuggestResult["skus"] = [];
-
-      const qLower = q.toLowerCase();
 
       for (const p of parsedProducts) {
         const { score, matchedSku } = calculateProductRelevanceScore(p, q, categoryMap);

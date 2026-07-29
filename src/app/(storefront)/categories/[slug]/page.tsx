@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { productService } from "@/services/productService";
+import { searchService } from "@/services/searchService";
 import { categoryService } from "@/services/categoryService";
 import { CategoryCatalog } from "@/components/storefront/CategoryCatalog";
 import { constructMetadata, generateCategorySchema, generateBreadcrumbSchema } from "@/lib/seo";
@@ -31,12 +31,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function CategoryProductsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [products, categories] = await Promise.all([
-    productService.getProducts(),
-    categoryService.getCategories()
-  ]);
-
+  const categories = await categoryService.getCategories();
   const currentCategory = categories.find((c) => c.slug === slug);
+
+  // Fetch only products belonging to this category (or all if not found) instead of entire catalog
+  const products = currentCategory
+    ? (await searchService.searchProducts({ categoryId: currentCategory._id, limit: 100 })).products
+    : [];
+
   const categoryJsonLd = currentCategory ? generateCategorySchema(currentCategory) : null;
   const breadcrumbJsonLd = generateBreadcrumbSchema([
     { label: "Categories", href: "/categories" },

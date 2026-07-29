@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -143,6 +144,8 @@ export function CartView() {
     }
   };
 
+  const router = useRouter();
+
   // Dropshipping redirect guard
   const { useAuthStore } = require("@/stores/authStore");
   const customer = useAuthStore((state: any) => state.customer);
@@ -150,9 +153,9 @@ export function CartView() {
 
   React.useEffect(() => {
     if (isDropshipperOnly) {
-      window.location.href = "/client";
+      router.push("/client");
     }
-  }, [isDropshipperOnly]);
+  }, [isDropshipperOnly, router]);
 
   if (isDropshipperOnly) {
     return <div className="p-12 text-center text-muted-foreground">Redirecting...</div>;

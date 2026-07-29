@@ -83,9 +83,9 @@ export function CheckoutView() {
 
   React.useEffect(() => {
     if (isDropshipperOnly) {
-      window.location.href = "/client";
+      router.push("/client");
     }
-  }, [isDropshipperOnly]);
+  }, [isDropshipperOnly, router]);
 
   React.useEffect(() => {
     shippingService.getConfig()

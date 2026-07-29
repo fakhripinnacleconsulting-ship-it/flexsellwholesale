@@ -13,27 +13,36 @@ export default async function AdminDashboardPage() {
   let lowStockCount = 0;
   let recentOrders: any[] = [];
   let totalOrders = 0;
+  let totalRevenue = 0;
 
   try {
     await dbConnect();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const [ordersRes, pCount, lsCount, rOrders, tOrders] = await Promise.all([
-      Order.find({ status: { $ne: "Cancelled" } }).select("amount createdAt").lean(),
+    const [revenueAgg, ordersRes, pCount, lsCount, rOrders, tOrders] = await Promise.all([
+      Order.aggregate([
+        { $match: { status: { $ne: "Cancelled" } } },
+        { $group: { _id: null, totalRevenue: { $sum: "$amount" } } }
+      ]),
+      Order.find({ status: { $ne: "Cancelled" } }).sort({ createdAt: -1 }).limit(500).select("amount createdAt").lean(),
       Product.countDocuments({ isActive: true }),
       Product.countDocuments({ totalStock: { $lt: 15 }, isActive: true }),
       Order.find().sort({ createdAt: -1 }).limit(5).lean(),
       Order.countDocuments()
     ]);
+
     orders = ordersRes;
     productsCount = pCount;
     lowStockCount = lsCount;
     recentOrders = rOrders;
     totalOrders = tOrders;
+    if (revenueAgg && revenueAgg[0]?.totalRevenue) {
+      totalRevenue = revenueAgg[0].totalRevenue;
+    }
   } catch (err) {
     console.error("AdminDashboardPage DB fetch notice:", (err as any)?.message || err);
   }
-
-  const totalRevenue = orders.reduce((sum, order) => sum + (order.amount || 0), 0);
 
   // Generate 7-day revenue trend
   const chartDataMap: Record<string, number> = {};

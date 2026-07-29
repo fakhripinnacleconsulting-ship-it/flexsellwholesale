@@ -70,32 +70,28 @@ export default async function HomePage() {
   try {
     await dbConnect();
 
-    // Fetch all CMS sections and product lists concurrently in parallel
+    const cmsKeys = [
+      "hero_banners",
+      "trust_stats",
+      "wholesale_business_details",
+      "dropshipping_business_details",
+      "testimonials_wholesale",
+      "testimonials_dropshipper",
+      "testimonials_client",
+      "brand_partners",
+      "homepage_settings"
+    ];
+
+    // Fetch CMS content in a single query along with storefront data in parallel
     const [
-      heroBannersRes,
-      trustStatsRes,
-      wholesaleBizRes,
-      dropshipBizRes,
-      testimonialsWholesaleRes,
-      testimonialsDropshipperRes,
-      testimonialsClientRes,
-      brandPartnersRes,
-      settingsRes,
+      cmsDocs,
       categoriesRes,
       trendingRes,
       newArrivalsRes,
       collectionsRes,
       productsRes
     ] = await Promise.all([
-      CmsContent.findOne({ key: "hero_banners" }).lean(),
-      CmsContent.findOne({ key: "trust_stats" }).lean(),
-      CmsContent.findOne({ key: "wholesale_business_details" }).lean(),
-      CmsContent.findOne({ key: "dropshipping_business_details" }).lean(),
-      CmsContent.findOne({ key: "testimonials_wholesale" }).lean(),
-      CmsContent.findOne({ key: "testimonials_dropshipper" }).lean(),
-      CmsContent.findOne({ key: "testimonials_client" }).lean(),
-      CmsContent.findOne({ key: "brand_partners" }).lean(),
-      CmsContent.findOne({ key: "homepage_settings" }).lean(),
+      CmsContent.find({ key: { $in: cmsKeys } }).lean(),
       categoryService.getCategories(),
       productService.getTrendingProducts(),
       productService.getNewArrivals(),
@@ -103,15 +99,18 @@ export default async function HomePage() {
       productService.getProducts({ limit: 10 })
     ]);
 
-    cmsHeroBanners = heroBannersRes;
-    cmsTrustStats = trustStatsRes;
-    cmsWholesaleBiz = wholesaleBizRes;
-    cmsDropshipBiz = dropshipBizRes;
-    cmsTestimonialsWholesale = testimonialsWholesaleRes;
-    cmsTestimonialsDropshipper = testimonialsDropshipperRes;
-    cmsTestimonialsClient = testimonialsClientRes;
-    cmsBrandPartners = brandPartnersRes;
-    cmsSettings = settingsRes;
+    const cmsMap = new Map((cmsDocs || []).map((doc: any) => [doc.key, doc]));
+
+    cmsHeroBanners = cmsMap.get("hero_banners");
+    cmsTrustStats = cmsMap.get("trust_stats");
+    cmsWholesaleBiz = cmsMap.get("wholesale_business_details");
+    cmsDropshipBiz = cmsMap.get("dropshipping_business_details");
+    cmsTestimonialsWholesale = cmsMap.get("testimonials_wholesale");
+    cmsTestimonialsDropshipper = cmsMap.get("testimonials_dropshipper");
+    cmsTestimonialsClient = cmsMap.get("testimonials_client");
+    cmsBrandPartners = cmsMap.get("brand_partners");
+    cmsSettings = cmsMap.get("homepage_settings");
+
     categories = categoriesRes;
     trendingProducts = trendingRes;
     newArrivals = newArrivalsRes;
@@ -121,20 +120,12 @@ export default async function HomePage() {
     console.error("HomePage DB fetch notice (using fallback content):", (err as any)?.message || err);
   }
 
-  // Batch resolve product counts for featured collections concurrently
+  // Calculate product counts for featured collections without N+1 queries
   const productCounts: Record<string, number> = {};
   const featuredCols = collections.filter(c => c.isActive && c.isFeatured);
-  await Promise.all(
-    featuredCols.map(async (col) => {
-      try {
-        const colProducts = await collectionService.getCollectionProducts(col._id);
-        productCounts[col._id] = colProducts.length;
-      } catch (err) {
-        console.error(`Failed to load product count for collection ${col._id}`, err);
-        productCounts[col._id] = 0;
-      }
-    })
-  );
+  for (const col of featuredCols) {
+    productCounts[col._id] = Array.isArray(col.productIds) ? col.productIds.length : 0;
+  }
 
   const heroBanners = cmsHeroBanners?.value || [
     {

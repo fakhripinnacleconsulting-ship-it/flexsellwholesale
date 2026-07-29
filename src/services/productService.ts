@@ -1,5 +1,18 @@
+import { cache } from "react";
 import { Product } from "@/types";
 import { apiClient } from "@/lib/apiClient";
+
+const fetchProductBySlug = cache(async (slug: string): Promise<Product> => {
+  if (typeof window === "undefined") {
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    await dbConnect();
+    const ProductModel = (await import("@/models/Product")).default;
+    const product = await ProductModel.findOne({ slug }).lean();
+    if (!product) throw new Error("Product not found");
+    return JSON.parse(JSON.stringify(product));
+  }
+  return apiClient.get<Product>(`/products/slug/${slug}`);
+});
 
 export const productService = {
   async getProducts(options?: { limit?: number }): Promise<Product[]> {
@@ -36,16 +49,8 @@ export const productService = {
     return apiClient.get<Product>(`/products/${id}`);
   },
 
-  async getProductBySlug(slug: string): Promise<Product> {
-    if (typeof window === "undefined") {
-      const dbConnect = (await import("@/lib/dbConnect")).default;
-      await dbConnect();
-      const ProductModel = (await import("@/models/Product")).default;
-      const product = await ProductModel.findOne({ slug }).lean();
-      if (!product) throw new Error("Product not found");
-      return JSON.parse(JSON.stringify(product));
-    }
-    return apiClient.get<Product>(`/products/slug/${slug}`);
+  getProductBySlug(slug: string): Promise<Product> {
+    return fetchProductBySlug(slug);
   },
 
   async createProduct(
@@ -124,7 +129,7 @@ export const productService = {
         // Query active categories, active products, and recent non-cancelled orders concurrently
         let productQuery = ProductModel.find({ isActive: true }).sort({ createdAt: -1 });
         if (typeof productQuery.limit === "function") {
-          productQuery = productQuery.limit(50);
+          productQuery = productQuery.limit(24);
         }
 
         let orderQuery: any = OrderModel.find({ status: { $ne: "Cancelled" } });
@@ -135,7 +140,7 @@ export const productService = {
           orderQuery = orderQuery.select("items");
         }
         if (typeof orderQuery.limit === "function") {
-          orderQuery = orderQuery.limit(100);
+          orderQuery = orderQuery.limit(20);
         }
 
         const [categories, products, orders] = await Promise.all([

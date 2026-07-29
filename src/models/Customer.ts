@@ -60,5 +60,8 @@ const CustomerSchema = new Schema<CustomerType & Document>(
   { timestamps: true }
 );
 
+CustomerSchema.index({ customerTypes: 1 });
+CustomerSchema.index({ role: 1 });
+
 // Standard Next.js hot-reload model caching pattern
 export default mongoose.models.Customer || mongoose.model("Customer", CustomerSchema);

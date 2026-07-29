@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { productService } from "@/services/productService";
 import { categoryService } from "@/services/categoryService";
+import { searchService } from "@/services/searchService";
 import { SearchResults } from "@/components/storefront/SearchResults";
 import { constructMetadata } from "@/lib/seo";
 
@@ -20,8 +20,16 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function SearchResultsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
   const query = q || "";
-  const products = await productService.getProducts();
-  const categories = await categoryService.getCategories();
+
+  // Fetch only matching products server-side instead of loading the full catalog
+  const [searchResult, categories] = await Promise.all([
+    searchService.searchProducts({
+      query: query || undefined,
+      limit: 50,
+      page: 1,
+    }),
+    categoryService.getCategories(),
+  ]);
   
-  return <SearchResults query={query} initialProducts={products} initialCategories={categories} />;
+  return <SearchResults query={query} initialProducts={searchResult.products} initialCategories={categories} />;
 }

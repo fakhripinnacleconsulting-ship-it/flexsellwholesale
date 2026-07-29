@@ -42,6 +42,7 @@ const CollectionSchema = new Schema<CollectionType & Document>(
   { timestamps: true }
 );
 
+CollectionSchema.index({ isActive: 1, isFeatured: 1 });
 CollectionSchema.index({ isActive: 1 });
 CollectionSchema.index({ isFeatured: 1 });
 CollectionSchema.index({ order: 1 });

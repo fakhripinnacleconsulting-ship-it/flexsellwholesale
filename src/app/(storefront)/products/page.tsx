@@ -20,7 +20,7 @@ export default async function ProductsPage() {
   let categories: any[] = [];
   try {
     const [productsData, categoriesData] = await Promise.all([
-      productService.getProducts(),
+      productService.getProducts({ limit: 48 }),
       categoryService.getCategories()
     ]);
     products = productsData;

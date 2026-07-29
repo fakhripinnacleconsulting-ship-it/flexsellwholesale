@@ -22,6 +22,10 @@ export const useProductStore = create<ProductStoreState>()((set, get) => ({
 
   initializeProducts: async (initial, force = false) => {
     if (!force && initial && initial.length > 0) {
+      const current = get().products;
+      if (current.length === initial.length && current[0]?._id === initial[0]?._id) {
+        return;
+      }
       set({ products: initial, isLoading: false });
       return;
     }
