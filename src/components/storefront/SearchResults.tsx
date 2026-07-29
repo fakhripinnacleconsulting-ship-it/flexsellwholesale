@@ -472,8 +472,8 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
               <Button size="sm" onClick={handleClearFilters} className="mt-4">Reset Filters</Button>
             </div>
           ) : viewMode === "grid" ? (
-            /* Enhanced B2B Grid View */
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+            /* Enhanced B2B Grid View (2 Cards per Row on Mobile) */
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               {paginatedProducts.map((product) => (
                 <ProductCard key={product._id} product={product} layout="grid" />
               ))}

@@ -24,6 +24,67 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   const [isMuted, setIsMuted] = React.useState(true);
   const [isHovered, setIsHovered] = React.useState(false);
   const [videoError, setVideoError] = React.useState(false);
+  const [aspectRatios, setAspectRatios] = React.useState<Record<string, number>>({});
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  // Monitor window resize to accurately track mobile vs desktop viewports
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const handleImageLoad = (idx: number, isMobileImg: boolean, e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    if (naturalWidth && naturalHeight) {
+      const key = `${idx}-${isMobileImg ? "mobile" : "desktop"}`;
+      setAspectRatios((prev) => ({ ...prev, [key]: naturalWidth / naturalHeight }));
+    }
+  };
+
+  const handleVideoMetadata = (idx: number, isMobileVideo: boolean, e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const { videoWidth, videoHeight } = e.currentTarget;
+    if (videoWidth && videoHeight) {
+      const key = `${idx}-${isMobileVideo ? "mobile" : "desktop"}`;
+      setAspectRatios((prev) => ({ ...prev, [key]: videoWidth / videoHeight }));
+    }
+  };
+
+  // Pre-load and measure intrinsic aspect ratios for both desktop and mobile slides on mount
+  React.useEffect(() => {
+    if (!slides || slides.length === 0) return;
+    slides.forEach((slide, idx) => {
+      // Measure Desktop Image / Poster
+      const desktopUrl = slide.imageUrl || slide.posterUrl;
+      if (desktopUrl) {
+        const img = new window.Image();
+        img.src = desktopUrl;
+        const measureDesktop = () => {
+          if (img.naturalWidth && img.naturalHeight) {
+            setAspectRatios((prev) => ({ ...prev, [`${idx}-desktop`]: img.naturalWidth / img.naturalHeight }));
+          }
+        };
+        if (img.complete) measureDesktop();
+        else img.onload = measureDesktop;
+      }
+
+      // Measure Mobile Specific Image (if provided)
+      if (slide.mobileImageUrl) {
+        const mobImg = new window.Image();
+        mobImg.src = slide.mobileImageUrl;
+        const measureMobile = () => {
+          if (mobImg.naturalWidth && mobImg.naturalHeight) {
+            setAspectRatios((prev) => ({ ...prev, [`${idx}-mobile`]: mobImg.naturalWidth / mobImg.naturalHeight }));
+          }
+        };
+        if (mobImg.complete) measureMobile();
+        else mobImg.onload = measureMobile;
+      }
+    });
+  }, [slides]);
 
   // Reset video error state when current slide changes
   React.useEffect(() => {
@@ -107,6 +168,12 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   const isVideo = (currentSlide?.mediaType === "video" || !!currentSlide?.videoUrl) && !videoError;
   const fallbackImage = currentSlide?.posterUrl || currentSlide?.imageUrl || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1920&q=80";
 
+  const hasMobileImg = isMobile && !!currentSlide?.mobileImageUrl;
+  const activeKey = `${current}-${hasMobileImg ? "mobile" : "desktop"}`;
+  const naturalRatio = aspectRatios[activeKey] || aspectRatios[`${current}-desktop` ];
+  const fallbackRatio = isMobile ? (hasMobileImg ? 1.0 : 1.77) : 2.5;
+  const activeRatio = naturalRatio || fallbackRatio;
+
   const variants = {
     enter: (dir: number) => ({
       x: dir > 0 ? "100%" : "-100%",
@@ -127,7 +194,10 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       ref={sectionRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative w-full aspect-[3.2/1] sm:aspect-[21/9] md:aspect-[24/9] max-h-[600px] overflow-hidden group select-none bg-background flex items-center justify-center"
+      style={{
+        aspectRatio: activeRatio ? `${activeRatio}` : undefined
+      }}
+      className="relative w-full overflow-hidden group select-none bg-background flex items-center justify-center transition-[aspect-ratio] duration-500 ease-in-out"
     >
       <AnimatePresence initial={false} custom={direction}>
         <motion.div
@@ -170,8 +240,9 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                 muted={isMuted}
                 playsInline
                 preload="auto"
+                onLoadedMetadata={(e) => handleVideoMetadata(current, false, e)}
                 onError={() => setVideoError(true)}
-                className={`w-full h-full object-cover transition-opacity duration-500 ${
+                className={`w-full h-full object-contain transition-opacity duration-500 ${
                   currentSlide.mobileVideoUrl ? "hidden sm:block" : "block"
                 }`}
               />
@@ -187,8 +258,9 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                   muted={isMuted}
                   playsInline
                   preload="auto"
+                  onLoadedMetadata={(e) => handleVideoMetadata(current, true, e)}
                   onError={() => setVideoError(true)}
-                  className="w-full h-full object-cover sm:hidden"
+                  className="w-full h-full object-contain sm:hidden"
                 />
               )}
 
@@ -206,7 +278,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               </button>
             </div>
           ) : (
-            /* IMAGE BANNER SLIDE (Seamless Full Width - No Background Bars) */
+            /* IMAGE BANNER SLIDE (Complete Uncropped Actual Size for Mobile & Desktop) */
             <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
               {/* Desktop Banner Image */}
               <div className={`relative w-full h-full z-10 ${currentSlide.mobileImageUrl ? "hidden sm:block" : "block"}`}>
@@ -215,7 +287,8 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                   alt={currentSlide.altText || "FlexSell Wholesale Banner"}
                   fill
                   priority={current === 0}
-                  className="object-cover w-full h-full"
+                  onLoad={(e) => handleImageLoad(current, false, e)}
+                  className="object-contain w-full h-full"
                   sizes="100vw"
                 />
               </div>
@@ -228,7 +301,8 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                     alt={currentSlide.altText || "FlexSell Wholesale Banner"}
                     fill
                     priority={current === 0}
-                    className="object-cover w-full h-full"
+                    onLoad={(e) => handleImageLoad(current, true, e)}
+                    className="object-contain w-full h-full"
                     sizes="100vw"
                   />
                 </div>
