@@ -51,6 +51,17 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: "/policies/privacy-policy", destination: "/policies/privacy", permanent: true },
+      { source: "/policies/terms-of-service", destination: "/policies/terms", permanent: true },
+      { source: "/policies/shipping-policy", destination: "/policies/shipping", permanent: true },
+      { source: "/policies/return-policy", destination: "/policies/return", permanent: true },
+      { source: "/policies/refund", destination: "/policies/return", permanent: true },
+      { source: "/policies/refund-policy", destination: "/policies/return", permanent: true },
+      { source: "/policies/cancellation", destination: "/policies/terms", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

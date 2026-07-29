@@ -18,10 +18,10 @@ export interface PolicyLayoutProps {
 
 export function PolicyLayout({ title, lastUpdated, activeKey, content, sections = [] }: PolicyLayoutProps) {
   const navItems = [
-    { key: "privacy", label: "Privacy Policy", icon: ShieldCheck, href: "/policies/privacy-policy" },
-    { key: "terms", label: "Terms of Service", icon: FileText, href: "/policies/terms-of-service" },
-    { key: "shipping", label: "Shipping & Logistics", icon: Truck, href: "/policies/shipping-policy" },
-    { key: "return", label: "Returns & Refunds", icon: RotateCcw, href: "/policies/return-policy" },
+    { key: "privacy", label: "Privacy Policy", icon: ShieldCheck, href: "/policies/privacy" },
+    { key: "terms", label: "Terms of Service", icon: FileText, href: "/policies/terms" },
+    { key: "shipping", label: "Shipping & Logistics", icon: Truck, href: "/policies/shipping" },
+    { key: "return", label: "Returns & Refunds", icon: RotateCcw, href: "/policies/return" },
   ];
 
   return (
