@@ -74,9 +74,11 @@ export function MobileBottomNav() {
       <nav className="bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl p-1.5 shadow-2xl flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.exact
-            ? pathname === item.href
-            : pathname.startsWith(item.href);
+          const isActive = item.id === "account"
+            ? pathname.startsWith("/client") || pathname.startsWith("/admin") || pathname === "/login"
+            : item.exact
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
 
           if (item.isCenter) {
             return (

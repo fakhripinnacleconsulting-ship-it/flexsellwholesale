@@ -175,17 +175,55 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
     </div>
   );
 
+  // Find current active link for mobile header
+  const currentActiveLink = filteredLinks.find((link) => pathname === link.href) || filteredLinks[0];
+  const ActiveIcon = currentActiveLink.icon;
+
   return (
     <>
-      {/* Mobile sub-topbar */}
-      <div className="md:hidden flex justify-between items-center bg-card border p-3 rounded-lg mb-4 w-full">
-        <span className="font-bold text-sm text-foreground">Dashboard Menu</span>
-        <button 
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-md text-xs font-semibold hover:bg-primary/20 cursor-pointer"
-        >
-          <Menu className="h-4 w-4" /> Open Menu
-        </button>
+      {/* Mobile Sub-Topbar & Horizontal Quick Navigation Bar */}
+      <div className="md:hidden space-y-2 mb-4 w-full">
+        {/* Top Header Card */}
+        <div className="flex justify-between items-center bg-card border border-border p-3 rounded-xl shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+              <ActiveIcon className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider block">Dashboard</span>
+              <span className="font-extrabold text-sm text-foreground">{currentActiveLink.name}</span>
+            </div>
+          </div>
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/90 shadow-sm transition-all cursor-pointer"
+          >
+            <Menu className="h-4 w-4" /> Menu
+          </button>
+        </div>
+
+        {/* Scrollable Quick Nav Pills Bar for 1-Tap Navigation */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none select-none">
+          {filteredLinks.map((link) => {
+            const Icon = link.icon;
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.name}
+                href={link.href}
+                prefetch={true}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all border shrink-0 ${
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm scale-[1.02]"
+                    : "bg-card text-foreground border-border hover:bg-secondary"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{link.name}</span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* Desktop Sidebar (Collapsible) */}
