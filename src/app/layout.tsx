@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Inter, Outfit } from "next/font/google";
@@ -6,6 +7,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { NotificationInitializer } from "@/components/common/NotificationInitializer";
+import { GTMRouteTracker } from "@/components/common/GTMRouteTracker";
 import { generateOrganizationSchema, generateWebSiteSchema, generateLocalBusinessSchema } from "@/lib/seo";
 import "./globals.css";
 
@@ -153,6 +155,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         >
           {children}
           <Analytics />
+          <Suspense fallback={null}>
+            <GTMRouteTracker />
+          </Suspense>
           <ToastContainer />
           <ConfirmDialog />
           <NotificationInitializer />

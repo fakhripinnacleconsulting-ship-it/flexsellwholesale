@@ -12,6 +12,9 @@ declare global {
 export function sendGTMEvent(data: Record<string, any>) {
   if (typeof window !== "undefined") {
     window.dataLayer = window.dataLayer || [];
+    if (data.ecommerce) {
+      window.dataLayer.push({ ecommerce: null });
+    }
     window.dataLayer.push(data);
   }
 }
