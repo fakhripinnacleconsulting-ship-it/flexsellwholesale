@@ -10,6 +10,7 @@ import { Eye, EyeOff, ShieldCheck, Truck, Sparkles } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useToastStore } from "@/stores/toastStore";
 import { motion } from "framer-motion";
+import { trackLogin } from "@/lib/gtm";
 
 function LoginForm() {
   const router = useRouter();
@@ -80,6 +81,7 @@ function LoginForm() {
     try {
       const success = await loginWithGoogle(response.credential);
       if (success) {
+        trackLogin("google");
         addToast("Logged in via Google successfully!", "success");
         const currentCustomer = useAuthStore.getState().customer;
         const redirectDest = currentCustomer?.role === "admin" ? "/admin" : (callbackUrl || "/client");
@@ -107,6 +109,7 @@ function LoginForm() {
     setIsSubmitting(false);
 
     if (success) {
+      trackLogin("email");
       addToast("Signed in successfully!", "success");
       const currentCustomer = useAuthStore.getState().customer;
       const redirectDest = currentCustomer?.role === "admin" ? "/admin" : (callbackUrl || "/client");

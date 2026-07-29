@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { useProductDetail } from "./ProductDetailContext";
 import { Maximize2, Scale, Minus, Plus, ShoppingCart } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { trackAddToCart } from "@/lib/gtm";
 
 export function VariantSelector() {
   const {
@@ -92,6 +93,8 @@ export function VariantSelector() {
       qty,
       activeCartTier
     );
+
+    trackAddToCart(product, qty, activeSubVariant);
 
     qtyInputRef.current?.focus();
     qtyInputRef.current?.select();

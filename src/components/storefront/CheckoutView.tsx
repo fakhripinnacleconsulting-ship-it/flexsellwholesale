@@ -20,11 +20,12 @@ import { CouponInput } from "./checkout/CouponInput";
 import { Card } from "@/components/ui/Card";
 import { useRazorpay } from "react-razorpay";
 import { SuggestedProductsCarousel } from "./SuggestedProductsCarousel";
+import { trackBeginCheckout, trackPurchase } from "@/lib/gtm";
 
 export function CheckoutView() {
   const router = useRouter();
   const { addToast } = useToastStore();
-  const { items, buyerState, setBuyerState, clearCart, getTaxDetails, hydrateProducts } = useCartStore();
+  const { items, buyerState, setBuyerState, clearCart, getTaxDetails, hydrateProducts, getCartSubtotal } = useCartStore();
   const { createOrder } = useOrderStore();
   const products = useProductStore((state) => state.products);
   const [shippingConfig, setShippingConfig] = React.useState<any>(null);
@@ -93,6 +94,10 @@ export function CheckoutView() {
         setShippingConfig(config);
       })
       .catch(console.error);
+
+    if (items && items.length > 0) {
+      trackBeginCheckout(items, getCartSubtotal());
+    }
   }, []);
 
   // Load customer on mount

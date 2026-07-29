@@ -14,6 +14,7 @@ import { KycDocuments } from "@/types";
 import { motion } from "framer-motion";
 
 import { OtpVerificationModal } from "@/components/auth/OtpVerificationModal";
+import { trackSignUp } from "@/lib/gtm";
 
 interface DocSlot {
   key: keyof KycDocuments;
@@ -169,6 +170,7 @@ export default function RegisterPage() {
     setIsOtpModalOpen(false);
     await checkSession();
     const isRetail = customerTypes[0] === "B2C";
+    trackSignUp(selectedType);
     if (isRetail) {
       addToast("Account created successfully!", "success");
       router.push("/client");

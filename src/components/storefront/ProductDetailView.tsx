@@ -20,8 +20,16 @@ interface ProductDetailViewProps {
   initialProducts: Product[];
 }
 
+import { trackViewItem } from "@/lib/gtm";
+
 function ProductDetailInner() {
   const { product, toggleWishlist, isInWishlist } = useProductDetail();
+
+  React.useEffect(() => {
+    if (product) {
+      trackViewItem(product);
+    }
+  }, [product]);
 
   if (!product) {
     return (

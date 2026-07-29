@@ -13,6 +13,7 @@ import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
 import { resolvePrice, canPurchase, resolveMoq, isPureB2B, type PriceTier } from "@/lib/priceTierHelper";
+import { trackAddToCart } from "@/lib/gtm";
 
 interface ProductCardProps {
   product: Product;
@@ -164,6 +165,7 @@ export function ProductCard({ product }: ProductCardProps) {
       },
       orderQty
     );
+    trackAddToCart(product, orderQty, defaultSub);
     addToast(`${product.title} added to cart successfully.`, "success");
   };
 

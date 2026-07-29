@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
 import { searchService, SuggestResult } from "@/services/searchService";
 import { motion, AnimatePresence } from "framer-motion";
+import { trackSearch } from "@/lib/gtm";
 
 interface GlobalSearchInputProps {
   placeholder?: string;
@@ -123,6 +124,7 @@ export function GlobalSearchInput({
         }
       } else if (query.trim()) {
         e.preventDefault();
+        trackSearch(query.trim());
         router.push(`/products?search=${encodeURIComponent(query.trim())}`);
         setIsFocused(false);
         if (onSearchSubmitted) onSearchSubmitted();
@@ -133,6 +135,7 @@ export function GlobalSearchInput({
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      trackSearch(query.trim());
       router.push(`/products?search=${encodeURIComponent(query.trim())}`);
       setIsFocused(false);
       if (onSearchSubmitted) onSearchSubmitted();
