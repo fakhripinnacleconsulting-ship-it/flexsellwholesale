@@ -26,20 +26,24 @@ const SLUG_ALIAS_MAP: Record<string, string> = {
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
-  const key = SLUG_ALIAS_MAP[slug] || slug;
-  const policy = pagesContent.policies[key as keyof typeof pagesContent.policies];
+  try {
+    const { slug } = await params;
+    const key = SLUG_ALIAS_MAP[slug] || slug;
+    const policy = pagesContent.policies[key as keyof typeof pagesContent.policies];
 
-  if (!policy) {
-    return constructMetadata({ title: "Legal Policy", path: `/policies/${slug}` });
+    if (!policy) {
+      return constructMetadata({ title: "Legal Policy", path: `/policies/${slug}` });
+    }
+
+    return constructMetadata({
+      title: policy.title,
+      description: `Official ${policy.title} for FlexSell Wholesale B2B marketplace buyers and suppliers.`,
+      keywords: [policy.title, "FlexSell policy", "B2B legal disclosure", "wholesale terms"],
+      path: `/policies/${slug}`,
+    });
+  } catch (err) {
+    return constructMetadata({ title: "Legal Policy", path: "/policies/privacy" });
   }
-
-  return constructMetadata({
-    title: policy.title,
-    description: `Official ${policy.title} for FlexSell Wholesale B2B marketplace buyers and suppliers.`,
-    keywords: [policy.title, "FlexSell policy", "B2B legal disclosure", "wholesale terms"],
-    path: `/policies/${slug}`,
-  });
 }
 
 export default async function PolicyPage({ params }: { params: Promise<{ slug: string }> }) {
