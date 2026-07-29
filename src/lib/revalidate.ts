@@ -44,6 +44,15 @@ export function revalidateCollections() {
 export function revalidateCms() {
   try {
     revalidatePath("/", "page");
+    revalidatePath("/policies/privacy", "page");
+    revalidatePath("/policies/terms", "page");
+    revalidatePath("/policies/shipping", "page");
+    revalidatePath("/policies/return", "page");
+    revalidatePath("/about", "page");
+    revalidatePath("/contact", "page");
+    revalidatePath("/faq", "page");
+    revalidatePath("/dropshipping", "page");
+    revalidatePath("/documentation", "page");
   } catch (err) {
     console.error("revalidateCms error:", err);
   }
