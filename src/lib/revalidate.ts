@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 export function revalidateStorefront() {
   try {
@@ -43,6 +43,11 @@ export function revalidateCollections() {
 
 export function revalidateCms() {
   try {
+    // Layer 1: Bust the DATA cache (MongoDB query results) via tags
+    revalidateTag("cms-policies", "max");
+    revalidateTag("cms-content", "max");
+
+    // Layer 2: Bust the PAGE cache (pre-rendered HTML) via paths
     revalidatePath("/", "page");
     revalidatePath("/policies/privacy", "page");
     revalidatePath("/policies/terms", "page");
