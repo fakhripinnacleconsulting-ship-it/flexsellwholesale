@@ -3,7 +3,7 @@
 FlexSell Wholesale is a next-generation, enterprise-grade B2B e-commerce platform designed for direct manufacturer-to-retailer supply chain networks, bulk ordering, dropshipping fulfillment, and regional tax/logistics distribution. It features multi-tier pricing, SKU-first search algorithms, real-time inventory controls with camera barcode scanning, Razorpay payment verification, Shiprocket logistics dispatch, and an integrated Indian GST taxation engine. 
   
 ---                  
-    
+     
 ## 📚 Master Documentation 
    
 Complete technical documentation, architecture diagrams, ERD database schemas, REST API endpoints, GST tax rules, and operational guides are available:
