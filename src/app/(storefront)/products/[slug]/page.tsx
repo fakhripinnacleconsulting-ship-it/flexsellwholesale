@@ -65,7 +65,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
         />
-        <ProductDetailView slug={slug} initialProducts={products} />
+        <ProductDetailView slug={slug} initialProduct={product} initialProducts={products} />
       </>
     );
   } catch (error) {

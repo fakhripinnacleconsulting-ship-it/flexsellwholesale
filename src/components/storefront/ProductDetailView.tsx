@@ -16,6 +16,7 @@ import { RelatedProducts } from "./product-detail/RelatedProducts";
 
 interface ProductDetailViewProps {
   slug: string;
+  initialProduct?: Product | null;
   initialProducts: Product[];
 }
 
@@ -77,9 +78,9 @@ function ProductDetailInner() {
   );
 }
 
-export function ProductDetailView({ slug, initialProducts }: ProductDetailViewProps) {
+export function ProductDetailView({ slug, initialProduct, initialProducts }: ProductDetailViewProps) {
   return (
-    <ProductDetailProvider slug={slug} initialProducts={initialProducts}>
+    <ProductDetailProvider slug={slug} initialProduct={initialProduct} initialProducts={initialProducts}>
       <ProductDetailInner />
     </ProductDetailProvider>
   );

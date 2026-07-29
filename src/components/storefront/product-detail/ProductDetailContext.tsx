@@ -59,10 +59,12 @@ const ProductDetailContext = React.createContext<ProductDetailContextProps | und
 export function ProductDetailProvider({
   children,
   slug,
+  initialProduct,
   initialProducts
 }: {
   children: React.ReactNode;
   slug: string;
+  initialProduct?: Product | null;
   initialProducts: Product[];
 }) {
   const { products, initializeProducts } = useProductStore();
@@ -72,15 +74,38 @@ export function ProductDetailProvider({
   
   const [isDescExpanded, setIsDescExpanded] = React.useState(false);
   const [recentProducts, setRecentProducts] = React.useState<Product[]>([]);
+  const [fetchedProduct, setFetchedProduct] = React.useState<Product | null>(initialProduct || null);
 
   React.useEffect(() => {
     initializeProducts(initialProducts);
   }, [initialProducts, initializeProducts]);
 
-  const activeProducts = products.length > 0 ? products : initialProducts;
+  React.useEffect(() => {
+    if (initialProduct && initialProduct.slug === slug) {
+      setFetchedProduct(initialProduct);
+    } else {
+      const { productService } = require("@/services/productService");
+      productService
+        .getProductBySlug(slug)
+        .then((p: Product) => setFetchedProduct(p))
+        .catch((err: any) => console.error("Client product lookup notice:", err));
+    }
+  }, [slug, initialProduct]);
+
+  const activeProducts = React.useMemo(() => {
+    const list = products.length > 0 ? products : initialProducts;
+    const current = fetchedProduct || initialProduct;
+    if (current && !list.some((p) => p._id === current._id || p.slug === current.slug)) {
+      return [current, ...list];
+    }
+    return list;
+  }, [products, initialProducts, fetchedProduct, initialProduct]);
+
   const product = React.useMemo(() => {
+    if (fetchedProduct && fetchedProduct.slug === slug) return fetchedProduct;
+    if (initialProduct && initialProduct.slug === slug) return initialProduct;
     return activeProducts.find((p) => p.slug === slug) || null;
-  }, [slug, activeProducts]);
+  }, [slug, fetchedProduct, initialProduct, activeProducts]);
 
   // Load and update recently viewed products on client mount
   React.useEffect(() => {
