@@ -10,7 +10,7 @@ Complete technical documentation, architecture diagrams, ERD database schemas, R
 
 - 📖 **Master Markdown File:** [docs/FLEXSELL_COMPLETE_TECHNICAL_DOCUMENTATION.md](docs/FLEXSELL_COMPLETE_TECHNICAL_DOCUMENTATION.md)
 - 🌐 **Interactive Public Portal:** `/documentation`
-- 🔄 **Regenerate Documentation Command:** `npm run update-docs`
+- 🔄 **Regenerate Documentation Command:** `npm run update-docs` 
 
 --- 
 
