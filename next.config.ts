@@ -3,15 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
+    unoptimized: true,
     remotePatterns: [
-      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "flexsellwholesale.in" },
-      { protocol: "https", hostname: "*.gstatic.com" },
-      { protocol: "https", hostname: "*.googleusercontent.com" },
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },
-
     ],
   },
   async headers() {
