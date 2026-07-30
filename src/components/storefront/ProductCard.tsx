@@ -46,6 +46,14 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
   // Collect ALL product & variant images for the carousel
   const allImages = React.useMemo(() => {
     const imgs: string[] = [];
+    if ((product as any).image) {
+      const sanitized = sanitizeImgUrl((product as any).image);
+      if (sanitized && !imgs.includes(sanitized)) imgs.push(sanitized);
+    }
+    if ((product as any).thumbnail) {
+      const sanitized = sanitizeImgUrl((product as any).thumbnail);
+      if (sanitized && !imgs.includes(sanitized)) imgs.push(sanitized);
+    }
     product.colorVariants?.forEach((cv) => {
       cv.images?.forEach((img) => {
         const url = typeof img === "string" ? img : img?.url;
@@ -58,7 +66,7 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
       });
     });
     return imgs;
-  }, [product.colorVariants]);
+  }, [product]);
 
   // Auto-slide effect (every 1.2 seconds on hover)
   React.useEffect(() => {

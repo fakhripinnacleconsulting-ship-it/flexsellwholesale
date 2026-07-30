@@ -31,7 +31,7 @@ export function sanitizeImgUrl(
   fallback: string = ""
 ): string {
   if (!url) return fallback;
-  let trimmed = String(url).trim().replace(/^['"]|['"]$/g, "");
+  const trimmed = String(url).trim().replace(/^['"]|['"]$/g, "");
   if (
     !trimmed ||
     trimmed === "null" ||

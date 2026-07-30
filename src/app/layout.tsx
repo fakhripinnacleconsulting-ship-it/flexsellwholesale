@@ -169,11 +169,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                    console.log('FlexSell SW registered scope:', reg.scope);
-                  }).catch(function(err) {
-                    console.log('FlexSell SW registration failed:', err);
-                  });
+                  if (${process.env.NODE_ENV === "development"}) {
+                    // Unregister old service workers in dev mode to prevent stale asset cache issues
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                      for (let registration of registrations) {
+                        registration.unregister();
+                      }
+                    });
+                  } else {
+                    navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                      console.log('FlexSell SW registered scope:', reg.scope);
+                    }).catch(function(err) {
+                      console.log('FlexSell SW registration failed:', err);
+                    });
+                  }
                 });
               }
             `

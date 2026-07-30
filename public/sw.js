@@ -1,6 +1,6 @@
 // FlexSell Wholesale Progressive Web App (PWA) & Web Push Service Worker
 
-const CACHE_NAME = "flexsell-pwa-v1";
+const CACHE_NAME = "flexsell-pwa-v3";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE_ASSETS = [
@@ -20,13 +20,14 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// Activate Event — Cleanup legacy caches
+// Activate Event — Cleanup all legacy caches immediately
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((name) => {
           if (name !== CACHE_NAME) {
+            console.log("[ServiceWorker] Deleting legacy cache:", name);
             return caches.delete(name);
           }
         })
@@ -35,14 +36,20 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch Event — Network-first for dynamic navigation, Cache-first for images/static assets, Offline page fallback
+// Fetch Event — Network-first for dynamic navigation, Cache-first for CSS/JS/Fonts, Offline page fallback
+// IMPORTANT: Image requests are intentionally BYPASSED so native browser HTTP caching and Next.js Image Optimization
+// handle dynamic product/user images reliably on page refresh and back navigation without CORS/opaque issues.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
 
-  // Exclude API requests & admin dashboard from static caching
-  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/admin")) {
+  // Exclude API requests, uploads & admin dashboard from static caching
+  if (
+    url.pathname.startsWith("/api") ||
+    url.pathname.startsWith("/admin") ||
+    url.pathname.startsWith("/uploads")
+  ) {
     return;
   }
 
@@ -56,9 +63,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static Assets (Images, Fonts, Scripts) -> Cache First with Network Fallback
+  // Static Assets (Styles, Scripts, Fonts only — Images bypassed for native browser loading)
   if (
-    event.request.destination === "image" ||
     event.request.destination === "style" ||
     event.request.destination === "script" ||
     event.request.destination === "font"
@@ -74,6 +80,9 @@ self.addEventListener("fetch", (event) => {
             });
           }
           return networkResponse;
+        }).catch(() => {
+          // If network fetch fails, fallback gracefully
+          return cachedResponse || Response.error();
         });
       })
     );
