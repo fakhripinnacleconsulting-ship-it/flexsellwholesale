@@ -673,14 +673,10 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
 
       {/* Printable Shipping Label Modal */}
       {showLabelModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 no-print">
-          <div className="bg-card border rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 text-foreground">
-            <ShippingLabelDocument
-              order={order}
-              onClose={() => setShowLabelModal(false)}
-            />
-          </div>
-        </div>
+        <ShippingLabelDocument
+          order={order}
+          onClose={() => setShowLabelModal(false)}
+        />
       )}
     </div>
   );

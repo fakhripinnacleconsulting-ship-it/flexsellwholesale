@@ -430,7 +430,8 @@ export function B2BCatalogPrintModal({
                 <img
                   src="/Flexsell%20Logo.png"
                   alt="FlexSell Wholesale Logo"
-                  className="h-8 sm:h-9 w-auto object-contain shrink-0"
+                  style={{ maxHeight: "36px", maxWidth: "150px", width: "auto", height: "auto" }}
+                  className="h-8 sm:h-9 max-h-9 max-w-[150px] w-auto object-contain shrink-0 document-logo print-logo"
                 />
                 <div className="h-5 w-px bg-border/80 hidden sm:block" />
                 <span className="bg-primary/10 text-primary border border-primary/20 text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shrink-0">
@@ -587,6 +588,13 @@ export function B2BCatalogPrintModal({
           .print-avoid-break {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+          }
+          img.document-logo, img.print-logo, img[src*="Logo"] {
+            max-height: 36px !important;
+            height: 36px !important;
+            max-width: 150px !important;
+            width: auto !important;
+            object-fit: contain !important;
           }
         }
       `}</style>

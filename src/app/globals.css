@@ -320,11 +320,11 @@
     margin: 8mm;
   }
 
-  /* Exhaustively strip all scrollbars, scrollbar-gutters, max-height limits, and scrollable overflow from every HTML element in print mode */
+  /* Strip scrollbars, scrollbar-gutters, and overflow from layout containers in print mode */
   html, body, div, span, applet, object, iframe,
   h1, h2, h3, h4, h5, h6, p, blockquote, pre,
   a, abbr, acronym, address, big, cite, code,
-  del, dfn, em, img, ins, kbd, q, s, samp,
+  del, dfn, em, ins, kbd, q, s, samp,
   small, strike, strong, sub, sup, tt, var,
   b, u, i, center,
   dl, dt, dd, ol, ul, li,
@@ -333,8 +333,7 @@
   article, aside, canvas, details, embed, 
   figure, figcaption, footer, header, hgroup, 
   menu, nav, output, ruby, section, summary,
-  time, mark, audio, video, main, section,
-  *, *::before, *::after {
+  time, mark, audio, video, main, section {
     overflow: visible !important;
     overflow-x: visible !important;
     overflow-y: visible !important;
@@ -343,6 +342,23 @@
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
     scrollbar-gutter: auto !important;
+  }
+
+  /* Strict Image & Logo Sizing for Printed Documents (Invoices, Receipts, Quotes, Shipping Labels, Catalogs) */
+  img, svg {
+    max-width: 100% !important;
+    object-fit: contain !important;
+  }
+
+  img[src*="Logo"],
+  img[src*="logo"],
+  .document-logo,
+  .print-logo {
+    max-height: 44px !important;
+    height: 44px !important;
+    max-width: 170px !important;
+    width: auto !important;
+    object-fit: contain !important;
   }
 
   ::-webkit-scrollbar,
@@ -380,9 +396,12 @@
     display: none !important;
   }
 
-  /* When printing, hide all main page siblings and storefront banners that are not part of the print document tree */
-  body > *:not(main):not(#__next):not(root):not(:has(main)):not(:has(.invoice-document, .quote-document, .shipping-label-document, .print-container, #printable-b2b-catalog, .barcode-print-sheet)),
-  main > *:not(:has(.invoice-document, .quote-document, .shipping-label-document, .print-container, #printable-b2b-catalog, .barcode-print-sheet)) {
+  /* Print Isolation: Hide all background page content and siblings when a modal or document container is active */
+  body:has(.print-portal-root) > *:not(.print-portal-root),
+  body:has([data-print-area="true"]) > *:not(:has([data-print-area="true"])):not(.print-preview-modal-wrapper):not(.b2b-print-modal-portal):not(.print-portal-root),
+  body:has(.print-container) > *:not(:has(.print-container)):not(.print-preview-modal-wrapper):not(.b2b-print-modal-portal):not(.print-portal-root),
+  main:has([data-print-area="true"]) > *:not(:has([data-print-area="true"])),
+  main:has(.print-container) > *:not(:has(.print-container)) {
     display: none !important;
   }
 
@@ -390,15 +409,18 @@
     visibility: hidden !important;
   }
 
-  body, main, #__next, root {
+  body, main, #__next, root,
+  .print-preview-modal-wrapper,
+  .b2b-print-modal-portal {
     visibility: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
   }
 
-  /* Reset fixed modal overlays and container wrappers so multi-page documents print continuously without blank pages or scrollbars */
+  /* Reset fixed modal overlays and container wrappers so multi-page documents print continuously without background overlays */
   .fixed,
   .fixed > div,
+  .print-preview-modal-wrapper,
   div:has(> .invoice-document),
   div:has(> .print-container),
   div:has(> .quote-document),
@@ -411,7 +433,7 @@
   .b2b-print-modal-portal {
     position: static !important;
     inset: auto !important;
-    background: transparent !important;
+    background: #ffffff !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     overflow: visible !important;
@@ -434,7 +456,8 @@
   .quote-document,
   .shipping-label-document,
   .shipping-label-printable,
-  .barcode-print-sheet {
+  .barcode-print-sheet,
+  [data-print-area="true"] {
     visibility: visible !important;
     position: relative !important;
     left: auto !important;
@@ -462,6 +485,9 @@
   .shipping-label-document *,
   .shipping-label-printable *,
   .barcode-print-sheet *,
+  [data-print-area="true"] * {
+    visibility: visible !important;
+  }
   main *,
   table *,
   .bg-card * {

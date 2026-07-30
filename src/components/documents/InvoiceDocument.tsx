@@ -7,6 +7,7 @@ import { Order, CartItem, TaxBreakdown, SellerInfo, HsnSlab } from "@/types";
 import { useProductStore } from "@/stores/productStore";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
+import { Barcode } from "@/components/ui/Barcode";
 
 export interface InvoiceDocumentProps {
   type: "invoice" | "receipt" | "quote" | "shipping_label";
@@ -134,15 +135,20 @@ export function InvoiceDocument({
   if (isShippingLabel) {
     const isCod = shipmentDetails?.dispatchType === "COD" || order.paymentMethod === "COD";
     const trackingCode = shipmentDetails?.awbNumber || documentNumber || order._id;
-    const carrierTitle = shipmentDetails?.carrierName || "FlexSell In-House Transport Dispatch";
+    const carrierTitle = shipmentDetails?.carrierName || "FLEXSELL IN-HOUSE TRANSPORT DISPATCH";
     const totalWeightGrams = itemsList.reduce((acc: number, item: any) => {
       const wg = item.weightGrams || 250;
-      return acc + wg * item.quantity;
+      return acc + wg * (item.quantity || 1);
     }, 0);
     const totalWeightKg = (totalWeightGrams / 1000).toFixed(2);
+    const totalUnitsCount = itemsList.reduce((a: number, c: any) => a + (c.quantity || 1), 0);
+
+    const formattedDate = order.date
+      ? new Date(order.date).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase()
+      : new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase();
 
     return (
-      <div className="invoice-document bg-white text-gray-900 max-w-2xl mx-auto print:w-full print:max-w-none print:m-0 print:p-0 print:overflow-visible print:bg-white">
+      <div className="invoice-document shipping-label-printable bg-white text-black max-w-2xl mx-auto print:w-full print:max-w-none print:m-0 print:p-0 print:overflow-visible print:bg-white select-text">
         {showActions && (
           <div className="no-print flex justify-end gap-3 mb-6 pb-4 border-b border-gray-200">
             <button
@@ -154,91 +160,90 @@ export function InvoiceDocument({
           </div>
         )}
 
-        <div className="border-2 border-black bg-white text-black p-5 rounded-none font-sans space-y-4 print:border-2 print:border-black print:m-0 print:p-4 print:w-full">
-          {/* Header Bar */}
+        <div
+          data-print-area="true"
+          className="invoice-document print-container border-2 border-black bg-white text-black p-5 sm:p-7 rounded-none font-sans space-y-4 print:border-2 print:border-black print:m-0 print:p-5 print:w-full"
+        >
           <div className="border-b-2 border-black pb-3 flex justify-between items-start">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Image
-                  src="/Flexsell%20Logo.png"
-                  alt={sellerInfo.legalName || sellerInfo.storeName || "FlexSell Logo"}
-                  width={140}
-                  height={40}
-                  style={{ width: "auto" }}
-                  className="h-7 w-auto object-contain shrink-0"
-                  unoptimized
-                />
-              </div>
-              <h1 className="text-base font-extrabold tracking-tight uppercase border-b-2 border-black inline-block pb-0.5">
-                {sellerInfo.legalName || sellerInfo.storeName}
+            <div className="space-y-1">
+              <Image
+                src="/Flexsell%20Logo.png"
+                alt={sellerInfo.legalName || sellerInfo.storeName || "FlexSell Logo"}
+                width={140}
+                height={40}
+                style={{ width: "auto", height: "auto", maxHeight: "32px", maxWidth: "140px" }}
+                className="h-8 max-h-8 max-w-[140px] w-auto object-contain shrink-0 document-logo print-logo"
+                unoptimized
+              />
+              <h1 className="text-sm sm:text-base font-extrabold tracking-tight uppercase border-b-2 border-black inline-block pb-0.5 mt-1 text-black">
+                {sellerInfo.legalName || sellerInfo.storeName || "FLEXSELL WHOLESALE SOURCING PVT LTD"}
               </h1>
-              <p className="text-[10px] font-bold tracking-widest uppercase text-gray-700 mt-1">
+              <p className="text-[10px] font-bold tracking-widest uppercase text-gray-700">
                 B2B WHOLESALE ORDER DISPATCH
               </p>
             </div>
 
             <div className="text-right">
-              <div className="inline-block px-3 py-1 bg-black text-white font-extrabold text-xs uppercase tracking-wider">
-                {isCod ? "C.O.D. ORDER" : "PREPAID DISPATCH"}
+              <div className="inline-block px-3 py-1.5 bg-black text-white font-black text-xs uppercase tracking-wider">
+                {isCod ? "C.O.D. ORDER" : "PREPAID ORDER"}
               </div>
-              <p className="text-[10px] font-mono font-bold mt-1">Order #: {order._id}</p>
+              <p className="text-xs font-mono font-bold mt-1.5 text-black">Order #: {order._id}</p>
             </div>
           </div>
 
-          {/* Carrier & Barcode */}
-          <div className="border-b-2 border-black pb-3 text-center bg-gray-50 p-2.5">
-            <div className="flex justify-between items-center mb-1 text-[11px] font-bold uppercase">
-              <span>Carrier: <strong>{carrierTitle}</strong></span>
-              <span>Date: {order.date || new Date().toLocaleDateString("en-IN")}</span>
+          <div className="border-b-2 border-black pb-3 text-center bg-white pt-1">
+            <div className="flex justify-between items-center mb-2 text-[11px] font-extrabold uppercase text-black px-1">
+              <span>CARRIER: {carrierTitle}</span>
+              <span>DATE: {formattedDate}</span>
             </div>
 
-            <div className="flex flex-col items-center justify-center my-1.5">
-              <div className="h-10 flex items-center gap-[2px] overflow-hidden">
-                {[3, 1, 2, 4, 1, 3, 1, 2, 3, 1, 4, 2, 1, 3, 2, 1, 4, 1, 2, 3, 1, 2, 4, 1, 3, 1, 2, 3, 1, 4, 2, 1, 3].map((w, i) => (
-                  <div key={i} className="bg-black h-full" style={{ width: `${w * 2}px` }} />
-                ))}
-              </div>
-              <span className="font-mono font-extrabold text-sm tracking-widest mt-1 uppercase">
+            <div className="flex flex-col items-center justify-center my-2">
+              <Barcode
+                value={trackingCode}
+                width={2}
+                height={48}
+                displayValue={false}
+                className="border-none p-0 bg-transparent shadow-none"
+              />
+              <span className="font-mono font-extrabold text-sm sm:text-base tracking-widest mt-1.5 uppercase text-black">
                 *{trackingCode}*
               </span>
             </div>
           </div>
 
-          {/* Address Grid: SHIP TO vs SHIP FROM */}
           <div className="grid grid-cols-2 gap-4 border-b-2 border-black pb-4 text-xs">
-            {/* SHIP TO */}
-            <div className="space-y-1.5 pr-2 border-r-2 border-black">
-              <div className="bg-black text-white font-extrabold text-[10px] uppercase px-1.5 py-0.5 inline-block">
+            <div className="space-y-1.5 pr-3 border-r-2 border-black">
+              <div className="bg-black text-white font-black text-[10px] uppercase px-2 py-0.5 inline-block tracking-wider">
                 SHIP TO (DELIVERY DOCK)
               </div>
               {order.shippingAddress?.company ? (
                 <>
-                  <p className="font-extrabold text-sm uppercase leading-tight mt-1">
+                  <p className="font-black text-base uppercase leading-tight text-black mt-1">
                     {order.shippingAddress.company}
                   </p>
-                  <p className="font-bold text-xs text-gray-800">
+                  <p className="font-bold text-xs text-gray-900">
                     Attn: {order.customerName || order.shippingAddress?.firstName}
                   </p>
                 </>
               ) : (
-                <p className="font-extrabold text-sm uppercase leading-tight mt-1">
-                  {order.customerName}
+                <p className="font-black text-base uppercase leading-tight text-black mt-1">
+                  {order.customerName || "TECHNOLOGIES"}
                 </p>
               )}
               {order.shippingAddress && (
                 <>
-                  <p className="font-semibold text-xs leading-snug mt-1">
+                  <p className="font-semibold text-xs leading-snug text-gray-900 mt-1">
                     {order.shippingAddress.address}
                     {order.shippingAddress.apartment ? `, ${order.shippingAddress.apartment}` : ""}
                   </p>
-                  <p className="font-extrabold text-xs uppercase mt-1">
+                  <p className="font-black text-xs uppercase text-black mt-1">
                     {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pinCode}
                   </p>
-                  <p className="font-mono font-bold text-xs pt-1">
+                  <p className="font-mono font-black text-xs pt-1 text-black">
                     Ph: {order.shippingAddress.phone}
                   </p>
                   {order.shippingAddress.gstin && (
-                    <p className="font-mono font-bold text-[10px] text-gray-700">
+                    <p className="font-mono font-bold text-[10px] text-gray-800">
                       GSTIN: {order.shippingAddress.gstin}
                     </p>
                   )}
@@ -246,55 +251,55 @@ export function InvoiceDocument({
               )}
             </div>
 
-            {/* SHIP FROM */}
-            <div className="space-y-1.5 pl-2">
-              <div className="bg-gray-200 text-black font-extrabold text-[10px] uppercase px-1.5 py-0.5 inline-block border border-black">
+            <div className="space-y-1.5 pl-3">
+              <div className="border border-black bg-white text-black font-black text-[10px] uppercase px-2 py-0.5 inline-block tracking-wider">
                 RETURN / SHIP FROM (ORIGIN)
               </div>
-              <p className="font-extrabold text-xs uppercase mt-1">{sellerInfo.legalName || sellerInfo.storeName}</p>
-              <p className="text-[11px] leading-tight text-gray-800">{sellerInfo.address}</p>
-              <p className="font-mono font-bold text-[11px]">Ph: {sellerInfo.phone}</p>
-              {sellerInfo.gstin && <p className="font-mono text-[10px] text-gray-700">GSTIN: {sellerInfo.gstin}</p>}
+              <p className="font-black text-xs uppercase text-black mt-1">
+                {sellerInfo.legalName || sellerInfo.storeName || "FLEXSELL WHOLESALE SOURCING PVT LTD"}
+              </p>
+              <p className="text-[11px] leading-snug text-gray-900">{sellerInfo.address}</p>
+              <p className="font-mono font-black text-xs text-black mt-1">Ph: {sellerInfo.phone}</p>
+              {sellerInfo.gstin && <p className="font-mono text-[10px] text-gray-800">GSTIN: {sellerInfo.gstin}</p>}
             </div>
           </div>
 
-          {/* Package Specs & SKU items manifest */}
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between items-center bg-gray-100 p-2 border border-black font-bold text-[11px]">
-              <span>Total Units: {itemsList.reduce((a: number, c: any) => a + (c.quantity || 1), 0)} Items</span>
+          <div className="space-y-2.5 text-xs">
+            <div className="flex justify-between items-center bg-gray-100 p-2.5 border-2 border-black font-extrabold text-xs text-black">
+              <span>Total Units: {totalUnitsCount} Items</span>
               <span>Est Weight: {totalWeightKg} kg</span>
               <span>Decl Value: ₹{(order.amount || 0).toLocaleString()}</span>
             </div>
 
-            <div className="border border-black">
+            <div className="border-2 border-black">
               <table className="w-full text-left text-[10px]">
-                <thead className="bg-gray-200 border-b border-black font-bold uppercase">
+                <thead className="bg-gray-200 border-b-2 border-black font-extrabold uppercase text-black">
                   <tr>
-                    <th className="p-1.5">Item Description</th>
-                    <th className="p-1.5 text-center">Variant</th>
-                    <th className="p-1.5 text-right">Qty</th>
+                    <th className="p-2 border-r border-black">Item Description</th>
+                    <th className="p-2 text-center border-r border-black">Variant</th>
+                    <th className="p-2 text-right">Qty</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-300 font-medium">
+                <tbody className="divide-y divide-black font-semibold text-black">
                   {itemsList.slice(0, 4).map((item: any, i: number) => {
                     const formattedVariants = Object.entries(item.selectedVariants || {})
                       .map(([key, val]) => `${key}: ${val}`)
                       .join(" • ");
                     return (
                       <tr key={i}>
-                        <td className="p-1.5 font-bold truncate max-w-[180px]">
+                        <td className="p-2 font-bold truncate max-w-[200px] border-r border-black">
                           {item.product?.title || "Product Item"}
                         </td>
-                        <td className="p-1.5 text-center text-gray-700">
-                          {formattedVariants || "-"}
+                        <td className="p-2 text-center text-gray-800 border-r border-black">
+                          {formattedVariants || "Standard"}
                         </td>
-                        <td className="p-1.5 text-right font-extrabold">{item.quantity}</td>
+                        <td className="p-2 text-right font-black">{item.quantity}</td>
                       </tr>
                     );
                   })}
                   {itemsList.length > 4 && (
                     <tr>
-                      <td colSpan={3} className="p-1 text-center italic text-gray-600 bg-gray-50">
+                      <td colSpan={3} className="p-1.5 text-center italic text-gray-700 bg-gray-50 font-bold">
                         + {itemsList.length - 4} additional SKU items listed in commercial invoice
                       </td>
                     </tr>
@@ -304,10 +309,9 @@ export function InvoiceDocument({
             </div>
           </div>
 
-          {/* Footer Security Badge */}
-          <div className="border-t-2 border-black pt-2 flex justify-between items-center text-[9px] text-gray-700 uppercase font-bold">
-            <span>Verified FlexSell B2B Order Dispatch</span>
-            <span>Handle With Care • Keep Dry</span>
+          <div className="border-t-2 border-black pt-2.5 flex justify-between items-center text-[10px] text-gray-900 uppercase font-black">
+            <span>VERIFIED FLEXSELL B2B ORDER DISPATCH</span>
+            <span>HANDLE WITH CARE • KEEP DRY</span>
           </div>
         </div>
       </div>
@@ -329,7 +333,7 @@ export function InvoiceDocument({
       )}
 
       {/* Document Container */}
-      <div className="border border-gray-200 rounded-xl p-8 print:border-none print:rounded-none print:p-0 print:shadow-none print:w-full print:max-w-none print:overflow-visible">
+      <div data-print-area="true" className="invoice-document print-container border border-gray-200 rounded-xl p-8 print:border-none print:rounded-none print:p-0 print:shadow-none print:w-full print:max-w-none print:overflow-visible">
         {/* ─── HEADER ─── */}
         <div className="flex justify-between items-start pb-6 border-b-2 border-gray-800">
           <div className="flex items-center gap-4">
@@ -338,8 +342,8 @@ export function InvoiceDocument({
               alt={sellerInfo.legalName || sellerInfo.storeName || "FlexSell Logo"}
               width={160}
               height={48}
-              style={{ width: "auto" }}
-              className="h-10 w-auto object-contain"
+              style={{ width: "auto", height: "auto", maxHeight: "40px", maxWidth: "160px" }}
+              className="h-10 max-h-10 max-w-[160px] w-auto object-contain document-logo print-logo"
               unoptimized
             />
           </div>

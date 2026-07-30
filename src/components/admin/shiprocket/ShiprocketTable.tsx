@@ -385,14 +385,10 @@ export function ShiprocketTable() {
 
       {/* Shipping Label Preview Modal */}
       {selectedLabelOrder && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 no-print">
-          <div className="bg-card border rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 text-foreground">
-            <ShippingLabelDocument
-              order={selectedLabelOrder}
-              onClose={() => setSelectedLabelOrder(null)}
-            />
-          </div>
-        </div>
+        <ShippingLabelDocument
+          order={selectedLabelOrder}
+          onClose={() => setSelectedLabelOrder(null)}
+        />
       )}
     </Card>
   );
