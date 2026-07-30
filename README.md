@@ -13,7 +13,7 @@ Complete technical documentation, architecture diagrams, ERD database schemas, R
 - 🔄 **Regenerate Documentation Command:** `npm run update-docs` 
  
 --- 
-
+ 
 ## 🎯 Architectural Core & Tech Stack
 
 FlexSell Wholesale bridges the gap between manufacturers/distributors and wholesale retailers or dropshippers. The platform enables multi-tier pricing models, high-volume bulk variant purchases, automated commercial tax invoices, and real-time inventory synchronization.
