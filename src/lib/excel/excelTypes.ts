@@ -36,8 +36,8 @@ export const HEADERS = [
   "Weight (grams)",          // Z (25)
   "Tags",                    // AA (26)
   "Card Tags",               // AB (27)
-  "Packaging Charge",        // AC (28)
-  "Packaging Charge Type",   // AD (29) — dropdown per_unit/per_order
+  "Handling Charge",        // AC (28)
+  "Handling Charge Type",   // AD (29) — dropdown per_unit/per_order
 ];
 
 export const GUIDELINES = [
@@ -62,8 +62,8 @@ export const GUIDELINES = [
   "Optional. Numeric weight in grams (e.g. 250, 1000) for shipping calculation.", // Weight (grams)
   "Optional. Comma-separated. e.g. eco-friendly, kitchen.", // Tags
   "Optional. Comma-separated. e.g. Hot, New, Bestseller.", // Card Tags
-  "Optional. Extra packaging fee in ₹ (e.g. 10, 25). Default: 0.", // Packaging Charge
-  "Optional. Select from dropdown: per_unit or per_order. Default: per_unit.", // Packaging Charge Type
+  "Optional. Extra packaging fee in ₹ (e.g. 10, 25). Default: 0.", // Handling Charge
+  "Optional. Select from dropdown: per_unit or per_order. Default: per_unit.", // Handling Charge Type
 ];
 
 export const COL_WIDTHS = [
@@ -88,7 +88,7 @@ export const COL_WIDTHS = [
   16, // Weight (grams)
   22, // Tags
   20, // Card Tags
-  18, // Packaging Charge
-  22, // Packaging Charge Type
+  18, // Handling Charge
+  22, // Handling Charge Type
 ];
 

@@ -312,9 +312,9 @@ export function ProductInfoTabs() {
                             </td>
                           </tr>
 
-                          {/* Packaging Charge */}
+                          {/* Handling Charge */}
                           <tr>
-                            <td className="p-2.5 font-bold">Packaging Charge</td>
+                            <td className="p-2.5 font-bold">Handling Charge</td>
                             <td className="p-2.5 text-muted-foreground font-mono">
                               {breakdown.packagingChargeType === "per_order"
                                 ? `₹${breakdown.totalPackagingCharge.toFixed(2)} (Flat Per Order)`

@@ -83,7 +83,7 @@ export function OrderSummary({
     if (!items || items.length === 0) return 0;
     return items.reduce((sum, item) => {
       if (!item.product) return sum;
-      // B2C items are exempt from packaging charges
+      // B2C items are exempt from Handling Charges
       if (item.priceTier === "B2C" || !item.priceTier) return sum;
 
       const matchingColor = item.selectedVariants?.["Color"] || item.selectedVariants?.["color"];
@@ -171,7 +171,7 @@ export function OrderSummary({
 
         {totalPackagingCharge > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Packaging Charge</span>
+            <span className="text-muted-foreground">Handling Charge</span>
             <span className="font-semibold text-foreground">{formatPrice(totalPackagingCharge)}</span>
           </div>
         )}

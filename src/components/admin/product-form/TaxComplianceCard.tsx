@@ -59,7 +59,7 @@ export function TaxComplianceCard() {
             </button>
           </div>
 
-          {/* Packaging Charge Type Dropdown */}
+          {/* Handling Charge Type Dropdown */}
           <div className="space-y-2">
             <label className="text-sm font-medium block">Packaging Calculation</label>
             <select
@@ -72,9 +72,9 @@ export function TaxComplianceCard() {
             </select>
           </div>
 
-          {/* Product Packaging Charge */}
+          {/* Product Handling Charge */}
           <div className="space-y-2">
-            <label className="text-sm font-medium block">Packaging Charge (₹)</label>
+            <label className="text-sm font-medium block">Handling Charge (₹)</label>
             <Input
               type="number"
               min="0"

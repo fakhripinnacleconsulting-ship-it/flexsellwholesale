@@ -206,7 +206,7 @@ export async function exportToExcel(
     formulae: ['"TRUE,FALSE"'],
   });
 
-  // Packaging Charge Type dropdown (Column AD)
+  // Handling Charge Type dropdown (Column AD)
   (ws as any).dataValidations.add("AD3:AD2000", {
     type: "list",
     allowBlank: true,
@@ -262,8 +262,8 @@ export async function exportToExcel(
             sv.weightGrams !== undefined && sv.weightGrams !== null ? sv.weightGrams : "", // Col Z: Weight (grams) (25)
             (p.tags || []).join(", "),                              // Col AA: Tags (26)
             (p.cardTags || []).join(", "),                          // Col AB: Card Tags (27)
-            p.packagingCharge !== undefined ? p.packagingCharge : 0,// Col AC: Packaging Charge (28)
-            p.packagingChargeType || "per_unit"                     // Col AD: Packaging Charge Type (29)
+            p.packagingCharge !== undefined ? p.packagingCharge : 0,// Col AC: Handling Charge (28)
+            p.packagingChargeType || "per_unit"                     // Col AD: Handling Charge Type (29)
           );
 
           row.values = values;

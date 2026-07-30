@@ -95,7 +95,7 @@ export function CartView() {
     if (!items || items.length === 0) return 0;
     return items.reduce((sum, item) => {
       if (!item.product) return sum;
-      // B2C items are exempt from packaging charges
+      // B2C items are exempt from Handling Charges
       if (item.priceTier === "B2C" || !item.priceTier) return sum;
 
       const matchingColor = item.selectedVariants["Color"] || item.selectedVariants["color"];
@@ -249,7 +249,7 @@ export function CartView() {
             const firstImg = activeVariant?.images?.[0];
             const imgUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
             const sku = activeSubVariant?.sku || item.productId;
-            
+
             const { resolveMoq, resolvePriceTierName, isPureB2B } = require("@/lib/priceTierHelper");
             const customerTypes = customer?.customerTypes || ["B2C"];
             const isPureB2b = isPureB2B(customerTypes);
@@ -275,9 +275,8 @@ export function CartView() {
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold text-foreground line-clamp-2">{prod.title}</h3>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            livePriceTier === "B2B" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${livePriceTier === "B2B" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            }`}>
                             {livePriceTier === "B2B" ? "Trade Price (B2B)" : "Selling Price (B2C)"}
                           </span>
                         </div>
@@ -435,7 +434,7 @@ export function CartView() {
 
                 {totalPackagingCharge > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Packaging Charge</span>
+                    <span className="text-muted-foreground">Handling Charge</span>
                     <span className="font-semibold text-foreground">{formatPrice(totalPackagingCharge)}</span>
                   </div>
                 )}

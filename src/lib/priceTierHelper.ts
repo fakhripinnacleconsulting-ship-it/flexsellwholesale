@@ -252,7 +252,7 @@ export interface CostBreakdownDetails {
   quantity: number;
   unitBasePrice: number;
   totalProductPrice: number;
-  
+
   // Tax breakdown
   hsnCode: string;
   gstRate: number;
@@ -262,7 +262,7 @@ export interface CostBreakdownDetails {
   cgstAmount: number;
   sgstAmount: number;
   totalTaxAmount: number;
-  
+
   // Weight & Freight breakdown
   actualUnitWeightGrams: number;
   volumetricUnitWeightGrams: number;
@@ -270,12 +270,12 @@ export interface CostBreakdownDetails {
   totalChargeableWeightGrams: number;
   appliedWeightType: "actual" | "volumetric";
   estimatedShippingCharge: number;
-  
-  // Packaging charge
+
+  // Handling Charge
   unitPackagingCharge: number;
   totalPackagingCharge: number;
   packagingChargeType: "per_unit" | "per_order";
-  
+
   // Totals
   unitLandedPrice: number;
   totalLandedOrderAmount: number;
@@ -367,7 +367,7 @@ export function calculateDetailedBreakdown(params: {
     estimatedShippingCharge = tier === "B2B" ? 150 : tier === "Dropshipping" ? 80 : 50;
   }
 
-  // Packaging charge calculation per_unit vs per_order (Applied to B2B and Dropshipping only; B2C is exempt)
+  // Handling Charge calculation per_unit vs per_order (Applied to B2B and Dropshipping only; B2C is exempt)
   const packagingChargeType: "per_unit" | "per_order" = subVariant?.packagingChargeType || variant?.packagingChargeType || product?.packagingChargeType || shippingConfig?.packagingChargeType || "per_unit";
   let unitPackagingCharge = 0;
   let totalPackagingCharge = 0;

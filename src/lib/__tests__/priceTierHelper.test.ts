@@ -161,7 +161,7 @@ describe("calculateDetailedBreakdown", () => {
     expect(breakdown.quantity).toBe(2);
     expect(breakdown.unitBasePrice).toBe(15);
     expect(breakdown.totalProductPrice).toBe(30);
-    expect(breakdown.unitPackagingCharge).toBe(0); // B2C is exempt from packaging charges
+    expect(breakdown.unitPackagingCharge).toBe(0); // B2C is exempt from Handling Charges
     expect(breakdown.totalPackagingCharge).toBe(0);
     expect(breakdown.appliedWeightType).toBe("volumetric"); // Volumetric 752g > Actual 100g
     expect(breakdown.chargeableUnitWeightGrams).toBe(752);
@@ -184,7 +184,7 @@ describe("calculateDetailedBreakdown", () => {
     expect(breakdown.totalPackagingCharge).toBe(50);
   });
 
-  it("calculates per_order flat packaging charge correctly", () => {
+  it("calculates per_order flat Handling Charge correctly", () => {
     const breakdown = calculateDetailedBreakdown({
       product: { ...dummyProduct, packagingCharge: 50, packagingChargeType: "per_order" },
       variant: dummyVariant,
@@ -198,7 +198,7 @@ describe("calculateDetailedBreakdown", () => {
     expect(breakdown.unitPackagingCharge).toBe(10); // ₹50 / 5 units
   });
 
-  it("falls back to variant/product packaging charge when subVariant has 0", () => {
+  it("falls back to variant/product Handling Charge when subVariant has 0", () => {
     const breakdown = calculateDetailedBreakdown({
       product: { ...dummyProduct, packagingCharge: 40 },
       variant: { ...dummyVariant, packagingCharge: 25 },
@@ -207,7 +207,7 @@ describe("calculateDetailedBreakdown", () => {
       quantity: 2,
     });
 
-    expect(breakdown.unitPackagingCharge).toBe(25); // Picked variant packaging charge
+    expect(breakdown.unitPackagingCharge).toBe(25); // Picked variant Handling Charge
     expect(breakdown.totalPackagingCharge).toBe(50);
   });
 
