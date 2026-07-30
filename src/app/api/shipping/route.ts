@@ -15,6 +15,10 @@ export async function GET() {
         dropshippingFixedCharge: 0,
       } as any);
       config = config.toObject();
+    } else if (config.dropshippingFixedCharge === 80) {
+      // Auto-migrate legacy production DB document from old schema default (80) to 0
+      await ShippingConfig.updateOne({ _id: "shipping-config" } as any, { $set: { dropshippingFixedCharge: 0 } });
+      config.dropshippingFixedCharge = 0;
     }
     if (config.shiprocket) {
       config.shiprocket.password = config.shiprocket.password ? "••••••••" : "";
