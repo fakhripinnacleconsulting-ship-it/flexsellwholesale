@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bell, CheckCheck, Trash2, ShoppingBag, Info, AlertTriangle, Tag, X, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { notificationService } from "@/services/notificationService";
+import { ApiError } from "@/lib/apiClient";
 import { Notification } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -26,6 +27,10 @@ export function NotificationPopover({ role = "customer", customerId }: Notificat
       const data = await notificationService.getNotifications(role, customerId);
       setNotifications(data || []);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setNotifications([]);
+        return;
+      }
       console.error("Failed to load notifications", err);
     } finally {
       setIsLoading(false);

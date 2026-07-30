@@ -13,6 +13,7 @@ export async function proxy(request: NextRequest) {
   const isStateChanging = ["POST", "PUT", "DELETE"].includes(request.method);
   const isExcludedCsrf =
     pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/inquiries") ||
     pathname.startsWith("/api/system-diagnostics") ||
     pathname.startsWith("/api/shiprocket/webhook");
 
@@ -64,7 +65,17 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (!request.cookies.get("csrf_token")) {
+    const { generateCsrfToken } = await import("@/lib/csrf");
+    response.cookies.set("csrf_token", generateCsrfToken(), {
+      httpOnly: false,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
+
+  return response;
 }
 
 async function verifyJwtEdge(token: string) {

@@ -308,7 +308,7 @@ export function ProductInfoTabs() {
                               Total Chargeable: {(breakdown.totalChargeableWeightGrams / 1000).toFixed(2)} kg
                             </td>
                             <td className="p-2.5 text-right font-bold font-mono text-blue-600 dark:text-blue-400">
-                              ₹{breakdown.estimatedShippingCharge.toFixed(2)}
+                              ₹{breakdown.estimatedShippingCharge.toFixed(2) || 100}
                             </td>
                           </tr>
 

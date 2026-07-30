@@ -5,6 +5,7 @@ import { UserCheck, Mail, Phone, Store, Package, CheckCircle2, ArrowRight } from
 import { Button } from "@/components/ui/Button";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
+import { apiClient } from "@/lib/apiClient";
 import { DropshippingPlan } from "@/lib/seedDropshippingCMS";
 import { dispatchEvent } from "@/lib/events/eventDispatcher";
 
@@ -69,27 +70,17 @@ export function DropshippingRegisterForm({ selectedPlan, plans }: DropshippingRe
       const firstName = nameParts[0] || "Partner";
       const lastName = nameParts.slice(1).join(" ") || "Applicant";
 
-      const res = await fetch("/api/inquiries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: "dropshipping",
-          firstName,
-          lastName,
-          email: formData.email,
-          phone: formData.phone,
-          company: formData.amazonStoreName || "Amazon Seller",
-          subject: `Dropshipping Partner Application — ${formData.planChoice}`,
-          message: `Monthly Order Volume: ${formData.monthlyOrderVolume}\nAmazon Store: ${formData.amazonStoreName || "N/A"}\nPlan Choice: ${formData.planChoice}\nUser Note: ${formData.message || "N/A"}`,
-          expectedOrders: formData.monthlyOrderVolume,
-        }),
+      const data = await apiClient.post<any>("/inquiries", {
+        category: "dropshipping",
+        firstName,
+        lastName,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.amazonStoreName || "Amazon Seller",
+        subject: `Dropshipping Partner Application — ${formData.planChoice}`,
+        message: `Monthly Order Volume: ${formData.monthlyOrderVolume}\nAmazon Store: ${formData.amazonStoreName || "N/A"}\nPlan Choice: ${formData.planChoice}\nUser Note: ${formData.message || "N/A"}`,
+        expectedOrders: formData.monthlyOrderVolume,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to submit application");
-      }
 
       // Dispatch event locally for instant sandbox drawer updates
       try {
