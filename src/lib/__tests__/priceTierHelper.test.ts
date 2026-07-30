@@ -210,4 +210,57 @@ describe("calculateDetailedBreakdown", () => {
     expect(breakdown.unitPackagingCharge).toBe(25); // Picked variant packaging charge
     expect(breakdown.totalPackagingCharge).toBe(50);
   });
+
+  it("calculates dynamic weight-based shipping for Dropshipping tier when dropshippingFixedCharge is 0", () => {
+    const shippingConfig = {
+      b2bFixedCharge: 150,
+      dropshippingFixedCharge: 0,
+      weightSlabs: [
+        { fromGram: 0, uptoGram: 500, amount: 60 },
+        { fromGram: 501, uptoGram: 2000, amount: 120 },
+      ],
+    };
+
+    // 1 unit chargeable weight = 752g (volumetric) -> slab 501-2000g = 120
+    const breakdownQty1 = calculateDetailedBreakdown({
+      product: dummyProduct,
+      variant: dummyVariant,
+      subVariant: dummySubVariant,
+      tier: "Dropshipping",
+      quantity: 1,
+      shippingConfig,
+    });
+    expect(breakdownQty1.estimatedShippingCharge).toBe(120);
+
+    // 3 units chargeable weight = 2256g -> exceeds slabs fallback
+    const breakdownQty2 = calculateDetailedBreakdown({
+      product: dummyProduct,
+      variant: dummyVariant,
+      subVariant: dummySubVariant,
+      tier: "Dropshipping",
+      quantity: 2, // 2 * 752g = 1504g -> slab 501-2000g = 120
+      shippingConfig,
+    });
+    expect(breakdownQty2.estimatedShippingCharge).toBe(120);
+  });
+
+  it("uses fixed dropshipping charge when dropshippingFixedCharge is set > 0", () => {
+    const shippingConfig = {
+      b2bFixedCharge: 150,
+      dropshippingFixedCharge: 95,
+      weightSlabs: [
+        { fromGram: 0, uptoGram: 500, amount: 60 },
+      ],
+    };
+
+    const breakdown = calculateDetailedBreakdown({
+      product: dummyProduct,
+      variant: dummyVariant,
+      subVariant: dummySubVariant,
+      tier: "Dropshipping",
+      quantity: 1,
+      shippingConfig,
+    });
+    expect(breakdown.estimatedShippingCharge).toBe(95);
+  });
 });

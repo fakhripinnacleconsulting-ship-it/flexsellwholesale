@@ -29,7 +29,7 @@ const ShippingConfigSchema = new Schema<ShippingConfigType & Document>(
     _id: { type: String, default: "shipping-config" },
     weightSlabs: [WeightSlabSchema],
     b2bFixedCharge: { type: Number, default: 150 },
-    dropshippingFixedCharge: { type: Number, default: 80 },
+    dropshippingFixedCharge: { type: Number, default: 0 },
     packagingCharge: { type: Number, default: 0 },
     packagingChargeType: { type: String, enum: ["per_unit", "per_order"], default: "per_unit" },
     shiprocket: { type: ShiprocketConfigSchema, default: () => ({}) },

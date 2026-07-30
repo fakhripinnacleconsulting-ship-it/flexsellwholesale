@@ -12,6 +12,7 @@ export async function GET() {
         _id: "shipping-config",
         weightSlabs: [],
         b2bFixedCharge: 150,
+        dropshippingFixedCharge: 0,
       } as any);
       config = config.toObject();
     }
