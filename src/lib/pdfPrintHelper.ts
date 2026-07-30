@@ -6,7 +6,8 @@
 
 export function generateDocumentTitle(
   docType: "Invoice" | "RECEIPT" | "Quote" | "Shipping_Label" | "Wholesale_Catalog" | "Barcode_Labels" | string,
-  referenceId?: string
+  referenceId?: string,
+  customerName?: string
 ): string {
   // Clean docType
   const cleanType = docType.trim().replace(/\s+/g, "_");
@@ -16,7 +17,13 @@ export function generateDocumentTitle(
     ? referenceId.trim().replace(/[^a-zA-Z0-9_-]/g, "")
     : "";
 
-  if (cleanRef) {
+  const cleanName = customerName && customerName.trim() !== ""
+    ? customerName.trim().replace(/[^a-zA-Z0-9_-]/g, "_")
+    : "";
+
+  if (cleanRef && cleanName) {
+    return `${cleanType}_${cleanName}_${cleanRef}`;
+  } else if (cleanRef) {
     // Direct document ID available -> Use Name and ID (e.g., Invoice_FS-10028, RECEIPT_INV-9001)
     return `${cleanType}_${cleanRef}`;
   }
@@ -36,21 +43,33 @@ export function generateDocumentTitle(
 export function triggerPrintWithTitle(
   docType: string,
   referenceId?: string,
+  customerName?: string,
   customAction?: () => void
 ) {
   if (typeof window === "undefined") return;
 
   const originalTitle = document.title;
-  const printableTitle = generateDocumentTitle(docType, referenceId);
+  const printableTitle = generateDocumentTitle(docType, referenceId, customerName);
 
   document.title = printableTitle;
 
+  let restored = false;
   const restoreTitle = () => {
+    if (restored) return;
+    restored = true;
     document.title = originalTitle;
-    window.removeEventListener("afterprint", restoreTitle);
+    window.removeEventListener("afterprint", onAfterPrint);
+    window.removeEventListener("focus", restoreTitle);
   };
 
-  window.addEventListener("afterprint", restoreTitle);
+  const onAfterPrint = () => {
+    // Wait until user closes the print dialog and focuses back on the main window
+    window.addEventListener("focus", restoreTitle, { once: true });
+    // Also restore after a generous delay if focus event doesn't trigger
+    setTimeout(restoreTitle, 30000);
+  };
+
+  window.addEventListener("afterprint", onAfterPrint, { once: true });
 
   if (customAction) {
     customAction();
@@ -58,8 +77,7 @@ export function triggerPrintWithTitle(
     window.print();
   }
 
-  // Fallback title restoration if afterprint doesn't fire
-  setTimeout(() => {
-    document.title = originalTitle;
-  }, 2500);
+  // Fallback title restoration after 30 seconds
+  setTimeout(restoreTitle, 30000);
 }
+

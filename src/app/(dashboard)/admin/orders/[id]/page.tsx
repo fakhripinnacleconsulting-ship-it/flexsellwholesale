@@ -16,6 +16,7 @@ import { ShippingLabelDocument } from "@/components/documents/ShippingLabelDocum
 import { FulfillmentForm } from "@/components/admin/order/FulfillmentForm";
 import { ShipmentDetails } from "@/stores/orderStore";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
+import { buildSellerInfo } from "@/lib/buildSellerInfo";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -242,13 +243,13 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
 
   const handlePrint = () => {
     const docLabel = invoice?.type === "receipt" ? "RECEIPT" : invoice?.type === "quote" ? "Quote" : "Invoice";
-    triggerPrintWithTitle(docLabel, orderId);
+    triggerPrintWithTitle(docLabel, orderId, order?.customerName);
   };
 
   return (
     <div className="space-y-6 container mx-auto px-4 py-8 text-foreground max-w-5xl">
       {/* Back & Print Bar (Hidden during printing) */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print border-b pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden border-b pb-4">
         <Link href="/admin/orders">
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Orders List
@@ -362,7 +363,7 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
 
       {/* Partial Failure Warning Banner [UPDATED-5] */}
       {order.shipmentDetails?.shiprocket?.failedAt && (
-        <Card className="border border-destructive/30 bg-destructive/10 p-4 flex items-center justify-between no-print">
+        <Card className="border border-destructive/30 bg-destructive/10 p-4 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-6 w-6 text-destructive shrink-0" />
             <div className="text-xs">
@@ -400,36 +401,17 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
       )}
 
       {/* Invoice Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start print:block">
         {/* Left Columns: Invoice and Details */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="print-shadow-none border border-border">
+          <Card className="print-shadow-none border border-border print:border-none">
             <CardContent className="p-6">
               <InvoiceDocument
                 type={invoice?.type || (order.paymentStatus === "Paid" ? "invoice" : "receipt")}
                 documentNumber={invoice?._id || "DRAFT-PREVIEW"}
                 order={order}
                 customerId={invoice?.customerId}
-                sellerInfo={{
-                  storeName: cmsData?.businessSettings?.storeName || cmsData?.brandSettings?.storeName || "FlexSell Wholesale",
-                  gstin: cmsData?.businessSettings?.gstin || cmsData?.brandSettings?.gstin || "24AAACF1001M1Z5",
-                  address: cmsData?.businessSettings?.companyAddress
-                    ? `${cmsData.businessSettings.companyAddress}, ${cmsData.businessSettings.city || ""}, ${cmsData.businessSettings.state || ""} - ${cmsData.businessSettings.pinCode || ""}`
-                    : cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Madhya Pradesh - 394230",
-                  email: cmsData?.businessSettings?.supportEmail || cmsData?.brandSettings?.supportEmail || "support@flexsellwholesale.in",
-                  phone: cmsData?.businessSettings?.supportPhone || cmsData?.brandSettings?.supportPhone || "+91 88877 66655",
-                  signatureUrl: cmsData?.businessSettings?.signatureUrl,
-                  bankDetails: cmsData?.businessSettings?.bankName
-                    ? {
-                        bankName: cmsData.businessSettings.bankName,
-                        accountName: cmsData.businessSettings.accountName,
-                        accountNumber: cmsData.businessSettings.accountNumber,
-                        ifscCode: cmsData.businessSettings.ifscCode,
-                        branchName: cmsData.businessSettings.branchName
-                      }
-                    : undefined,
-                  termsAndConditions: cmsData?.businessSettings?.termsAndConditions
-                }}
+                sellerInfo={buildSellerInfo(cmsData)}
                 showActions={false}
               />
             </CardContent>
@@ -437,7 +419,7 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
         </div>
 
         {/* Right Column: Timeline & Shipment status */}
-        <div className="space-y-6">
+        <div className="space-y-6 print:hidden">
           {/* Tracking info card */}
           {order.shipmentDetails ? (
             <Card className="border border-primary/15 bg-primary/5">

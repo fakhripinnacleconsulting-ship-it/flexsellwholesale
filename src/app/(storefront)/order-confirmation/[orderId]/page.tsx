@@ -11,6 +11,7 @@ import { Order } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
+import { buildSellerInfo } from "@/lib/buildSellerInfo";
 
 export default function OrderConfirmationPage() {
   const params = useParams();
@@ -58,7 +59,8 @@ export default function OrderConfirmationPage() {
   }, [orderId]);
 
   const handlePrint = () => {
-    triggerPrintWithTitle("Invoice", order?._id || (orderId as string));
+    const customerName = order?.shippingAddress.company || (order?.shippingAddress.firstName ? `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}` : "");
+    triggerPrintWithTitle("Invoice", order?._id || (orderId as string), customerName);
   };
 
   if (loading) {
@@ -243,26 +245,7 @@ export default function OrderConfirmationPage() {
           documentNumber={invoice?._id || `RCP-${order._id.replace("ORD-", "")}`}
           order={order}
           customerId={invoice?.customerId}
-          sellerInfo={{
-            storeName: cmsData?.businessSettings?.storeName || cmsData?.brandSettings?.storeName || "FlexSell Wholesale",
-            gstin: cmsData?.businessSettings?.gstin || cmsData?.brandSettings?.gstin || "24AAACF1001M1Z5",
-            address: cmsData?.businessSettings?.companyAddress
-              ? `${cmsData.businessSettings.companyAddress}, ${cmsData.businessSettings.city || ""}, ${cmsData.businessSettings.state || ""} - ${cmsData.businessSettings.pinCode || ""}`
-              : cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Madhya Pradesh - 394230",
-            email: cmsData?.businessSettings?.supportEmail || cmsData?.brandSettings?.supportEmail || "support@flexsellwholesale.in",
-            phone: cmsData?.businessSettings?.supportPhone || cmsData?.brandSettings?.supportPhone || "+91 88877 66655",
-            signatureUrl: cmsData?.businessSettings?.signatureUrl,
-            bankDetails: cmsData?.businessSettings?.bankName
-              ? {
-                  bankName: cmsData.businessSettings.bankName,
-                  accountName: cmsData.businessSettings.accountName,
-                  accountNumber: cmsData.businessSettings.accountNumber,
-                  ifscCode: cmsData.businessSettings.ifscCode,
-                  branchName: cmsData.businessSettings.branchName
-                }
-              : undefined,
-            termsAndConditions: cmsData?.businessSettings?.termsAndConditions
-          }}
+          sellerInfo={buildSellerInfo(cmsData)}
           showActions={false}
         />
       </div>

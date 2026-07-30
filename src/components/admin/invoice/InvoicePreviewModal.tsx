@@ -24,10 +24,10 @@ export function InvoicePreviewModal({
   if (!selectedInvoice) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-background border rounded-xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col relative">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static print:block print:w-full print:h-auto print:overflow-visible print:overflow-y-visible print:max-h-none">
+      <div className="bg-background border rounded-xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col relative print:border-none print:shadow-none print:max-w-none print:max-h-none print:w-full print:h-auto print:overflow-visible print:overflow-y-visible print:static print:block print:p-0 print:m-0">
         {/* Modal Header Bar */}
-        <div className="p-4 border-b bg-background z-10 flex flex-wrap justify-between items-center gap-3">
+        <div className="p-4 border-b bg-background z-10 flex flex-wrap justify-between items-center gap-3 no-print">
           <div>
             <h2 className="text-base font-bold text-foreground flex items-center gap-2">
               Document Preview: <span className="font-mono text-primary">{selectedInvoice._id}</span>
@@ -52,7 +52,7 @@ export function InvoicePreviewModal({
             <Button
               onClick={() => {
                 const docLabel = selectedInvoice?.type === "receipt" ? "RECEIPT" : selectedInvoice?.type === "quote" ? "Quote" : "Invoice";
-                triggerPrintWithTitle(docLabel, selectedInvoice?._id);
+                triggerPrintWithTitle(docLabel, selectedInvoice?._id, selectedInvoice?.customerName);
               }}
               className="flex items-center gap-1.5 font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer px-3 py-1.5 h-8.5"
             >
@@ -71,8 +71,8 @@ export function InvoicePreviewModal({
         </div>
 
         {/* Modal Body / A4 Container */}
-        <div className="p-4 sm:p-6 overflow-y-auto bg-neutral-100 dark:bg-neutral-900 flex justify-center max-h-[80vh] w-full">
-          <div className="print-container bg-white dark:bg-zinc-950 shadow-md border border-border w-full max-w-[800px] p-6 sm:p-10 md:p-14 rounded-xs select-text flex flex-col justify-between">
+        <div className="p-4 sm:p-6 overflow-y-auto bg-neutral-100 dark:bg-neutral-900 flex justify-center max-h-[80vh] w-full print:p-0 print:bg-white print:max-h-none print:h-auto print:overflow-visible print:overflow-y-visible print:block print:w-full print:m-0">
+          <div className="print-container bg-white dark:bg-zinc-950 shadow-md border border-border w-full max-w-[800px] p-6 sm:p-10 md:p-14 rounded-xs select-text flex flex-col justify-between print:p-0 print:border-none print:shadow-none print:max-w-none print:block print:w-full print:h-auto print:overflow-visible print:overflow-y-visible print:m-0">
             <InvoiceDocument
               type={selectedInvoice.type}
               documentNumber={selectedInvoice._id}

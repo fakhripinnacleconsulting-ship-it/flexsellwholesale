@@ -6,22 +6,27 @@ import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { Order, CartItem, TaxBreakdown, SellerInfo, HsnSlab } from "@/types";
 import { useProductStore } from "@/stores/productStore";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
 export interface InvoiceDocumentProps {
-  type: "invoice" | "receipt" | "quote";
-  documentNumber: string;
-  order: Order;
+  type: "invoice" | "receipt" | "quote" | "shipping_label";
+  documentNumber?: string;
+  order: Order | any;
   sellerInfo: SellerInfo;
   taxBreakdown?: TaxBreakdown;
+  shipmentDetails?: {
+    carrierName?: string;
+    awbNumber?: string;
+    dispatchType?: "PREPAID" | "COD";
+    totalWeightKg?: number;
+  };
   showActions?: boolean;
   customerId?: string;
   salesperson?: string;
 }
 
 function computeTaxBreakdown(order: Order, sellerState: string): TaxBreakdown {
-  const buyerState = order.shippingAddress.state;
+  const buyerState = order.shippingAddress?.state || "Madhya Pradesh";
   const isIntrastate = buyerState.toLowerCase() === sellerState.toLowerCase();
   const hsnMap: Record<string, HsnSlab> = {};
   let baseSubtotal = 0;
@@ -29,7 +34,7 @@ function computeTaxBreakdown(order: Order, sellerState: string): TaxBreakdown {
   let totalSgst = 0;
   let totalIgst = 0;
 
-  order.items.forEach((item) => {
+  (order.items || []).forEach((item: any) => {
     const rate = item.product?.gstRate ?? 18;
     const hsn = item.product?.hsnCode ?? "3924";
     const isIncl = item.product?.priceIncludesGst ?? true;
@@ -85,33 +90,232 @@ export function InvoiceDocument({
   order,
   sellerInfo,
   taxBreakdown: providedTaxBreakdown,
+  shipmentDetails,
   showActions = true,
   customerId,
   salesperson,
 }: InvoiceDocumentProps) {
   const { products } = useProductStore();
-  // Extract seller state from address for tax computation
   const sellerStateMatch = sellerInfo.address.match(/(?:,\s*)([A-Za-z\s]+?)(?:\s*-\s*\d|$)/);
   const sellerState = sellerStateMatch ? sellerStateMatch[1].trim() : "Madhya Pradesh";
   const tax = providedTaxBreakdown || computeTaxBreakdown(order, sellerState);
-  const grandTotal = order.amount;
   const isInvoice = type === "invoice";
   const isQuote = type === "quote";
-  const documentTitle = isQuote ? "Price Quote" : isInvoice ? "Tax Invoice" : "Payment Receipt";
+  const isReceipt = type === "receipt";
+  const isShippingLabel = type === "shipping_label";
+  const grandTotal = order.amount || 0;
 
-  const itemTotalWithGst = order.items.reduce((sum, item) => sum + (item.pricePerUnit * item.quantity), 0);
+  const documentTitle = isShippingLabel
+    ? "Shipping Dispatch Label"
+    : isQuote
+    ? "Price Quote"
+    : isInvoice
+    ? "Tax Invoice"
+    : "Payment Receipt";
+
+  const itemsList = order.items || [];
+  const itemTotalWithGst = itemsList.reduce((sum: number, item: any) => sum + (item.pricePerUnit * item.quantity), 0);
   const couponDiscount = order.couponDiscount || 0;
-  const rawShipping = order.amount - itemTotalWithGst + couponDiscount;
+  const rawShipping = (order.amount || 0) - itemTotalWithGst + couponDiscount;
   const shippingCharge = rawShipping > 0.01 ? parseFloat(rawShipping.toFixed(2)) : 0;
 
   const handlePrint = () => {
-    const docLabel = type === "invoice" ? "Invoice" : type === "receipt" ? "RECEIPT" : "Quote";
+    const docLabel = isShippingLabel
+      ? "Shipping_Label"
+      : isInvoice
+      ? "Invoice"
+      : isReceipt
+      ? "RECEIPT"
+      : "Quote";
     const refId = documentNumber && documentNumber !== "DRAFT-PREVIEW" ? documentNumber : order._id;
     triggerPrintWithTitle(docLabel, refId);
   };
 
+  if (isShippingLabel) {
+    const isCod = shipmentDetails?.dispatchType === "COD" || order.paymentMethod === "COD";
+    const trackingCode = shipmentDetails?.awbNumber || documentNumber || order._id;
+    const carrierTitle = shipmentDetails?.carrierName || "FlexSell In-House Transport Dispatch";
+    const totalWeightGrams = itemsList.reduce((acc: number, item: any) => {
+      const wg = item.weightGrams || 250;
+      return acc + wg * item.quantity;
+    }, 0);
+    const totalWeightKg = (totalWeightGrams / 1000).toFixed(2);
+
+    return (
+      <div className="invoice-document bg-white text-gray-900 max-w-2xl mx-auto print:w-full print:max-w-none print:m-0 print:p-0 print:overflow-visible print:bg-white">
+        {showActions && (
+          <div className="no-print flex justify-end gap-3 mb-6 pb-4 border-b border-gray-200">
+            <button
+              onClick={handlePrint}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-2.5 px-5 rounded-lg shadow cursor-pointer transition-colors"
+            >
+              Print Shipping Label
+            </button>
+          </div>
+        )}
+
+        <div className="border-2 border-black bg-white text-black p-5 rounded-none font-sans space-y-4 print:border-2 print:border-black print:m-0 print:p-4 print:w-full">
+          {/* Header Bar */}
+          <div className="border-b-2 border-black pb-3 flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Image
+                  src="/Flexsell%20Logo.png"
+                  alt={sellerInfo.legalName || sellerInfo.storeName || "FlexSell Logo"}
+                  width={140}
+                  height={40}
+                  style={{ width: "auto" }}
+                  className="h-7 w-auto object-contain shrink-0"
+                  unoptimized
+                />
+              </div>
+              <h1 className="text-base font-extrabold tracking-tight uppercase border-b-2 border-black inline-block pb-0.5">
+                {sellerInfo.legalName || sellerInfo.storeName}
+              </h1>
+              <p className="text-[10px] font-bold tracking-widest uppercase text-gray-700 mt-1">
+                B2B WHOLESALE ORDER DISPATCH
+              </p>
+            </div>
+
+            <div className="text-right">
+              <div className="inline-block px-3 py-1 bg-black text-white font-extrabold text-xs uppercase tracking-wider">
+                {isCod ? "C.O.D. ORDER" : "PREPAID DISPATCH"}
+              </div>
+              <p className="text-[10px] font-mono font-bold mt-1">Order #: {order._id}</p>
+            </div>
+          </div>
+
+          {/* Carrier & Barcode */}
+          <div className="border-b-2 border-black pb-3 text-center bg-gray-50 p-2.5">
+            <div className="flex justify-between items-center mb-1 text-[11px] font-bold uppercase">
+              <span>Carrier: <strong>{carrierTitle}</strong></span>
+              <span>Date: {order.date || new Date().toLocaleDateString("en-IN")}</span>
+            </div>
+
+            <div className="flex flex-col items-center justify-center my-1.5">
+              <div className="h-10 flex items-center gap-[2px] overflow-hidden">
+                {[3, 1, 2, 4, 1, 3, 1, 2, 3, 1, 4, 2, 1, 3, 2, 1, 4, 1, 2, 3, 1, 2, 4, 1, 3, 1, 2, 3, 1, 4, 2, 1, 3].map((w, i) => (
+                  <div key={i} className="bg-black h-full" style={{ width: `${w * 2}px` }} />
+                ))}
+              </div>
+              <span className="font-mono font-extrabold text-sm tracking-widest mt-1 uppercase">
+                *{trackingCode}*
+              </span>
+            </div>
+          </div>
+
+          {/* Address Grid: SHIP TO vs SHIP FROM */}
+          <div className="grid grid-cols-2 gap-4 border-b-2 border-black pb-4 text-xs">
+            {/* SHIP TO */}
+            <div className="space-y-1.5 pr-2 border-r-2 border-black">
+              <div className="bg-black text-white font-extrabold text-[10px] uppercase px-1.5 py-0.5 inline-block">
+                SHIP TO (DELIVERY DOCK)
+              </div>
+              {order.shippingAddress?.company ? (
+                <>
+                  <p className="font-extrabold text-sm uppercase leading-tight mt-1">
+                    {order.shippingAddress.company}
+                  </p>
+                  <p className="font-bold text-xs text-gray-800">
+                    Attn: {order.customerName || order.shippingAddress?.firstName}
+                  </p>
+                </>
+              ) : (
+                <p className="font-extrabold text-sm uppercase leading-tight mt-1">
+                  {order.customerName}
+                </p>
+              )}
+              {order.shippingAddress && (
+                <>
+                  <p className="font-semibold text-xs leading-snug mt-1">
+                    {order.shippingAddress.address}
+                    {order.shippingAddress.apartment ? `, ${order.shippingAddress.apartment}` : ""}
+                  </p>
+                  <p className="font-extrabold text-xs uppercase mt-1">
+                    {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pinCode}
+                  </p>
+                  <p className="font-mono font-bold text-xs pt-1">
+                    Ph: {order.shippingAddress.phone}
+                  </p>
+                  {order.shippingAddress.gstin && (
+                    <p className="font-mono font-bold text-[10px] text-gray-700">
+                      GSTIN: {order.shippingAddress.gstin}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* SHIP FROM */}
+            <div className="space-y-1.5 pl-2">
+              <div className="bg-gray-200 text-black font-extrabold text-[10px] uppercase px-1.5 py-0.5 inline-block border border-black">
+                RETURN / SHIP FROM (ORIGIN)
+              </div>
+              <p className="font-extrabold text-xs uppercase mt-1">{sellerInfo.legalName || sellerInfo.storeName}</p>
+              <p className="text-[11px] leading-tight text-gray-800">{sellerInfo.address}</p>
+              <p className="font-mono font-bold text-[11px]">Ph: {sellerInfo.phone}</p>
+              {sellerInfo.gstin && <p className="font-mono text-[10px] text-gray-700">GSTIN: {sellerInfo.gstin}</p>}
+            </div>
+          </div>
+
+          {/* Package Specs & SKU items manifest */}
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between items-center bg-gray-100 p-2 border border-black font-bold text-[11px]">
+              <span>Total Units: {itemsList.reduce((a: number, c: any) => a + (c.quantity || 1), 0)} Items</span>
+              <span>Est Weight: {totalWeightKg} kg</span>
+              <span>Decl Value: ₹{(order.amount || 0).toLocaleString()}</span>
+            </div>
+
+            <div className="border border-black">
+              <table className="w-full text-left text-[10px]">
+                <thead className="bg-gray-200 border-b border-black font-bold uppercase">
+                  <tr>
+                    <th className="p-1.5">Item Description</th>
+                    <th className="p-1.5 text-center">Variant</th>
+                    <th className="p-1.5 text-right">Qty</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-300 font-medium">
+                  {itemsList.slice(0, 4).map((item: any, i: number) => {
+                    const formattedVariants = Object.entries(item.selectedVariants || {})
+                      .map(([key, val]) => `${key}: ${val}`)
+                      .join(" • ");
+                    return (
+                      <tr key={i}>
+                        <td className="p-1.5 font-bold truncate max-w-[180px]">
+                          {item.product?.title || "Product Item"}
+                        </td>
+                        <td className="p-1.5 text-center text-gray-700">
+                          {formattedVariants || "-"}
+                        </td>
+                        <td className="p-1.5 text-right font-extrabold">{item.quantity}</td>
+                      </tr>
+                    );
+                  })}
+                  {itemsList.length > 4 && (
+                    <tr>
+                      <td colSpan={3} className="p-1 text-center italic text-gray-600 bg-gray-50">
+                        + {itemsList.length - 4} additional SKU items listed in commercial invoice
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Footer Security Badge */}
+          <div className="border-t-2 border-black pt-2 flex justify-between items-center text-[9px] text-gray-700 uppercase font-bold">
+            <span>Verified FlexSell B2B Order Dispatch</span>
+            <span>Handle With Care • Keep Dry</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="invoice-document bg-white text-gray-900 max-w-4xl mx-auto">
+    <div className="invoice-document bg-white text-gray-900 max-w-4xl mx-auto print:w-full print:max-w-none print:m-0 print:p-0 print:overflow-visible print:bg-white">
       {/* Print/Download Controls */}
       {showActions && (
         <div className="no-print flex justify-end gap-3 mb-6 pb-4 border-b border-gray-200">
@@ -125,15 +329,16 @@ export function InvoiceDocument({
       )}
 
       {/* Document Container */}
-      <div className="border border-gray-200 rounded-xl p-8 print:border-none print:rounded-none print:p-0 print:shadow-none">
+      <div className="border border-gray-200 rounded-xl p-8 print:border-none print:rounded-none print:p-0 print:shadow-none print:w-full print:max-w-none print:overflow-visible">
         {/* ─── HEADER ─── */}
         <div className="flex justify-between items-start pb-6 border-b-2 border-gray-800">
           <div className="flex items-center gap-4">
             <Image
               src="/Flexsell%20Logo.png"
-              alt={sellerInfo.storeName}
+              alt={sellerInfo.legalName || sellerInfo.storeName || "FlexSell Logo"}
               width={160}
               height={48}
+              style={{ width: "auto" }}
               className="h-10 w-auto object-contain"
               unoptimized
             />
@@ -143,12 +348,17 @@ export function InvoiceDocument({
               {documentTitle}
             </h1>
             <p className="text-xs font-mono font-bold mt-1 text-gray-700">
-              {isInvoice ? "Invoice" : "Receipt"} #: {documentNumber}
+              {isShippingLabel ? "AWB" : isQuote ? "Quote" : isInvoice ? "Invoice" : "Receipt"} #: {documentNumber || order._id}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
               Date: {order.date || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}
             </p>
-            {order._id && (
+            {isQuote && (
+              <p className="text-[10px] text-amber-600 font-semibold mt-0.5">
+                Valid for 15 calendar days
+              </p>
+            )}
+            {order._id && !isShippingLabel && (
               <p className="text-xs text-gray-500 mt-0.5">
                 Order Ref: {order._id}
               </p>
@@ -166,9 +376,12 @@ export function InvoiceDocument({
           {/* Seller */}
           <div>
             <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-2">
-              Sold By:
+              {isQuote ? "Issued By:" : "Sold By / Shipper:"}
             </h3>
-            <p className="font-bold text-gray-900 text-sm">{sellerInfo.storeName}</p>
+            <p className="font-bold text-gray-900 text-sm">{sellerInfo.legalName || sellerInfo.storeName}</p>
+            {sellerInfo.legalName && sellerInfo.storeName && sellerInfo.legalName !== sellerInfo.storeName && (
+              <p className="text-[11px] text-gray-500 font-medium">({sellerInfo.storeName})</p>
+            )}
             {sellerInfo.address && (
               <p className="text-gray-600 mt-1 leading-relaxed">{sellerInfo.address}</p>
             )}
@@ -183,39 +396,42 @@ export function InvoiceDocument({
             {sellerInfo.phone && (
               <p className="text-gray-500">Phone: {sellerInfo.phone}</p>
             )}
-            {salesperson && (
-              <p className="text-xs text-emerald-700 font-medium mt-1.5 pt-1.5 border-t border-gray-100">
-                Salesperson: <span className="font-bold text-gray-900">{salesperson}</span>
-              </p>
-            )}
           </div>
 
           {/* Buyer */}
           <div>
             <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-2">
-              Bill To / Ship To:
+              {isQuote ? "Quotation For:" : "Bill To / Consignee:"}
             </h3>
-            <p className="font-bold text-gray-900 text-sm">{order.customerName}</p>
+            {order.shippingAddress?.company ? (
+              <>
+                <p className="font-bold text-gray-900 text-sm">{order.shippingAddress.company}</p>
+                <p className="text-xs text-gray-700 font-medium">Attn: {order.customerName}</p>
+              </>
+            ) : (
+              <p className="font-bold text-gray-900 text-sm">{order.customerName}</p>
+            )}
             {customerId && (
               <p className="font-mono text-gray-700 mt-0.5">
                 Client ID: <span className="font-bold text-gray-950">{customerId}</span>
               </p>
             )}
-            {order.shippingAddress.company && (
-              <p className="text-gray-600 font-semibold">{order.shippingAddress.company}</p>
-            )}
-            <p className="text-gray-600 mt-1 leading-relaxed">
-              {order.shippingAddress.address}
-              {order.shippingAddress.apartment && `, ${order.shippingAddress.apartment}`}
-            </p>
-            <p className="text-gray-600">
-              {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pinCode}
-            </p>
-            <p className="text-gray-500 mt-1">Phone: {order.shippingAddress.phone}</p>
-            {order.shippingAddress.gstin && (
-              <p className="font-mono font-bold text-emerald-700 mt-1.5">
-                GSTIN: {order.shippingAddress.gstin}
-              </p>
+            {order.shippingAddress && (
+              <>
+                <p className="text-gray-600 mt-1 leading-relaxed">
+                  {order.shippingAddress.address}
+                  {order.shippingAddress.apartment && `, ${order.shippingAddress.apartment}`}
+                </p>
+                <p className="text-gray-600">
+                  {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pinCode}
+                </p>
+                <p className="text-gray-500 mt-1">Phone: {order.shippingAddress.phone}</p>
+                {order.shippingAddress.gstin && (
+                  <p className="font-mono font-bold text-emerald-700 mt-1.5">
+                    GSTIN: {order.shippingAddress.gstin}
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -235,7 +451,7 @@ export function InvoiceDocument({
               </tr>
             </thead>
             <tbody>
-              {order.items.map((item, index) => {
+              {itemsList.map((item: any, index: number) => {
                 const formattedVariants = Object.entries(item.selectedVariants || {})
                   .map(([key, val]) => `${key}: ${val}`)
                   .join(" • ");
@@ -247,7 +463,7 @@ export function InvoiceDocument({
                     <td className="py-3 text-gray-500">{index + 1}</td>
                     <td className="py-3">
                       <div className="flex items-center gap-3">
-                        {/* Dynamic Variant Image Preview */}
+                        {/* Dynamic Variant Image Preview with guaranteed fallback */}
                         <div className="w-12 h-12 relative flex-shrink-0 bg-gray-50 border border-gray-200 rounded overflow-hidden">
                           {(() => {
                             const matchedProduct = products.find(p => p._id === item.productId || p._id === item.product?._id);
@@ -256,9 +472,13 @@ export function InvoiceDocument({
                             const { color: matchingColor } = resolveVariantKeys(item.selectedVariants);
                             const activeVariant = colorVariants.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
                               || colorVariants[0];
-                             const firstImg = activeVariant?.images?.[0] || colorVariants.find((cv: any) => cv.images && cv.images.length > 0)?.images?.[0];
+                            const firstImg = activeVariant?.images?.[0]
+                              || colorVariants.find((cv: any) => cv.images && cv.images.length > 0)?.images?.[0]
+                              || (productSource as any)?.images?.[0]
+                              || (item as any)?.image
+                              || (item as any)?.imageUrl;
                             const rawUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
-                            const imgUrl = sanitizeImgUrl(rawUrl, "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80");
+                            const imgUrl = sanitizeImgUrl(rawUrl, "/Flexsell%20Logo.png");
                             return (
                               <img
                                 src={imgUrl}
@@ -268,28 +488,17 @@ export function InvoiceDocument({
                                 onError={(e) => {
                                   const target = e.currentTarget;
                                   target.onerror = null;
-                                  target.src = "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80";
+                                  target.src = "/Flexsell%20Logo.png";
                                 }}
                               />
                             );
                           })()}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{item.product?.title || "Product"}</p>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-500 font-mono mt-0.5">
-                            {(() => {
-                              const { color: matchingColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(item.selectedVariants);
-                              const activeVariant = item.product?.colorVariants?.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
-                                || item.product?.colorVariants?.[0];
-                              const activeSub = activeVariant?.subVariants?.find((sv: any) =>
-                                (!selectedSize || sv.size?.toLowerCase() === selectedSize.toLowerCase()) &&
-                                (!selectedWeight || sv.weight?.toLowerCase() === selectedWeight.toLowerCase())
-                              ) || activeVariant?.subVariants?.[0];
-                              const sku = activeSub?.sku || (item.product?._id ? `SKU-${item.product._id.slice(-6)}` : "SKU-N/A");
-                              return <span>SKU: {sku}</span>;
-                            })()}
-                            {formattedVariants && <span>• {formattedVariants}</span>}
-                          </div>
+                          <p className="font-bold text-gray-900">{item.product?.title || "Product"}</p>
+                          {formattedVariants && (
+                            <p className="text-[10px] text-gray-500 mt-0.5">{formattedVariants}</p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -508,44 +717,10 @@ export function InvoiceDocument({
 
         {/* ─── FOOTER NOTE ─── */}
         <div className="mt-8 pt-4 border-t border-gray-200 text-[10px] text-gray-400 text-center space-y-1">
-          <p>This is a computer-generated {isInvoice ? "invoice" : "receipt"} and does not require a physical signature.</p>
-          <p>© {new Date().getFullYear()} {sellerInfo.storeName}. All rights reserved.</p>
+          <p>This is a computer-generated {isQuote ? "quotation" : isInvoice ? "invoice" : "receipt"} and does not require a physical signature.</p>
+          <p>© {new Date().getFullYear()} {sellerInfo.legalName || sellerInfo.storeName}. All rights reserved.</p>
         </div>
       </div>
-
-      {/* ─── PRINT STYLES ─── */}
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 0;
-          }
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            height: auto !important;
-            background: #ffffff !important;
-            overflow: visible !important;
-          }
-          body * { visibility: hidden; }
-          .invoice-document, .invoice-document * { visibility: visible !important; }
-          .invoice-document {
-            position: fixed !important;
-            left: 0 !important;
-            top: 0 !important;
-            right: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 10mm 15mm !important;
-            box-sizing: border-box !important;
-            border: none !important;
-            box-shadow: none !important;
-            background: #ffffff !important;
-          }
-          nav, header, footer, aside, [data-sidebar], .no-print, button { display: none !important; }
-        }
-      `}</style>
     </div>
   );
 }

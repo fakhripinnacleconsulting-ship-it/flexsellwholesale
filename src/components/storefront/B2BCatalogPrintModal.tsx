@@ -397,7 +397,7 @@ export function B2BCatalogPrintModal({
   const handlePrint = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    triggerPrintWithTitle("Wholesale_Catalog", catalogTitle);
+    triggerPrintWithTitle("Wholesale_Catalog", "", catalogTitle);
   };
 
   const modalContent = (

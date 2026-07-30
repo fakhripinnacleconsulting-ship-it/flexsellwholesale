@@ -10,6 +10,7 @@ import { ArrowLeft, Printer, Truck, Calendar, CheckCircle, Clock, AlertTriangle,
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { SellerInfo } from "@/types";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
+import { buildSellerInfo } from "@/lib/buildSellerInfo";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -45,7 +46,7 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
 
   const handlePrint = () => {
     const docLabel = invoice?.type === "receipt" ? "RECEIPT" : invoice?.type === "quote" ? "Quote" : "Invoice";
-    triggerPrintWithTitle(docLabel, orderId);
+    triggerPrintWithTitle(docLabel, orderId, order?.customerName);
   };
 
   if (isLoading) {
@@ -79,7 +80,7 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
   return (
     <div className="container mx-auto px-4 py-8 space-y-6 text-foreground">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4 print:hidden">
         <div>
           <div className="flex items-center gap-2">
             <Link href="/client/orders">
@@ -108,7 +109,7 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
       </div>
 
       {/* Grid: Stepper & Delivery Address */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
         <Card className="lg:col-span-2 border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Fulfillment Status Tracker</CardTitle>
@@ -162,36 +163,17 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
       </div>
 
       {/* Main Grid Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start print:block">
         {/* Left Column: Commercial Invoice */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border border-border">
+          <Card className="border border-border print:border-none print:shadow-none">
             <CardContent className="p-6">
               <InvoiceDocument
                 type={invoice?.type || (order.paymentStatus === "Paid" ? "invoice" : "receipt")}
                 documentNumber={invoice?._id || "DRAFT-PREVIEW"}
                 order={order}
                 customerId={invoice?.customerId}
-                sellerInfo={{
-                  storeName: cmsData?.businessSettings?.storeName || cmsData?.brandSettings?.storeName || "FlexSell Wholesale",
-                  gstin: cmsData?.businessSettings?.gstin || cmsData?.brandSettings?.gstin || "24AAACF1001M1Z5",
-                  address: cmsData?.businessSettings?.companyAddress
-                    ? `${cmsData.businessSettings.companyAddress}, ${cmsData.businessSettings.city || ""}, ${cmsData.businessSettings.state || ""} - ${cmsData.businessSettings.pinCode || ""}`
-                    : cmsData?.brandSettings?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Madhya Pradesh - 394230",
-                  email: cmsData?.businessSettings?.supportEmail || cmsData?.brandSettings?.supportEmail || "support@flexsellwholesale.in",
-                  phone: cmsData?.businessSettings?.supportPhone || cmsData?.brandSettings?.supportPhone || "+91 88877 66655",
-                  signatureUrl: cmsData?.businessSettings?.signatureUrl,
-                  bankDetails: cmsData?.businessSettings?.bankName
-                    ? {
-                        bankName: cmsData.businessSettings.bankName,
-                        accountName: cmsData.businessSettings.accountName,
-                        accountNumber: cmsData.businessSettings.accountNumber,
-                        ifscCode: cmsData.businessSettings.ifscCode,
-                        branchName: cmsData.businessSettings.branchName
-                      }
-                    : undefined,
-                  termsAndConditions: cmsData?.businessSettings?.termsAndConditions
-                }}
+                sellerInfo={buildSellerInfo(cmsData)}
                 showActions={false}
               />
             </CardContent>
@@ -199,7 +181,7 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
         </div>
 
         {/* Right Column: Tracking Details */}
-        <div className="space-y-6">
+        <div className="space-y-6 print:hidden">
           {order.shipmentDetails ? (
             <Card className="border border-primary/25 bg-primary/5 shadow-sm">
               <CardHeader className="pb-3 border-b border-primary/10">

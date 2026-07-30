@@ -9,6 +9,11 @@ interface AnnouncementBarProps {
 
 export function AnnouncementBar({ messages }: AnnouncementBarProps) {
   const [isDismissed, setIsDismissed] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (isDismissed || !messages || messages.length === 0) return null;
 
@@ -17,7 +22,10 @@ export function AnnouncementBar({ messages }: AnnouncementBarProps) {
   const singleHalf = Array(repeatCount).fill(messages).flat();
 
   return (
-    <div className="bg-gradient-to-r from-primary via-emerald-600 to-primary text-primary-foreground py-2 relative overflow-hidden select-none z-20 w-full border-b border-primary-foreground/10 flex items-center">
+    <div
+      suppressHydrationWarning
+      className="bg-gradient-to-r from-primary via-emerald-600 to-primary text-primary-foreground py-2 relative overflow-hidden select-none z-20 w-full border-b border-primary-foreground/10 flex items-center print:hidden"
+    >
       <div className="flex w-max whitespace-nowrap animate-marquee pause-marquee flex-1">
         {/* First Half */}
         <div className="flex items-center gap-16 px-8">

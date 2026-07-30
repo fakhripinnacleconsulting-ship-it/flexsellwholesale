@@ -320,35 +320,94 @@
     margin: 8mm;
   }
 
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: auto !important;
-    min-height: 0 !important;
-    width: 100% !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+  /* Exhaustively strip all scrollbars, scrollbar-gutters, max-height limits, and scrollable overflow from every HTML element in print mode */
+  html, body, div, span, applet, object, iframe,
+  h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+  a, abbr, acronym, address, big, cite, code,
+  del, dfn, em, img, ins, kbd, q, s, samp,
+  small, strike, strong, sub, sup, tt, var,
+  b, u, i, center,
+  dl, dt, dd, ol, ul, li,
+  fieldset, form, label, legend,
+  table, caption, tbody, tfoot, thead, tr, th, td,
+  article, aside, canvas, details, embed, 
+  figure, figcaption, footer, header, hgroup, 
+  menu, nav, output, ruby, section, summary,
+  time, mark, audio, video, main, section,
+  *, *::before, *::after {
     overflow: visible !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    scrollbar-gutter: auto !important;
   }
 
-  /* Hide interactive non-printable elements across the application */
+  ::-webkit-scrollbar,
+  *::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  html::-webkit-scrollbar,
+  div::-webkit-scrollbar,
+  span::-webkit-scrollbar,
+  main::-webkit-scrollbar,
+  ::-webkit-scrollbar-thumb,
+  *::-webkit-scrollbar-thumb,
+  ::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-button,
+  *::-webkit-scrollbar-button,
+  ::-webkit-scrollbar-corner,
+  *::-webkit-scrollbar-corner,
+  ::-webkit-scrollbar-track-piece,
+  *::-webkit-scrollbar-track-piece {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    -webkit-appearance: none !important;
+  }
+
+  /* Hide non-printable page header bars, announcement bars, sidebars, controls, and background layout blocks */
   nav, header, footer, sidebar, aside, button,
   .no-print, [data-sidebar], select, input:not([type="checkbox"]),
-  .toast, [role="status"], [role="tooltip"], .fixed.top-4.right-4 {
+  .toast, [role="status"], [role="tooltip"], .fixed.top-4.right-4,
+  .admin-page-header, .admin-stats-grid, .admin-filter-bar, .admin-table-container,
+  .announcement-bar, [aria-label="Dismiss Announcement"], .animate-marquee {
     display: none !important;
   }
 
-  /* Ensure main body elements print clearly */
+  /* When printing, hide all main page siblings and storefront banners that are not part of the print document tree */
+  body > *:not(main):not(#__next):not(root):not(:has(main)):not(:has(.invoice-document, .quote-document, .shipping-label-document, .print-container, #printable-b2b-catalog, .barcode-print-sheet)),
+  main > *:not(:has(.invoice-document, .quote-document, .shipping-label-document, .print-container, #printable-b2b-catalog, .barcode-print-sheet)) {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
   body, main, #__next, root {
     visibility: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
   }
 
-  /* Reset fixed modal overlays so multi-page documents print continuously without blank pages */
-  .fixed.inset-0,
+  /* Reset fixed modal overlays and container wrappers so multi-page documents print continuously without blank pages or scrollbars */
+  .fixed,
+  .fixed > div,
+  div:has(> .invoice-document),
+  div:has(> .print-container),
+  div:has(> .quote-document),
+  div:has(> .shipping-label-document),
+  div:has(> div > .invoice-document),
+  div:has(> div > .print-container),
+  div:has(> div > .quote-document),
+  div:has(> div > div > .invoice-document),
+  div:has(> div > div > .print-container),
   .b2b-print-modal-portal {
     position: static !important;
     inset: auto !important;
@@ -356,12 +415,16 @@
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
     display: block !important;
     width: 100% !important;
     height: auto !important;
+    max-height: none !important;
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
+    border: none !important;
   }
 
   /* Printable Document Container Overrides */
@@ -386,6 +449,9 @@
     background: #ffffff !important;
     color: #000000 !important;
     transform: none !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
   }
 
   /* Ensure text, tables, borders, and images inside printable components remain visible */

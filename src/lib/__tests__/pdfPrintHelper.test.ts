@@ -15,6 +15,11 @@ describe("pdfPrintHelper", () => {
       expect(generateDocumentTitle("Shipping_Label", "FS-10028")).toBe("Shipping_Label_FS-10028");
     });
 
+    it("should include customer name when provided", () => {
+      expect(generateDocumentTitle("Invoice", "FS-10025", "Acme Corp")).toBe("Invoice_Acme_Corp_FS-10025");
+      expect(generateDocumentTitle("Quote", "QT-88231", "YantraQ")).toBe("Quote_YantraQ_QT-88231");
+    });
+
     it("should sanitize whitespace and special characters in document IDs", () => {
       expect(generateDocumentTitle("Invoice", "INV #2026/07")).toBe("Invoice_INV202607");
     });
@@ -35,8 +40,9 @@ describe("pdfPrintHelper", () => {
       expect(document.title).toBe("Invoice_FS-10025");
       expect(printSpy).toHaveBeenCalled();
 
-      // Dispatch afterprint event
+      // Dispatch afterprint event and focus event
       window.dispatchEvent(new Event("afterprint"));
+      window.dispatchEvent(new Event("focus"));
       expect(document.title).toBe(originalTitle);
 
       printSpy.mockRestore();
