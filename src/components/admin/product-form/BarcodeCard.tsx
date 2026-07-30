@@ -10,6 +10,7 @@ import { Upload, Download, Trash2, CheckCircle2, ShieldCheck, Printer } from "lu
 import { getBarcodeSvgString } from "@/lib/barcodeHelper";
 import { useToastStore } from "@/stores/toastStore";
 import { generateDocumentTitle } from "@/lib/pdfPrintHelper";
+import { sanitizeImgUrl } from "@/lib/utils";
 
 export function BarcodeCard() {
   const { addToast } = useToastStore();
@@ -224,7 +225,7 @@ export function BarcodeCard() {
             {barcodeImage ? (
               <div className="flex flex-col sm:flex-row items-center gap-4 p-3 bg-white border rounded-lg">
                 <img
-                  src={barcodeImage}
+                  src={sanitizeImgUrl(barcodeImage)}
                   alt="Uploaded Barcode"
                   className="h-20 w-48 object-contain rounded border bg-gray-50 p-1"
                 />
@@ -298,7 +299,7 @@ export function BarcodeCard() {
           <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg border text-black">
             {barcodeSource === "image" && barcodeImage ? (
               <div className="text-center space-y-1">
-                <img src={barcodeImage} alt="Barcode Preview" className="h-16 max-w-full object-contain mx-auto" />
+                <img src={sanitizeImgUrl(barcodeImage)} alt="Barcode Preview" className="h-16 max-w-full object-contain mx-auto" />
                 <span className="text-[10px] font-mono font-bold block text-gray-700">Uploaded Barcode Label</span>
               </div>
             ) : (

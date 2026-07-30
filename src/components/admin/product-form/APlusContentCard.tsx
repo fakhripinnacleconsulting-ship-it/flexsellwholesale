@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useProductForm } from "./ProductFormContext";
 import { Plus, Upload, Trash2, ArrowLeft } from "lucide-react";
+import { sanitizeImgUrl } from "@/lib/utils";
 
 export function APlusContentCard() {
   const {
@@ -44,44 +45,46 @@ export function APlusContentCard() {
                 </tr>
               </thead>
               <tbody>
-                {aPlusBlocks.map((block, idx) => (
-                  <tr key={block.id} className="border-b last:border-0 hover:bg-secondary/5">
-                    <td className="p-2.5 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          type="button"
-                          disabled={idx === 0}
-                          className="p-1 rounded bg-secondary/50 hover:bg-secondary disabled:opacity-30 disabled:hover:bg-secondary/50 transition-colors cursor-pointer"
-                          onClick={() => moveAPlusBlock(idx, "up")}
-                          title="Move Banner Up"
-                        >
-                          <ArrowLeft className="h-3 w-3 rotate-90" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={idx === aPlusBlocks.length - 1}
-                          className="p-1 rounded bg-secondary/50 hover:bg-secondary disabled:opacity-30 disabled:hover:bg-secondary/50 transition-colors cursor-pointer"
-                          onClick={() => moveAPlusBlock(idx, "down")}
-                          title="Move Banner Down"
-                        >
-                          <ArrowLeft className="h-3 w-3 -rotate-90" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="p-2.5 text-center">
-                      {block.imageUrl ? (
-                        <img
-                          src={block.imageUrl}
-                          alt={block.alt || "Banner preview"}
-                          className="h-10 w-24 object-cover rounded border bg-secondary mx-auto"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80";
-                          }}
-                        />
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground italic">No image</span>
-                      )}
-                    </td>
+                {aPlusBlocks.map((block, idx) => {
+                  const cleanPreviewUrl = sanitizeImgUrl(block.imageUrl || "");
+                  return (
+                    <tr key={block.id} className="border-b last:border-0 hover:bg-secondary/5">
+                      <td className="p-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            className="p-1 rounded bg-secondary/50 hover:bg-secondary disabled:opacity-30 disabled:hover:bg-secondary/50 transition-colors cursor-pointer"
+                            onClick={() => moveAPlusBlock(idx, "up")}
+                            title="Move Banner Up"
+                          >
+                            <ArrowLeft className="h-3 w-3 rotate-90" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === aPlusBlocks.length - 1}
+                            className="p-1 rounded bg-secondary/50 hover:bg-secondary disabled:opacity-30 disabled:hover:bg-secondary/50 transition-colors cursor-pointer"
+                            onClick={() => moveAPlusBlock(idx, "down")}
+                            title="Move Banner Down"
+                          >
+                            <ArrowLeft className="h-3 w-3 -rotate-90" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="p-2.5 text-center">
+                        {cleanPreviewUrl ? (
+                          <img
+                            src={cleanPreviewUrl}
+                            alt={block.alt || "Banner preview"}
+                            className="h-10 w-24 object-cover rounded border bg-secondary mx-auto"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80";
+                            }}
+                          />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground italic">No image</span>
+                        )}
+                      </td>
                     <td className="p-2.5">
                       <select
                         className="w-full h-8 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -142,11 +145,12 @@ export function APlusContentCard() {
                       </Button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
       </CardContent>
     </Card>
   );

@@ -8,6 +8,7 @@ import { getBarcodeSvgString } from "@/lib/barcodeHelper";
 import { parseWeightToGrams, parseDimensionsToCm } from "@/lib/priceTierHelper";
 import { generateDocumentTitle } from "@/lib/pdfPrintHelper";
 import { useProductForm } from "./ProductFormContext";
+import { sanitizeImgUrl } from "@/lib/utils";
 
 interface VariantCardProps {
   idx: number;
@@ -342,19 +343,24 @@ export function VariantCard({
                   </thead>
                   <tbody>
                     {validImages.map((img: any, imgIdx: number) => {
-                      const imgUrl = typeof img === "string" ? img : img.url || "";
+                      const rawUrl = typeof img === "string" ? img : img.url || "";
+                      const imgUrl = sanitizeImgUrl(rawUrl);
                       const imgAlt = typeof img === "string" ? `${title || 'Product'} - ${item.color || 'Variant'} - Image ${imgIdx + 1}` : img.alt || "";
                       return (
                         <tr key={imgIdx} className="border-b last:border-0 hover:bg-secondary/5">
                           <td className="p-2 text-center">
-                            <img
-                              src={imgUrl}
-                              alt={imgAlt}
-                              className="h-10 w-10 object-cover rounded border bg-secondary mx-auto"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E";
-                              }}
-                            />
+                            {imgUrl ? (
+                              <img
+                                src={imgUrl}
+                                alt={imgAlt}
+                                className="h-10 w-10 object-cover rounded border bg-secondary mx-auto"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E";
+                                }}
+                              />
+                            ) : (
+                              <span className="text-[9px] text-muted-foreground italic">No image</span>
+                            )}
                           </td>
                           <td className="p-2 font-mono truncate max-w-[220px]" title={imgUrl}>
                             {imgUrl}

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ProductCarousel } from "../ProductCarousel";
 import { useProductDetail } from "./ProductDetailContext";
+import { sanitizeImgUrl } from "@/lib/utils";
 
 export function RelatedProducts() {
   const {
@@ -46,13 +47,17 @@ export function RelatedProducts() {
           </h3>
           <div className="flex flex-col w-full max-w-[970px] mx-auto gap-4">
             {product.aPlusContent.map((block) => {
-              if (block.imageUrl) {
+              const cleanUrl = sanitizeImgUrl(block.imageUrl || "");
+              if (cleanUrl) {
                 return (
                   <img
                     key={block.id}
-                    src={block.imageUrl}
+                    src={cleanUrl}
                     alt={block.alt || "Manufacturer marketing graphic sheet"}
                     className="w-full h-auto block rounded-lg shadow-sm border"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=970&q=80";
+                    }}
                   />
                 );
               }
