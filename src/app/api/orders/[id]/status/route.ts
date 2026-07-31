@@ -84,6 +84,34 @@ export async function PUT(
       }
     }
 
+    // Dispatch Centralized Event (Triggers Email & Notifications)
+    try {
+      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      const customerEmail = order.shippingAddress?.email || "";
+      const customerName = order.customerName || order.shippingAddress?.name || "Valued Customer";
+      const targetCustomerId = (await Customer.findOne({ email: customerEmail.toLowerCase() }).select("_id"))?._id || "";
+
+      const eventTypeToDispatch = status === "Cancelled" ? "ORDER_CANCELLED" : status === "Shipped" ? "ORDER_SHIPPED" : "ORDER_STATUS_CHANGED";
+
+      dispatchEvent({
+        eventType: eventTypeToDispatch,
+        category: "orders",
+        actor: { id: payload.userId, name: "Admin", role: "admin" },
+        recipient: { customerId: targetCustomerId, email: customerEmail, name: customerName, role: "both" },
+        entity: { type: "order", id: order._id },
+        data: {
+          order: order.toObject ? order.toObject() : order,
+          status,
+          paymentStatus: order.paymentStatus,
+          carrierName: order.shipmentDetails?.carrierName || "Delivery Partner",
+          trackingId: order.shipmentDetails?.trackingId || "N/A",
+          trackingUrl: order.shipmentDetails?.trackingUrl
+        }
+      });
+    } catch (err) {
+      console.error("Failed to dispatch order status event:", err);
+    }
+
     // Dispatch Webhook & Notification asynchronously
     const targetCustomerId = (await Customer.findOne({ email: order.shippingAddress.email.toLowerCase() }).select("_id"))?._id || "";
     dispatchWebhook("order.status_updated", order, targetCustomerId, {

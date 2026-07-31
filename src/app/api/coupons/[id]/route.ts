@@ -54,6 +54,57 @@ export async function PUT(request: Request, { params }: RouteProps) {
 
     await coupon.save();
 
+    if (coupon.isActive) {
+      try {
+        const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+        const CustomerModel = (await import("@/models/Customer")).default;
+        const couponObj = coupon.toObject ? coupon.toObject() : coupon;
+
+        if (coupon.isPersonalized && coupon.allowedCustomers?.length > 0) {
+          const targetEmails = coupon.allowedCustomers.map((e: string) => e.toLowerCase().trim());
+          const targetCustomers = await CustomerModel.find({ email: { $in: targetEmails } }).select("_id email name");
+
+          for (const email of targetEmails) {
+            const cust = targetCustomers.find((c: any) => c.email.toLowerCase() === email);
+            dispatchEvent({
+              eventType: "COUPON_LIVE",
+              category: "system",
+              actor: { id: "admin", name: "System Admin", role: "admin" },
+              recipient: { customerId: cust?._id || "all", email, name: cust?.name || "Valued Buyer", role: "customer" },
+              entity: { type: "coupon", id: coupon._id.toString() },
+              data: couponObj
+            });
+          }
+        } else {
+          // Public Coupon: Dispatch to all registered buyers + global broadcast
+          const allCustomers = await CustomerModel.find({ role: "customer" }).select("_id email name");
+
+          for (const cust of allCustomers) {
+            dispatchEvent({
+              eventType: "COUPON_LIVE",
+              category: "system",
+              actor: { id: "admin", name: "System Admin", role: "admin" },
+              recipient: { customerId: cust._id.toString(), email: cust.email, name: cust.name, role: "customer" },
+              entity: { type: "coupon", id: coupon._id.toString() },
+              data: couponObj
+            });
+          }
+
+          // Global broadcast for in-app notification queries matching customerId: "all"
+          dispatchEvent({
+            eventType: "COUPON_LIVE",
+            category: "system",
+            actor: { id: "admin", name: "System Admin", role: "admin" },
+            recipient: { customerId: "all", role: "customer" },
+            entity: { type: "coupon", id: coupon._id.toString() },
+            data: couponObj
+          });
+        }
+      } catch (err) {
+        console.error("Failed to dispatch COUPON_LIVE event on update:", err);
+      }
+    }
+
     return NextResponse.json(coupon);
   } catch (error: unknown) {
     if (error instanceof ZodError) {

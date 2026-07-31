@@ -28,6 +28,13 @@ function LoginForm() {
   React.useEffect(() => {
     clearError();
 
+    const currentCustomer = useAuthStore.getState().customer;
+    if (currentCustomer) {
+      const redirectDest = currentCustomer.role === "admin" ? "/admin" : (callbackUrl || "/client");
+      router.replace(redirectDest);
+      return;
+    }
+
     const initGoogleGsi = () => {
       if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
         try {

@@ -71,6 +71,21 @@ export async function POST(req: Request) {
 
     await newCustomer.save();
 
+    // Dispatch Centralized Event (Triggers Welcome Email & Notification)
+    try {
+      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      dispatchEvent({
+        eventType: "AUTH_REGISTERED",
+        category: "security",
+        actor: { id: customerId, name, role: "customer" },
+        recipient: { customerId, email: newCustomer.email, name, role: "both" },
+        entity: { type: "customer", id: customerId },
+        data: { name, email: newCustomer.email, company: company || "" },
+      });
+    } catch (err) {
+      console.error("Failed to dispatch AUTH_REGISTERED event:", err);
+    }
+
     // Dispatch Webhook and in-app Notification asynchronously
     dispatchWebhook("customer.created", {
       _id: customerId,

@@ -55,6 +55,31 @@ export async function PUT(
 
     await order.save();
 
+    // Dispatch Centralized Event (Triggers Email & Notifications)
+    try {
+      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      const customerEmail = order.shippingAddress?.email || "";
+      const customerName = order.customerName || order.shippingAddress?.name || "Valued Customer";
+      const targetCustomerId = (await Customer.findOne({ email: customerEmail.toLowerCase() }).select("_id"))?._id || "";
+
+      dispatchEvent({
+        eventType: "ORDER_SHIPPED",
+        category: "shipments",
+        actor: { id: payload.userId, name: "Admin", role: "admin" },
+        recipient: { customerId: targetCustomerId, email: customerEmail, name: customerName, role: "both" },
+        entity: { type: "order", id: order._id },
+        data: {
+          order: order.toObject ? order.toObject() : order,
+          carrierName: shipmentDetails.type === "self" ? "Local Transport (Self)" : shipmentDetails.carrierName,
+          trackingId: shipmentDetails.trackingId,
+          trackingUrl: shipmentDetails.trackingUrl,
+          shipmentDetails
+        }
+      });
+    } catch (err) {
+      console.error("Failed to dispatch ORDER_SHIPPED event:", err);
+    }
+
     // Dispatch Webhook & Notification asynchronously
     const targetCustomerId = (await Customer.findOne({ email: order.shippingAddress.email.toLowerCase() }).select("_id"))?._id || "";
     dispatchWebhook("order.status_updated", order, targetCustomerId, {

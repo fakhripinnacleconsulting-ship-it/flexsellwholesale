@@ -52,6 +52,17 @@ export async function PUT(request: Request) {
       return response;
     }
 
+    const updatedFields: string[] = [];
+    if (name !== undefined && name !== customer.name) updatedFields.push(`Name changed to: "${name}"`);
+    if (phone !== undefined && phone !== customer.phone) updatedFields.push(`Phone changed to: "${phone}"`);
+    if (company !== undefined && company !== customer.company) updatedFields.push(`Company Name changed to: "${company}"`);
+    if (storeName !== undefined && storeName !== customer.storeName) updatedFields.push(`Store Name changed to: "${storeName}"`);
+    if (gstin !== undefined && gstin !== customer.gstin) updatedFields.push(`GSTIN changed to: "${gstin}"`);
+    if (address !== undefined && address !== customer.address) updatedFields.push(`Address changed to: "${address}"`);
+    if (city !== undefined && city !== customer.city) updatedFields.push(`City changed to: "${city}"`);
+    if (state !== undefined && state !== customer.state) updatedFields.push(`State changed to: "${state}"`);
+    if (pinCode !== undefined && pinCode !== customer.pinCode) updatedFields.push(`PIN Code changed to: "${pinCode}"`);
+
     if (name !== undefined) customer.name = name;
     if (phone !== undefined) customer.phone = phone;
     if (company !== undefined) customer.company = company;
@@ -76,6 +87,25 @@ export async function PUT(request: Request) {
     }
 
     await customer.save();
+
+    if (updatedFields.length > 0) {
+      try {
+        const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+        dispatchEvent({
+          eventType: "PROFILE_UPDATED",
+          category: "security",
+          actor: { id: customer._id.toString(), name: customer.name, role: "customer" },
+          recipient: { customerId: customer._id.toString(), email: customer.email, name: customer.name, role: "both" },
+          entity: { type: "customer", id: customer._id.toString() },
+          data: {
+            updatedFields,
+            changesSummary: `Updated profile details: ${updatedFields.join(", ")}`
+          }
+        });
+      } catch {
+        // non-blocking
+      }
+    }
 
     const customerObj = customer.toObject();
     delete customerObj.password;

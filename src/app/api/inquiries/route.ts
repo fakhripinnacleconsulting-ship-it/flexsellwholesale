@@ -92,35 +92,7 @@ export async function POST(request: Request) {
       console.error("[INQUIRY NOTIFICATION ERROR] Failed to create admin notification:", notifErr);
     }
 
-    // 2. Dispatch SMTP Email Alert to Admin
-    try {
-      await emailService.sendAdminInquiryAlert({
-        customerName,
-        email: newInquiry.email,
-        subject: newInquiry.subject,
-        message: newInquiry.message,
-        _id: newInquiry._id.toString()
-      });
-    } catch (mailErr) {
-      console.error("[INQUIRY EMAIL ERROR] Admin email alert failed:", mailErr);
-    }
-
-    // 3. Dispatch SMTP Confirmation Email to Customer/Applicant
-    try {
-      await emailService.sendCustomerInquiryConfirmation(
-        {
-          customerName,
-          subject: newInquiry.subject,
-          message: newInquiry.message,
-          _id: newInquiry._id.toString()
-        },
-        newInquiry.email
-      );
-    } catch (mailErr) {
-      console.error("[INQUIRY EMAIL ERROR] Customer confirmation email failed:", mailErr);
-    }
-
-    // 4. Dispatch System Event for Push & Client Notifications
+    // Dispatch System Event (Rule 7: Admin Notif = TRUE, Admin Mail = TRUE via centralized eventHandler)
     try {
       dispatchEvent({
         eventType: "INQUIRY_SUBMITTED",
@@ -131,7 +103,7 @@ export async function POST(request: Request) {
           role: "customer"
         },
         recipient: {
-          role: "both",
+          role: "admin",
           email: newInquiry.email,
           name: customerName
         },

@@ -58,7 +58,7 @@ export const reviewService = {
         eventType: "REVIEW_SUBMITTED",
         category: "system",
         actor: { id: "current-user", name: newReview.customerName, role: "customer" },
-        recipient: { customerId: "admin", role: "admin" },
+        recipient: { customerId: "active-user", role: "both" },
         entity: { type: "review", id: newReview._id },
         data: newReview,
       });

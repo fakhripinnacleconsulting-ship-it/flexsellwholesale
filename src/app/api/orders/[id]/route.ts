@@ -258,6 +258,27 @@ export async function DELETE(request: NextRequest, { params }: RouteProps) {
       }
     }
 
+    // Dispatch Centralized Event (Triggers Email & Notifications)
+    try {
+      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      const customerEmail = order.shippingAddress?.email || "";
+      const customerName = order.customerName || order.shippingAddress?.name || "Valued Customer";
+
+      dispatchEvent({
+        eventType: "ORDER_CANCELLED",
+        category: "orders",
+        actor: { id: auth.payload?.userId || "admin", name: "Admin", role: "admin" },
+        recipient: { customerId: order.customerId || "", email: customerEmail, name: customerName, role: "both" },
+        entity: { type: "order", id: order._id },
+        data: {
+          order: order.toObject ? order.toObject() : order,
+          status: "Cancelled"
+        }
+      });
+    } catch (err) {
+      console.error("Failed to dispatch ORDER_CANCELLED event:", err);
+    }
+
     await Order.findByIdAndDelete(id);
     revalidateAdminDashboard();
     revalidateProducts();

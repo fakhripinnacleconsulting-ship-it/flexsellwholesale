@@ -6,6 +6,7 @@ import { useToastStore } from "./toastStore";
 import { useAuthStore } from "./authStore";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { resolvePrice, resolveMoq, resolvePriceTierName, isPureB2B } from "@/lib/priceTierHelper";
+import { dispatchEvent } from "@/lib/events/eventDispatcher";
 
 interface TaxBreakdown {
   hsnCode: string;
@@ -152,13 +153,43 @@ export const useCartStore = create<CartState>()(
             };
           }
         });
+
+        // Trigger Rule 4 Event: Customer Notification = TRUE, Mail = FALSE, Admin = FALSE
+        try {
+          dispatchEvent({
+            eventType: "CART_ITEM_ADDED",
+            category: "orders",
+            actor: { id: customer?._id || "guest", name: customer?.name || "Customer", role: "customer" },
+            recipient: { customerId: customer?._id || "active-user", role: "customer" },
+            entity: { type: "product", id: liveProduct._id },
+            data: { productTitle: liveProduct.title || liveProduct.title, quantity: targetQty }
+          });
+        } catch {
+          // non-blocking
+        }
       },
 
       removeItem: (itemId) => {
+        const itemToRemove = get().items.find(item => item.id === itemId);
         set((state) => ({
           items: state.items.filter(item => item.id !== itemId)
         }));
         useToastStore.getState().addToast("Item removed from wholesale cart.", "info");
+
+        // Trigger Rule 4 Event: Customer Notification = TRUE, Mail = FALSE, Admin = FALSE
+        try {
+          const customer = useAuthStore.getState().customer;
+          dispatchEvent({
+            eventType: "CART_ITEM_REMOVED",
+            category: "orders",
+            actor: { id: customer?._id || "guest", name: customer?.name || "Customer", role: "customer" },
+            recipient: { customerId: customer?._id || "active-user", role: "customer" },
+            entity: { type: "product", id: itemToRemove?.productId || itemId },
+            data: { productTitle: itemToRemove?.product?.title || "Item" }
+          });
+        } catch {
+          // non-blocking
+        }
       },
 
       updateQuantity: (itemId, qty) => {

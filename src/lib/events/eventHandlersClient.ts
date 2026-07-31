@@ -70,7 +70,7 @@ export function handleClientMockEvent(event: SystemEventPayload): void {
 
       case "PROFILE_UPDATED":
         notifTitle = "Security Update: Profile Updated";
-        notifMessage = "Your account profile information was updated.";
+        notifMessage = data?.changesSummary || "Your account profile information was updated.";
         notifType = "security";
         deepLink = "/client/profile";
         break;
@@ -114,6 +114,34 @@ export function handleClientMockEvent(event: SystemEventPayload): void {
         deepLink = `/client/orders/${entity.id}`;
         break;
 
+      case "CART_ITEM_ADDED":
+        notifTitle = "Product Added to Cart";
+        notifMessage = `${data?.productTitle || "Item"} added to your wholesale cart (Qty: ${data?.quantity || 1}).`;
+        notifType = "info";
+        deepLink = "/cart";
+        break;
+
+      case "CART_ITEM_REMOVED":
+        notifTitle = "Product Removed from Cart";
+        notifMessage = `${data?.productTitle || "Item"} removed from your wholesale cart.`;
+        notifType = "info";
+        deepLink = "/cart";
+        break;
+
+      case "COUPON_LIVE":
+        notifTitle = `New Promo Coupon Live: ${data?.code || "DISCOUNT"}`;
+        notifMessage = `Use promo code "${data?.code}" to get ${data?.discountType === "percentage" ? `${data?.discountValue}% OFF` : `₹${data?.discountValue} FLAT OFF`} on your wholesale purchase!`;
+        notifType = "success";
+        deepLink = "/products";
+        break;
+
+      case "REVIEW_SUBMITTED":
+        notifTitle = "Review Submitted for Moderation";
+        notifMessage = `Thank you! Your product review for "${data?.productTitle || data?.productId || 'item'}" was submitted successfully.`;
+        notifType = "success";
+        deepLink = data?.productId ? `/products/${data.productId}` : "/";
+        break;
+
       case "QUOTE_GENERATED":
         notifTitle = `Proforma Quote Ready #${entity.id}`;
         notifMessage = `Proforma Quote #${entity.id} for ₹${Number(data?.amount || 0).toLocaleString("en-IN")} is ready for review.`;
@@ -143,11 +171,8 @@ export function handleClientMockEvent(event: SystemEventPayload): void {
         deepLink = data?.productId ? `/products/${data.productId}` : "/";
         break;
 
+      // Rule 7: Inquiry Submitted - Customer Notif = FALSE
       case "INQUIRY_SUBMITTED":
-        notifTitle = `Inquiry Confirmed #${entity.id}`;
-        notifMessage = `We received your inquiry regarding "${data?.subject || "Wholesale Quotes"}".`;
-        notifType = "info";
-        deepLink = "/client/support";
         break;
 
       case "INQUIRY_RESPONDED":
@@ -187,11 +212,34 @@ export function handleClientMockEvent(event: SystemEventPayload): void {
         adminLink = "/admin/customers";
         break;
 
+      case "PROFILE_UPDATED":
+        adminTitle = "Buyer Profile Updated";
+        adminMessage = `Wholesale buyer ${actor.name || recipient.name || "Buyer"} updated their account profile.`;
+        adminType = "security";
+        adminLink = "/admin/customers";
+        break;
+
       case "ORDER_CREATED":
         adminTitle = `New Order Placed #${entity.id}`;
         adminMessage = `Buyer ${actor.name} placed a new order #${entity.id} for ₹${Number(data?.amount || 0).toLocaleString("en-IN")}.`;
         adminType = "order";
         adminLink = `/admin/orders/${entity.id}`;
+        break;
+
+      case "ORDER_STATUS_CHANGED":
+      case "ORDER_SHIPPED":
+      case "PAYMENT_STATUS_CHANGED":
+        adminTitle = `Order #${entity.id} Status Updated`;
+        adminMessage = `Order #${entity.id} status updated to: ${data?.status || data?.paymentStatus || 'Updated'}.`;
+        adminType = "info";
+        adminLink = `/admin/orders/${entity.id}`;
+        break;
+
+      case "COUPON_LIVE":
+        adminTitle = `New Coupon Live: ${data?.code || 'DISCOUNT'}`;
+        adminMessage = `Promo coupon "${data?.code}" is now live for buyers.`;
+        adminType = "success";
+        adminLink = "/admin/coupons";
         break;
 
       case "QUOTE_ACCEPTED":

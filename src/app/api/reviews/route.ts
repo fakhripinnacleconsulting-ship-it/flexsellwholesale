@@ -96,6 +96,22 @@ export async function POST(request: Request) {
       status: "pending" // Admin moderation required by default
     });
 
+    // Trigger Rule 6 Event: Customer Notif & Mail = TRUE, Admin Notif & Mail = TRUE
+    try {
+      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      const revObj = newReview.toObject ? newReview.toObject() : newReview;
+      dispatchEvent({
+        eventType: "REVIEW_SUBMITTED",
+        category: "system",
+        actor: { id: customer._id, name: customer.name, role: "customer" },
+        recipient: { customerId: customer._id, email: customer.email, name: customer.name, role: "both" },
+        entity: { type: "review", id: newReview._id.toString() },
+        data: revObj
+      });
+    } catch {
+      // non-blocking
+    }
+
     return NextResponse.json(newReview, { status: 201 });
   } catch (error: unknown) {
     if (error instanceof ZodError) {

@@ -1,5 +1,6 @@
 import { Coupon } from "@/types";
 import { apiClient, isMockMode } from "@/lib/apiClient";
+import { dispatchEvent } from "@/lib/events/eventDispatcher";
 
 const COUPONS_STORAGE_KEY = "flexsell-coupons-storage";
 
@@ -54,6 +55,22 @@ export const couponService = {
         createdAt: new Date().toISOString()
       };
       saveLocalCoupons([...coupons, newCoupon]);
+
+      if (newCoupon.isActive) {
+        try {
+          dispatchEvent({
+            eventType: "COUPON_LIVE",
+            category: "system",
+            actor: { id: "admin", name: "System Admin", role: "admin" },
+            recipient: { customerId: "all", email: "mauryatech7@gmail.com", role: "customer" },
+            entity: { type: "coupon", id: newCoupon._id },
+            data: newCoupon
+          });
+        } catch {
+          // non-blocking
+        }
+      }
+
       return newCoupon;
     }
     return apiClient.post<Coupon>("/coupons", data);
@@ -72,6 +89,23 @@ export const couponService = {
       });
       saveLocalCoupons(updatedList);
       if (!updatedCoupon) throw new Error("Coupon not found");
+      const targetCoupon: Coupon = updatedCoupon;
+
+      if (targetCoupon.isActive) {
+        try {
+          dispatchEvent({
+            eventType: "COUPON_LIVE",
+            category: "system",
+            actor: { id: "admin", name: "System Admin", role: "admin" },
+            recipient: { customerId: "all", email: "mauryatech7@gmail.com", role: "customer" },
+            entity: { type: "coupon", id: targetCoupon._id },
+            data: targetCoupon
+          });
+        } catch {
+          // non-blocking
+        }
+      }
+
       return updatedCoupon;
     }
     return apiClient.put<Coupon>(`/coupons/${id}`, data);

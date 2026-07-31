@@ -317,7 +317,7 @@ export const orderService = {
       saveLocalOrders(orders);
 
       dispatchEvent({
-        eventType: status === "Shipped" ? "ORDER_SHIPPED" : "ORDER_STATUS_CHANGED",
+        eventType: status === "Shipped" ? "ORDER_SHIPPED" : status === "Cancelled" ? "ORDER_CANCELLED" : "ORDER_STATUS_CHANGED",
         category: status === "Shipped" ? "shipments" : "orders",
         actor: { id: "admin", name: "Admin", role: "admin" },
         recipient: { customerId: "current-user", email: match.shippingAddress?.email, name: match.customerName, role: "customer" },

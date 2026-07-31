@@ -101,8 +101,11 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         notifMessage = `Your B2B buyer account (${customerId}) is active. Access tiered volume pricing and catalog specs.`;
         notifType = "success";
         deepLink = "/client/profile";
-        triggerEmailSend = () =>
-          emailService.sendWelcomeEmail({ _id: customerId, email: customerEmail, name: customerName });
+        const emailForWelcome = customerEmail || data?.email;
+        if (emailForWelcome) {
+          triggerEmailSend = () =>
+            emailService.sendWelcomeEmail({ _id: customerId, email: emailForWelcome, name: customerName || data?.name || "Valued Buyer" });
+        }
         break;
 
       case "AUTH_PASSWORD_RESET_REQUESTED":
@@ -127,11 +130,11 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
 
       case "PROFILE_UPDATED":
         notifTitle = "Security Update: Profile Updated";
-        notifMessage = "Your account profile information was updated.";
+        notifMessage = data?.changesSummary || "Your account profile information was updated.";
         notifType = "security";
         deepLink = "/client/profile";
         if (customerEmail) {
-          triggerEmailSend = () => emailService.sendProfileUpdatedEmail(customerEmail, customerName);
+          triggerEmailSend = () => emailService.sendCustomerProfileUpdatedEmail(customerEmail, customerName, data?.updatedFields || data?.changesSummary);
         }
         break;
 
@@ -150,8 +153,9 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         notifMessage = `Your order #${entity.id} for ₹${Number(data?.amount || 0).toLocaleString("en-IN")} has been placed successfully.`;
         notifType = "order";
         deepLink = `/client/orders/${entity.id}`;
-        if (customerEmail && data) {
-          triggerEmailSend = () => emailService.sendOrderConfirmationEmail(data, customerEmail);
+        const orderEmail = customerEmail || data?.shippingAddress?.email || data?.customerEmail;
+        if (orderEmail && data) {
+          triggerEmailSend = () => emailService.sendOrderConfirmationEmail(data, orderEmail);
         }
         break;
 
@@ -166,26 +170,71 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         }
         break;
 
-      case "ORDER_STATUS_CHANGED":
+      case "ORDER_CANCELLED":
+        notifTitle = `Order Cancelled #${entity.id}`;
+        notifMessage = `Your wholesale purchase order #${entity.id} has been cancelled.`;
+        notifType = "warning";
+        deepLink = `/client/orders/${entity.id}`;
+        const cancelEmail = customerEmail || data?.shippingAddress?.email || data?.order?.shippingAddress?.email;
+        if (cancelEmail) {
+          triggerEmailSend = () =>
+            emailService.sendOrderCancellationEmail(data?.order || data || { _id: entity.id, customerName }, cancelEmail);
+        }
+        break;
+
       case "ORDER_SHIPPED":
-        const isShipped = data?.status === "Shipped" || eventType === "ORDER_SHIPPED";
-        notifTitle = isShipped ? `Order Shipped #${entity.id}` : `Order Status Updated #${entity.id}`;
-        notifMessage = isShipped
-          ? `Order #${entity.id} dispatched via ${data?.carrierName || "Courier"}. Tracking ID: ${data?.trackingId || "N/A"}`
-          : `Order #${entity.id} status changed to ${data?.status}`;
-        notifType = isShipped ? "success" : "info";
+      case "SHIPMENT_DISPATCHED":
+        const carrier = data?.carrierName || data?.courierName || data?.shipmentDetails?.carrierName || "Courier Partner";
+        const trackId = data?.trackingId || data?.trackingNumber || data?.shipmentDetails?.trackingId || "N/A";
+        const trackUrl = data?.trackingUrl || data?.shipmentDetails?.trackingUrl;
+        notifTitle = `Order Shipped #${entity.id}`;
+        notifMessage = `Order #${entity.id} dispatched via ${carrier}. Tracking ID: ${trackId}`;
+        notifType = "success";
         deepLink = `/client/orders/${entity.id}`;
 
-        if (isShipped && data) {
+        const shippedEmail = customerEmail || data?.shippingAddress?.email || data?.order?.shippingAddress?.email;
+        if (shippedEmail) {
           triggerEmailSend = () =>
             emailService.sendShipmentNotificationEmail(
-              data.order || data,
-              data.carrierName || "Delivery Partner",
-              data.trackingId || "N/A",
-              data.trackingUrl
+              data?.order || data || { _id: entity.id, customerName },
+              carrier,
+              trackId,
+              trackUrl
             );
-        } else if (customerEmail && data) {
-          triggerEmailSend = () => emailService.sendPaymentStatusEmail(data, customerEmail);
+        }
+        break;
+
+      case "ORDER_STATUS_CHANGED":
+        const isCancelStatus = data?.status === "Cancelled";
+        const isShippedStatus = data?.status === "Shipped" || data?.status === "Dispatched";
+        notifTitle = isCancelStatus
+          ? `Order Cancelled #${entity.id}`
+          : isShippedStatus
+          ? `Order Shipped #${entity.id}`
+          : `Order Status Updated #${entity.id}`;
+        notifMessage = isCancelStatus
+          ? `Order #${entity.id} has been cancelled.`
+          : isShippedStatus
+          ? `Order #${entity.id} dispatched via ${data?.carrierName || data?.shipmentDetails?.carrierName || "Courier"}. Tracking ID: ${data?.trackingId || data?.shipmentDetails?.trackingId || "N/A"}`
+          : `Order #${entity.id} status changed to ${data?.status}`;
+        notifType = isCancelStatus ? "warning" : isShippedStatus ? "success" : "info";
+        deepLink = `/client/orders/${entity.id}`;
+
+        const statusEmail = customerEmail || data?.shippingAddress?.email || data?.order?.shippingAddress?.email;
+        if (statusEmail) {
+          if (isCancelStatus) {
+            triggerEmailSend = () => emailService.sendOrderCancellationEmail(data?.order || data || { _id: entity.id }, statusEmail);
+          } else if (isShippedStatus) {
+            triggerEmailSend = () =>
+              emailService.sendShipmentNotificationEmail(
+                data?.order || data || { _id: entity.id },
+                data?.carrierName || data?.shipmentDetails?.carrierName || "Delivery Partner",
+                data?.trackingId || data?.shipmentDetails?.trackingId || "N/A",
+                data?.trackingUrl || data?.shipmentDetails?.trackingUrl
+              );
+          } else if (data) {
+            triggerEmailSend = () => emailService.sendPaymentStatusEmail(data, statusEmail);
+          }
         }
         break;
 
@@ -196,6 +245,44 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         deepLink = `/client/orders/${entity.id}`;
         if (customerEmail && data) {
           triggerEmailSend = () => emailService.sendPaymentStatusEmail(data, customerEmail);
+        }
+        break;
+
+      case "CART_ITEM_ADDED":
+        notifTitle = "Product Added to Cart";
+        notifMessage = `${data?.productTitle || "Item"} added to your wholesale cart (Qty: ${data?.quantity || 1}).`;
+        notifType = "info";
+        deepLink = "/cart";
+        // Rule 4: Customer Notif = TRUE, Customer Mail = FALSE
+        triggerEmailSend = async () => {};
+        break;
+
+      case "CART_ITEM_REMOVED":
+        notifTitle = "Product Removed from Cart";
+        notifMessage = `${data?.productTitle || "Item"} removed from your wholesale cart.`;
+        notifType = "info";
+        deepLink = "/cart";
+        // Rule 4: Customer Notif = TRUE, Customer Mail = FALSE
+        triggerEmailSend = async () => {};
+        break;
+
+      case "COUPON_LIVE":
+        notifTitle = `New Promo Coupon Live: ${data?.code || "DISCOUNT"}`;
+        notifMessage = `Use promo code "${data?.code}" to get ${data?.discountType === "percentage" ? `${data?.discountValue}% OFF` : `₹${data?.discountValue} FLAT OFF`} on your wholesale purchase!`;
+        notifType = "success";
+        deepLink = "/products";
+        if (customerEmail && data) {
+          triggerEmailSend = () => emailService.sendCouponLiveEmail(data, customerEmail);
+        }
+        break;
+
+      case "REVIEW_SUBMITTED":
+        notifTitle = "Review Submitted for Moderation";
+        notifMessage = `Thank you! Your product review for "${data?.productTitle || data?.productId || 'item'}" was submitted successfully.`;
+        notifType = "success";
+        deepLink = data?.productId ? `/products/${data.productId}` : "/";
+        if (customerEmail && data) {
+          triggerEmailSend = () => emailService.sendCustomerReviewSubmittedEmail(data, customerEmail);
         }
         break;
 
@@ -240,14 +327,8 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         }
         break;
 
+      // Rule 7: Enquiry Form - Customer Notif = FALSE, Customer Mail = FALSE
       case "INQUIRY_SUBMITTED":
-        notifTitle = `Inquiry Confirmed #${entity.id}`;
-        notifMessage = `We received your inquiry regarding "${data?.subject || "Wholesale Quotes"}".`;
-        notifType = "info";
-        deepLink = "/client/support";
-        if (customerEmail && data) {
-          triggerEmailSend = () => emailService.sendCustomerInquiryConfirmation(data, customerEmail);
-        }
         break;
 
       case "INQUIRY_RESPONDED":
@@ -304,14 +385,27 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
 
     switch (eventType) {
       case "AUTH_REGISTERED":
+        // Rule 3: Admin Notif = TRUE, Admin Mail = FALSE
         adminTitle = "New Buyer Registration";
         adminMessage = `New wholesale buyer "${recipient.name || "Buyer"}" (${recipient.email || ""}) registered. ID: ${entity.id}`;
         adminType = "info";
         adminLink = "/admin/customers";
-        triggerAdminEmailSend = () => emailService.sendAdminNewBuyerAlert(data || { name: recipient.name, email: recipient.email, _id: entity.id });
+        triggerAdminEmailSend = async () => {};
+        break;
+
+      case "PROFILE_UPDATED":
+        // Rule 2: Admin Notif = TRUE, Admin Mail = TRUE
+        adminTitle = "Buyer Profile Updated";
+        adminMessage = `Wholesale buyer ${actor.name || recipient.name || "Buyer"} updated their account profile.`;
+        adminType = "security";
+        adminLink = "/admin/customers";
+        const buyerEmailForAdmin = recipient.email || data?.email || "";
+        const buyerNameForAdmin = recipient.name || actor.name || "Buyer";
+        triggerAdminEmailSend = () => emailService.sendAdminProfileUpdatedEmail(buyerNameForAdmin, buyerEmailForAdmin, data?.updatedFields || data?.changesSummary);
         break;
 
       case "ORDER_CREATED":
+        // Rule 1: Admin Notif = TRUE, Admin Mail = TRUE
         adminTitle = `New Order Placed #${entity.id}`;
         adminMessage = `Buyer ${actor.name} placed a new order #${entity.id} for ₹${Number(data?.amount || 0).toLocaleString("en-IN")}.`;
         adminType = "order";
@@ -319,6 +413,28 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         if (data) {
           triggerAdminEmailSend = () => emailService.sendAdminNewOrderAlert(data);
         }
+        break;
+
+      case "ORDER_STATUS_CHANGED":
+      case "ORDER_SHIPPED":
+      case "PAYMENT_STATUS_CHANGED":
+        // Rule 1: Admin Notif = TRUE, Admin Mail = TRUE
+        adminTitle = `Order #${entity.id} Status Updated`;
+        adminMessage = `Order #${entity.id} status updated to: ${data?.status || data?.paymentStatus || 'Updated'}.`;
+        adminType = "info";
+        adminLink = `/admin/orders/${entity.id}`;
+        if (data) {
+          triggerAdminEmailSend = () => emailService.sendAdminNewOrderAlert(data.order || data);
+        }
+        break;
+
+      case "COUPON_LIVE":
+        // Rule 5: Admin Notif = TRUE, Admin Mail = FALSE
+        adminTitle = `New Coupon Live: ${data?.code || 'DISCOUNT'}`;
+        adminMessage = `Promo coupon "${data?.code}" is now live for buyers.`;
+        adminType = "success";
+        adminLink = "/admin/coupons";
+        triggerAdminEmailSend = async () => {};
         break;
 
       case "QUOTE_ACCEPTED":
@@ -342,6 +458,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         break;
 
       case "REVIEW_SUBMITTED":
+        // Rule 6: Admin Notif = TRUE, Admin Mail = TRUE
         adminTitle = "New Review Needs Moderation";
         adminMessage = `Buyer ${actor.name} submitted a product review for product ${data?.productId || ""}.`;
         adminType = "warning";
@@ -352,6 +469,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         break;
 
       case "INQUIRY_SUBMITTED":
+        // Rule 7: Admin Notif = TRUE, Admin Mail = TRUE
         adminTitle = "New RFQ / Inquiry Submitted";
         adminMessage = `New wholesale inquiry from ${actor.name} regarding "${data?.subject || "Wholesale Quotes"}".`;
         adminType = "info";
