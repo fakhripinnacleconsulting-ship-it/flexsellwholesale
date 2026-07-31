@@ -397,12 +397,19 @@
   }
 
   /* Print Isolation: Hide all background page content and siblings when a modal or document container is active */
-  body:has(.print-portal-root) > *:not(.print-portal-root),
-  body:has([data-print-area="true"]) > *:not(:has([data-print-area="true"])):not(.print-preview-modal-wrapper):not(.b2b-print-modal-portal):not(.print-portal-root),
-  body:has(.print-container) > *:not(:has(.print-container)):not(.print-preview-modal-wrapper):not(.b2b-print-modal-portal):not(.print-portal-root),
-  main:has([data-print-area="true"]) > *:not(:has([data-print-area="true"])),
-  main:has(.print-container) > *:not(:has(.print-container)) {
+  header,
+  footer,
+  nav,
+  aside,
+  .no-print,
+  .print\:hidden,
+  .client-sidebar,
+  .admin-sidebar,
+  .mobile-bottom-nav,
+  .announcement-bar,
+  [data-no-print] {
     display: none !important;
+    visibility: hidden !important;
   }
 
   body * {
@@ -415,9 +422,11 @@
     visibility: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  /* Reset fixed modal overlays and container wrappers so multi-page documents print continuously without background overlays */
+  /* Reset fixed modal overlays and container wrappers so multi-page documents print continuously */
   .fixed,
   .fixed > div,
   .print-preview-modal-wrapper,
@@ -425,11 +434,6 @@
   div:has(> .print-container),
   div:has(> .quote-document),
   div:has(> .shipping-label-document),
-  div:has(> div > .invoice-document),
-  div:has(> div > .print-container),
-  div:has(> div > .quote-document),
-  div:has(> div > div > .invoice-document),
-  div:has(> div > div > .print-container),
   .b2b-print-modal-portal {
     position: static !important;
     inset: auto !important;
@@ -473,8 +477,6 @@
     color: #000000 !important;
     transform: none !important;
     overflow: visible !important;
-    overflow-x: visible !important;
-    overflow-y: visible !important;
   }
 
   /* Ensure text, tables, borders, and images inside printable components remain visible */
@@ -486,11 +488,6 @@
   .shipping-label-printable *,
   .barcode-print-sheet *,
   [data-print-area="true"] * {
-    visibility: visible !important;
-  }
-  main *,
-  table *,
-  .bg-card * {
     visibility: visible !important;
     color: #000000 !important;
   }

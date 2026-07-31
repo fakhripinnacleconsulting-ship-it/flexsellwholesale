@@ -180,7 +180,7 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
   const ActiveIcon = currentActiveLink.icon;
 
   return (
-    <>
+    <div className="no-print print:hidden client-sidebar">
       {/* Mobile Sub-Topbar & Horizontal Quick Navigation Bar */}
       <div className="md:hidden space-y-2 mb-4 w-full">
         {/* Top Header Card */}
@@ -254,6 +254,6 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
       <Drawer isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} side="left" className="p-0 max-w-[280px] w-full">
         <SidebarContent isCollapsed={false} />
       </Drawer>
-    </>
+    </div>
   );
 }

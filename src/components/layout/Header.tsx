@@ -43,7 +43,7 @@ export function Header({ categories, collections = [] }: HeaderProps) {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 transition-all">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 transition-all no-print print:hidden">
       <div className="mx-auto flex h-14 sm:h-16 max-w-8xl items-center justify-between px-3 sm:px-4 md:px-6">
         {/* Mobile Menu Icon */}
         <Button 

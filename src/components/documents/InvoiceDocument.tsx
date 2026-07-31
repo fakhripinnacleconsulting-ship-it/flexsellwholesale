@@ -96,7 +96,13 @@ export function InvoiceDocument({
   customerId,
   salesperson,
 }: InvoiceDocumentProps) {
-  const { products } = useProductStore();
+  const { products, initializeProducts } = useProductStore();
+
+  React.useEffect(() => {
+    if (!products || products.length === 0) {
+      initializeProducts();
+    }
+  }, [products, initializeProducts]);
   const sellerStateMatch = sellerInfo.address.match(/(?:,\s*)([A-Za-z\s]+?)(?:\s*-\s*\d|$)/);
   const sellerState = sellerStateMatch ? sellerStateMatch[1].trim() : "Madhya Pradesh";
   const tax = providedTaxBreakdown || computeTaxBreakdown(order, sellerState);
@@ -470,24 +476,41 @@ export function InvoiceDocument({
                         {/* Dynamic Variant Image Preview with guaranteed fallback */}
                         <div className="w-12 h-12 relative flex-shrink-0 bg-gray-50 border border-gray-200 rounded overflow-hidden">
                           {(() => {
-                            const matchedProduct = products.find(p => p._id === item.productId || p._id === item.product?._id);
-                            const productSource = matchedProduct || item.product;
+                            const pId = item.productId || (typeof item.product === "object" ? item.product?._id : item.product);
+                            const matchedProduct = products.find(p => p._id === pId || p.title?.toLowerCase() === (item.product?.title || item.title || "").toLowerCase());
+                            const productSource = matchedProduct || (typeof item.product === "object" ? item.product : null);
+                            
                             const colorVariants = productSource?.colorVariants || [];
-                            const { color: matchingColor } = resolveVariantKeys(item.selectedVariants);
+                            const { color: matchingColor } = resolveVariantKeys(item.selectedVariants || item.variants || {});
                             const activeVariant = colorVariants.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
                               || colorVariants[0];
-                            const firstImg = activeVariant?.images?.[0]
-                              || colorVariants.find((cv: any) => cv.images && cv.images.length > 0)?.images?.[0]
-                              || (productSource as any)?.images?.[0]
-                              || (item as any)?.image
-                              || (item as any)?.imageUrl;
-                            const rawUrl = firstImg ? (typeof firstImg === "string" ? firstImg : firstImg.url || "") : "";
-                            const imgUrl = sanitizeImgUrl(rawUrl, "/Flexsell%20Logo.png");
+
+                            const extractUrl = (img: any): string => {
+                              if (!img) return "";
+                              if (typeof img === "string") return img;
+                              return img.url || "";
+                            };
+
+                            const candidateImages = [
+                              extractUrl(activeVariant?.images?.[0]),
+                              extractUrl(colorVariants.find((cv: any) => cv.images && cv.images.length > 0)?.images?.[0]),
+                              extractUrl(productSource?.images?.[0]),
+                              extractUrl((productSource as any)?.featuredImage),
+                              extractUrl((productSource as any)?.image),
+                              extractUrl((productSource as any)?.imageUrl),
+                              extractUrl((item as any)?.image),
+                              extractUrl((item as any)?.imageUrl),
+                              extractUrl((item as any)?.productImage),
+                              extractUrl((item as any)?.featuredImage),
+                            ].filter(Boolean);
+
+                            const firstImg = candidateImages[0] || "";
+                            const imgUrl = sanitizeImgUrl(firstImg, "/Flexsell%20Logo.png");
                             return (
                               <img
                                 src={imgUrl}
-                                alt={item.product?.title || "Product"}
-                                className="w-12 h-12 object-cover"
+                                alt={item.product?.title || item.title || "Product"}
+                                className="w-12 h-12 object-cover rounded"
                                 referrerPolicy="no-referrer"
                                 onError={(e) => {
                                   const target = e.currentTarget;
