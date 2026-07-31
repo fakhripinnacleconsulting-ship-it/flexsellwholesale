@@ -45,7 +45,7 @@ export function VariantSelector() {
   const customerTypes = activeUser?.customerTypes || ["B2C"];
   const isB2B = customerTypes.includes("B2B");
   const isB2C = customerTypes.includes("B2C");
-  const isDropshipperOnly = customerTypes.length === 1 && customerTypes[0] === "Dropshipping";
+  const isDropshipperOnly = activeUser?.role !== "admin" && customerTypes.length === 1 && customerTypes[0] === "Dropshipping";
 
   const { resolvePrice, resolveMoq, canPurchase, resolveCustomerTier, isPureB2B } = require("@/lib/priceTierHelper");
   const purchaseAllowed = canPurchase(customerTypes);

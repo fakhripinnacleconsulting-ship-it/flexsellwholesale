@@ -25,7 +25,7 @@ import { trackBeginCheckout, trackPurchase } from "@/lib/gtm";
 export function CheckoutView() {
   const router = useRouter();
   const { addToast } = useToastStore();
-  const { items, buyerState, setBuyerState, clearCart, getTaxDetails, hydrateProducts, getCartSubtotal } = useCartStore();
+  const { items, buyerState, setBuyerState, clearCart, getTaxDetails, hydrateProducts, getCartSubtotal, delegatedCustomerId } = useCartStore();
   const { createOrder } = useOrderStore();
   const products = useProductStore((state) => state.products);
   const [shippingConfig, setShippingConfig] = React.useState<any>(null);
@@ -78,9 +78,15 @@ export function CheckoutView() {
   const [selectedCustomerId, setSelectedCustomerId] = React.useState("");
   const [savedAddresses, setSavedAddresses] = React.useState<any[]>([]);
 
+  React.useEffect(() => {
+    if (delegatedCustomerId && !selectedCustomerId) {
+      setSelectedCustomerId(delegatedCustomerId);
+    }
+  }, [delegatedCustomerId]);
+
   // Dropshipping redirect guard
   const customer = useAuthStore((state: any) => state.customer);
-  const isDropshipperOnly = customer && customer.customerTypes && customer.customerTypes.length === 1 && customer.customerTypes[0] === "Dropshipping";
+  const isDropshipperOnly = customer && customer.role !== "admin" && customer.customerTypes && customer.customerTypes.length === 1 && customer.customerTypes[0] === "Dropshipping";
 
   React.useEffect(() => {
     if (isDropshipperOnly) {
@@ -110,8 +116,26 @@ export function CheckoutView() {
         if (customer.role === "admin") {
           const list = await customerService.getCustomers();
           setCustomersList(list);
-          setState(INDIAN_STATES[0]);
-          setBuyerState(INDIAN_STATES[0]);
+          
+          if (delegatedCustomerId) {
+            const selected = list.find((c: any) => c._id === delegatedCustomerId);
+            if (selected) {
+              setEmail(selected.email || "");
+              setFirstName(selected.name?.split(" ")[0] || "");
+              setLastName(selected.name?.split(" ").slice(1).join(" ") || "");
+              setCompany(selected.company || "");
+              setGstin(selected.gstin || "");
+              setAddress(selected.address || "");
+              setCity(selected.city || "");
+              setState(selected.state || INDIAN_STATES[0]);
+              setPinCode(selected.pinCode || "");
+              setPhone(selected.phone || "");
+              setBuyerState(selected.state || INDIAN_STATES[0]);
+            }
+          } else {
+            setState(INDIAN_STATES[0]);
+            setBuyerState(INDIAN_STATES[0]);
+          }
         } else {
           setEmail(customer.email);
           
@@ -228,6 +252,7 @@ export function CheckoutView() {
 
   const handleSelectDelegatedCustomer = (customerId: string) => {
     setSelectedCustomerId(customerId);
+    useCartStore.getState().setDelegatedCustomerId(customerId);
     const selected = customersList.find((c) => c._id === customerId);
     if (selected) {
       setEmail(selected.email || "");

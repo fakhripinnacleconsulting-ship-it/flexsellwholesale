@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
+import Link from "next/link";
 
 interface OrderSummaryProps {
   items: any[];
@@ -33,6 +34,8 @@ export function OrderSummary({
   shippingConfig,
   children
 }: OrderSummaryProps) {
+  const [agreedToTerms, setAgreedToTerms] = React.useState(false);
+
   // Parse weight string to grams helper
   const parseWeightToGrams = (weightStr: string): number => {
     if (!weightStr) return 0;
@@ -201,13 +204,26 @@ export function OrderSummary({
         <span>{formatPrice(finalPayable)}</span>
       </div>
 
-      <Button type="submit" size="lg" className="w-full text-base bg-foreground text-background hover:bg-foreground/90" disabled={isSubmitting}>
+      <div className="flex items-start gap-2 pt-2 mb-4">
+        <input 
+          type="checkbox" 
+          id="terms" 
+          className="mt-0.5 rounded text-primary focus:ring-primary bg-background border-border cursor-pointer w-4 h-4"
+          checked={agreedToTerms}
+          onChange={(e) => setAgreedToTerms(e.target.checked)}
+          required
+        />
+        <label htmlFor="terms" className="text-xs text-muted-foreground cursor-pointer leading-tight">
+          I agree to the{" "}
+          <Link href="/policies/terms" className="text-primary font-semibold hover:underline" target="_blank">Terms of Service</Link>,{" "}
+          <Link href="/policies/privacy" className="text-primary font-semibold hover:underline" target="_blank">Privacy Policy</Link>, and{" "}
+          <Link href="/policies/return" className="text-primary font-semibold hover:underline" target="_blank">Return Policy</Link>.
+        </label>
+      </div>
+
+      <Button type="submit" size="lg" className="w-full text-base bg-foreground text-background hover:bg-foreground/90" disabled={isSubmitting || !agreedToTerms}>
         {isSubmitting ? "Placing Order..." : "Confirm Order"}
       </Button>
-
-      <p className="text-xs text-center text-muted-foreground">
-        By placing your order, you agree to our B2B Sourcing Terms of Service and Shipping Liability Rules.
-      </p>
     </div>
   );
 }

@@ -16,7 +16,7 @@ import { INDIAN_STATES } from "@/lib/constants";
 import { SuggestedProductsCarousel } from "./SuggestedProductsCarousel";
 
 export function CartView() {
-  const { items, updateQuantity, removeItem, clearCart, buyerState, setBuyerState, getCartSubtotal, hydrateProducts, getTaxDetails } = useCartStore();
+  const { items, updateQuantity, removeItem, clearCart, buyerState, setBuyerState, getCartSubtotal, hydrateProducts, getTaxDetails, delegatedCustomerId, setDelegatedCustomerId } = useCartStore();
   const products = useProductStore((state) => state.products);
 
   React.useEffect(() => {
@@ -105,13 +105,29 @@ export function CartView() {
   // Dropshipping redirect guard
   const { useAuthStore } = require("@/stores/authStore");
   const customer = useAuthStore((state: any) => state.customer);
-  const isDropshipperOnly = customer && customer.customerTypes && customer.customerTypes.length === 1 && customer.customerTypes[0] === "Dropshipping";
+  const isDropshipperOnly = customer && customer.role !== "admin" && customer.customerTypes && customer.customerTypes.length === 1 && customer.customerTypes[0] === "Dropshipping";
 
   React.useEffect(() => {
     if (isDropshipperOnly) {
       router.push("/client");
     }
   }, [isDropshipperOnly, router]);
+
+  const [customersList, setCustomersList] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (customer?.role === "admin") {
+      const { customerService } = require("@/services/customerService");
+      customerService.getCustomers().then((list: any) => setCustomersList(list));
+    }
+  }, [customer]);
+
+  const activeCustomer = React.useMemo(() => {
+    if (customer?.role === "admin" && delegatedCustomerId) {
+      return customersList.find((c) => c._id === delegatedCustomerId) || customer;
+    }
+    return customer;
+  }, [customer, delegatedCustomerId, customersList]);
 
   if (isDropshipperOnly) {
     return <div className="p-12 text-center text-muted-foreground">Redirecting...</div>;
@@ -157,7 +173,7 @@ export function CartView() {
       {/* B2C Wholesale Incentive Banner */}
       {(() => {
         const { isB2bVerified } = require("@/lib/priceTierHelper");
-        const isVerified = isB2bVerified(customer);
+        const isVerified = isB2bVerified(activeCustomer);
         if (!isVerified) {
           return (
             <div className="mb-6 p-4 bg-gradient-to-r from-emerald-500/10 via-primary/10 to-blue-500/10 rounded-xl border border-primary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -179,6 +195,29 @@ export function CartView() {
         }
         return null;
       })()}
+
+      {/* Admin Customer Delegation Dropdown */}
+      {customer?.role === "admin" && (
+        <Card className="mb-6 border-primary/50 border bg-primary/5">
+          <CardContent className="p-4 space-y-2">
+            <label className="text-sm font-semibold text-foreground block">
+              Ordering on behalf of customer:
+            </label>
+            <select
+              className="h-10 px-3 rounded-md border border-border bg-background text-sm font-semibold text-foreground focus:ring-2 focus:ring-primary w-full max-w-md cursor-pointer"
+              value={delegatedCustomerId || ""}
+              onChange={(e) => setDelegatedCustomerId(e.target.value)}
+            >
+              <option value="">-- Order for myself (Admin) --</option>
+              {customersList.map((cust) => (
+                <option key={cust._id} value={cust._id}>
+                  {cust.name} (ID: {cust._id}) - Type: {cust.customerTypes?.join(", ") || "B2C"}
+                </option>
+              ))}
+            </select>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Side: Items List */}
@@ -207,11 +246,11 @@ export function CartView() {
             const sku = activeSubVariant?.sku || item.productId;
 
             const { resolveMoq, resolvePriceTierName, isPureB2B } = require("@/lib/priceTierHelper");
-            const customerTypes = customer?.customerTypes || ["B2C"];
+            const customerTypes = activeCustomer?.customerTypes || ["B2C"];
             const isPureB2b = isPureB2B(customerTypes);
-            const liveMoq = activeSubVariant ? resolveMoq(activeSubVariant, customer || customerTypes) : 1;
+            const liveMoq = activeSubVariant ? resolveMoq(activeSubVariant, activeCustomer || customerTypes) : 1;
             const minLimit = isPureB2b ? liveMoq : 1;
-            const livePriceTier = activeSubVariant ? resolvePriceTierName(activeSubVariant, customer || customerTypes, item.quantity) : (item.priceTier || "B2C");
+            const livePriceTier = activeSubVariant ? resolvePriceTierName(activeSubVariant, activeCustomer || customerTypes, item.quantity) : (item.priceTier || "B2C");
             const maxStock = activeSubVariant?.stock || 0;
 
             return (

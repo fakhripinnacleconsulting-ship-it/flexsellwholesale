@@ -31,7 +31,7 @@ export function Header({ categories, collections = [] }: HeaderProps) {
   const cartItemsCount = useCartStore((state) => state.getCartItemsCount());
   const wishlistItemsCount = useWishlistStore((state) => state.items.length);
   const customer = useAuthStore((state) => state.customer);
-  const isDropshipperOnly = customer && customer.customerTypes && customer.customerTypes.length === 1 && customer.customerTypes[0] === "Dropshipping";
+  const isDropshipperOnly = customer && customer.role !== "admin" && customer.customerTypes && customer.customerTypes.length === 1 && customer.customerTypes[0] === "Dropshipping";
 
   const topLevel = categories.filter(c => !c.parentId);
 

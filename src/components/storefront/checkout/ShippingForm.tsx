@@ -65,7 +65,7 @@ export function ShippingForm({
               <option value="">-- Choose Customer --</option>
               {customersList.map((cust) => (
                 <option key={cust._id} value={cust._id}>
-                  {cust.name} ({cust._id}) - {cust.email}
+                  {cust.name} (ID: {cust._id}) - Type: {cust.customerTypes?.join(", ") || "B2C"}
                 </option>
               ))}
             </select>

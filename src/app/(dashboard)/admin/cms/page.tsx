@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 
 // Modular CMS Components & Types
 import {
@@ -115,9 +116,7 @@ export default function AdminCmsPage() {
   const fetchCmsData = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/cms");
-      if (!res.ok) throw new Error("Failed to load CMS data");
-      const data = await res.json();
+      const data = await apiClient.get<any>(`/cms?t=${Date.now()}`, { cache: "no-store" });
 
       setHeroBanners(data.hero_banners || []);
       setAnnouncements(data.announcements || []);
@@ -149,12 +148,7 @@ export default function AdminCmsPage() {
   const handleSaveCmsKey = async (key: string, value: any) => {
     try {
       setIsSaving(true);
-      const res = await fetch("/api/cms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, value })
-      });
-      if (!res.ok) throw new Error("Failed to save CMS data");
+      await apiClient.post("/cms", { key, value });
       addToast(`CMS Section '${key}' updated successfully!`, "success");
       await fetchCmsData();
     } catch (err: unknown) {
@@ -167,9 +161,7 @@ export default function AdminCmsPage() {
   const handleTriggerSeed = async () => {
     try {
       setIsSeeding(true);
-      const res = await fetch("/api/admin/seed", { method: "POST" });
-      if (!res.ok) throw new Error("Failed to seed database");
-      const data = await res.json();
+      const data = await apiClient.post<any>("/admin/seed");
       addToast(data.message || "Database seeded successfully!", "success");
       setSeedModalOpen(false);
       fetchCmsData();
@@ -201,12 +193,7 @@ export default function AdminCmsPage() {
       const formDataUpload = new FormData();
       formDataUpload.append("file", file);
 
-      const res = await fetch("/api/upload", { method: "POST", body: formDataUpload });
-      const data = await res.json().catch(() => ({ message: "Failed to parse server upload response" }));
-      
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to upload file");
-      }
+      const data = await apiClient.post<any>("/upload", formDataUpload);
       
       setFormData((prev: any) => ({ ...prev, [fieldName]: data.url }));
       addToast("File uploaded successfully", "success");

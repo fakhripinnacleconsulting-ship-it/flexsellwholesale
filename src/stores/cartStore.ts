@@ -26,6 +26,8 @@ interface CartState {
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, qty: number) => void;
   clearCart: () => void;
+  delegatedCustomerId?: string;
+  setDelegatedCustomerId: (id: string) => void;
   getCartSubtotal: () => number; // Sum of pricePerUnit * quantity (inclusive or exclusive based on config)
   getCartItemsCount: () => number;
   getTaxDetails: () => {
@@ -45,7 +47,9 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       buyerState: "",
+      delegatedCustomerId: "",
 
+      setDelegatedCustomerId: (id) => set({ delegatedCustomerId: id }),
       setBuyerState: (state) => set({ buyerState: state }),
 
       addItem: (product, selectedVariants, quantity = 1, priceTierInput = "B2C") => {
@@ -416,7 +420,8 @@ export const useCartStore = create<CartState>()(
           quantity: item.quantity,
           pricePerUnit: item.pricePerUnit,
           priceTier: item.priceTier || "B2C",
-        }))
+        })),
+        delegatedCustomerId: state.delegatedCustomerId,
       }) as any,
       onRehydrateStorage: () => () => {
         // Hydrate after rehydration

@@ -46,6 +46,7 @@ export function resolveMoq(sv?: SubVariant, tierOrTypes?: PriceTier | string[] |
   if (!sv) return 1;
 
   if (typeof tierOrTypes === "object" && tierOrTypes !== null && !Array.isArray(tierOrTypes)) {
+    if (tierOrTypes.role === "admin") return 1;
     return isB2bVerified(tierOrTypes) ? (sv.b2bMoq || 1) : 1;
   }
 
