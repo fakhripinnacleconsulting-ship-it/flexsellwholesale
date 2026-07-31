@@ -377,20 +377,6 @@ export default function AdminShippingPage() {
                   This flat freight rate is automatically applied to all B2B wholesale bulk orders at checkout and in product cost breakdowns.
                 </p>
               </div>
-
-              <div className="space-y-2 border-t pt-4">
-                <label className="text-sm font-bold">Dropshipping Fixed Shipping Charge (₹)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={dropshippingFixedCharge}
-                  onChange={(e) => setDropshippingFixedCharge(Math.max(0, Number(e.target.value)))}
-                  className="font-bold text-lg max-w-xs"
-                />
-                <p className="text-[10px] text-muted-foreground leading-relaxed mt-1">
-                  This rate is applied to dropshipping reseller orders. If set to 0, dropshipping orders fall back to weight slabs.
-                </p>
-              </div>
             </CardContent>
           </Card>
         ) : (

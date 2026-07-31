@@ -244,12 +244,12 @@ describe("calculateDetailedBreakdown", () => {
     expect(breakdownQty2.estimatedShippingCharge).toBe(120);
   });
 
-  it("uses fixed dropshipping charge when dropshippingFixedCharge is set > 0", () => {
+  it("uses weight-based slabs for Dropshipping tier", () => {
     const shippingConfig = {
       b2bFixedCharge: 150,
-      dropshippingFixedCharge: 95,
+      dropshippingFixedCharge: 0,
       weightSlabs: [
-        { fromGram: 0, uptoGram: 500, amount: 60 },
+        { fromGram: 0, uptoGram: 1000, amount: 95 },
       ],
     };
 
