@@ -78,7 +78,7 @@ export function Footer({ data }: FooterProps) {
   };
 
   return (
-    <footer className="bg-card border-t border-border pt-16 pb-8 text-foreground select-none relative overflow-hidden">
+    <footer className="bg-card border-t border-border pt-16 pb-8 text-foreground select-none relative overflow-hidden no-print print:hidden">
       <div className="mx-auto max-w-8xl px-4 md:px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-12 w-full">
         {/* Brand Column */}
         <div className="space-y-4 col-span-1 sm:col-span-2 lg:col-span-2">

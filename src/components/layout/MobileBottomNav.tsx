@@ -70,7 +70,7 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-3 left-3 right-3 z-50 select-none">
+    <div className="md:hidden fixed bottom-3 left-3 right-3 z-50 select-none no-print print:hidden">
       <nav className="bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl p-1.5 shadow-2xl flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;

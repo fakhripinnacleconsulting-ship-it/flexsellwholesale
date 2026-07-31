@@ -280,28 +280,37 @@ export function OrderDetailPanel({
           </h4>
           {order.items && order.items.length > 0 ? (
             <div className="space-y-3">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex justify-between items-start text-xs">
-                  <div className="max-w-[70%]">
-                    <p className="font-semibold text-foreground line-clamp-1">
-                      {item.product.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Qty: {item.quantity} x {formatPrice(item.pricePerUnit)}
-                    </p>
-                    {item.selectedVariants && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {Object.entries(item.selectedVariants)
-                          .map(([k, v]) => `${k}: ${v}`)
-                          .join(" | ")}
+              {order.items.map((item: any, idx: number) => {
+                const itemTitle = typeof item.product === "object" && item.product?.title
+                  ? item.product.title
+                  : item.productTitle || item.name || item.title || (typeof item.product === "string" ? item.product : `Wholesale Item #${idx + 1}`);
+
+                const variantsObj = item.selectedVariants || item.variants;
+                const variantEntries = typeof variantsObj === "object" && variantsObj ? Object.entries(variantsObj) : [];
+                const price = Number(item.pricePerUnit || item.price || 0);
+                const qty = Number(item.quantity || 1);
+
+                return (
+                  <div key={item.id || item._id || idx} className="flex justify-between items-start text-xs">
+                    <div className="max-w-[70%]">
+                      <p className="font-semibold text-foreground line-clamp-1">
+                        {itemTitle}
                       </p>
-                    )}
+                      <p className="text-xs text-muted-foreground">
+                        Qty: {qty} x {formatPrice(price)}
+                      </p>
+                      {variantEntries.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {variantEntries.map(([k, v]) => `${k}: ${v}`).join(" | ")}
+                        </p>
+                      )}
+                    </div>
+                    <span className="font-medium text-foreground">
+                      {formatPrice(price * qty)}
+                    </span>
                   </div>
-                  <span className="font-medium text-foreground">
-                    {formatPrice(item.pricePerUnit * item.quantity)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground italic">

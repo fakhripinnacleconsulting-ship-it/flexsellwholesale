@@ -245,9 +245,42 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "This quote has already been converted to an order." }, { status: 400 });
       }
       
-      body.items = body.items && body.items.length > 0 ? body.items : quote.items;
-      body.amount = body.amount > 0 ? body.amount : quote.amount;
-      body.shippingAddress = body.shippingAddress && Object.keys(body.shippingAddress).length > 0 ? body.shippingAddress : quote.shippingAddress;
+      const normalizedItems = (quote.items || []).map((i: any, idx: number) => {
+        const pId = typeof i.product === "object" ? (i.product?._id || i.productId || `PROD-${idx}`) : (i.productId || (typeof i.product === "string" ? i.product : `PROD-${idx}`));
+        const pTitle = typeof i.product === "object" ? (i.product?.title || i.product?.name || "Wholesale Product") : (i.productTitle || i.name || i.title || "Wholesale Product");
+        return {
+          id: i.id || i._id || `item-${idx}-${Date.now()}`,
+          productId: pId,
+          product: {
+            _id: pId,
+            title: pTitle,
+            categoryId: i.product?.categoryId || i.categoryId || "cat-default",
+            gstRate: i.product?.gstRate || i.gstRate || 18,
+            priceIncludesGst: i.product?.priceIncludesGst ?? true,
+          },
+          selectedVariants: i.selectedVariants || i.variants || {},
+          quantity: Number(i.quantity || 1),
+          pricePerUnit: Number(i.pricePerUnit || i.price || 0)
+        };
+      });
+
+      body.items = (body.items && Array.isArray(body.items) && body.items.length > 0) ? body.items : normalizedItems;
+      body.amount = (body.amount && Number(body.amount) > 0) ? Number(body.amount) : Number(quote.amount || 0);
+      
+      const isInputAddrValid = body.shippingAddress && body.shippingAddress.address && body.shippingAddress.email;
+      body.shippingAddress = isInputAddrValid ? body.shippingAddress : (quote.shippingAddress || {
+        firstName: quote.customerName ? quote.customerName.split(" ")[0] : "Valued",
+        lastName: quote.customerName ? quote.customerName.split(" ").slice(1).join(" ") || "Buyer" : "Buyer",
+        email: quote.customerEmail || "customer@example.com",
+        company: quote.customerCompany || "",
+        address: "Wholesale Dock Facility Address",
+        city: "Mumbai",
+        state: "Maharashtra",
+        pinCode: "400001",
+        phone: "9876543210",
+        gstin: quote.customerGstin || ""
+      });
+
       body.couponCode = body.couponCode || quote.couponCode;
       body.couponDiscount = body.couponDiscount || quote.couponDiscount;
       body.salesperson = body.salesperson || quote.salesperson;
