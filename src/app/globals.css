@@ -397,7 +397,7 @@
     display: none !important;
   }
 
-  /* Print Isolation: Hide all background page content and siblings when a modal or document container is active */
+  /* Print Isolation: Hide all background page content and siblings from layout flow to prevent blank Page 1 */
   header,
   footer,
   nav,
@@ -413,43 +413,55 @@
     visibility: hidden !important;
   }
 
-  body * {
-    visibility: hidden !important;
+  /* Completely collapse non-printable siblings from layout flow so Page 1 never starts blank */
+  body > *:not(.print-preview-modal-wrapper):not(.print-portal-root):not(.b2b-print-modal-portal):not([data-print-portal]) {
+    display: none !important;
   }
 
-  body, main, #__next, root,
-  .print-preview-modal-wrapper,
-  .b2b-print-modal-portal {
-    visibility: visible !important;
+  html, body {
     background: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
-  /* Reset fixed modal overlays and container wrappers so multi-page documents print continuously */
-  .fixed,
-  .fixed > div,
+  /* Position active printable modal portal at (0,0) of Page 1 */
   .print-preview-modal-wrapper,
-  div:has(> .invoice-document),
-  div:has(> .print-container),
-  div:has(> .quote-document),
-  div:has(> .shipping-label-document),
-  .b2b-print-modal-portal {
-    position: static !important;
-    inset: auto !important;
-    background: #ffffff !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    overflow: visible !important;
-    overflow-x: visible !important;
-    overflow-y: visible !important;
+  .print-portal-root,
+  .b2b-print-modal-portal,
+  [data-print-portal] {
+    visibility: visible !important;
     display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
     width: 100% !important;
     height: auto !important;
-    max-height: none !important;
-    padding: 0 !important;
+    min-height: 0 !important;
     margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Reset inner wrapper structures inside modal */
+  .print-preview-modal-wrapper > div,
+  .print-portal-root > div,
+  .b2b-print-modal-portal > div {
+    visibility: visible !important;
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
     box-shadow: none !important;
     border: none !important;
   }

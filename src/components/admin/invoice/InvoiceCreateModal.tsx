@@ -73,6 +73,7 @@ interface InvoiceCreateModalProps {
   isSubmitting: boolean;
   onSaveInvoice: (e: React.FormEvent) => void;
   addToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
+  shippingConfig?: any;
 }
 
 export function InvoiceCreateModal({
@@ -136,7 +137,30 @@ export function InvoiceCreateModal({
   isSubmitting,
   onSaveInvoice,
   addToast,
+  shippingConfig,
 }: InvoiceCreateModalProps) {
+  const calculatedShipping = React.useMemo(() => {
+    if (!shippingConfig || !formItems || formItems.length === 0) return 0;
+    try {
+      const { calculateTotalShippingCharge } = require("@/lib/shippingHelper");
+      const { calculateShippingByWeight, calculateEffectiveUnitWeightGrams } = require("@/lib/priceTierHelper");
+
+      const itemsWithTier = formItems.map(item => ({
+        ...item,
+        priceTier: formCustomerType
+      }));
+
+      return calculateTotalShippingCharge(
+        itemsWithTier,
+        shippingConfig,
+        calculateShippingByWeight,
+        calculateEffectiveUnitWeightGrams
+      );
+    } catch (e) {
+      console.error("Failed to calculate shipping in modal:", e);
+      return 0;
+    }
+  }, [formItems, formCustomerType, shippingConfig]);
   const [isInvoiceScannerOpen, setIsInvoiceScannerOpen] = React.useState(false);
   const [isProductDropdownOpen, setIsProductDropdownOpen] = React.useState(false);
   const productWrapperRef = React.useRef<HTMLDivElement>(null);
@@ -213,12 +237,18 @@ export function InvoiceCreateModal({
 
     const finalPrice = itemPrice > 0 ? itemPrice : resolvePrice(subVar, formCustomerType);
 
+    const itemWeightStr = selectedWeight || subVar?.weight || "500g";
+    const { parseWeightToGrams } = require("@/lib/shippingHelper");
+    const parsedWeightGrams = subVar?.weightGrams || (itemWeightStr !== "N/A" ? parseWeightToGrams(itemWeightStr) : 500) || 500;
+
     const newItem = {
       productId: currentProduct._id,
       productTitle: currentProduct.title,
+      product: currentProduct,
       color: selectedColor || colorVar?.color || "Default",
       size: selectedSize || subVar?.size || "Standard",
-      weight: selectedWeight || subVar?.weight || "N/A",
+      weight: itemWeightStr,
+      weightGrams: parsedWeightGrams,
       hsnCode: currentProduct.hsnCode || "3924",
       gstRate: currentProduct.gstRate || 18,
       mrp: subVar?.mrp || finalPrice,
@@ -229,7 +259,7 @@ export function InvoiceCreateModal({
       selectedVariants: {
         color: selectedColor || colorVar?.color || "Default",
         size: selectedSize || subVar?.size || "Standard",
-        weight: selectedWeight || subVar?.weight || "N/A"
+        weight: itemWeightStr
       },
       quantity: itemQty,
       pricePerUnit: finalPrice
@@ -737,9 +767,13 @@ export function InvoiceCreateModal({
                   <span className="font-mono">{formatPrice(formTaxBreakdown.igst)}</span>
                 </div>
               )}
+              <div className="flex justify-between text-muted-foreground pt-1 border-t border-dashed">
+                <span>Calculated Freight / Shipping ({formCustomerType} Tier):</span>
+                <span className="font-bold font-mono text-foreground">{formatPrice(calculatedShipping)}</span>
+              </div>
               <div className="flex justify-between text-base font-black text-foreground border-t pt-2">
-                <span>Grand Total (Incl. GST):</span>
-                <span className="text-primary">{formatPrice(formGrandTotal)}</span>
+                <span>Grand Total (Incl. GST & Shipping):</span>
+                <span className="text-primary">{formatPrice(formGrandTotal + calculatedShipping)}</span>
               </div>
             </div>
           </div>

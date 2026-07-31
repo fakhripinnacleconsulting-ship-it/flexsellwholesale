@@ -232,28 +232,28 @@ describe("calculateDetailedBreakdown", () => {
     });
     expect(breakdownQty1.estimatedShippingCharge).toBe(120);
 
-    // 3 units chargeable weight = 2256g -> exceeds slabs fallback
+    // 2 units: 1 unit chargeable weight = 752g (slab 501-2000g = 120) * 2 qty = 240
     const breakdownQty2 = calculateDetailedBreakdown({
       product: dummyProduct,
       variant: dummyVariant,
       subVariant: dummySubVariant,
       tier: "Dropshipping",
-      quantity: 2, // 2 * 752g = 1504g -> slab 501-2000g = 120
+      quantity: 2,
       shippingConfig,
     });
-    expect(breakdownQty2.estimatedShippingCharge).toBe(120);
+    expect(breakdownQty2.estimatedShippingCharge).toBe(240);
   });
 
-  it("uses weight-based slabs for Dropshipping tier", () => {
+  it("scales Dropshipping shipping charge proportionally with quantity (e.g. 1 qty = Rs.50, 3 qty = Rs.150)", () => {
     const shippingConfig = {
       b2bFixedCharge: 150,
       dropshippingFixedCharge: 0,
       weightSlabs: [
-        { fromGram: 0, uptoGram: 1000, amount: 95 },
+        { fromGram: 0, uptoGram: 1000, amount: 50 },
       ],
     };
 
-    const breakdown = calculateDetailedBreakdown({
+    const breakdown1 = calculateDetailedBreakdown({
       product: dummyProduct,
       variant: dummyVariant,
       subVariant: dummySubVariant,
@@ -261,6 +261,16 @@ describe("calculateDetailedBreakdown", () => {
       quantity: 1,
       shippingConfig,
     });
-    expect(breakdown.estimatedShippingCharge).toBe(95);
+    expect(breakdown1.estimatedShippingCharge).toBe(50);
+
+    const breakdown3 = calculateDetailedBreakdown({
+      product: dummyProduct,
+      variant: dummyVariant,
+      subVariant: dummySubVariant,
+      tier: "Dropshipping",
+      quantity: 3,
+      shippingConfig,
+    });
+    expect(breakdown3.estimatedShippingCharge).toBe(150);
   });
 });

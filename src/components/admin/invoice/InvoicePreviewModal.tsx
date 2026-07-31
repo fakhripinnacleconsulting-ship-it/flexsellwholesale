@@ -84,6 +84,8 @@ export function InvoicePreviewModal({
               type={selectedInvoice.type}
               documentNumber={selectedInvoice._id}
               customerId={selectedInvoice.customerId}
+              customerType={(selectedInvoice as any).customerType}
+              salesperson={selectedInvoice.salesperson}
               order={{
                 _id: selectedInvoice.orderId || "",
                 date: selectedInvoice.generatedAt,
@@ -92,6 +94,8 @@ export function InvoicePreviewModal({
                 statusClass: "",
                 itemsCount: selectedInvoice.items.reduce((acc, item) => acc + item.quantity, 0),
                 customerName: selectedInvoice.customerName,
+                customerType: (selectedInvoice as any).customerType,
+                priceTier: (selectedInvoice as any).priceTier || (selectedInvoice as any).customerType,
                 shippingAddress: selectedInvoice.shippingAddress,
                 items: selectedInvoice.items,
                 history: [],
@@ -100,6 +104,7 @@ export function InvoicePreviewModal({
                 transactionId: selectedInvoice.transactionId,
                 couponCode: selectedInvoice.couponCode,
                 couponDiscount: selectedInvoice.couponDiscount,
+                shippingCharge: (selectedInvoice as any).shippingCharge,
               }}
               sellerInfo={{
                 storeName: selectedInvoice.sellerInfo?.storeName || companyInfo.storeName,
@@ -127,7 +132,6 @@ export function InvoicePreviewModal({
                   : companyInfo.termsAndConditions
               }}
               taxBreakdown={selectedInvoice.taxDetails}
-              salesperson={selectedInvoice.salesperson}
               showActions={false}
             />
           </div>

@@ -8,6 +8,7 @@ import { useProductStore } from "@/stores/productStore";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { Barcode } from "@/components/ui/Barcode";
+import { shippingService } from "@/services/shippingService";
 
 export interface InvoiceDocumentProps {
   type: "invoice" | "receipt" | "quote" | "shipping_label";
@@ -23,6 +24,7 @@ export interface InvoiceDocumentProps {
   };
   showActions?: boolean;
   customerId?: string;
+  customerType?: string;
   salesperson?: string;
 }
 
@@ -94,15 +96,76 @@ export function InvoiceDocument({
   shipmentDetails,
   showActions = true,
   customerId,
+  customerType,
   salesperson,
 }: InvoiceDocumentProps) {
   const { products, initializeProducts } = useProductStore();
+  const [shippingConfig, setShippingConfig] = React.useState<any>(null);
 
   React.useEffect(() => {
     if (!products || products.length === 0) {
       initializeProducts();
     }
+    shippingService.getConfig()
+      .then((cfg: any) => setShippingConfig(cfg))
+      .catch((err: any) => console.error("Failed to load shipping config in InvoiceDocument:", err));
   }, [products, initializeProducts]);
+
+  const isDropshipping =
+    customerType === "Dropshipping" ||
+    (order as any).customerType === "Dropshipping" ||
+    (order as any).priceTier === "Dropshipping" ||
+    (order as any).customerTypes?.includes("Dropshipping") ||
+    (order as any).orderType === "Dropshipping" ||
+    (order as any).items?.some((i: any) => i.priceTier === "Dropshipping" || i.customerType === "Dropshipping");
+
+  const getItemShippingCharge = (item: any): number => {
+    if (typeof item.shippingCharge === "number" && item.shippingCharge > 0) {
+      return item.shippingCharge;
+    }
+    if (!isDropshipping) return 0;
+
+    try {
+      const { calculateShippingByWeight, calculateEffectiveUnitWeightGrams } = require("@/lib/priceTierHelper");
+      const { parseWeightToGrams } = require("@/lib/shippingHelper");
+
+      const pId = item.productId || (typeof item.product === "object" ? item.product?._id : item.product);
+      const matchedProduct = products.find(p => p._id === pId || p.title?.toLowerCase() === (item.product?.title || item.title || "").toLowerCase());
+      const productSource = matchedProduct || (typeof item.product === "object" ? item.product : null);
+
+      const colorVariants = productSource?.colorVariants || [];
+      const { color: matchingColor } = resolveVariantKeys(item.selectedVariants || item.variants || {});
+      const activeVariant = colorVariants.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
+        || colorVariants[0];
+
+      const activeSubVariant = activeVariant?.subVariants?.find((sv: any) =>
+        (!item.selectedVariants?.["Size"] || sv.size === item.selectedVariants["Size"]) &&
+        (!item.selectedVariants?.["Weight"] || sv.weight === item.selectedVariants["Weight"])
+      ) || activeVariant?.subVariants?.[0];
+
+      const itemWeightStr = item.weight || activeSubVariant?.weight || "500g";
+      const actualUnitWeightGrams =
+        item.weightGrams ??
+        activeSubVariant?.weightGrams ??
+        ((itemWeightStr !== "N/A" ? parseWeightToGrams(itemWeightStr) : 500) || 500);
+
+      const effectiveUnitWeight = calculateEffectiveUnitWeightGrams(
+        actualUnitWeightGrams,
+        activeVariant?.lengthCm,
+        activeVariant?.breadthCm,
+        activeVariant?.heightCm,
+        activeVariant?.dimensions
+      );
+
+      const slabs = shippingConfig?.weightSlabs || [];
+      const unitRate = calculateShippingByWeight(effectiveUnitWeight, slabs);
+      const qty = Number(item.quantity || 1);
+      return unitRate * qty;
+    } catch {
+      return 80 * Number(item.quantity || 1);
+    }
+  };
+
   const sellerStateMatch = sellerInfo.address.match(/(?:,\s*)([A-Za-z\s]+?)(?:\s*-\s*\d|$)/);
   const sellerState = sellerStateMatch ? sellerStateMatch[1].trim() : "Madhya Pradesh";
   const tax = providedTaxBreakdown || computeTaxBreakdown(order, sellerState);
@@ -123,8 +186,9 @@ export function InvoiceDocument({
   const itemsList = order.items || [];
   const itemTotalWithGst = itemsList.reduce((sum: number, item: any) => sum + (item.pricePerUnit * item.quantity), 0);
   const couponDiscount = order.couponDiscount || 0;
-  const rawShipping = (order.amount || 0) - itemTotalWithGst + couponDiscount;
-  const shippingCharge = rawShipping > 0.01 ? parseFloat(rawShipping.toFixed(2)) : 0;
+  const explicitShipping = typeof (order as any).shippingCharge === "number" ? (order as any).shippingCharge : 0;
+  const inferredShipping = (order.amount || 0) - itemTotalWithGst + couponDiscount;
+  const shippingCharge = explicitShipping > 0 ? explicitShipping : (inferredShipping > 0.01 ? parseFloat(inferredShipping.toFixed(2)) : 0);
 
   const handlePrint = () => {
     const docLabel = isShippingLabel
@@ -451,12 +515,17 @@ export function InvoiceDocument({
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b-2 border-gray-800 uppercase text-[10px] font-bold text-gray-500 tracking-wider">
-                <th className="pb-3 w-[5%]">#</th>
-                <th className="pb-3 w-[35%]">Description</th>
+                <th className={`pb-3 ${isDropshipping ? "w-[4%]" : "w-[5%]"}`}>#</th>
+                <th className={`pb-3 ${isDropshipping ? "w-[28%]" : "w-[35%]"}`}>Description</th>
                 <th className="pb-3 text-center w-[8%]">HSN</th>
-                <th className="pb-3 text-center w-[8%]">Qty</th>
-                <th className="pb-3 text-right w-[14%]">Unit Price</th>
-                <th className="pb-3 text-center w-[8%]">GST %</th>
+                <th className="pb-3 text-center w-[6%]">Qty</th>
+                <th className={`pb-3 text-right ${isDropshipping ? "w-[15%]" : "w-[14%]"}`}>
+                  {isDropshipping ? "Product Price" : "Unit Price"}
+                </th>
+                <th className="pb-3 text-center w-[7%]">GST %</th>
+                {isDropshipping && (
+                  <th className="pb-3 text-right w-[16%] text-emerald-700 font-bold">Line Shipping</th>
+                )}
                 <th className="pb-3 text-right w-[14%]">Amount</th>
               </tr>
             </thead>
@@ -468,6 +537,8 @@ export function InvoiceDocument({
                 const hsn = item.product?.hsnCode ?? "3924";
                 const gstRate = item.product?.gstRate ?? 18;
                 const lineTotal = item.pricePerUnit * item.quantity;
+                const itemShippingCost = getItemShippingCharge(item);
+                const unitShippingCost = itemShippingCost / (item.quantity || 1);
                 return (
                   <tr key={`${item.product?._id || index}-${index}`} className="border-b border-gray-100">
                     <td className="py-3 text-gray-500">{index + 1}</td>
@@ -531,8 +602,25 @@ export function InvoiceDocument({
                     </td>
                     <td className="py-3 text-center font-mono text-gray-600">{hsn}</td>
                     <td className="py-3 text-center font-bold">{item.quantity}</td>
-                    <td className="py-3 text-right">₹{item.pricePerUnit.toFixed(2)}</td>
+                    <td className="py-3 text-right">
+                      <span className="font-bold text-gray-900 block">₹{item.pricePerUnit.toFixed(2)}</span>
+                      {isDropshipping && (
+                        <span className="text-[9px] text-emerald-700 block font-semibold">
+                          + ₹{unitShippingCost.toFixed(2)} ship/unit
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 text-center">{gstRate}%</td>
+                    {isDropshipping && (
+                      <td className="py-3 text-right">
+                        <span className="font-mono text-emerald-700 font-bold block">
+                          ₹{itemShippingCost.toFixed(2)}
+                        </span>
+                        <span className="text-[9px] text-gray-500 block">
+                          ({item.quantity} × ₹{unitShippingCost.toFixed(2)})
+                        </span>
+                      </td>
+                    )}
                     <td className="py-3 text-right font-bold text-gray-900">₹{lineTotal.toFixed(2)}</td>
                   </tr>
                 );
@@ -614,8 +702,8 @@ export function InvoiceDocument({
               </div>
             )}
             <div className="flex justify-between text-gray-600">
-              <span>Shipping & Order Delivery:</span>
-              <span className="font-semibold">
+              <span>{isDropshipping ? "Total Dropshipping Shipping Charge:" : "Shipping & Order Delivery:"}</span>
+              <span className="font-semibold text-emerald-700 font-bold">
                 {shippingCharge > 0 ? `₹${shippingCharge.toFixed(2)}` : "Free"}
               </span>
             </div>

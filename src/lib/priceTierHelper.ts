@@ -143,8 +143,28 @@ export function calculateShippingByWeight(
   slabs: { fromGram: number; uptoGram: number; amount: number }[]
 ): number {
   if (!slabs || slabs.length === 0) return 0;
-  const slab = slabs.find(s => weightGrams >= s.fromGram && weightGrams <= s.uptoGram);
-  return slab ? slab.amount : 0;
+  const sortedSlabs = [...slabs].sort((a, b) => Number(a.fromGram) - Number(b.fromGram));
+  const w = Number(weightGrams) || 0;
+
+  // 1. Exact or range match
+  const matched = sortedSlabs.find(s => w >= Number(s.fromGram) && w <= Number(s.uptoGram));
+  if (matched) return Number(matched.amount);
+
+  // 2. If weight is less than or equal to smallest slab's starting weight
+  if (w <= Number(sortedSlabs[0].fromGram)) {
+    return Number(sortedSlabs[0].amount);
+  }
+
+  // 3. If weight exceeds the largest slab's max weight
+  if (w >= Number(sortedSlabs[sortedSlabs.length - 1].uptoGram)) {
+    return Number(sortedSlabs[sortedSlabs.length - 1].amount);
+  }
+
+  // 4. Fallback to nearest slab where w <= uptoGram
+  const upper = sortedSlabs.find(s => w <= Number(s.uptoGram));
+  if (upper) return Number(upper.amount);
+
+  return Number(sortedSlabs[sortedSlabs.length - 1].amount);
 }
 
 /**
@@ -351,13 +371,18 @@ export function calculateDetailedBreakdown(params: {
     if (tier === "B2B") {
       const b2bFixed = Number(shippingConfig?.b2bFixedCharge) ?? 150;
       estimatedShippingCharge = b2bFixed;
-    } else {
-      // B2C & Dropshipping Tiers use Weight-Based Slabs from /admin/shipping
+    } else if (tier === "Dropshipping") {
+      // Dropshipping shipping is per-unit weight slab charge multiplied by quantity
       const slabs = shippingConfig?.weightSlabs || [];
-      estimatedShippingCharge = slabs.length > 0 ? calculateShippingByWeight(totalChargeableWeightGrams, slabs) : (tier === "Dropshipping" ? 80 : 50);
+      const unitShipping = slabs.length > 0 ? calculateShippingByWeight(chargeableUnitWeightGrams, slabs) : 80;
+      estimatedShippingCharge = unitShipping * qty;
+    } else {
+      // B2C Tier uses weight slabs based on total chargeable weight of the order
+      const slabs = shippingConfig?.weightSlabs || [];
+      estimatedShippingCharge = slabs.length > 0 ? calculateShippingByWeight(totalChargeableWeightGrams, slabs) : 50;
     }
   } else {
-    estimatedShippingCharge = tier === "B2B" ? 150 : tier === "Dropshipping" ? 80 : 50;
+    estimatedShippingCharge = tier === "B2B" ? 150 : tier === "Dropshipping" ? (80 * qty) : 50;
   }
 
   // Handling Charge calculation per_unit vs per_order (Applied to B2B and Dropshipping only; B2C is exempt)

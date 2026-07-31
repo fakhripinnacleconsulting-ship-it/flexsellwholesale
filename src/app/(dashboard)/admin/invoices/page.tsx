@@ -93,10 +93,17 @@ export default function AdminInvoicesPage() {
   }, []);
 
   // Creation Form State
+  const [shippingConfig, setShippingConfig] = React.useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
   const [formDocType, setFormDocType] = React.useState<"invoice" | "receipt" | "quote">("invoice");
   const [formCustomerType, setFormCustomerType] = React.useState<"B2B" | "B2C" | "Dropshipping">("B2B");
   const [customers, setCustomers] = React.useState<Customer[]>([]);
+
+  React.useEffect(() => {
+    shippingService.getConfig()
+      .then((cfg: any) => setShippingConfig(cfg))
+      .catch((err: any) => console.error("Failed to load shipping config:", err));
+  }, []);
   const [customerMode, setCustomerMode] = React.useState<"existing" | "new">("existing");
   const [selectedCustomerId, setSelectedCustomerId] = React.useState("");
 
@@ -319,13 +326,31 @@ export default function AdminInvoicesPage() {
         hsnSlabs,
       };
 
-      const formGrandTotal = formItems.reduce((sum, item) => sum + item.pricePerUnit * item.quantity, 0);
+      const { calculateTotalShippingCharge } = require("@/lib/shippingHelper");
+      const { calculateShippingByWeight, calculateEffectiveUnitWeightGrams } = require("@/lib/priceTierHelper");
+
+      const itemsSubtotal = formItems.reduce((sum, item) => sum + item.pricePerUnit * item.quantity, 0);
+
+      const itemsWithTier = formItems.map(item => ({
+        ...item,
+        priceTier: formCustomerType
+      }));
+
+      const computedShippingCharge = calculateTotalShippingCharge(
+        itemsWithTier,
+        shippingConfig,
+        calculateShippingByWeight,
+        calculateEffectiveUnitWeightGrams
+      );
+
+      const formGrandTotal = itemsSubtotal + computedShippingCharge;
 
       const payloadData = {
         type: formDocType,
         ...customerPayload,
         items: formItems,
         amount: formGrandTotal,
+        shippingCharge: computedShippingCharge,
         taxDetails: formTaxBreakdown,
         paymentMethod: formDocType === "quote" ? undefined : paymentMethod,
         paymentStatus: formDocType === "quote" ? "Pending" : (formDocType === "invoice" ? "Paid" : paymentStatus),
@@ -679,6 +704,7 @@ export default function AdminInvoicesPage() {
         isSubmitting={isSubmitting}
         onSaveInvoice={handleSaveInvoice}
         addToast={addToast}
+        shippingConfig={shippingConfig}
       />
 
       <InvoicePayModal
