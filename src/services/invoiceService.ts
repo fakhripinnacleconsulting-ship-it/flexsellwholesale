@@ -113,7 +113,7 @@ function getLocalInvoices(): Invoice[] {
             storeName: "FlexSell Wholesale",
             gstin: "24AAACF1001M1Z5",
             address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
-            email: "support@flexsell.in",
+            email: "support@flexsellwholesale.com",
             phone: "+91 261 2409000"
           },
           generatedAt: "20-Jul-2026",
@@ -151,7 +151,7 @@ function getLocalInvoices(): Invoice[] {
             storeName: "FlexSell Wholesale",
             gstin: "24AAACF1001M1Z5",
             address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
-            email: "support@flexsell.in",
+            email: "support@flexsellwholesale.com",
             phone: "+91 261 2409000"
           },
           generatedAt: "19-Jul-2026",
@@ -190,7 +190,7 @@ function getLocalInvoices(): Invoice[] {
             storeName: "FlexSell Wholesale",
             gstin: "24AAACF1001M1Z5",
             address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
-            email: "support@flexsell.in",
+            email: "support@flexsellwholesale.com",
             phone: "+91 261 2409000"
           },
           generatedAt: "18-Jul-2026",
@@ -362,7 +362,7 @@ export const invoiceService = {
           storeName: "FlexSell Wholesale",
           gstin: "24AAACF1001M1Z5",
           address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
-          email: "support@flexsell.in",
+          email: "support@flexsellwholesale.com",
           phone: "+91 261 2409000"
         },
         notes: data.notes,

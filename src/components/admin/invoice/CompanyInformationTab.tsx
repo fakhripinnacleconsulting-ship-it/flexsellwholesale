@@ -175,7 +175,7 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
             <Input
               value={companyInfo.websiteUrl || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, websiteUrl: e.target.value }))}
-              placeholder="e.g. https://flexsellwholesale.in"
+              placeholder="e.g. https://flexsellwholesale.com"
               className="text-xs"
             />
           </div>
@@ -193,7 +193,7 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
             <Input
               value={companyInfo.supportEmail || ""}
               onChange={(e) => setCompanyInfo(prev => ({ ...prev, supportEmail: e.target.value }))}
-              placeholder="e.g. support@flexsellwholesale.in"
+              placeholder="e.g. support@flexsellwholesale.com"
               className="text-xs"
             />
           </div>

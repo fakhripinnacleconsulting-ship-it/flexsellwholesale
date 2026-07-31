@@ -24,7 +24,7 @@ export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLa
     storeName: "FlexSell Wholesale",
     legalName: "FlexSell Wholesale Sourcing Pvt Ltd",
     address: "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
-    email: "support@flexsell.in",
+    email: "support@flexsellwholesale.com",
     phone: "+91 261 2409000",
     gstin: "24AAACF1001M1Z5",
   };

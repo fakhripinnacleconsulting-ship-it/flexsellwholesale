@@ -13,7 +13,7 @@ export async function GET() {
   try {
     await dbConnect();
     const contents = await CmsContent.find().lean();
-    
+
     // Map list of CMS documents into a key-value structure
     const config: Record<string, any> = {};
     contents.forEach(item => {
@@ -116,9 +116,9 @@ export async function GET() {
       city: "Bhopal",
       state: "Madhya Pradesh",
       pinCode: "394230",
-      supportEmail: "support@flexsellwholesale.in",
+      supportEmail: "support@flexsellwholesale.com",
       supportPhone: "+91 88877 66655",
-      websiteUrl: "https://flexsellwholesale.in",
+      websiteUrl: "https://flexsellwholesale.com",
       timings: "9:30 AM to 6:30 PM (Sunday Closed)",
       signatureUrl: "",
       bankName: "HDFC Bank",

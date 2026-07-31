@@ -4,7 +4,7 @@ import { categoryService } from "@/services/categoryService";
 import { collectionService } from "@/services/collectionService";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.in";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.com";
 
   // Static Core Landing Pages
   const staticRoutes = [

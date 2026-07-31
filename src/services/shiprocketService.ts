@@ -8,7 +8,7 @@ function getLocalShiprocketConfig() {
     const raw = localStorage.getItem(SHIPROCKET_STORAGE_KEY);
     return raw ? JSON.parse(raw) : {
       enabled: true,
-      email: "mock-admin@flexsell.in",
+      email: "mock-admin@flexsellwholesale.com",
       password: "••••••••",
       webhookToken: "mock-webhook-token-12345",
       channelId: "102938",

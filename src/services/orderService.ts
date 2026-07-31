@@ -204,7 +204,7 @@ export const orderService = {
           storeName: "FlexSell Wholesale",
           gstin: "24AAACF1001M1Z5",
           address: "Plot No. 12, GIDC, Bhopal, Gujarat - 394230",
-          email: "support@flexsell.in",
+          email: "support@flexsellwholesale.com",
           phone: "+91 261 2409000"
         },
         generatedAt: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),

@@ -48,7 +48,7 @@ export default function AdminInvoicesPage() {
     city: "Bhopal",
     state: "Madhya Pradesh",
     pinCode: "462001",
-    supportEmail: "support@flexsell.in",
+    supportEmail: "support@flexsellwholesale.com",
     supportPhone: "+91 98765 43210",
     websiteUrl: "https://flexsellwholesale.com",
     signatureUrl: "",

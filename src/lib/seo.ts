@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Product } from "@/types";
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.in";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.com";
 export const DOMAIN_ALT = "https://flexsellwholesale.com";
 export const BRAND_NAME = "FlexSell Wholesale";
 export const BRAND_SHORT = "FlexSell";
@@ -12,7 +12,7 @@ export const DEFAULT_KEYWORDS = [
   "FlexSell", "FlexSell Wholesale", "FlexSellWholesale", "FlexSell India", "FlexSell B2B",
   "Flexsel", "Flexsell", "Fleksell", "Flex sell", "Flxsell", "Flex cell", "Flexcel", "Flexsale",
   "Flex sell wholesale", "Flexsel wholesale", "Flexsell login", "Flexsell app", "Flexsell marketplace",
-  
+
   // B2B & Wholesale Terminology & Typos
   "wholesale marketplace India", "factory direct wholesale", "B2B ecommerce Bhopal",
   "dropshipping supplier India", "bulk buying India", "manufacturer price online",
@@ -157,7 +157,7 @@ export function generateOrganizationSchema() {
         "@type": "ContactPoint",
         "telephone": "+91-88877-66655",
         "contactType": "customer service",
-        "email": "support@flexsellwholesale.in",
+        "email": "support@flexsellwholesale.com",
         "areaServed": "IN",
         "availableLanguage": ["English", "Hindi"]
       },
@@ -165,7 +165,7 @@ export function generateOrganizationSchema() {
         "@type": "ContactPoint",
         "telephone": "+91-88877-66655",
         "contactType": "sales",
-        "email": "b2b@flexsellwholesale.in",
+        "email": "b2b@flexsellwholesale.com",
         "areaServed": "IN",
         "availableLanguage": ["English", "Hindi"]
       }
@@ -230,17 +230,17 @@ export function generateLocalBusinessSchema() {
 
 /** Product Schema with AggregateOffer, MerchantReturn, and Reviews */
 export function generateProductSchema(product: Product, canonicalPath?: string) {
-  const images = (product.colorVariants || []).flatMap(cv => 
+  const images = (product.colorVariants || []).flatMap(cv =>
     (cv.images || []).map(img => typeof img === "string" ? img : img.url || "")
   ).filter(Boolean);
 
-  const prices = (product.colorVariants || []).flatMap(cv => 
+  const prices = (product.colorVariants || []).flatMap(cv =>
     (cv.subVariants || []).map(sv => sv.b2cPrice || sv.b2bPrice || 0)
   ).filter(p => p > 0);
 
   const minPrice = prices.length > 0 ? Math.min(...prices) : 99;
   const maxPrice = prices.length > 0 ? Math.max(...prices) : 999;
-  const totalStock = (product.colorVariants || []).flatMap(cv => 
+  const totalStock = (product.colorVariants || []).flatMap(cv =>
     (cv.subVariants || []).map(sv => sv.stock || 0)
   ).reduce((a, b) => a + b, 0);
 

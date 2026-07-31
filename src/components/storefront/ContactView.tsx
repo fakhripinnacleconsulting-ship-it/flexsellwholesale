@@ -100,7 +100,7 @@ export function ContactView() {
                 </div>
                 <div>
                   <h3 className="font-bold">Official Corporate Email</h3>
-                  <p className="text-sm text-muted-foreground mt-1">support@flexsellwholesale.in</p>
+                  <p className="text-sm text-muted-foreground mt-1">support@flexsellwholesale.com</p>
                   <p className="text-xs text-muted-foreground">Response time: 4-6 business hours</p>
                 </div>
               </div>

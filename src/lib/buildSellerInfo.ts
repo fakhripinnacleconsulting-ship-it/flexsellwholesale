@@ -18,17 +18,17 @@ export function buildSellerInfo(cmsData: any): SellerInfo {
     address: bs?.companyAddress
       ? `${bs.companyAddress}, ${bs.city || ""}, ${bs.state || ""} - ${bs.pinCode || ""}`
       : br?.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Madhya Pradesh - 394230",
-    email: bs?.supportEmail || br?.supportEmail || "support@flexsellwholesale.in",
+    email: bs?.supportEmail || br?.supportEmail || "support@flexsellwholesale.com",
     phone: bs?.supportPhone || br?.supportPhone || "+91 88877 66655",
     signatureUrl: bs?.signatureUrl,
     bankDetails: bs?.bankName
       ? {
-          bankName: bs.bankName,
-          accountName: bs.accountName,
-          accountNumber: bs.accountNumber,
-          ifscCode: bs.ifscCode,
-          branchName: bs.branchName,
-        }
+        bankName: bs.bankName,
+        accountName: bs.accountName,
+        accountNumber: bs.accountNumber,
+        ifscCode: bs.ifscCode,
+        branchName: bs.branchName,
+      }
       : undefined,
     termsAndConditions: bs?.termsAndConditions,
   };

@@ -35,13 +35,13 @@ export function Footer({ data }: FooterProps) {
   }, []);
 
   const description = data?.description || cmsInfo?.description || "FlexSell is India's leading wholesale B2B distributor. Directly importing trending kitchen gadgets, household tools, utility items, and home appliances to provide low manufacturing prices.";
-  
+
   const fullAddress = cmsInfo && cmsInfo.companyAddress
     ? `${cmsInfo.companyAddress}${cmsInfo.city ? `, ${cmsInfo.city}` : ""}${cmsInfo.state ? `, ${cmsInfo.state}` : ""}${cmsInfo.pinCode ? ` - ${cmsInfo.pinCode}` : ""}`
     : null;
 
   const officeAddress = data?.officeAddress || fullAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Madhya Pradesh - 394230";
-  const contactEmail = data?.contactEmail || cmsInfo?.supportEmail || "support@flexsellwholesale.in";
+  const contactEmail = data?.contactEmail || cmsInfo?.supportEmail || "support@flexsellwholesale.com";
   const contactPhone = data?.contactPhone || cmsInfo?.supportPhone || "+91 88877 66655";
   const timings = data?.timings || cmsInfo?.timings || "9:30 AM to 6:30 PM (Sunday Closed)";
 
@@ -89,7 +89,7 @@ export function Footer({ data }: FooterProps) {
 
           <div className="flex items-center gap-3 pt-2">
             <span className="text-xs text-muted-foreground font-semibold">Connect with us:</span>
-            <Link href="https://flexsellwholesale.in" target="_blank" className="p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
+            <Link href="https://flexsellwholesale.com" target="_blank" className="p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
               <Globe className="h-4 w-4" />
             </Link>
             <a href={`mailto:${contactEmail}`} className="p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">

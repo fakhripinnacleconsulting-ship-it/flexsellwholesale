@@ -239,8 +239,8 @@ export default function AdminShippingPage() {
         <button
           onClick={() => setActiveTab("weight")}
           className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer ${activeTab === "weight"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           Weight-Based Slabs (B2C & Dropshipping)
@@ -248,8 +248,8 @@ export default function AdminShippingPage() {
         <button
           onClick={() => setActiveTab("b2b")}
           className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer ${activeTab === "b2b"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           B2B Order Shipping
@@ -257,8 +257,8 @@ export default function AdminShippingPage() {
         <button
           onClick={() => setActiveTab("shiprocket")}
           className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer flex items-center gap-1.5 ${activeTab === "shiprocket"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           <Rocket className="h-4 w-4" /> Shiprocket Integration
@@ -433,7 +433,7 @@ export default function AdminShippingPage() {
                       <label className="text-xs font-semibold">Account Email *</label>
                       <Input
                         type="email"
-                        placeholder="e.g. shiprocket@flexsell.in"
+                        placeholder="e.g. shiprocket@flexsellwholesale.com"
                         value={srEmail}
                         onChange={(e) => setSrEmail(e.target.value)}
                       />

@@ -152,7 +152,7 @@ function QuoteContent() {
     storeName: bs.storeName || "FlexSell Wholesale",
     gstin: bs.gstin || "24AAACF1001M1Z5",
     address: bs.companyAddress || "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
-    email: bs.supportEmail || "support@flexsell.in",
+    email: bs.supportEmail || "support@flexsellwholesale.com",
     phone: bs.supportPhone || "+91 261 2409000",
   };
 

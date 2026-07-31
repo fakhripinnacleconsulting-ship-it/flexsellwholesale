@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: "https://flexsellwholesale.in",
+    url: "https://flexsellwholesale.com",
     title: "FlexSell Wholesale - B2B Sourcing",
     description: "Source quality household utility gadgets directly from manufacturers. Low MOQs, dynamic pricing, and nationwide shipping.",
     siteName: "FlexSell Wholesale"
