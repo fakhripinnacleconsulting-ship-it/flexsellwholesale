@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Globe, Mail, MessageCircle, Phone, ArrowUp, Send, ShieldCheck, Truck, RefreshCw, MapPin, Clock, FileText, Lock } from "lucide-react";
+import { Globe, Mail, MessageCircle, Phone, ArrowUp, Send, ShieldCheck, Truck, RefreshCw, MapPin, Clock, FileText, Lock, CreditCard, Banknote } from "lucide-react";
 import Image from "next/image";
+import { useCategoryStore } from "@/stores/categoryStore";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useToastStore } from "@/stores/toastStore";
+
 
 interface FooterProps {
   data?: {
@@ -22,6 +24,13 @@ export function Footer({ data }: FooterProps) {
   const { addToast } = useToastStore();
   const [newsletterEmail, setNewsletterEmail] = React.useState("");
   const [cmsInfo, setCmsInfo] = React.useState<any>(null);
+  const [footerSettings, setFooterSettings] = React.useState<any>(null);
+  
+  const { categories, initializeCategories } = useCategoryStore();
+
+  React.useEffect(() => {
+    initializeCategories();
+  }, [initializeCategories]);
 
   React.useEffect(() => {
     fetch("/api/cms")
@@ -29,6 +38,9 @@ export function Footer({ data }: FooterProps) {
       .then(resData => {
         if (resData?.businessSettings) {
           setCmsInfo(resData.businessSettings);
+        }
+        if (resData?.footerSettings) {
+          setFooterSettings(resData.footerSettings);
         }
       })
       .catch(err => console.error("Failed to load CMS footer settings:", err));
@@ -105,42 +117,71 @@ export function Footer({ data }: FooterProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-3 pt-2">
             <span className="text-xs text-muted-foreground font-semibold">Connect with us:</span>
-            <Link href="https://flexsellwholesale.com" target="_blank" className="p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
-              <Globe className="h-4 w-4" />
-            </Link>
-            <a href={`mailto:${contactEmail}`} className="p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
-              <Mail className="h-4 w-4" />
-            </a>
-            <a href={`tel:${contactPhone}`} className="p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
-              <Phone className="h-4 w-4" />
-            </a>
+            {Array.isArray(footerSettings?.socialLinks) && footerSettings.socialLinks.length > 0 ? (
+              footerSettings.socialLinks.map((link: any) => (
+                <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors" title={link.name}>
+                  {link.iconUrl ? (
+                    <img src={link.iconUrl} alt={link.name} className="h-4 w-4 object-contain" />
+                  ) : (
+                    <Globe className="h-4 w-4" />
+                  )}
+                </a>
+              ))
+            ) : (
+              <>
+                <Link href="https://flexsellwholesale.com" target="_blank" className="p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
+                  <Globe className="h-4 w-4" />
+                </Link>
+                <a href={`mailto:${contactEmail}`} className="p-2 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
+                  <Mail className="h-4 w-4" />
+                </a>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Wholesale Navigation */}
-        <div>
-          <h4 className="font-bold text-xs uppercase tracking-wider text-primary mb-4">Wholesale Sourcing</h4>
-          <ul className="space-y-2.5 text-xs text-muted-foreground font-medium">
-            <li><Link href="/products" className="hover:text-foreground transition-colors">All B2B Products</Link></li>
-            <li><Link href="/products?sort=trending" className="hover:text-foreground transition-colors">Trending SKUs</Link></li>
-            <li><Link href="/order-tracking" className="hover:text-foreground transition-colors">Track B2B Order</Link></li>
-            <li><Link href="/client/orders" className="hover:text-foreground transition-colors">Client Orders Ledger</Link></li>
-            <li><Link href="/client/addresses" className="hover:text-foreground transition-colors">Delivery Docks</Link></li>
-            <li><Link href="/client/support" className="hover:text-foreground transition-colors">B2B Help & Support</Link></li>
-          </ul>
-        </div>
+        {Array.isArray(footerSettings?.footerColumns) && footerSettings.footerColumns.length > 0 ? (
+          footerSettings.footerColumns.map((col: any) => (
+            <div key={col.id}>
+              <h4 className="font-bold text-xs uppercase tracking-wider text-primary mb-4">{col.title}</h4>
+              <ul className="space-y-2.5 text-xs text-muted-foreground font-medium">
+                {col.links?.map((link: any, idx: number) => (
+                  <li key={idx}><Link href={link.url} className="hover:text-foreground transition-colors">{link.label}</Link></li>
+                ))}
+              </ul>
+            </div>
+          ))
+        ) : (
+          <div>
+            <h4 className="font-bold text-xs uppercase tracking-wider text-primary mb-4">Business Hub</h4>
+            <ul className="space-y-2.5 text-xs text-muted-foreground font-medium">
+              <li><Link href="/products" className="hover:text-foreground transition-colors">All B2B Products</Link></li>
+              <li><Link href="/products?sort=trending" className="hover:text-foreground transition-colors">Trending SKUs</Link></li>
+              <li><Link href="/client/orders" className="hover:text-foreground transition-colors">Orders & Tracking</Link></li>
+              <li><Link href="/dropshipping" className="hover:text-foreground transition-colors">Dropshipping Program</Link></li>
+              <li><Link href="/faq" className="hover:text-foreground transition-colors">B2B Help & FAQ</Link></li>
+            </ul>
+          </div>
+        )}
 
-        {/* Dropshipping Hub */}
+        {/* Top Collections (Dynamic) */}
         <div>
-          <h4 className="font-bold text-xs uppercase tracking-wider text-primary mb-4">Dropshipping Hub</h4>
+          <h4 className="font-bold text-xs uppercase tracking-wider text-primary mb-4">Top Collections</h4>
           <ul className="space-y-2.5 text-xs text-muted-foreground font-medium">
-            <li><Link href="/dropshipping" className="text-primary font-bold hover:underline transition-colors flex items-center gap-1">Dropshipping Program</Link></li>
-            <li><Link href="/dropshipping#register-form" className="hover:text-foreground transition-colors">Apply as Partner</Link></li>
-            <li><Link href="/register" className="hover:text-foreground transition-colors">Create Partner Account</Link></li>
-            <li><Link href="/faq" className="hover:text-foreground transition-colors">Dropshipping FAQ</Link></li>
-            <li><Link href="/about" className="hover:text-foreground transition-colors">About Our Logistics</Link></li>
+            {(footerSettings?.showTopCategories !== false && categories.length > 0) ? (
+              categories.slice(0, 4).map((cat) => (
+                <li key={cat._id}><Link href={`/products?category=${cat.slug}`} className="hover:text-foreground transition-colors">{cat.name}</Link></li>
+              ))
+            ) : (
+              <>
+                <li><Link href="/products?category=kitchen" className="hover:text-foreground transition-colors">Kitchen Appliances</Link></li>
+                <li><Link href="/products?category=home-tools" className="hover:text-foreground transition-colors">Home Utilities</Link></li>
+                <li><Link href="/products?category=electronics" className="hover:text-foreground transition-colors">Electronics & Gadgets</Link></li>
+              </>
+            )}
+            <li><Link href="/categories" className="text-primary font-bold hover:underline transition-colors mt-2 inline-block">View All Categories &rarr;</Link></li>
           </ul>
         </div>
 
@@ -216,11 +257,30 @@ export function Footer({ data }: FooterProps) {
         <p>&copy; {new Date().getFullYear()} FlexSell Wholesale B2B Portal. All rights reserved.</p>
 
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
-            <span className="bg-secondary/60 text-foreground px-2.5 py-1 rounded border border-border">UPI / NetBanking</span>
-            <span className="bg-secondary/60 text-foreground px-2.5 py-1 rounded border border-border">Razorpay Gateway</span>
-            <span className="bg-secondary/60 text-foreground px-2.5 py-1 rounded border border-border">GST Tax Invoice</span>
-            <span className="bg-secondary/60 text-foreground px-2.5 py-1 rounded border border-border">Express Freight</span>
+          <div className="flex items-center gap-2 md:gap-4 flex-wrap text-[10px] font-bold uppercase tracking-wider">
+            {Array.isArray(footerSettings?.paymentBadges) && footerSettings.paymentBadges.length > 0 ? (
+              footerSettings.paymentBadges.map((badge: any) => (
+                <span key={badge.id} className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
+                  {badge.iconUrl && <img src={badge.iconUrl} alt={badge.name} className="h-3.5 w-3.5 object-contain" />}
+                  {badge.name}
+                </span>
+              ))
+            ) : (
+              <>
+                <span className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
+                  <Phone className="h-3.5 w-3.5 text-blue-500" /> UPI / NetBanking
+                </span>
+                <span className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
+                  <Globe className="h-3.5 w-3.5 text-indigo-500" /> Razorpay
+                </span>
+                <span className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
+                  <CreditCard className="h-3.5 w-3.5 text-orange-500" /> Credit/Debit
+                </span>
+                <span className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
+                  <Banknote className="h-3.5 w-3.5 text-emerald-500" /> COD
+                </span>
+              </>
+            )}
           </div>
 
           <button

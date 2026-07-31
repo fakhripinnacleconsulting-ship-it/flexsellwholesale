@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/stores/toastStore";
 import { ThemeEditor } from "@/components/admin/ThemeEditor";
 import { DEFAULT_ID_FORMATS, IdFormatConfig, formatIdPreview } from "@/lib/idGenerator";
-import { Search, Hash, RefreshCw, Save, Layers, CreditCard, FileText, Users, ShoppingBag, FolderTree, Tags, MessageSquare, MessageSquarePlus, Percent, HelpCircle } from "lucide-react";
+import { Search, Hash, RefreshCw, Save, Layers, CreditCard, FileText, Users, ShoppingBag, FolderTree, Tags, MessageSquare, MessageSquarePlus, Percent, HelpCircle, Trash2, Plus } from "lucide-react";
 import { CompanyInformationTab, CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
 
 export default function AdminSettingsPage() {
@@ -50,8 +50,30 @@ export default function AdminSettingsPage() {
   const [enableCod, setEnableCod] = React.useState(true);
   const [enableOnlinePayment, setEnableOnlinePayment] = React.useState(true);
 
+  // Footer settings state
+  const [footerSettings, setFooterSettings] = React.useState<{
+    socialLinks: { id: string; name: string; url: string; iconUrl?: string }[];
+    paymentBadges: { id: string; name: string; iconUrl?: string }[];
+    footerColumns: { id: string; title: string; links: { label: string; url: string }[] }[];
+    showTopCategories: boolean;
+  }>({
+    socialLinks: [],
+    paymentBadges: [],
+    footerColumns: [
+      {
+        id: "default-col-1",
+        title: "Business Hub",
+        links: [
+          { label: "All B2B Products", url: "/products" },
+          { label: "Client Orders Ledger", url: "/client/orders" }
+        ]
+      }
+    ],
+    showTopCategories: true
+  });
+
   // Navigation tab state
-  const [activeTab, setActiveTab] = React.useState<"general" | "id" | "theme">("general");
+  const [activeTab, setActiveTab] = React.useState<"general" | "id" | "theme" | "footer">("general");
 
   // ID Formats Data Table state
   const [idFormatsList, setIdFormatsList] = React.useState<IdFormatConfig[]>(DEFAULT_ID_FORMATS);
@@ -61,13 +83,13 @@ export default function AdminSettingsPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
-      if (tabParam === "theme" || tabParam === "id" || tabParam === "general") {
-        setActiveTab(tabParam);
+      if (tabParam === "theme" || tabParam === "id" || tabParam === "general" || tabParam === "footer") {
+        setActiveTab(tabParam as any);
       }
     }
   }, []);
 
-  const handleTabSelect = (tab: "general" | "id" | "theme") => {
+  const handleTabSelect = (tab: "general" | "id" | "theme" | "footer") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -85,6 +107,11 @@ export default function AdminSettingsPage() {
           const data = await res.json();
           const bs = data.businessSettings || {};
           const commerce = data.commerceSettings || {};
+          const fs = data.footerSettings || {};
+
+          if (fs.socialLinks) {
+            setFooterSettings(fs);
+          }
 
           setCompanyInfo((prev) => ({
             ...prev,
@@ -134,6 +161,7 @@ export default function AdminSettingsPage() {
         fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "businessSettings", value: companyInfo }) }),
         fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "commerceSettings", value: commerceSettings }) }),
         fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "idFormats", value: idFormatsList }) }),
+        fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "footerSettings", value: footerSettings }) }),
       ];
 
       await Promise.all(saveReqs);
@@ -234,6 +262,13 @@ export default function AdminSettingsPage() {
         >
           Theme & Appearance
         </button>
+        <button
+          onClick={() => handleTabSelect("footer")}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "footer" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+        >
+          Footer Configuration
+        </button>
       </div>
 
       {activeTab === "general" ? (
@@ -248,13 +283,15 @@ export default function AdminSettingsPage() {
               <CardDescription>Set global order minimums, default tax rates, and active payment methods.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Minimum Order Value (₹)</label>
-                <Input value={minOrderValue} onChange={(e) => setMinOrderValue(e.target.value)} type="number" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Default Tax Rate (%)</label>
-                <Input value={defaultTaxRate} onChange={(e) => setDefaultTaxRate(e.target.value)} type="number" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Minimum Order Value (₹)</label>
+                  <Input value={minOrderValue} onChange={(e) => setMinOrderValue(e.target.value)} type="number" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Default Tax Rate (%)</label>
+                  <Input value={defaultTaxRate} onChange={(e) => setDefaultTaxRate(e.target.value)} type="number" />
+                </div>
               </div>
               <div className="flex items-center justify-between pt-2">
                 <div className="space-y-0.5">
@@ -399,6 +436,92 @@ export default function AdminSettingsPage() {
             </div>
           </CardContent>
         </Card>
+      ) : activeTab === "footer" ? (
+        <div className="space-y-6">
+          <Card className="border border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle>Dynamic Social Links</CardTitle>
+                <CardDescription>Add unlimited social links. Leave Icon URL blank to use a fallback link icon.</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setFooterSettings({...footerSettings, socialLinks: [...footerSettings.socialLinks, {id: Date.now().toString(), name: '', url: '', iconUrl: ''}]})}><Plus className="h-4 w-4 mr-2" /> Add Link</Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {footerSettings.socialLinks.map((link, idx) => (
+                <div key={link.id} className="flex gap-2 items-center bg-secondary/20 p-3 rounded-lg border">
+                  <Input placeholder="Name (e.g. Facebook)" value={link.name} onChange={(e) => { const n = [...footerSettings.socialLinks]; n[idx].name = e.target.value; setFooterSettings({...footerSettings, socialLinks: n}); }} className="w-1/4" />
+                  <Input placeholder="URL (https://...)" value={link.url} onChange={(e) => { const n = [...footerSettings.socialLinks]; n[idx].url = e.target.value; setFooterSettings({...footerSettings, socialLinks: n}); }} className="flex-1" />
+                  <Input placeholder="Icon URL (optional image/svg)" value={link.iconUrl} onChange={(e) => { const n = [...footerSettings.socialLinks]; n[idx].iconUrl = e.target.value; setFooterSettings({...footerSettings, socialLinks: n}); }} className="flex-1" />
+                  <Button variant="ghost" size="icon" onClick={() => { const n = footerSettings.socialLinks.filter(l => l.id !== link.id); setFooterSettings({...footerSettings, socialLinks: n}); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                </div>
+              ))}
+              {footerSettings.socialLinks.length === 0 && <p className="text-sm text-muted-foreground italic">No social links added yet.</p>}
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle>Payment Badges</CardTitle>
+                <CardDescription>Add custom payment badges displayed at the bottom.</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setFooterSettings({...footerSettings, paymentBadges: [...footerSettings.paymentBadges, {id: Date.now().toString(), name: '', iconUrl: ''}]})}><Plus className="h-4 w-4 mr-2" /> Add Badge</Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {footerSettings.paymentBadges.map((badge, idx) => (
+                <div key={badge.id} className="flex gap-2 items-center bg-secondary/20 p-3 rounded-lg border">
+                  <Input placeholder="Badge Name (e.g. UPI)" value={badge.name} onChange={(e) => { const n = [...footerSettings.paymentBadges]; n[idx].name = e.target.value; setFooterSettings({...footerSettings, paymentBadges: n}); }} className="flex-1" />
+                  <Input placeholder="Icon URL (optional image/svg)" value={badge.iconUrl} onChange={(e) => { const n = [...footerSettings.paymentBadges]; n[idx].iconUrl = e.target.value; setFooterSettings({...footerSettings, paymentBadges: n}); }} className="flex-1" />
+                  <Button variant="ghost" size="icon" onClick={() => { const n = footerSettings.paymentBadges.filter(b => b.id !== badge.id); setFooterSettings({...footerSettings, paymentBadges: n}); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                </div>
+              ))}
+              {footerSettings.paymentBadges.length === 0 && <p className="text-sm text-muted-foreground italic">No payment badges added yet.</p>}
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle>Footer Navigation Columns</CardTitle>
+                <CardDescription>Configure the columns of links displayed in the footer (e.g. Business Hub).</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setFooterSettings({...footerSettings, footerColumns: [...footerSettings.footerColumns, {id: Date.now().toString(), title: 'New Column', links: []}]})}><Plus className="h-4 w-4 mr-2" /> Add Column</Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {footerSettings.footerColumns.map((col, cIdx) => (
+                <div key={col.id} className="bg-secondary/10 p-4 rounded-xl border space-y-4 relative">
+                  <div className="flex gap-4 items-center">
+                    <Input className="font-bold flex-1" value={col.title} onChange={(e) => { const cols = [...footerSettings.footerColumns]; cols[cIdx].title = e.target.value; setFooterSettings({...footerSettings, footerColumns: cols}); }} placeholder="Column Title" />
+                    <Button variant="destructive" size="sm" onClick={() => { const cols = footerSettings.footerColumns.filter(c => c.id !== col.id); setFooterSettings({...footerSettings, footerColumns: cols}); }}><Trash2 className="h-4 w-4 mr-2" /> Remove Column</Button>
+                  </div>
+                  <div className="pl-4 border-l-2 space-y-3">
+                    {col.links.map((link, lIdx) => (
+                       <div key={lIdx} className="flex gap-2">
+                         <Input placeholder="Link Label" value={link.label} onChange={(e) => { const cols = [...footerSettings.footerColumns]; cols[cIdx].links[lIdx].label = e.target.value; setFooterSettings({...footerSettings, footerColumns: cols}); }} className="flex-1 text-sm h-8" />
+                         <Input placeholder="URL Route" value={link.url} onChange={(e) => { const cols = [...footerSettings.footerColumns]; cols[cIdx].links[lIdx].url = e.target.value; setFooterSettings({...footerSettings, footerColumns: cols}); }} className="flex-1 text-sm h-8" />
+                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { const cols = [...footerSettings.footerColumns]; cols[cIdx].links.splice(lIdx, 1); setFooterSettings({...footerSettings, footerColumns: cols}); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                       </div>
+                    ))}
+                    <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={() => { const cols = [...footerSettings.footerColumns]; cols[cIdx].links.push({label: '', url: ''}); setFooterSettings({...footerSettings, footerColumns: cols}); }}><Plus className="h-3 w-3 mr-1"/> Add Link</Button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="pt-4 border-t mt-4 flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-sm">Show Top Categories Column</h4>
+                  <p className="text-xs text-muted-foreground">Automatically fetch and display top 3 categories as a column in the footer</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={footerSettings.showTopCategories} 
+                  onChange={(e) => setFooterSettings({...footerSettings, showTopCategories: e.target.checked})} 
+                  className="h-5 w-5" 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       ) : (
         <ThemeEditor />
       )}
