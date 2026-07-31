@@ -1,6 +1,6 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
-import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+
 import { rateLimit } from "@/lib/rateLimit";
 import fs from "fs/promises";
 import path from "path";
@@ -16,15 +16,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ message: "Too many upload requests. Please try again later." }, { status: 429 });
     }
 
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ message: "Invalid session" }, { status: 401 });
-    }
 
     let formData: FormData;
     try {
