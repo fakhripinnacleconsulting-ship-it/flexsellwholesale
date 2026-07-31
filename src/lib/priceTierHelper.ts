@@ -351,17 +351,10 @@ export function calculateDetailedBreakdown(params: {
     if (tier === "B2B") {
       const b2bFixed = Number(shippingConfig?.b2bFixedCharge) ?? 150;
       estimatedShippingCharge = b2bFixed;
-    } else if (tier === "Dropshipping") {
-      if (typeof shippingConfig?.dropshippingFixedCharge === "number" && shippingConfig.dropshippingFixedCharge > 0) {
-        estimatedShippingCharge = shippingConfig.dropshippingFixedCharge;
-      } else {
-        const slabs = shippingConfig?.weightSlabs || [];
-        estimatedShippingCharge = slabs.length > 0 ? calculateShippingByWeight(totalChargeableWeightGrams, slabs) : 80;
-      }
     } else {
-      // B2C Tier uses weight slabs from /admin/shipping
+      // B2C & Dropshipping Tiers use Weight-Based Slabs from /admin/shipping
       const slabs = shippingConfig?.weightSlabs || [];
-      estimatedShippingCharge = slabs.length > 0 ? calculateShippingByWeight(totalChargeableWeightGrams, slabs) : 50;
+      estimatedShippingCharge = slabs.length > 0 ? calculateShippingByWeight(totalChargeableWeightGrams, slabs) : (tier === "Dropshipping" ? 80 : 50);
     }
   } else {
     estimatedShippingCharge = tier === "B2B" ? 150 : tier === "Dropshipping" ? 80 : 50;

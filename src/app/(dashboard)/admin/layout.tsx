@@ -187,7 +187,6 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   const sidebarLinks = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Analytics", href: "/admin/analytics", icon: BarChart },
     { name: "Products", href: "/admin/products", icon: ShoppingBag },
     { name: "Categories", href: "/admin/categories", icon: FolderTree },
     { name: "Collections", href: "/admin/collections", icon: Layers },
