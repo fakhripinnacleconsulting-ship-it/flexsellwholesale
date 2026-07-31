@@ -12,7 +12,7 @@ import { useOrderStore } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { formatPrice } from "@/lib/utils";
-import { Plus, Eye, Edit2, Trash2, Building, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Plus, Eye, Edit2, Trash2, Building, ShieldAlert, CheckCircle2, Search } from "lucide-react";
 import { validateCustomerKycRequirements, hasUploadedKycDoc } from "@/lib/kycValidationHelper";
 
 const INDIAN_STATES = [
@@ -54,7 +54,14 @@ export default function AdminCustomersPage() {
   const { orders, initializeOrders } = useOrderStore();
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [kycStatusFilter, setKycStatusFilter] = React.useState("");
+  const [customerTypeFilter, setCustomerTypeFilter] = React.useState("");
+  const [accountStatusFilter, setAccountStatusFilter] = React.useState("");
+  const [dateJoinedFrom, setDateJoinedFrom] = React.useState("");
+  const [dateJoinedTo, setDateJoinedTo] = React.useState("");
   // Modal states
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isFormSubmitting, setIsFormSubmitting] = React.useState(false);
@@ -80,7 +87,10 @@ export default function AdminCustomersPage() {
     try {
       setIsLoading(true);
       const data = await customerService.getCustomers();
-      setCustomers(data);
+      const list = Array.isArray(data)
+        ? data
+        : (data && typeof data === "object" && Array.isArray((data as any).customers) ? (data as any).customers : []);
+      setCustomers(list);
     } catch (err: unknown) {
       console.error(err);
       addToast((err as any).message || "Failed to load customers", "error");
@@ -262,9 +272,59 @@ export default function AdminCustomersPage() {
     });
   };
 
+  const filteredCustomers = React.useMemo(() => {
+    let result = customers;
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(c => 
+        c.name.toLowerCase().includes(term) || 
+        c.email.toLowerCase().includes(term) || 
+        (c.company && c.company.toLowerCase().includes(term))
+      );
+    }
+    
+    if (customerTypeFilter) {
+      result = result.filter(c => c.customerTypes && c.customerTypes.includes(customerTypeFilter as any));
+    }
+    
+    if (accountStatusFilter) {
+      if (accountStatusFilter === "Upgrade Pending") {
+        result = result.filter(c => c.upgradeStatus === "pending");
+      } else if (accountStatusFilter === "Active") {
+        result = result.filter(c => c.upgradeStatus !== "pending");
+      }
+    }
+    
+    if (kycStatusFilter) {
+      result = result.filter(c => {
+        const kycCheck = validateCustomerKycRequirements({
+          customerTypes: c.customerTypes || ["B2C"],
+          company: c.company || "",
+          storeName: c.storeName,
+          gstin: c.gstin || "",
+          kycDocuments: c.kycDocuments || {}
+        });
+        if (kycStatusFilter === "Valid") return kycCheck.isValid;
+        if (kycStatusFilter === "Invalid") return !kycCheck.isValid;
+        return true;
+      });
+    }
+
+    if (dateJoinedFrom) {
+      result = result.filter(c => c.createdAt && new Date(c.createdAt) >= new Date(dateJoinedFrom));
+    }
+    
+    if (dateJoinedTo) {
+      result = result.filter(c => c.createdAt && new Date(c.createdAt) <= new Date(dateJoinedTo));
+    }
+    
+    return result;
+  }, [customers, searchTerm, customerTypeFilter, accountStatusFilter, kycStatusFilter, dateJoinedFrom, dateJoinedTo]);
+
   // Compute stats for each customer dynamically
   const customerStats = React.useMemo(() => {
-    return customers.map(cust => {
+    return filteredCustomers.map(cust => {
       const customerOrders = orders.filter(
         o => o.shippingAddress.email.toLowerCase() === cust.email.toLowerCase()
       );
@@ -275,7 +335,7 @@ export default function AdminCustomersPage() {
         totalSpend
       };
     });
-  }, [orders, customers]);
+  }, [orders, filteredCustomers]);
 
   return (
     <div className="space-y-6 text-foreground container mx-auto px-4 py-8 max-w-6xl">
@@ -290,9 +350,91 @@ export default function AdminCustomersPage() {
       </div>
 
       <Card className="border border-border">
-        <CardHeader className="border-b pb-4">
-          <CardTitle className="text-lg font-bold">Active Buyer Accounts</CardTitle>
-          <CardDescription>Dynamic purchasing volume and GSTIN credentials.</CardDescription>
+        <CardHeader className="border-b pb-4 flex flex-col gap-4">
+          <div>
+            <CardTitle className="text-lg font-bold">Active Buyer Accounts</CardTitle>
+            <CardDescription>Dynamic purchasing volume and GSTIN credentials.</CardDescription>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2.5 w-full">
+            <div className="relative flex-grow sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, company..."
+                className="pl-9 text-foreground text-xs h-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <select
+              value={customerTypeFilter}
+              onChange={(e) => setCustomerTypeFilter(e.target.value)}
+              className="bg-background text-foreground text-xs font-semibold px-2.5 py-1.5 border rounded-md cursor-pointer h-9"
+            >
+              <option value="">All Types</option>
+              <option value="B2C">B2C</option>
+              <option value="B2B">B2B</option>
+              <option value="Dropshipping">Dropshipping</option>
+            </select>
+            
+            <select
+              value={kycStatusFilter}
+              onChange={(e) => setKycStatusFilter(e.target.value)}
+              className="bg-background text-foreground text-xs font-semibold px-2.5 py-1.5 border rounded-md cursor-pointer h-9"
+            >
+              <option value="">All KYC Status</option>
+              <option value="Valid">Valid KYC</option>
+              <option value="Invalid">Invalid/Missing KYC</option>
+            </select>
+            
+            <select
+              value={accountStatusFilter}
+              onChange={(e) => setAccountStatusFilter(e.target.value)}
+              className="bg-background text-foreground text-xs font-semibold px-2.5 py-1.5 border rounded-md cursor-pointer h-9"
+            >
+              <option value="">All Account Status</option>
+              <option value="Active">Active</option>
+              <option value="Upgrade Pending">Upgrade Pending</option>
+            </select>
+            
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground font-medium">Joined From:</span>
+              <Input
+                type="date"
+                className="w-32 text-foreground h-9 px-2 py-1 text-xs"
+                value={dateJoinedFrom}
+                onChange={(e) => setDateJoinedFrom(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground font-medium">To:</span>
+              <Input
+                type="date"
+                className="w-32 text-foreground h-9 px-2 py-1 text-xs"
+                value={dateJoinedTo}
+                onChange={(e) => setDateJoinedTo(e.target.value)}
+              />
+            </div>
+            
+            {(searchTerm || customerTypeFilter || kycStatusFilter || accountStatusFilter || dateJoinedFrom || dateJoinedTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                onClick={() => {
+                  setSearchTerm("");
+                  setCustomerTypeFilter("");
+                  setKycStatusFilter("");
+                  setAccountStatusFilter("");
+                  setDateJoinedFrom("");
+                  setDateJoinedTo("");
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">

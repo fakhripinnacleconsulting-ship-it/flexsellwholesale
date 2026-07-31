@@ -44,6 +44,7 @@ const CustomerSchema = new Schema<CustomerType & Document>(
       default: "none"
     },
     upgradeRequestedTypes: [{ type: String, enum: ["B2B", "Dropshipping"] }],
+    upgradeRejectionReason: { type: String },
     kycDocuments: {
       gstCertificate: { type: String },
       signaturePhoto: { type: String },

@@ -45,14 +45,32 @@ export function Footer({ data }: FooterProps) {
   const contactPhone = data?.contactPhone || cmsInfo?.supportPhone || "+91 88877 66655";
   const timings = data?.timings || cmsInfo?.timings || "9:30 AM to 6:30 PM (Sunday Closed)";
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const [isSubscribing, setIsSubscribing] = React.useState(false);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newsletterEmail.trim()) {
+    if (!newsletterEmail.trim() || !newsletterEmail.includes("@")) {
       addToast("Please enter a valid email address.", "warning");
       return;
     }
-    addToast("Subscribed to FlexSell B2B Wholesale deal alerts!", "success");
-    setNewsletterEmail("");
+    setIsSubscribing(true);
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newsletterEmail.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to subscribe");
+      }
+      addToast("Subscribed to FlexSell B2B Wholesale deal alerts!", "success");
+      setNewsletterEmail("");
+    } catch (err: unknown) {
+      addToast((err as any).message || "Failed to subscribe. Please try again.", "error");
+    } finally {
+      setIsSubscribing(false);
+    }
   };
 
   const scrollToTop = () => {
@@ -158,7 +176,7 @@ export function Footer({ data }: FooterProps) {
                 value={newsletterEmail}
                 onChange={(e) => setNewsletterEmail(e.target.value)}
               />
-              <Button type="submit" size="sm" className="h-8.5 px-3 text-xs shrink-0 font-bold gap-1 cursor-pointer">
+              <Button type="submit" size="sm" disabled={isSubscribing} className="h-8.5 px-3 text-xs shrink-0 font-bold gap-1 cursor-pointer">
                 <Send className="h-3.5 w-3.5" />
               </Button>
             </div>

@@ -55,6 +55,7 @@ export const shiprocketService = {
       return {
         authOk: true,
         channelOk: true,
+        channelConfigured: true,
         pickupOk: true,
         error: null
       };

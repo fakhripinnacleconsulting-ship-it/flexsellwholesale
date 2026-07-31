@@ -6,11 +6,18 @@ import { useOrderStore } from "@/stores/orderStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
-import { ArrowLeft, Printer, Truck, Calendar, CheckCircle, Clock, AlertTriangle, FileText, Check, MapPin } from "lucide-react";
+import { ArrowLeft, Printer, Truck, Calendar, CheckCircle, Clock, AlertTriangle, FileText, Check, MapPin, Ban, RotateCcw } from "lucide-react";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { SellerInfo } from "@/types";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
+import { orderService } from "@/services/orderService";
+import { useToastStore } from "@/stores/toastStore";
+import { useCartStore } from "@/stores/cartStore";
+import { useProductStore } from "@/stores/productStore";
+import { useRouter } from "next/navigation";
+
+const CUSTOMER_CANCELLABLE_STATUSES = ["Placed", "Pending", "Confirmed"];
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -19,10 +26,14 @@ interface PageProps {
 export default function ClientOrderDetailPage({ params }: PageProps) {
   const resolvedParams = React.use(params);
   const orderId = resolvedParams.id;
+  const router = useRouter();
 
   const { orders, initializeOrders, isLoading } = useOrderStore();
+  const { addToast } = useToastStore();
   const [cmsData, setCmsData] = React.useState<any>(null);
   const [invoice, setInvoice] = React.useState<any>(null);
+  const [isCancelling, setIsCancelling] = React.useState(false);
+  const [isReordering, setIsReordering] = React.useState(false);
 
   React.useEffect(() => {
     initializeOrders();
@@ -47,6 +58,38 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
   const handlePrint = () => {
     const docLabel = invoice?.type === "receipt" ? "RECEIPT" : invoice?.type === "quote" ? "Quote" : "Invoice";
     triggerPrintWithTitle(docLabel, orderId, order?.customerName);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!confirm("Are you sure you want to cancel this order? This cannot be undone.")) return;
+    setIsCancelling(true);
+    try {
+      await orderService.cancelOrder(orderId);
+      addToast("Order cancelled successfully.", "success");
+      await initializeOrders();
+    } catch (err: unknown) {
+      addToast((err as any).message || "Failed to cancel order", "error");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleReorder = async () => {
+    if (!order) return;
+    setIsReordering(true);
+    try {
+      await useProductStore.getState().initializeProducts();
+      const addItem = useCartStore.getState().addItem;
+      for (const item of order.items || []) {
+        addItem(item.product, item.selectedVariants, item.quantity);
+      }
+      addToast("Available items from this order have been added to your cart.", "success");
+      router.push("/cart");
+    } catch {
+      addToast("Failed to reorder — some items may no longer be available.", "error");
+    } finally {
+      setIsReordering(false);
+    }
   };
 
   if (isLoading) {
@@ -102,6 +145,20 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {CUSTOMER_CANCELLABLE_STATUSES.includes(order.status) && (
+            <Button
+              onClick={handleCancelOrder}
+              disabled={isCancelling}
+              variant="outline"
+              size="sm"
+              className="font-bold flex items-center gap-1 shadow-sm text-destructive hover:bg-destructive/5 hover:text-destructive"
+            >
+              <Ban className="h-4 w-4" /> {isCancelling ? "Cancelling..." : "Cancel Order"}
+            </Button>
+          )}
+          <Button onClick={handleReorder} disabled={isReordering} variant="outline" size="sm" className="font-bold flex items-center gap-1 shadow-sm">
+            <RotateCcw className="h-4 w-4" /> {isReordering ? "Adding..." : "Buy Again"}
+          </Button>
           <Button onClick={handlePrint} variant="outline" size="sm" className="font-bold flex items-center gap-1 shadow-sm">
             <Printer className="h-4 w-4" /> Print Commercial Invoice
           </Button>

@@ -41,6 +41,7 @@ export async function POST(request: Request) {
 
     customer.upgradeStatus = "pending";
     customer.upgradeRequestedTypes = requestedTypes;
+    customer.upgradeRejectionReason = undefined;
     if (kycDocuments) customer.kycDocuments = kycDocuments;
 
     await customer.save();
@@ -90,7 +91,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { customerId, action } = body;
+    const { customerId, action, reason } = body;
 
     if (!customerId || !action || !["approve", "reject"].includes(action)) {
       return NextResponse.json({ message: "Invalid parameters. CustomerId and action ('approve'|'reject') are required." }, { status: 400 });
@@ -120,8 +121,10 @@ export async function PUT(request: Request) {
 
       customer.customerTypes = combined;
       customer.upgradeStatus = "approved";
+      customer.upgradeRejectionReason = undefined;
     } else if (action === "reject") {
       customer.upgradeStatus = "rejected";
+      customer.upgradeRejectionReason = reason || "";
     }
 
     await customer.save();

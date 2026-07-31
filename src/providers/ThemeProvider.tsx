@@ -80,6 +80,21 @@ export function ThemeProvider({
   ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
   const activeTheme = useThemeStore((state) => state.activeTheme);
+  const setTheme = useThemeStore((state) => state.setTheme);
+
+  // Fetch the admin-published theme once on load so every visitor (not just the editing admin's
+  // own browser) sees the current brand theme. Falls back to today's default look on any failure.
+  React.useEffect(() => {
+    fetch("/api/cms")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.theme?.colors) {
+          setTheme(data.theme);
+        }
+      })
+      .catch((err) => console.error("Failed to load published theme:", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Inject CSS variables for the active theme dynamically
   React.useEffect(() => {

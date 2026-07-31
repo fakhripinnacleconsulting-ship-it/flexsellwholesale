@@ -379,6 +379,44 @@ export const orderService = {
     return apiClient.put<Order>(`/orders/${id}/ship`, shipmentDetails);
   },
 
+  async cancelOrder(id: string): Promise<Order> {
+    if (isMockMode) {
+      const orders = getLocalOrders();
+      const matchIndex = orders.findIndex(o => o._id === id);
+      if (matchIndex === -1) throw new Error("Order not found");
+
+      const match = orders[matchIndex];
+      const updatedOrder: Order = {
+        ...match,
+        status: "Cancelled",
+        statusClass: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400",
+        history: [
+          {
+            status: "Cancelled",
+            timestamp: new Date().toLocaleString("en-US"),
+            description: `Order cancelled by user.`
+          },
+          ...match.history
+        ]
+      };
+
+      orders[matchIndex] = updatedOrder;
+      saveLocalOrders(orders);
+
+      dispatchEvent({
+        eventType: "ORDER_CANCELLED",
+        category: "orders",
+        actor: { id: "current-user", name: match.customerName, role: "customer" },
+        recipient: { customerId: "current-user", email: match.shippingAddress?.email, name: match.customerName, role: "customer" },
+        entity: { type: "order", id },
+        data: updatedOrder,
+      });
+
+      return updatedOrder;
+    }
+    return apiClient.put<Order>(`/orders/${id}/cancel`, {});
+  },
+
   async getOrderById(id: string): Promise<Order> {
     if (isMockMode) {
       const match = getLocalOrders().find(o => o._id === id);

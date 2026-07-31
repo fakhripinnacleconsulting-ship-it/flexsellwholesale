@@ -42,19 +42,32 @@ export function OrdersListTable({
   const [selectedLabelOrder, setSelectedLabelOrder] = React.useState<Order | null>(null);
   const ITEMS_PER_PAGE = 10;
 
+  const [statusFilter, setStatusFilter] = React.useState<string>("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = React.useState<string>("");
+
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, originFilter]);
+  }, [searchTerm, startDate, endDate, originFilter, statusFilter, paymentStatusFilter]);
 
   const filteredOrders = React.useMemo(() => {
+    let result = orders;
+    if (statusFilter) {
+      result = result.filter(o => o.status === statusFilter);
+    }
+    if (paymentStatusFilter) {
+      result = result.filter(o => o.paymentStatus === paymentStatusFilter);
+    }
+
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return orders;
-    return orders.filter(
-      (o) =>
-        o._id.toLowerCase().includes(term) ||
-        o.customerName.toLowerCase().includes(term)
-    );
-  }, [orders, searchTerm]);
+    if (term) {
+      result = result.filter(
+        (o) =>
+          o._id.toLowerCase().includes(term) ||
+          o.customerName.toLowerCase().includes(term)
+      );
+    }
+    return result;
+  }, [orders, searchTerm, statusFilter, paymentStatusFilter]);
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
 
@@ -76,7 +89,6 @@ export function OrdersListTable({
           />
         </div>
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-          {/* Origin Dropdown */}
           <select
             value={originFilter}
             onChange={(e) => setOriginFilter(e.target.value as any)}
@@ -85,6 +97,29 @@ export function OrdersListTable({
             <option value="">All Origins</option>
             <option value="self">Self Orders (Admin)</option>
             <option value="website">Website Orders</option>
+          </select>
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-background text-foreground text-xs font-semibold px-2.5 py-1.5 border rounded-md cursor-pointer h-9"
+          >
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Processing">Processing</option>
+            <option value="Shipped">Shipped</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+
+          <select
+            value={paymentStatusFilter}
+            onChange={(e) => setPaymentStatusFilter(e.target.value)}
+            className="bg-background text-foreground text-xs font-semibold px-2.5 py-1.5 border rounded-md cursor-pointer h-9"
+          >
+            <option value="">All Payments</option>
+            <option value="Paid">Paid</option>
+            <option value="Pending">Pending</option>
           </select>
 
           <div className="flex items-center gap-1.5">
@@ -105,7 +140,7 @@ export function OrdersListTable({
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
-          {(startDate || endDate || originFilter) && (
+          {(startDate || endDate || originFilter || statusFilter || paymentStatusFilter) && (
             <Button
               variant="ghost"
               size="sm"
@@ -114,6 +149,8 @@ export function OrdersListTable({
                 setStartDate("");
                 setEndDate("");
                 setOriginFilter("");
+                setStatusFilter("");
+                setPaymentStatusFilter("");
               }}
             >
               Clear

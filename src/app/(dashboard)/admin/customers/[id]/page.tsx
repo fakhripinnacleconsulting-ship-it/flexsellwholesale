@@ -32,7 +32,10 @@ export default function AdminCustomerDetailPage({ params }: PageProps) {
     try {
       setIsLoading(true);
       const data = await customerService.getCustomers();
-      setCustomers(data);
+      const list = Array.isArray(data)
+        ? data
+        : (data && typeof data === "object" && Array.isArray((data as any).customers) ? (data as any).customers : []);
+      setCustomers(list);
     } catch {
       addToast("Failed to load customer profiles", "error");
     } finally {

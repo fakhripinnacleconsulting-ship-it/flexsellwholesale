@@ -6,9 +6,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Search, Filter, Eye, Download, Info, FileText } from "lucide-react";
+import { Search, Filter, Eye, Download, Info, FileText, RotateCcw } from "lucide-react";
 import { useOrderStore, Order } from "@/stores/orderStore";
 import { useDashboardViewStore } from "@/stores/dashboardViewStore";
+import { useCartStore } from "@/stores/cartStore";
+import { useProductStore } from "@/stores/productStore";
+import { useToastStore } from "@/stores/toastStore";
 import { formatPrice } from "@/lib/utils";
 import { Pagination } from "@/components/ui/Pagination";
 
@@ -18,8 +21,27 @@ export function ClientOrdersView() {
   const successOrderId = searchParams.get("success");
 
   const { orders, initializeOrders } = useOrderStore();
+  const { addToast } = useToastStore();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
+  const [reorderingId, setReorderingId] = React.useState<string | null>(null);
+
+  const handleReorder = async (order: Order) => {
+    setReorderingId(order._id);
+    try {
+      await useProductStore.getState().initializeProducts();
+      const addItem = useCartStore.getState().addItem;
+      for (const item of order.items || []) {
+        addItem(item.product, item.selectedVariants, item.quantity);
+      }
+      addToast("Available items from this order have been added to your cart.", "success");
+      router.push("/cart");
+    } catch {
+      addToast("Failed to reorder — some items may no longer be available.", "error");
+    } finally {
+      setReorderingId(null);
+    }
+  };
 
   // Initialize store if empty
   React.useEffect(() => {
@@ -146,18 +168,27 @@ export function ClientOrdersView() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Buy Again"
+                              disabled={reorderingId === order._id}
+                              onClick={() => handleReorder(order)}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               title="Quick Preview"
                               onClick={() => setSelectedOrder(order)}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
                             <Link href={`/client/orders/${order._id}`}>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 title="Open Tax Invoice"
                               >
                                 <FileText className="h-4 w-4 text-primary" />

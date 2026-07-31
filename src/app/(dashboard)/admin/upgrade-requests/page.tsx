@@ -8,7 +8,7 @@ import { customerService } from "@/services/customerService";
 import { Customer, KycDocuments } from "@/types";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
-import { ArrowUpCircle, CheckCircle2, XCircle, Search, FileText, Download, ExternalLink, User, Building, Store, Phone, MapPin } from "lucide-react";
+import { ArrowUpCircle, CheckCircle2, XCircle, Search, FileText, Download, ExternalLink, User, Building, Store, Phone, MapPin, Eye, X } from "lucide-react";
 
 export default function AdminUpgradeRequestsPage() {
   const { addToast } = useToastStore();
@@ -88,6 +88,8 @@ export default function AdminUpgradeRequestsPage() {
     );
   }, [requests, search]);
 
+  const [previewDoc, setPreviewDoc] = React.useState<{ label: string; url: string } | null>(null);
+
   const renderDocThumbnail = (label: string, url?: string) => {
     if (!url) {
       return (
@@ -105,18 +107,20 @@ export default function AdminUpgradeRequestsPage() {
       <div className="border border-border rounded-lg p-3 bg-card flex flex-col justify-between space-y-2 group hover:border-primary transition-colors">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold text-foreground truncate">{label}</span>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => setPreviewDoc({ label, url })}
             className="text-primary hover:text-primary/80 p-1 cursor-pointer"
-            title="Open Document"
+            title="Preview Document"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          </button>
         </div>
 
-        <div className="h-20 bg-secondary/20 rounded flex items-center justify-center overflow-hidden relative border">
+        <div
+          onClick={() => setPreviewDoc({ label, url })}
+          className="h-20 bg-secondary/20 rounded flex items-center justify-center overflow-hidden relative border cursor-pointer hover:opacity-90"
+        >
           {isPdf ? (
             <div className="flex flex-col items-center text-primary">
               <FileText className="h-8 w-8" />
@@ -127,15 +131,13 @@ export default function AdminUpgradeRequestsPage() {
           )}
         </div>
 
-        <a
-          href={url}
-          download
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full py-1 bg-secondary hover:bg-secondary/80 text-foreground text-[10px] font-bold rounded flex items-center justify-center gap-1 transition-colors"
+        <button
+          type="button"
+          onClick={() => setPreviewDoc({ label, url })}
+          className="w-full py-1 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold rounded flex items-center justify-center gap-1 transition-colors cursor-pointer"
         >
-          <Download className="h-3 w-3" /> View / Download
-        </a>
+          <Eye className="h-3 w-3" /> Quick Inspect
+        </button>
       </div>
     );
   };
@@ -279,6 +281,45 @@ export default function AdminUpgradeRequestsPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* KYC Document Lightbox Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <h3 className="font-bold text-base text-foreground">{previewDoc.label} Preview</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewDoc.url}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded flex items-center gap-1.5 hover:bg-primary/90 transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" /> Download
+                </a>
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  className="p-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 flex-1 overflow-auto flex items-center justify-center bg-secondary/10 min-h-[400px]">
+              {previewDoc.url.includes(".pdf") || previewDoc.url.startsWith("data:application/pdf") ? (
+                <iframe src={previewDoc.url} className="w-full h-[600px] rounded border" title={previewDoc.label} />
+              ) : (
+                <img src={previewDoc.url} alt={previewDoc.label} className="max-w-full max-h-[70vh] object-contain rounded border shadow" />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

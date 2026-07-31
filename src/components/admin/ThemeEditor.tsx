@@ -6,10 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { defaultTheme } from "@/config/theme.config";
+import { useToastStore } from "@/stores/toastStore";
 
 export function ThemeEditor() {
   const { activeTheme, setTheme, resetTheme } = useThemeStore();
+  const { addToast } = useToastStore();
   const [localTheme, setLocalTheme] = React.useState(activeTheme);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Sync state if store changes
   React.useEffect(() => {
@@ -26,8 +29,22 @@ export function ThemeEditor() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setTheme(localTheme);
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/cms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "theme", value: localTheme }),
+      });
+      if (!res.ok) throw new Error("Failed to save theme");
+      addToast("Theme saved — this is now the live theme for all visitors.", "success");
+    } catch (err: unknown) {
+      addToast((err as any).message || "Theme saved locally, but failed to publish to all visitors.", "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -41,7 +58,7 @@ export function ThemeEditor() {
           <Button variant="outline" onClick={() => { resetTheme(); setLocalTheme(defaultTheme); }}>
             Reset to Default
           </Button>
-          <Button onClick={handleSave}>Save Theme Changes</Button>
+          <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "Saving..." : "Save Theme Changes"}</Button>
         </div>
       </div>
 

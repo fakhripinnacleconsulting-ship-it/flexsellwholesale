@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import PushSubscription from "@/models/PushSubscription";
+import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { userId, role, endpoint, keys, userAgent } = body;
+    const { endpoint, keys, userAgent } = body;
+    let { userId, role } = body;
+
+    // If a valid session exists, trust the verified identity instead of the client-supplied one
+    // so a caller can't register a subscription claiming to be a different customer or an admin.
+    const token = await getTokenFromCookie();
+    if (token) {
+      const payload = verifyToken(token);
+      if (payload) {
+        userId = payload.userId;
+        role = payload.role;
+      }
+    }
 
     if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
       return NextResponse.json({ message: "Invalid push subscription payload." }, { status: 400 });

@@ -28,7 +28,17 @@ export function NotificationPreferencesCard({ userId = "current", role = "custom
 
   React.useEffect(() => {
     setPermissionState(pushService.getPermissionState());
-  }, []);
+
+    fetch(`/api/notifications/preferences?userId=${encodeURIComponent(userId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.preferences?.categories) {
+          setCategories((prev) => ({ ...prev, ...data.preferences.categories }));
+        }
+      })
+      .catch((err) => console.error("Failed to load notification preferences:", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const handleEnablePush = async () => {
     setIsLoading(true);
@@ -66,12 +76,23 @@ export function NotificationPreferencesCard({ userId = "current", role = "custom
     addToast("Browser push notifications disabled.", "info");
   };
 
-  const handleToggleCategory = (catKey: keyof typeof categories) => {
-    setCategories((prev) => ({
-      ...prev,
-      [catKey]: !prev[catKey],
-    }));
-    addToast("Notification category preference updated", "info");
+  const handleToggleCategory = async (catKey: keyof typeof categories) => {
+    const updated = { ...categories, [catKey]: !categories[catKey] };
+    setCategories(updated);
+
+    try {
+      const res = await fetch("/api/notifications/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, categories: updated }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      addToast("Notification category preference updated", "info");
+    } catch (err) {
+      console.error("Failed to save notification preferences:", err);
+      setCategories(categories); // revert on failure
+      addToast("Could not save preference. Please try again.", "error");
+    }
   };
 
   return (

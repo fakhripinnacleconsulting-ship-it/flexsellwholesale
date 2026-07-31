@@ -131,19 +131,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Channel check (if channelId configured)
+    // 2. Channel presence check — Shiprocket's API has no endpoint to verify a channel ID is
+    // actually valid, so this only reports whether one is configured, not whether it was verified.
+    // Channel ID is optional, so its absence never fails the overall connection test.
     const creds = await shiprocketClient.getCredentials();
-    let channelOk = true;
-    let channelError = "";
-    if (creds.channelId) {
-      try {
-        // Test auth works; verify credentials
-        channelOk = true;
-      } catch (err: any) {
-        channelOk = false;
-        channelError = err.message || "Channel ID verification failed";
-      }
-    }
+    const channelOk = true;
+    const channelConfigured = !!creds.channelId;
+    const channelError = "";
 
     // 3. Pickup Pincode Serviceability
     let pickupOk = true;
@@ -175,6 +169,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       authOk,
       channelOk,
+      channelConfigured,
       pickupOk,
       error: !pickupOk ? pickupError : (!channelOk ? channelError : null)
     });

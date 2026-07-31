@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/stores/toastStore";
-import { Trash2, Plus, Scale, Truck, Save, Rocket, CheckCircle2, XCircle, Copy, Check, RefreshCw } from "lucide-react";
+import { Trash2, Plus, Scale, Truck, Save, Rocket, CheckCircle2, XCircle, Copy, Check, RefreshCw, AlertTriangle } from "lucide-react";
 import { shippingService } from "@/services/shippingService";
 import { shiprocketService } from "@/services/shiprocketService";
 import { ShippingWeightSlab } from "@/types";
@@ -43,6 +43,7 @@ export default function AdminShippingPage() {
   const [testResult, setTestResult] = React.useState<{
     authOk?: boolean;
     channelOk?: boolean;
+    channelConfigured?: boolean;
     pickupOk?: boolean;
     error?: string | null;
   } | null>(null);
@@ -549,8 +550,8 @@ export default function AdminShippingPage() {
                         <span>Authentication Check: {testResult.authOk ? "Passed" : "Failed"}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {testResult.channelOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                        <span>Channel Verification: {testResult.channelOk ? "Passed" : "Failed / Optional"}</span>
+                        {testResult.channelConfigured ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <AlertTriangle className="h-4 w-4 text-muted-foreground" />}
+                        <span>Channel ID: {testResult.channelConfigured ? "Configured (not independently verified by Shiprocket's API)" : "Not set (optional)"}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {testResult.pickupOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}

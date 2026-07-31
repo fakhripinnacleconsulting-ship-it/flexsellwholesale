@@ -4,8 +4,11 @@ import Notification from "@/models/Notification";
 type WebhookEvent = "order.created" | "order.status_updated" | "customer.created";
 
 /**
- * Creates in-app notification for the customer if provided.
- * Webhook external HTTP dispatching has been removed as requested.
+ * NOTE: despite the name, this does NOT deliver an HTTP webhook to any external system —
+ * outbound webhook delivery was intentionally removed. It only creates an in-app Notification
+ * document for the given customer. If real third-party webhook delivery (e.g. for an ERP
+ * integration) is ever needed, that would be a new feature built from scratch, not something
+ * this function already does.
  */
 export async function dispatchWebhook(
   event: WebhookEvent,

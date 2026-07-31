@@ -18,9 +18,10 @@ import { trackAddToCart } from "@/lib/gtm";
 interface ProductCardProps {
   product: Product;
   layout?: "grid" | "list";
+  removeFromWishlistOnAdd?: boolean;
 }
 
-export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
+export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd = false }: ProductCardProps) {
   const router = useRouter();
   const { addItem } = useCartStore();
   const { toggleWishlist, isInWishlist } = useWishlistStore();
@@ -177,6 +178,10 @@ export function ProductCard({ product, layout = "grid" }: ProductCardProps) {
     );
     trackAddToCart(product, orderQty, defaultSub);
     addToast(`${product.title} added to cart successfully.`, "success");
+
+    if (removeFromWishlistOnAdd && favorited) {
+      toggleWishlist(product);
+    }
   };
 
   const handleWishlistToggle = (e: React.MouseEvent) => {

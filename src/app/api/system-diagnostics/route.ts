@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import { getShiprocketToken } from "@/lib/shiprocketClient";
 import { emailService } from "@/lib/emailService";
 import { dispatchEvent } from "@/lib/events/eventDispatcher";
+import { requireAuth } from "@/lib/authGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ function maskSecret(val?: string, visibleChars = 8): string {
 }
 
 export async function GET() {
+  const auth = await requireAuth("admin");
+  if (auth.error) return auth.error;
+
   const timestamp = new Date().toISOString();
   const environment = process.env.NODE_ENV || "production";
 
@@ -87,13 +91,16 @@ export async function GET() {
   };
 
   try {
+    if (!process.env.SMTP_PASS) {
+      throw new Error("SMTP_PASS environment variable is not configured.");
+    }
     const transporter = nodemailer.createTransport({
       host: expectedHost,
       port: expectedPort,
       secure: expectedPort === 465,
       auth: {
         user: expectedUser,
-        pass: process.env.SMTP_PASS || (isZeptoDomain ? "PHtE6r1fE+7piGUp+hFR4/G4QpWkZoMq/7tmKggWtIdLCPRRTE0H+Y8oxj+2rxgqUaIQFaHKnI8+tezNuumNIznkYGkdDWqyqK3sx/VYSPOZsbq6x00asFwYcULVU4PmdNFj1CTRu93TNA==" : "qfxgglqfymjhbksy")
+        pass: process.env.SMTP_PASS
       },
       tls: { rejectUnauthorized: false }
     });
@@ -155,6 +162,9 @@ export async function GET() {
 
 // POST endpoint to send a test email from the diagnostics page
 export async function POST(req: Request) {
+  const auth = await requireAuth("admin");
+  if (auth.error) return auth.error;
+
   try {
     const body = await req.json();
     const { testEmail } = body;

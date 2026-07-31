@@ -89,10 +89,26 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
     }
 
+    const payload = verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ message: "Invalid session" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {
       return NextResponse.json({ message: "Notification ID is required" }, { status: 400 });
+    }
+
+    const notif = await Notification.findById(id);
+    if (!notif) {
+      return NextResponse.json({ message: "Notification not found" }, { status: 404 });
+    }
+
+    const isOwnNotification = notif.customerId === payload.userId || notif.customerId === "all";
+    const isOwnAdminNotification = payload.role === "admin" && (notif.recipientRole === "admin" || notif.customerId === "admin");
+    if (!isOwnNotification && !isOwnAdminNotification && payload.role !== "admin") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     await Notification.findByIdAndDelete(id);

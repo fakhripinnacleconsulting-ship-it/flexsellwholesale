@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/Input";
 import { customerService } from "@/services/customerService";
 import { Customer, KycDocuments } from "@/types";
 import { useToastStore } from "@/stores/toastStore";
-import { ArrowUpCircle, Upload, CheckCircle2, Clock, AlertTriangle, FileText, X } from "lucide-react";
+import { validateCustomerKycRequirements } from "@/lib/kycValidationHelper";
+import { ArrowUpCircle, Upload, CheckCircle2, Clock, AlertTriangle, XCircle, FileText, X } from "lucide-react";
 import Image from "next/image";
 
 const INDIAN_STATES = [
@@ -107,11 +108,16 @@ export default function UpgradeAccountPage() {
       return;
     }
 
-    // Check that at least 1 KYC Verification Document is uploaded
-    const { hasUploadedKycDoc } = require("@/lib/kycValidationHelper");
-    const hasKyc = hasUploadedKycDoc(kycDocs);
-    if (!hasKyc) {
-      addToast("Please upload at least one valid KYC Verification Document (e.g. PAN Card, Aadhar Card, or GST Cert).", "error");
+    // Enforce the same per-tier mandatory document/field rules the admin approval flow already relies on
+    const kycCheck = validateCustomerKycRequirements({
+      customerTypes: requestedTypes,
+      company,
+      storeName,
+      gstin,
+      kycDocuments: kycDocs,
+    });
+    if (!kycCheck.isValid) {
+      addToast(kycCheck.errorMessage || "Please complete all mandatory fields and KYC documents.", "error");
       return;
     }
 
@@ -144,6 +150,7 @@ export default function UpgradeAccountPage() {
 
   const isPending = activeCustomer?.upgradeStatus === "pending";
   const isApproved = activeCustomer?.customerTypes?.includes("B2B") && activeCustomer?.customerTypes?.includes("Dropshipping");
+  const isRejected = activeCustomer?.upgradeStatus === "rejected";
 
   return (
     <div className="space-y-6 text-foreground max-w-4xl">
@@ -167,6 +174,26 @@ export default function UpgradeAccountPage() {
               </p>
               <p className="text-xs font-semibold text-muted-foreground pt-1">
                 Need help? Contact support at <a href="mailto:support@flexsellwholesale.com" className="text-primary underline">support@flexsellwholesale.com</a> or call +91-9203675004.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Rejected status alert */}
+      {isRejected && !isPending && (
+        <Card className="border-destructive/30 bg-destructive/10">
+          <CardContent className="p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <XCircle className="h-8 w-8 text-destructive flex-shrink-0" />
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-destructive">Previous Upgrade Request Rejected</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {activeCustomer?.upgradeRejectionReason
+                  ? <>Reason: <strong>{activeCustomer.upgradeRejectionReason}</strong></>
+                  : "Your request did not meet our verification requirements. Please review your details and resubmit below."}
+              </p>
+              <p className="text-xs font-semibold text-muted-foreground pt-1">
+                You can update your details and documents below and resubmit your application at any time.
               </p>
             </div>
           </CardContent>

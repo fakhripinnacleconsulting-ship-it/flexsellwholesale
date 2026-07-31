@@ -5,13 +5,18 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToastStore } from "@/stores/toastStore";
-import { MessageSquare, Trash2, ExternalLink, Star, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { MessageSquare, Trash2, ExternalLink, Star, CheckCircle, AlertTriangle, XCircle, Pencil } from "lucide-react";
 import { reviewService } from "@/services/reviewService";
 
 export default function ClientReviewsPage() {
   const { addToast } = useToastStore();
   const [reviews, setReviews] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editRating, setEditRating] = React.useState(5);
+  const [editTitle, setEditTitle] = React.useState("");
+  const [editComment, setEditComment] = React.useState("");
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const fetchReviews = async () => {
     try {
@@ -38,6 +43,33 @@ export default function ClientReviewsPage() {
       fetchReviews();
     } catch (err: unknown) {
       addToast((err as any).message || "Failed to delete review", "error");
+    }
+  };
+
+  const handleStartEdit = (rev: any) => {
+    setEditingId(rev._id);
+    setEditRating(rev.rating);
+    setEditTitle(rev.title);
+    setEditComment(rev.comment);
+  };
+
+  const handleCancelEdit = () => setEditingId(null);
+
+  const handleSaveEdit = async (id: string) => {
+    if (!editTitle.trim() || !editComment.trim()) {
+      addToast("Please fill in both the title and comment.", "warning");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await reviewService.updateReview(id, { rating: editRating, title: editTitle, comment: editComment });
+      addToast("Review updated — it will be re-verified before appearing publicly.", "success");
+      setEditingId(null);
+      fetchReviews();
+    } catch (err: unknown) {
+      addToast((err as any).message || "Failed to update review", "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -122,10 +154,43 @@ export default function ClientReviewsPage() {
                   <div>{getStatusBadge(rev.status)}</div>
                 </div>
 
-                <div className="space-y-1">
-                  <h4 className="font-bold text-sm text-foreground">{rev.title}</h4>
-                  <p className="text-muted-foreground leading-relaxed">{rev.comment}</p>
-                </div>
+                {editingId === rev._id ? (
+                  <div className="space-y-3 p-3 bg-secondary/15 border border-border rounded-lg">
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <button key={s} type="button" onClick={() => setEditRating(s)} className="cursor-pointer">
+                          <Star size={18} className={s <= editRating ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground/30"} />
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      placeholder="Review title"
+                      className="w-full text-sm font-bold px-3 py-2 rounded-md border border-input bg-background"
+                    />
+                    <textarea
+                      value={editComment}
+                      onChange={(e) => setEditComment(e.target.value)}
+                      placeholder="Your review"
+                      rows={3}
+                      className="w-full text-xs px-3 py-2 rounded-md border border-input bg-background"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" className="h-8" onClick={handleCancelEdit} disabled={isSaving}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" className="h-8" onClick={() => handleSaveEdit(rev._id)} disabled={isSaving}>
+                        {isSaving ? "Saving..." : "Save & Resubmit"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-foreground">{rev.title}</h4>
+                    <p className="text-muted-foreground leading-relaxed">{rev.comment}</p>
+                  </div>
+                )}
 
                 {rev.adminResponse && (
                   <div className="bg-secondary/35 p-3 rounded-lg border border-l-4 border-l-primary space-y-1">
@@ -136,11 +201,16 @@ export default function ClientReviewsPage() {
                   </div>
                 )}
 
-                <div className="flex justify-end pt-2 border-t">
-                  <Button variant="outline" size="sm" className="h-8 text-destructive hover:bg-destructive/5 hover:text-destructive" onClick={() => handleDeleteReview(rev._id)}>
-                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Review
-                  </Button>
-                </div>
+                {editingId !== rev._id && (
+                  <div className="flex justify-end gap-2 pt-2 border-t">
+                    <Button variant="outline" size="sm" className="h-8" onClick={() => handleStartEdit(rev)}>
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 text-destructive hover:bg-destructive/5 hover:text-destructive" onClick={() => handleDeleteReview(rev._id)}>
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Review
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

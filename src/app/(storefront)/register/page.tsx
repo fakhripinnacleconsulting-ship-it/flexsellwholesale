@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -33,6 +33,7 @@ const DOCUMENT_SLOTS: { key: keyof KycDocuments; label: string }[] = [
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -57,12 +58,87 @@ export default function RegisterPage() {
   // OTP Modal State
   const [isOtpModalOpen, setIsOtpModalOpen] = React.useState(false);
 
-  const { error, clearError, checkSession } = useAuthStore();
+  const { error, clearError, checkSession, loginWithGoogle } = useAuthStore();
   const { addToast } = useToastStore();
 
   React.useEffect(() => {
     clearError();
+
+    // Pre-select the requested tab when arriving via a deep link like /register?type=b2b
+    const requestedType = searchParams.get("type")?.toLowerCase();
+    if (requestedType === "b2b") {
+      setCustomerTypes(["B2B"]);
+    } else if (requestedType === "dropshipping") {
+      setCustomerTypes(["Dropshipping"]);
+    }
+
+    const initGoogleGsi = () => {
+      if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
+        try {
+          (window as any).google.accounts.id.initialize({
+            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "327707227008-017vqk7dtsdl5c5pbqcokf0a1752lqc3.apps.googleusercontent.com",
+            callback: handleGoogleResponse,
+          });
+
+          const container = document.getElementById("google-signup-btn");
+          if (container) {
+            container.innerHTML = "";
+            (window as any).google.accounts.id.renderButton(container, {
+              theme: "outline",
+              size: "large",
+              width: 400,
+              text: "signup_with",
+              shape: "rectangular",
+              logo_alignment: "left",
+            });
+          }
+        } catch (err) {
+          console.error("Failed to initialize Google Sign-Up:", err);
+        }
+      }
+    };
+
+    if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
+      initGoogleGsi();
+    } else {
+      const existingScript = document.getElementById("google-gsi-script");
+      if (!existingScript) {
+        const script = document.createElement("script");
+        script.id = "google-gsi-script";
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        script.onload = initGoogleGsi;
+        document.body.appendChild(script);
+      } else {
+        existingScript.addEventListener("load", initGoogleGsi);
+      }
+    }
   }, []);
+
+  const handleGoogleResponse = async (response: any) => {
+    if (!response || !response.credential) {
+      addToast("Google Sign-In credential missing", "error");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const success = await loginWithGoogle(response.credential);
+      if (success) {
+        addToast("Registered via Google successfully!", "success");
+        const currentCustomer = useAuthStore.getState().customer;
+        const redirectDest = currentCustomer?.role === "admin" ? "/admin" : "/client";
+        router.push(redirectDest);
+        router.refresh();
+      } else {
+        addToast("Google Sign-In failed", "error");
+      }
+    } catch (err: unknown) {
+      addToast((err as any).message || "Google Sign-In failed", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleFileUpload = async (slotKey: keyof KycDocuments, file: File) => {
     if (file.size > 1024 * 1024) {
@@ -488,6 +564,14 @@ export default function RegisterPage() {
                   {getButtonLabel()}
                 </Button>
               </form>
+
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-border"></div>
+                <span className="flex-shrink mx-4 text-muted-foreground text-[10px] uppercase font-bold">Or register with</span>
+                <div className="flex-grow border-t border-border"></div>
+              </div>
+
+              <div id="google-signup-btn" className="w-full min-h-[40px] flex justify-center items-center"></div>
 
               <div className="text-center text-xs border-t pt-4">
                 Already have an account?{" "}

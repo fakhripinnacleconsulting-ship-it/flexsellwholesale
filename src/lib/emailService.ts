@@ -377,23 +377,23 @@ function getSmtpConfig() {
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || "").toLowerCase();
   const providerEnv = (process.env.SMTP_PROVIDER || "").toLowerCase();
 
-  // 1. Pre-defined ZeptoMail Configuration (Production)
+  // 1. Pre-defined ZeptoMail Configuration (Fallback)
   const zeptoConfig = {
     host: "smtp.zeptomail.in",
     port: 465,
-    user: "emailapikey",
-    pass: cleanPassword("PHtE6r1fE+7piGUp+hFR4/G4QpWkZoMq/7tmKggWtIdLCPRRTE0H+Y8oxj+2rxgqUaIQFaHKnI8+tezNuumNIznkYGkdDWqyqK3sx/VYSPOZsbq6x00asFwYcULVU4PmdNFj1CTRu93TNA=="),
+    user: process.env.SMTP_USER || "emailapikey",
+    pass: process.env.SMTP_PASS || (isProd ? "" : cleanPassword("PHtE6r1fE+7piGUp+hFR4/G4QpWkZoMq/7tmKggWtIdLCPRRTE0H+Y8oxj+2rxgqUaIQFaHKnI8+tezNuumNIznkYGkdDWqyqK3sx/VYSPOZsbq6x00asFwYcULVU4PmdNFj1CTRu93TNA==")),
     from: process.env.SMTP_FROM || `"FlexSell Wholesale Support" <noreply@flexsellwholesale.com>`,
     provider: "ZeptoMail"
   };
 
-  // 2. Pre-defined Gmail Configuration (Localhost / Development)
+  // 2. Pre-defined Gmail Configuration (Localhost / Development Fallback)
   const gmailConfig = {
     host: "smtp.gmail.com",
     port: 465,
-    user: "kuldeepmaurya4296@gmail.com",
-    pass: cleanPassword("jtns mwcp yteo ibxq"),
-    from: `"FlexSell Wholesale Support" <kuldeepmaurya4296@gmail.com>`,
+    user: process.env.SMTP_USER || "kuldeepmaurya4296@gmail.com",
+    pass: process.env.SMTP_PASS || (isProd ? "" : cleanPassword("jtns mwcp yteo ibxq")),
+    from: process.env.SMTP_FROM || `"FlexSell Wholesale Support" <kuldeepmaurya4296@gmail.com>`,
     provider: "Gmail"
   };
 
@@ -402,6 +402,8 @@ function getSmtpConfig() {
     const host = process.env.SMTP_HOST.trim();
     const isZepto = host.includes("zeptomail");
     const isGmail = host.includes("gmail");
+    
+    // Explicit environment variables take precedence
     const user = (process.env.SMTP_USER || (isZepto ? zeptoConfig.user : gmailConfig.user)).trim();
     const rawPass = process.env.SMTP_PASS || (isZepto ? zeptoConfig.pass : gmailConfig.pass);
     const pass = isGmail ? cleanPassword(rawPass) : rawPass.trim().replace(/^["']|["']$/g, "");

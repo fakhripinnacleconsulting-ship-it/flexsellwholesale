@@ -305,7 +305,7 @@ export interface SavedAddress {
   isDefault: boolean;
 }
 
-export interface Customer {
+export interface Customer extends BaseDocument {
   _id: string;
   name: string;
   email: string;
@@ -325,6 +325,7 @@ export interface Customer {
   customerTypes: ("B2C" | "B2B" | "Dropshipping")[];
   upgradeStatus?: "none" | "pending" | "approved" | "rejected";
   upgradeRequestedTypes?: ("B2B" | "Dropshipping")[];
+  upgradeRejectionReason?: string;
   kycDocuments?: KycDocuments;
   addresses?: SavedAddress[];
   wishlist?: string[];

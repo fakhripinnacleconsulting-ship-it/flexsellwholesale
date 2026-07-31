@@ -37,6 +37,11 @@ export default function ClientProfilePage() {
   const [isSubmittingPersonal, setIsSubmittingPersonal] = React.useState(false);
   const [isSubmittingBusiness, setIsSubmittingBusiness] = React.useState(false);
 
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [isChangingPassword, setIsChangingPassword] = React.useState(false);
+
   React.useEffect(() => {
     customerService.getActiveCustomer().then((cust) => {
       setActiveCustomer(cust);
@@ -94,6 +99,36 @@ export default function ClientProfilePage() {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      addToast("New password must be at least 8 characters long.", "warning");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      addToast("New password and confirmation do not match.", "warning");
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Failed to change password");
+      addToast("Password changed successfully!", "success");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      addToast((err as any).message || "Failed to change password", "error");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   if (!activeCustomer) {
     return <div className="text-center py-10 text-muted-foreground">Loading profile...</div>;
   }
@@ -137,6 +172,32 @@ export default function ClientProfilePage() {
                 </div>
                 <Button type="submit" className="font-bold" disabled={isSubmittingPersonal}>
                   {isSubmittingPersonal ? "Saving..." : "Save Changes"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+          {/* Change Password */}
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold">Change Password</CardTitle>
+              <CardDescription>Update the password used to sign in to your account.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Current Password</label>
+                  <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required className="text-sm font-semibold" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">New Password</label>
+                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} className="text-sm font-semibold" placeholder="At least 8 characters" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Confirm New Password</label>
+                  <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="text-sm font-semibold" />
+                </div>
+                <Button type="submit" className="font-bold" disabled={isChangingPassword}>
+                  {isChangingPassword ? "Updating..." : "Update Password"}
                 </Button>
               </form>
             </CardContent>

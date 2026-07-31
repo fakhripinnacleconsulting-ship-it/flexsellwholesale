@@ -93,6 +93,11 @@ export const customerService = {
           );
         }
 
+        // Mirror the real API's contract exactly: a plain array unless page/limit are requested.
+        if (!params?.page && !params?.limit) {
+          return list;
+        }
+
         const page = params?.page || 1;
         const limit = params?.limit || 20;
         const total = list.length;

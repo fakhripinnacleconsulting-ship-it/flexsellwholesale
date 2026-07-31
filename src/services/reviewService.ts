@@ -77,6 +77,24 @@ export const reviewService = {
     return apiClient.delete<void>(`/reviews?id=${id}`);
   },
 
+  async updateReview(id: string, data: { rating: number; title: string; comment: string }): Promise<Review> {
+    if (isMockMode) {
+      const reviews = getLocalReviews();
+      let updatedReview: Review | null = null;
+      const updatedList = reviews.map(r => {
+        if (r._id === id) {
+          updatedReview = { ...r, ...data, status: "pending" }; // Editing puts it back to pending
+          return updatedReview;
+        }
+        return r;
+      });
+      saveLocalReviews(updatedList);
+      if (!updatedReview) throw new Error("Review not found");
+      return updatedReview;
+    }
+    return apiClient.put<Review>(`/reviews`, { _id: id, ...data });
+  },
+
   async getAllReviewsAdmin(): Promise<Review[]> {
     if (isMockMode) {
       return getLocalReviews();
