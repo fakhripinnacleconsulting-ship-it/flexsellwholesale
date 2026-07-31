@@ -9,6 +9,7 @@ import { useToastStore } from "@/stores/toastStore";
 import { DEFAULT_ID_FORMATS, IdFormatConfig, formatIdPreview } from "@/lib/idGenerator";
 import { Search, Hash, RefreshCw, Save, Layers, CreditCard, FileText, Users, ShoppingBag, FolderTree, Tags, MessageSquare, MessageSquarePlus, Percent, HelpCircle, Trash2, Plus } from "lucide-react";
 import { CompanyInformationTab, CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
+import { apiClient } from "@/lib/apiClient";
 
 export default function AdminSettingsPage() {
   const { addToast } = useToastStore();
@@ -102,12 +103,10 @@ export default function AdminSettingsPage() {
     const fetchSettings = async () => {
       try {
         setIsLoading(true);
-        const res = await fetch("/api/cms");
-        if (res.ok) {
-          const data = await res.json();
-          const bs = data.businessSettings || {};
-          const commerce = data.commerceSettings || {};
-          const fs = data.footerSettings || {};
+        const data = await apiClient.get<any>("/cms");
+        const bs = data.businessSettings || {};
+        const commerce = data.commerceSettings || {};
+        const fs = data.footerSettings || {};
 
           if (fs.socialLinks) {
             setFooterSettings(fs);
@@ -141,7 +140,6 @@ export default function AdminSettingsPage() {
             });
             setIdFormatsList(merged);
           }
-        }
       } catch (err) {
         console.error("Failed to load settings:", err);
       } finally {
@@ -158,10 +156,10 @@ export default function AdminSettingsPage() {
       const commerceSettings = { minOrderValue, defaultTaxRate, enableCod, enableOnlinePayment };
 
       const saveReqs = [
-        fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "businessSettings", value: companyInfo }) }),
-        fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "commerceSettings", value: commerceSettings }) }),
-        fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "idFormats", value: idFormatsList }) }),
-        fetch("/api/cms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "footerSettings", value: footerSettings }) }),
+        apiClient.post("/cms", { key: "businessSettings", value: companyInfo }),
+        apiClient.post("/cms", { key: "commerceSettings", value: commerceSettings }),
+        apiClient.post("/cms", { key: "idFormats", value: idFormatsList }),
+        apiClient.post("/cms", { key: "footerSettings", value: footerSettings }),
       ];
 
       await Promise.all(saveReqs);

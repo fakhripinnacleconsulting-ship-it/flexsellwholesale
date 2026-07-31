@@ -351,7 +351,7 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
           </div>
 
           {/* Bottom Price & Add to Cart Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/50 mt-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="relative z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/50 mt-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-baseline gap-2">
               <span className="text-xl font-black text-primary">{formatPrice(price)}</span>
               {mrp > price && (
@@ -541,7 +541,7 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
         </div>
 
         {/* Bottom Section: Amount on Top / Button Below on Mobile, Side-by-Side on Desktop */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/40 mt-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="relative z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/40 mt-auto" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col min-w-0">
             <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="text-base font-black text-primary">{formatPrice(price)}</span>
