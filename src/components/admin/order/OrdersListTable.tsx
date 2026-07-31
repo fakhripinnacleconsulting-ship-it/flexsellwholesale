@@ -76,6 +76,46 @@ export function OrdersListTable({
     return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredOrders, currentPage]);
 
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const isDown = React.useRef(false);
+  const startX = React.useRef(0);
+  const scrollLeft = React.useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    isDown.current = true;
+    scrollContainerRef.current.classList.add('cursor-grabbing');
+    startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
+    scrollLeft.current = scrollContainerRef.current.scrollLeft;
+  };
+
+  const handleMouseLeave = () => {
+    isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDown.current || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX.current) * 2;
+    scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+
+  const truncateString = (str: string, max: number = 50) => {
+    if (!str) return str;
+    return str.length > max ? str.substring(0, max) + "..." : str;
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 border-b">
@@ -159,16 +199,23 @@ export function OrdersListTable({
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+        <div 
+          className="overflow-x-auto custom-scrollbar cursor-grab active:cursor-grabbing select-none"
+          ref={scrollContainerRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+        >
+          <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="text-xs text-muted-foreground uppercase bg-secondary/50">
               <tr>
-                <th className="px-6 py-4">Order ID & Origin</th>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Total Amount</th>
-                <th className="px-6 py-4">Fulfillment Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Order ID & Origin</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Date</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Customer</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Total Amount</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Fulfillment Status</th>
+                <th className="px-6 py-4 font-semibold tracking-wide text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -190,9 +237,9 @@ export function OrdersListTable({
                       selectedOrderId === order._id ? "bg-primary/5 font-medium" : ""
                     }`}
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 max-w-[150px]">
                       <div>
-                        <span className="font-mono font-bold text-foreground block">{order._id}</span>
+                        <span className="font-mono font-bold text-foreground block truncate" title={order._id}>{truncateString(order._id, 20)}</span>
                         <div className="flex gap-1 mt-1">
                           <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wide ${
                             order.origin === "self" 
@@ -216,8 +263,8 @@ export function OrdersListTable({
                       </div>
                     </td>
                     <td className="px-6 py-4 text-xs text-muted-foreground">{order.date}</td>
-                    <td className="px-6 py-4 font-semibold text-foreground">
-                      {order.customerName}
+                    <td className="px-6 py-4 font-semibold text-foreground max-w-[200px] truncate" title={order.customerName}>
+                      {truncateString(order.customerName, 40)}
                     </td>
                     <td className="px-6 py-4 font-bold text-foreground">
                       {formatPrice(order.amount)}
@@ -318,3 +365,4 @@ export function OrdersListTable({
     </Card>
   );
 }
+

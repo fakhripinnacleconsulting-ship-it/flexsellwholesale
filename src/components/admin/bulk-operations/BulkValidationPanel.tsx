@@ -292,7 +292,7 @@ export function BulkValidationPanel({
           </div>
 
           <div className="max-h-[320px] overflow-auto">
-            <table className="w-full text-xs text-left border-collapse">
+            <table className="w-full text-xs text-left border-collapse whitespace-nowrap">
               <thead className="bg-secondary/50 font-bold uppercase text-muted-foreground sticky top-0 z-10 border-b">
                 <tr>
                   <th className="px-3 py-2">#</th>
@@ -579,3 +579,4 @@ export function BulkValidationPanel({
     </div>
   );
 }
+

@@ -438,9 +438,10 @@ export default function AdminCustomersPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-foreground">
+            <table className="w-full text-sm text-left text-foreground whitespace-nowrap">
               <thead className="text-xs text-muted-foreground uppercase bg-secondary/30 border-b">
                 <tr>
+                  <th className="px-6 py-3.5">ID</th>
                   <th className="px-6 py-3.5">Customer Name</th>
                   <th className="px-6 py-3.5">Company Details</th>
                   <th className="px-6 py-3.5">Customer Type</th>
@@ -452,19 +453,20 @@ export default function AdminCustomersPage() {
               <tbody className="divide-y divide-border">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
                       Loading B2B customers...
                     </td>
                   </tr>
                 ) : customerStats.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
                       No customer accounts found.
                     </td>
                   </tr>
                 ) : (
                   customerStats.map((cust) => (
                     <tr key={cust._id} className="hover:bg-secondary/15 transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs text-muted-foreground">{cust._id}</td>
                       <td className="px-6 py-4 flex items-center gap-3">
                         <Avatar initials={cust.initials} className="bg-primary text-primary-foreground border shrink-0" />
                         <div className="min-w-0">
@@ -713,3 +715,4 @@ export default function AdminCustomersPage() {
     </div>
   );
 }
+

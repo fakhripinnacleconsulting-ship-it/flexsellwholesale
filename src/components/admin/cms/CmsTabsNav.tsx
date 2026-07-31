@@ -47,14 +47,6 @@ export function CmsTabsNav({ activeTab, onSelectTab }: CmsTabsNavProps) {
     scrollRef.current.scrollLeft = scrollLeft - walk;
   };
 
-  // Mouse Wheel Horizontal Scroll
-  const handleWheel = (e: React.WheelEvent) => {
-    if (!scrollRef.current) return;
-    if (e.deltaY !== 0) {
-      scrollRef.current.scrollLeft += e.deltaY;
-    }
-  };
-
   // Arrow buttons scroll
   const scrollContainer = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
@@ -101,7 +93,6 @@ export function CmsTabsNav({ activeTab, onSelectTab }: CmsTabsNavProps) {
         onMouseLeave={handleMouseLeaveOrUp}
         onMouseUp={handleMouseLeaveOrUp}
         onMouseMove={handleMouseMove}
-        onWheel={handleWheel}
         className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-1 py-1 select-none cursor-grab active:cursor-grabbing touch-pan-x flex-1 scroll-smooth"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >

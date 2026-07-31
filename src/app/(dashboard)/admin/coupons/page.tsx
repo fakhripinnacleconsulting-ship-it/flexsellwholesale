@@ -226,9 +226,10 @@ export default function AdminCouponsPage() {
         <Card className="border border-border">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+              <table className="w-full text-sm text-left whitespace-nowrap">
                 <thead className="text-xs text-muted-foreground uppercase bg-secondary/30 border-b">
                   <tr>
+                    <th className="px-6 py-3.5">ID</th>
                     <th className="px-6 py-3.5">Code</th>
                     <th className="px-6 py-3.5">Discount Value</th>
                     <th className="px-6 py-3.5">Target Scope</th>
@@ -245,6 +246,7 @@ export default function AdminCouponsPage() {
                     const isExpired = coupon.expiryDate < todayStr;
                     return (
                        <tr key={coupon._id} className="hover:bg-secondary/15 transition-colors">
+                        <td className="px-6 py-4 font-mono text-xs text-muted-foreground">{coupon._id}</td>
                         <td className="px-6 py-4">
                           <span className="font-mono font-black text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded text-xs">
                             {coupon.code}
@@ -482,3 +484,4 @@ export default function AdminCouponsPage() {
     </div>
   );
 }
+

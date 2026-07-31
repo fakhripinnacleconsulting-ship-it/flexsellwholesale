@@ -306,7 +306,7 @@ export default function AdminSettingsPage() {
 
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-muted-foreground font-semibold text-[11px] uppercase tracking-wider">
                     <th className="py-3 px-5">Application Module</th>
@@ -405,3 +405,4 @@ export default function AdminSettingsPage() {
     </div>
   );
 }
+

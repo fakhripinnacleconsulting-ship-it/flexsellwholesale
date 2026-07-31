@@ -591,7 +591,7 @@ export function InvoiceCreateModal({
 
             {/* Added Items Table */}
             <div className="border rounded-lg overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full text-xs text-left whitespace-nowrap">
                 <thead>
                   <tr className="border-b bg-secondary/15 font-bold uppercase text-[10px] text-muted-foreground">
                     <th className="p-3">Item Description</th>
@@ -803,3 +803,4 @@ export function InvoiceCreateModal({
     </div>
   );
 }
+

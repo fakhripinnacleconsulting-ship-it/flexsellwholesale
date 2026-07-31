@@ -197,7 +197,7 @@ export function VariantCard({
             </div>
           </div>
           <div className="border rounded-md overflow-hidden overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-secondary/50 text-xs uppercase">
                 <tr>
                   <th className="px-4 py-3">Size / Weight *</th>
@@ -332,7 +332,7 @@ export function VariantCard({
 
             return (
               <div className="border rounded-lg overflow-x-auto bg-background">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
                   <thead>
                     <tr className="bg-secondary/20 border-b">
                       <th className="p-2 font-bold w-16 text-center">Preview</th>
@@ -607,3 +607,4 @@ export function VariantCard({
     </Card>
   );
 }
+

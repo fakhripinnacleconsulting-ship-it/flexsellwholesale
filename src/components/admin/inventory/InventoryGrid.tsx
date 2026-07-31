@@ -52,7 +52,7 @@ export function InventoryGrid() {
       </div>
       
       <CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-xs text-left">
+        <table className="w-full text-xs text-left whitespace-nowrap">
           <thead className="bg-secondary/40 font-bold text-muted-foreground uppercase text-[10px] border-b">
             <tr>
               <th className="px-6 py-3">Product Name</th>
@@ -184,3 +184,4 @@ export function InventoryGrid() {
     </div>
   );
 }
+

@@ -282,7 +282,7 @@ export default function AdminShippingPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto border rounded-lg bg-card">
-                  <table className="w-full text-sm text-left">
+                  <table className="w-full text-sm text-left whitespace-nowrap">
                     <thead className="bg-secondary/40 text-xs uppercase font-bold text-muted-foreground border-b">
                       <tr>
                         <th className="px-4 py-3">Start Range (g)</th>
@@ -617,3 +617,4 @@ export default function AdminShippingPage() {
     </div>
   );
 }
+

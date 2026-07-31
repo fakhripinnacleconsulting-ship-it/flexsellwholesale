@@ -40,7 +40,7 @@ export function InvoiceTable({
     <Card className="w-full shadow-xs border-border/80">
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
             <thead>
               <tr className="border-b bg-secondary/15 text-muted-foreground uppercase font-bold tracking-wider text-[10px]">
                 <th className="p-4">Doc Number</th>
@@ -209,3 +209,4 @@ export function InvoiceTable({
     </Card>
   );
 }
+

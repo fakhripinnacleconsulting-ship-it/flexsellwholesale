@@ -33,7 +33,7 @@ export function APlusContentCard() {
           <p className="text-sm text-muted-foreground text-center py-6">No manufacturer A+ marketing banners configured.</p>
         ) : (
           <div className="border rounded-lg overflow-x-auto bg-background">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
               <thead>
                 <tr className="bg-secondary/20 border-b">
                   <th className="p-2.5 font-bold w-20 text-center">Sequence</th>
@@ -155,3 +155,4 @@ export function APlusContentCard() {
     </Card>
   );
 }
+

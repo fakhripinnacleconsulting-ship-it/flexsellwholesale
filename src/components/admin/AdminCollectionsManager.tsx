@@ -15,6 +15,7 @@ import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { Collection, Category, Product, CollectionCondition } from "@/types";
 import { Pagination } from "@/components/ui/Pagination";
+import { ViewDetailsDialog } from "@/components/ui/ViewDetailsDialog";
 import { productService } from "@/services/productService";
 import { collectionService } from "@/services/collectionService";
 import dynamic from "next/dynamic";
@@ -446,8 +447,33 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
     setConditions(next);
   };
 
+  const [viewCollection, setViewCollection] = React.useState<Collection | null>(null);
+
   return (
     <div className="space-y-6">
+      <ViewDetailsDialog 
+        isOpen={!!viewCollection} 
+        onClose={() => setViewCollection(null)}
+        title="Collection Details"
+        data={viewCollection ? {
+          id: viewCollection._id,
+          title: viewCollection.title,
+          slug: viewCollection.slug,
+          type: viewCollection.type,
+          description: viewCollection.description || "No description",
+          image: viewCollection.image || null,
+          isActive: viewCollection.isActive,
+          isFeatured: viewCollection.isFeatured,
+          order: viewCollection.order,
+          rules: viewCollection.rules,
+          productIds: viewCollection.productIds,
+          linkedCategoryIds: viewCollection.linkedCategoryIds,
+          seoTitle: viewCollection.seoTitle,
+          seoDescription: viewCollection.seoDescription,
+          createdAt: viewCollection.createdAt,
+          updatedAt: viewCollection.updatedAt
+        } : {}}
+      />
       {/* Header section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-background/50 backdrop-blur border border-border/80 rounded-2xl p-6 shadow-sm">
         <div>
@@ -511,9 +537,10 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm text-foreground">
+                <table className="w-full text-left border-collapse text-sm text-foreground whitespace-nowrap">
                   <thead>
                     <tr className="border-b bg-muted/10 font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
+                      <th className="py-4 px-6">ID</th>
                       <th className="py-4 px-6 w-16">Thumbnail</th>
                       <th className="py-4 px-6">Title</th>
                       <th className="py-4 px-6">Type</th>
@@ -526,6 +553,7 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
                   <tbody className="divide-y">
                     {paginatedCollections.map((col) => (
                       <tr key={col._id} className="hover:bg-muted/15 transition-colors group">
+                        <td className="py-4 px-6 font-mono text-xs">{col._id}</td>
                         <td className="py-4 px-6">
                           <div className="h-10 w-10 relative rounded-md overflow-hidden bg-secondary border border-border">
                             {col.image ? (
@@ -591,7 +619,10 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
                             <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                           </label>
                         </td>
-                        <td className="py-4 px-6 text-right space-x-1">
+                      <td className="py-4 px-6 text-right space-x-1">
+                          <Button variant="ghost" size="icon" onClick={() => setViewCollection(col)} title="View Details" className="hover:bg-secondary">
+                            <Eye className="h-4.5 w-4.5 text-foreground" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleEditClick(col)} title="Edit collection" className="hover:bg-secondary">
                             <Edit className="h-4.5 w-4.5 text-foreground" />
                           </Button>
@@ -1241,3 +1272,4 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
     </div>
   );
 }
+

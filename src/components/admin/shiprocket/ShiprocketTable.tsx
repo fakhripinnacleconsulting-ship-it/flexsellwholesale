@@ -184,7 +184,7 @@ export function ShiprocketTable() {
 
         {/* Tabular View */}
         <div className="overflow-x-auto border rounded-lg bg-card">
-          <table className="w-full text-xs text-left">
+          <table className="w-full text-xs text-left whitespace-nowrap">
             <thead className="bg-secondary/40 text-[11px] uppercase font-bold text-muted-foreground border-b">
               <tr>
                 <th className="px-4 py-3">Order Ref</th>
@@ -393,3 +393,4 @@ export function ShiprocketTable() {
     </Card>
   );
 }
+

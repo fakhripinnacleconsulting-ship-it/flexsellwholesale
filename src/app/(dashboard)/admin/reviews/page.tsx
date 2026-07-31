@@ -289,9 +289,10 @@ export default function AdminReviewsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-muted-foreground font-semibold text-[11px] uppercase tracking-wider">
+                    <th className="py-3 px-4">ID</th>
                     <th className="py-3 px-4">Customer</th>
                     <th className="py-3 px-4">Product</th>
                     <th className="py-3 px-4">Rating</th>
@@ -303,6 +304,7 @@ export default function AdminReviewsPage() {
                 <tbody className="divide-y divide-border">
                   {paginatedReviews.map((rev) => (
                     <tr key={rev._id} className="hover:bg-secondary/20 transition-colors">
+                      <td className="py-3.5 px-4 font-mono text-xs text-muted-foreground align-top">{rev._id}</td>
                       {/* Customer Info */}
                       <td className="py-3.5 px-4 align-top">
                         <div className="space-y-0.5">
@@ -671,3 +673,4 @@ export default function AdminReviewsPage() {
     </div>
   );
 }
+

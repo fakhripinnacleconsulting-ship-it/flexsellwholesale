@@ -50,14 +50,6 @@ export function CmsSubTabsNav({
     scrollRef.current.scrollLeft = scrollLeft - walk;
   };
 
-  // Mouse Wheel Horizontal Scroll
-  const handleWheel = (e: React.WheelEvent) => {
-    if (!scrollRef.current) return;
-    if (e.deltaY !== 0) {
-      scrollRef.current.scrollLeft += e.deltaY;
-    }
-  };
-
   // Chevron Arrow Scroll Buttons
   const scrollContainer = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
@@ -86,7 +78,6 @@ export function CmsSubTabsNav({
         onMouseLeave={handleMouseLeaveOrUp}
         onMouseUp={handleMouseLeaveOrUp}
         onMouseMove={handleMouseMove}
-        onWheel={handleWheel}
         className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-1 py-0.5 cursor-grab active:cursor-grabbing touch-pan-x flex-1 scroll-smooth [::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >

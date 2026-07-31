@@ -82,7 +82,7 @@ export function CSVImportDialog() {
               <h4 className="font-bold text-xs uppercase text-muted-foreground tracking-wider">Detailed Error Logs</h4>
               <div className="border border-border rounded-lg overflow-hidden">
                 <div className="max-h-60 overflow-y-auto">
-                  <table className="w-full text-xs text-left">
+                  <table className="w-full text-xs text-left whitespace-nowrap">
                     <thead className="bg-secondary/40 font-bold text-muted-foreground border-b uppercase text-[9px]">
                       <tr>
                         <th className="px-4 py-2 text-center w-12">Line</th>
@@ -141,3 +141,4 @@ export function CSVImportDialog() {
     </div>
   );
 }
+

@@ -4,12 +4,13 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Plus, Edit, Trash2, X, Check, Image as ImageIcon, Search, Filter, SortAsc } from "lucide-react";
+import { Plus, Edit, Trash2, X, Check, Image as ImageIcon, Search, Filter, SortAsc, Eye } from "lucide-react";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { Category } from "@/types";
 import { Pagination } from "@/components/ui/Pagination";
+import { ViewDetailsDialog } from "../ui/ViewDetailsDialog";
 
 interface AdminCategoriesManagerProps {
   initialCategories: Category[];
@@ -44,14 +45,54 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
   const [currentPage, setCurrentPage] = React.useState(1);
   const ITEMS_PER_PAGE = 10;
 
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const isDown = React.useRef(false);
+  const startX = React.useRef(0);
+  const scrollLeft = React.useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    isDown.current = true;
+    scrollContainerRef.current.classList.add('cursor-grabbing');
+    startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
+    scrollLeft.current = scrollContainerRef.current.scrollLeft;
+  };
+
+  const handleMouseLeave = () => {
+    isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDown.current || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX.current) * 2;
+    scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+
+  const truncateString = (str: string, max: number = 50) => {
+    if (!str) return str;
+    return str.length > max ? str.substring(0, max) + "..." : str;
+  };
+
   const filteredAndSortedCategories = React.useMemo(() => {
     let result = [...activeCategories];
 
     // Search
     if (searchQuery) {
       const lowerQ = searchQuery.toLowerCase();
-      result = result.filter(c => 
-        c.name.toLowerCase().includes(lowerQ) || 
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(lowerQ) ||
         c.slug.toLowerCase().includes(lowerQ)
       );
     }
@@ -230,8 +271,27 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
     });
   };
 
+  // Selected item for View Dialog
+  const [viewCategory, setViewCategory] = React.useState<Category | null>(null);
+
   return (
     <div className="space-y-6">
+      <ViewDetailsDialog
+        isOpen={!!viewCategory}
+        onClose={() => setViewCategory(null)}
+        title="Category Details"
+        data={viewCategory ? {
+          id: viewCategory._id,
+          name: viewCategory.name,
+          slug: viewCategory.slug,
+          parentId: viewCategory.parentId || "None (Root)",
+          description: viewCategory.description || "No description",
+          image: viewCategory.image || null,
+          isActive: viewCategory.isActive,
+          createdAt: viewCategory.createdAt,
+          updatedAt: viewCategory.updatedAt
+        } : {}}
+      />
       <div>
         <h1 className="text-3xl font-bold text-foreground tracking-tight">Categories</h1>
         <p className="text-muted-foreground mt-1">Configure parent-child taxonomies for your B2B Mega Menu.</p>
@@ -243,14 +303,14 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search categories..." 
-                className="pl-9" 
+              <Input
+                placeholder="Search categories..."
+                className="pl-9"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               />
             </div>
-            <select 
+            <select
               value={filterParent}
               onChange={(e) => { setFilterParent(e.target.value); setCurrentPage(1); }}
               className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground"
@@ -258,10 +318,10 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
               <option value="all">All Categories</option>
               <option value="root">Root Categories Only</option>
               {parentCategories.map(cat => (
-                <option key={cat._id} value={cat._id}>Child of: {cat.name}</option>
+                <option key={cat._id} value={cat._id}>Child of: {truncateString(cat.name, 30)}</option>
               ))}
             </select>
-            <select 
+            <select
               value={sortBy}
               onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
               className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground"
@@ -274,15 +334,23 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
 
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left text-foreground">
+              <div
+                className="overflow-x-auto custom-scrollbar cursor-grab active:cursor-grabbing select-none"
+                ref={scrollContainerRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+              >
+                <table className="w-full text-sm text-left text-foreground whitespace-nowrap">
                   <thead className="text-xs text-muted-foreground uppercase bg-secondary/50">
                     <tr>
-                      <th className="px-6 py-4">Category Name</th>
-                      <th className="px-6 py-4">Image</th>
-                      <th className="px-6 py-4">Slug</th>
-                      <th className="px-6 py-4">Parent Category</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
+                      <th className="px-6 py-4 font-semibold tracking-wide">ID</th>
+                      <th className="px-6 py-4 font-semibold tracking-wide">Name</th>
+                      <th className="px-6 py-4 font-semibold tracking-wide">Image</th>
+                      <th className="px-6 py-4 font-semibold tracking-wide">Slug</th>
+                      <th className="px-6 py-4 font-semibold tracking-wide">Parent</th>
+                      <th className="px-6 py-4 font-semibold tracking-wide text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -290,11 +358,12 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
                       const parent = activeCategories.find(c => c._id === cat.parentId);
                       return (
                         <tr key={cat._id} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-6 py-4 font-bold">
+                          <td className="px-6 py-4 font-mono text-xs max-w-[120px] truncate" title={cat._id}>{truncateString(cat._id, 15)}</td>
+                          <td className="px-6 py-4 font-bold max-w-[200px] truncate" title={cat.name}>
                             {cat.parentId ? (
                               <span className="text-muted-foreground font-normal ml-3">— </span>
                             ) : null}
-                            {cat.name}
+                            {truncateString(cat.name, 40)}
                           </td>
                           <td className="px-6 py-4">
                             {cat.image ? (
@@ -305,22 +374,32 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 font-mono text-xs">{cat.slug}</td>
-                          <td className="px-6 py-4 text-muted-foreground">
-                            {parent ? parent.name : "None (Root)"}
+                          <td className="px-6 py-4 font-mono text-xs max-w-[150px] truncate" title={cat.slug}>{truncateString(cat.slug, 30)}</td>
+                          <td className="px-6 py-4 text-muted-foreground max-w-[150px] truncate" title={parent ? parent.name : "None (Root)"}>
+                            {truncateString(parent ? parent.name : "None (Root)", 30)}
                           </td>
                           <td className="px-6 py-4 text-right space-x-1 whitespace-nowrap">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="icon"
+                              title="View Details"
+                              onClick={() => setViewCategory(cat)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit Category"
                               onClick={() => handleEditClick(cat)}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="text-destructive hover:bg-destructive/10"
+                              title="Delete Category"
                               onClick={() => handleDeleteClick(cat)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -333,7 +412,7 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
                 </table>
               </div>
               <div className="px-4 pb-4">
-                  <Pagination
+                <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages || 1}
                   onPageChange={setCurrentPage}
@@ -360,8 +439,8 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
               <form onSubmit={handleSave} className="space-y-4 text-foreground">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Category Name</label>
-                  <Input 
-                    placeholder="e.g., Kitchen Storage" 
+                  <Input
+                    placeholder="e.g., Kitchen Storage"
                     value={name}
                     onChange={(e) => {
                       setName(e.target.value);
@@ -375,8 +454,8 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">URL Slug</label>
-                  <Input 
-                    placeholder="e.g., kitchen-storage" 
+                  <Input
+                    placeholder="e.g., kitchen-storage"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
                     required
@@ -389,8 +468,8 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
                     <span className="text-xs text-muted-foreground font-normal">* 1:1 aspect ratio mandated</span>
                   </label>
                   <div className="flex gap-2">
-                    <Input 
-                      placeholder="https://example.com/image.jpg" 
+                    <Input
+                      placeholder="https://example.com/image.jpg"
                       value={image}
                       onChange={(e) => setImage(e.target.value)}
                       className="flex-1"
@@ -399,9 +478,9 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
                       <Button type="button" variant="outline" className="w-[100px]">
                         Upload
                       </Button>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
+                      <input
+                        type="file"
+                        accept="image/*"
                         onChange={handleImageUpload}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                       />
@@ -417,8 +496,8 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Description</label>
-                  <Input 
-                    placeholder="Description..." 
+                  <Input
+                    placeholder="Description..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
@@ -426,7 +505,7 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Parent Category (Optional)</label>
-                  <select 
+                  <select
                     value={parentId}
                     onChange={(e) => setParentId(e.target.value)}
                     className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground"
@@ -445,9 +524,9 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
                     {editCategoryId ? "Save Changes" : "Create Node"}
                   </Button>
                   {editCategoryId && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={handleCancelEdit}
                     >
                       Cancel
@@ -462,3 +541,4 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
     </div>
   );
 }
+

@@ -60,9 +60,10 @@ export function InventoryLedger() {
             <span>Loading ledger events...</span>
           </div>
         ) : (
-          <table className="w-full text-xs text-left">
+          <table className="w-full text-xs text-left whitespace-nowrap">
             <thead className="bg-secondary/40 font-bold text-muted-foreground uppercase text-[10px] border-b">
               <tr>
+                <th className="px-6 py-3">ID</th>
                 <th className="px-6 py-3">Timestamp</th>
                 <th className="px-6 py-3">Product / Variant</th>
                 <th className="px-6 py-3 font-mono">SKU</th>
@@ -75,7 +76,7 @@ export function InventoryLedger() {
             <tbody className="divide-y divide-border/60">
               {paginatedLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground italic">
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground italic">
                     No stock ledger events recorded yet.
                   </td>
                 </tr>
@@ -86,6 +87,7 @@ export function InventoryLedger() {
 
                   return (
                     <tr key={log._id} className="hover:bg-secondary/15 transition-colors text-foreground">
+                      <td className="px-6 py-4 font-mono text-xs text-muted-foreground">{log._id}</td>
                       <td className="px-6 py-4 text-muted-foreground font-mono whitespace-nowrap">{log.timestamp}</td>
                       <td className="px-6 py-4">
                         <span className="font-bold">{log.productName}</span>
@@ -155,3 +157,4 @@ export function InventoryLedger() {
     </div>
   );
 }
+

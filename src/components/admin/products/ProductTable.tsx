@@ -42,12 +42,59 @@ export function ProductTable({
   totalPages,
   ITEMS_PER_PAGE
 }: ProductTableProps) {
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const isDown = React.useRef(false);
+  const startX = React.useRef(0);
+  const scrollLeft = React.useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    isDown.current = true;
+    scrollContainerRef.current.classList.add('cursor-grabbing');
+    startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
+    scrollLeft.current = scrollContainerRef.current.scrollLeft;
+  };
+
+  const handleMouseLeave = () => {
+    isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDown.current || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX.current) * 2;
+    scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+
+  const truncateString = (str: string, max: number = 50) => {
+    if (!str) return str;
+    return str.length > max ? str.substring(0, max) + "..." : str;
+  };
+
   return (
     <Card>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-secondary/50">
+        <div 
+          className="overflow-x-auto custom-scrollbar cursor-grab active:cursor-grabbing select-none" 
+          ref={scrollContainerRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+        >
+          <table className="w-full text-sm text-left whitespace-nowrap">
+            <thead className="text-xs text-muted-foreground uppercase bg-secondary/50 border-b border-border">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
@@ -57,18 +104,19 @@ export function ProductTable({
                     onChange={handleSelectAllOnPage}
                   />
                 </th>
-                <th className="px-6 py-4">Product Details</th>
-                <th className="px-6 py-4 font-mono">Tax HSN</th>
-                <th className="px-6 py-4">Wholesale Price</th>
-                <th className="px-6 py-4">Total Stock</th>
-                <th className="px-6 py-4">Active</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">ID</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Product Details</th>
+                <th className="px-6 py-4 font-semibold tracking-wide font-mono">Tax HSN</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Wholesale Price</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Total Stock</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Active</th>
+                <th className="px-6 py-4 font-semibold tracking-wide text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {processedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
                     No matching wholesale products found. Change filters or search terms.
                   </td>
                 </tr>
@@ -90,10 +138,11 @@ export function ProductTable({
                   const imgUrl = rawImgUrl ? sanitizeImgUrl(rawImgUrl) : "";
                   const defaultVariant = product.colorVariants?.[0];
                   const variantsCount = product.colorVariants?.length || 0;
+                  const primarySku = defaultVariant?.subVariants?.[0]?.sku || "N/A";
                   const isSelected = selectedProductIds.includes(product._id);
 
                   return (
-                    <tr key={product._id} className={`hover:bg-secondary/20 transition-colors ${!product.isActive ? "opacity-60" : ""} ${isSelected ? "bg-primary/5" : ""}`}>
+                    <tr key={product._id} className={`hover:bg-secondary/15 transition-colors ${!product.isActive ? "opacity-60" : ""} ${isSelected ? "bg-primary/5" : ""}`}>
                       <td className="px-6 py-4 text-center">
                         <input 
                           type="checkbox" 
@@ -102,7 +151,10 @@ export function ProductTable({
                           onChange={() => handleSelectRow(product._id)}
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 font-mono text-xs text-muted-foreground max-w-[120px] truncate" title={product._id}>
+                        {truncateString(product._id, 15)}
+                      </td>
+                      <td className="px-6 py-4 max-w-[300px]">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-md bg-secondary overflow-hidden flex-shrink-0 border">
                             {imgUrl ? (
@@ -111,23 +163,28 @@ export function ProductTable({
                               <div className="w-full h-full bg-secondary flex items-center justify-center text-[10px] text-muted-foreground font-semibold">No Image</div>
                             )}
                           </div>
-                          <div>
-                            <p className="font-bold line-clamp-1">{product.title}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Category: {getCategoryName(product.categoryId)} | {variantsCount} variants
+                          <div className="min-w-0">
+                            <p className="font-bold text-foreground truncate" title={product.title}>{truncateString(product.title, 40)}</p>
+                            <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">
+                              SKU: {primarySku}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">
+                              Category: {truncateString(getCategoryName(product.categoryId), 20)} | {variantsCount} variants
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
                         {product.hsnCode ? (
-                          <div>HSN {product.hsnCode} ({product.gstRate}% GST)</div>
+                          <div className="truncate" title={`HSN ${product.hsnCode} (${product.gstRate}% GST)`}>
+                            HSN {truncateString(product.hsnCode, 12)} ({product.gstRate}%)
+                          </div>
                         ) : (
                           <span className="text-warning">Not Set</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-bold text-foreground">
+                        <div className="font-bold text-foreground truncate">
                           {formatPrice(
                             defaultVariant?.subVariants?.[0] 
                               ? resolvePrice(defaultVariant.subVariants[0], product.defaultPriceTier || "B2C") 
@@ -137,15 +194,15 @@ export function ProductTable({
                             ({product.defaultPriceTier || "B2C"})
                           </span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground">MRP: {formatPrice(defaultVariant?.subVariants?.[0]?.mrp ?? 0)}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">MRP: {formatPrice(defaultVariant?.subVariants?.[0]?.mrp ?? 0)}</div>
                       </td>
                       <td className="px-6 py-4">
                         {product.totalStock > 20 ? (
-                          <span className="bg-success/10 text-success px-2 py-0.5 rounded-full text-xs font-semibold">{product.totalStock} units</span>
+                          <span className="bg-success/10 text-success px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap">{product.totalStock} units</span>
                         ) : product.totalStock > 0 ? (
-                          <span className="bg-warning/10 text-warning px-2 py-0.5 rounded-full text-xs font-semibold">{product.totalStock} units (Low)</span>
+                          <span className="bg-warning/10 text-warning px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap">{product.totalStock} units</span>
                         ) : (
-                          <span className="bg-destructive/10 text-destructive px-2 py-0.5 rounded-full text-xs font-semibold">Out of Stock</span>
+                          <span className="bg-destructive/10 text-destructive px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap">Out of Stock</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -205,3 +262,4 @@ export function ProductTable({
     </Card>
   );
 }
+

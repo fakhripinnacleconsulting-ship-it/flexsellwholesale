@@ -209,7 +209,7 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
         )}
 
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
             <thead className="bg-secondary/25 border-b font-bold">
               <tr>
                 <th className="p-3">Wholesale Variant</th>
@@ -324,3 +324,4 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
     </form>
   );
 }
+

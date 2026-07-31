@@ -52,7 +52,7 @@ export function VariantEditor() {
         </div>
       ) : (
         <div className="border rounded-md overflow-x-auto bg-background">
-          <table className="w-full text-sm text-left border-collapse">
+          <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
             <thead className="bg-secondary/45 text-xs font-bold uppercase text-muted-foreground border-b border-border">
               <tr>
                 <th className="px-4 py-3">Variant</th>
@@ -192,3 +192,4 @@ export function VariantEditor() {
     </div>
   );
 }
+

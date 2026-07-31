@@ -218,9 +218,10 @@ export function AdminHsnManager() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-sm text-left whitespace-nowrap">
                   <thead className="text-xs text-muted-foreground uppercase bg-secondary/50">
                     <tr>
+                      <th className="px-6 py-4">ID</th>
                       <th className="px-6 py-4">HSN Code</th>
                       <th className="px-6 py-4">GST Rate</th>
                       <th className="px-6 py-4">Tax Breakdown (POS)</th>
@@ -231,13 +232,14 @@ export function AdminHsnManager() {
                   <tbody className="divide-y divide-border">
                     {filteredHsns.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                        <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                           No HSN registry found. Add one to associate with B2B orders & products.
                         </td>
                       </tr>
                     ) : (
                       filteredHsns.map((hsn) => (
                         <tr key={hsn._id} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-6 py-4 font-mono text-xs">{hsn._id}</td>
                           <td className="px-6 py-4 font-bold">
                             <div>HSN {hsn.code}</div>
                             <span className="text-[10px] text-muted-foreground font-normal line-clamp-1 block max-w-xs">
@@ -355,3 +357,4 @@ export function AdminHsnManager() {
     </div>
   );
 }
+
