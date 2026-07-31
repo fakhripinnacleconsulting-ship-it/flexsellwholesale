@@ -217,24 +217,10 @@ export default function AdminCustomersPage() {
         kycDocuments: kycDocs
       };
 
-      let res;
       if (editingCustomer) {
-        res = await fetch("/api/customers", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ _id: editingCustomer._id, ...payload })
-        });
+        await customerService.updateCustomer(editingCustomer._id, payload);
       } else {
-        res = await fetch("/api/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-      }
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to save customer");
+        await customerService.createCustomer(payload);
       }
 
       addToast(editingCustomer ? "Customer updated successfully!" : "Customer created successfully!", "success");
@@ -256,13 +242,7 @@ export default function AdminCustomersPage() {
       type: "danger",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/customers?id=${id}`, {
-            method: "DELETE"
-          });
-          if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.message || "Failed to delete customer");
-          }
+          await customerService.deleteCustomer(id);
           addToast("Customer account deleted successfully", "success");
           fetchCustomers();
         } catch (err: unknown) {

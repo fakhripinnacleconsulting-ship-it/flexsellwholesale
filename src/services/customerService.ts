@@ -345,5 +345,54 @@ export const customerService = {
     }
 
     return apiClient.put<Customer>("/customers/upgrade", { customerId, action: "reject", reason });
+  },
+
+  async createCustomer(payload: any): Promise<Customer> {
+    if (isMockMode) {
+      if (typeof window === "undefined") throw new Error("Window unavailable");
+      const raw = localStorage.getItem("flexsell-customers-storage");
+      const list: Customer[] = raw ? JSON.parse(raw) : [];
+      const newCust: Customer = {
+        _id: `FSW-CUST-${Date.now().toString().slice(-5)}`,
+        ...payload,
+        createdAt: new Date().toISOString(),
+      };
+      list.unshift(newCust);
+      localStorage.setItem("flexsell-customers-storage", JSON.stringify(list));
+      return newCust;
+    }
+    return apiClient.post<Customer>("/customers", payload);
+  },
+
+  async updateCustomer(id: string, payload: any): Promise<Customer> {
+    if (isMockMode) {
+      if (typeof window === "undefined") throw new Error("Window unavailable");
+      const raw = localStorage.getItem("flexsell-customers-storage");
+      const list: Customer[] = raw ? JSON.parse(raw) : [];
+      let updatedCust: Customer | undefined;
+      const updatedList = list.map((c) => {
+        if (c._id === id) {
+          updatedCust = { ...c, ...payload };
+          return updatedCust;
+        }
+        return c;
+      });
+      localStorage.setItem("flexsell-customers-storage", JSON.stringify(updatedList));
+      if (!updatedCust) throw new Error("Customer not found");
+      return updatedCust;
+    }
+    return apiClient.put<Customer>("/customers", { _id: id, ...payload });
+  },
+
+  async deleteCustomer(id: string): Promise<{ message: string }> {
+    if (isMockMode) {
+      if (typeof window === "undefined") return { message: "Deleted" };
+      const raw = localStorage.getItem("flexsell-customers-storage");
+      const list: Customer[] = raw ? JSON.parse(raw) : [];
+      const filtered = list.filter((c) => c._id !== id);
+      localStorage.setItem("flexsell-customers-storage", JSON.stringify(filtered));
+      return { message: "Customer deleted" };
+    }
+    return apiClient.delete<{ message: string }>(`/customers?id=${id}`);
   }
 };

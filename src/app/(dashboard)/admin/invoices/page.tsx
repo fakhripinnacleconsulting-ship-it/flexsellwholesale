@@ -9,6 +9,7 @@ import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { customerService } from "@/services/customerService";
 import { shippingService } from "@/services/shippingService";
+import { orderService } from "@/services/orderService";
 import { Customer, Invoice, TaxBreakdown } from "@/types";
 import { INDIAN_STATES } from "@/lib/constants";
 
@@ -466,8 +467,72 @@ export default function AdminInvoicesPage() {
     }
   };
 
+  const handleConvertQuoteToOrder = async (quote: Invoice) => {
+    try {
+      setIsSubmitting(true);
+
+      const normalizedItems = (quote.items || []).map((i: any, idx: number) => {
+        const pId = typeof i.product === "object" ? (i.product?._id || i.productId || `PROD-${idx}`) : (i.productId || (typeof i.product === "string" ? i.product : `PROD-${idx}`));
+        const pTitle = typeof i.product === "object" ? (i.product?.title || i.product?.name || "Wholesale Product") : (i.productTitle || i.name || i.title || "Wholesale Product");
+        return {
+          id: i.id || i._id || `item-${idx}-${Date.now()}`,
+          productId: pId,
+          product: {
+            _id: pId,
+            title: pTitle,
+            categoryId: i.product?.categoryId || i.categoryId || "cat-default",
+            gstRate: i.product?.gstRate || i.gstRate || 18,
+            priceIncludesGst: i.product?.priceIncludesGst ?? true,
+          },
+          selectedVariants: i.selectedVariants || i.variants || {},
+          quantity: Number(i.quantity || 1),
+          pricePerUnit: Number(i.pricePerUnit || i.price || 0)
+        };
+      });
+
+      const shippingAddress = quote.shippingAddress || {
+        firstName: quote.customerName ? quote.customerName.split(" ")[0] : "Client",
+        lastName: quote.customerName ? quote.customerName.split(" ").slice(1).join(" ") || "Buyer" : "Buyer",
+        email: quote.customerEmail || "customer@example.com",
+        company: (quote as any).customerCompany || (quote.shippingAddress as any)?.company || "",
+        address: "Wholesale Dock Facility Address",
+        city: "Mumbai",
+        state: "Maharashtra",
+        pinCode: "400001",
+        phone: "9876543210",
+        gstin: quote.customerGstin || ""
+      };
+
+      const newOrder = await orderService.createOrder(
+        normalizedItems as any,
+        quote.amount,
+        shippingAddress as any,
+        {
+          paymentMethod: quote.paymentMethod || "Bank Transfer",
+          paymentStatus: "Pending"
+        },
+        quote.couponCode,
+        quote.couponDiscount,
+        quote._id,
+        quote.salesperson
+      );
+
+      addToast(`Quote ${quote._id} converted & Order ${newOrder._id} created successfully!`, "success");
+      setSelectedInvoice(null);
+      loadData();
+    } catch (err: any) {
+      addToast(err.message || "Failed to convert quote to order", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleUpdateQuoteStatus = async (newStatus: string) => {
     if (!selectedInvoice) return;
+    if (newStatus === "converted") {
+      await handleConvertQuoteToOrder(selectedInvoice);
+      return;
+    }
     try {
       await updateInvoice(selectedInvoice._id, { status: newStatus } as any);
       setSelectedInvoice(prev => prev ? ({ ...prev, status: newStatus as any }) : null);
@@ -545,6 +610,7 @@ export default function AdminInvoicesPage() {
             onViewInvoice={setSelectedInvoice}
             onPayInvoice={handlePayInvoice}
             onEditQuote={handleEditQuote}
+            onConvertQuote={handleConvertQuoteToOrder}
             onVoidInvoice={handleVoidInvoice}
             onDeleteInvoice={handleDeleteInvoice}
           />
