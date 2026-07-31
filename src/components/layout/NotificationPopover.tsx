@@ -100,6 +100,16 @@ export function NotificationPopover({ role = "customer", customerId }: Notificat
     }
   };
 
+  const handleClearAll = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await notificationService.clearAllNotifications(role);
+      setNotifications([]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -201,15 +211,26 @@ export function NotificationPopover({ role = "customer", customerId }: Notificat
                 )}
               </div>
 
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleMarkAllAsRead}
-                  className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <CheckCheck className="h-3.5 w-3.5" /> Mark all read
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllAsRead}
+                    className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" /> Mark all read
+                  </button>
+                )}
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAll}
+                    className="text-xs font-semibold text-muted-foreground hover:text-destructive hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="h-3 w-3" /> Clear all
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Content List */}

@@ -96,6 +96,22 @@ export async function DELETE(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const clearAll = searchParams.get("clearAll");
+
+    if (clearAll === "true") {
+      const roleParam = searchParams.get("role");
+      let query: any = {};
+      
+      if (roleParam === "admin" || payload.role === "admin") {
+        query = { $or: [{ recipientRole: "admin" }, { customerId: "admin" }] };
+      } else {
+        query = { customerId: payload.userId, recipientRole: { $ne: "admin" } };
+      }
+      
+      await Notification.deleteMany(query);
+      return NextResponse.json({ message: "All notifications cleared successfully" });
+    }
+
     if (!id) {
       return NextResponse.json({ message: "Notification ID is required" }, { status: 400 });
     }

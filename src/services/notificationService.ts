@@ -95,5 +95,20 @@ export const notificationService = {
       return;
     }
     return apiClient.delete<void>(`/notifications?id=${id}`);
+  },
+
+  async clearAllNotifications(role: "customer" | "admin" = "customer"): Promise<void> {
+    if (isMockMode) {
+      const notifications = getLocalNotifications();
+      // Only keep notifications that don't match the current role
+      const updatedList = notifications.filter(n => {
+        if (role === "admin") return n.recipientRole !== "admin" && n.customerId !== "admin";
+        return n.recipientRole === "admin" || n.customerId === "admin";
+      });
+      saveLocalNotifications(updatedList);
+      return;
+    }
+    const query = role === "admin" ? "?role=admin&clearAll=true" : "?clearAll=true";
+    return apiClient.delete<void>(`/notifications${query}`);
   }
 };

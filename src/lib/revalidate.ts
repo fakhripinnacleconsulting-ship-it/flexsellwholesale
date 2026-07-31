@@ -57,7 +57,7 @@ export function revalidateCms() {
     revalidatePath("/contact", "page");
     revalidatePath("/faq", "page");
     revalidatePath("/dropshipping", "page");
-    revalidatePath("/documentation", "page");
+
   } catch (err) {
     console.error("revalidateCms error:", err);
   }

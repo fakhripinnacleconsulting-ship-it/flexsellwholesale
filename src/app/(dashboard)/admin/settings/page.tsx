@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/stores/toastStore";
-import { ThemeEditor } from "@/components/admin/ThemeEditor";
+
 import { DEFAULT_ID_FORMATS, IdFormatConfig, formatIdPreview } from "@/lib/idGenerator";
 import { Search, Hash, RefreshCw, Save, Layers, CreditCard, FileText, Users, ShoppingBag, FolderTree, Tags, MessageSquare, MessageSquarePlus, Percent, HelpCircle, Trash2, Plus } from "lucide-react";
 import { CompanyInformationTab, CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
@@ -73,7 +73,7 @@ export default function AdminSettingsPage() {
   });
 
   // Navigation tab state
-  const [activeTab, setActiveTab] = React.useState<"general" | "id" | "theme" | "footer">("general");
+  const [activeTab, setActiveTab] = React.useState<"general" | "id" | "footer">("general");
 
   // ID Formats Data Table state
   const [idFormatsList, setIdFormatsList] = React.useState<IdFormatConfig[]>(DEFAULT_ID_FORMATS);
@@ -83,13 +83,13 @@ export default function AdminSettingsPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
-      if (tabParam === "theme" || tabParam === "id" || tabParam === "general" || tabParam === "footer") {
+      if (tabParam === "id" || tabParam === "general" || tabParam === "footer") {
         setActiveTab(tabParam as any);
       }
     }
   }, []);
 
-  const handleTabSelect = (tab: "general" | "id" | "theme" | "footer") => {
+  const handleTabSelect = (tab: "general" | "id" | "footer") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -255,13 +255,7 @@ export default function AdminSettingsPage() {
         >
           ID Format Manager
         </button>
-        <button
-          onClick={() => handleTabSelect("theme")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "theme" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-        >
-          Theme & Appearance
-        </button>
+
         <button
           onClick={() => handleTabSelect("footer")}
           className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "footer" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
@@ -522,9 +516,7 @@ export default function AdminSettingsPage() {
             </CardContent>
           </Card>
         </div>
-      ) : (
-        <ThemeEditor />
-      )}
+      ) : null}
     </div>
   );
 }

@@ -25,7 +25,7 @@ export function Footer({ data }: FooterProps) {
   const [newsletterEmail, setNewsletterEmail] = React.useState("");
   const [cmsInfo, setCmsInfo] = React.useState<any>(null);
   const [footerSettings, setFooterSettings] = React.useState<any>(null);
-  
+
   const { categories, initializeCategories } = useCategoryStore();
 
   React.useEffect(() => {
@@ -161,7 +161,8 @@ export function Footer({ data }: FooterProps) {
               <li><Link href="/products?sort=trending" className="hover:text-foreground transition-colors">Trending SKUs</Link></li>
               <li><Link href="/client/orders" className="hover:text-foreground transition-colors">Orders & Tracking</Link></li>
               <li><Link href="/dropshipping" className="hover:text-foreground transition-colors">Dropshipping Program</Link></li>
-              <li><Link href="/faq" className="hover:text-foreground transition-colors">B2B Help & FAQ</Link></li>
+              <li><Link href="/faq" className="hover:text-foreground transition-colors">Help & FAQ</Link></li>
+              <li><Link href="/blogs" className="hover:text-foreground transition-colors">Industry Blogs</Link></li>
             </ul>
           </div>
         )}
