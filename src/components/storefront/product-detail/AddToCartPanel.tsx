@@ -25,7 +25,7 @@ export function AddToCartPanel() {
 
   const gstRate = product.gstRate ?? 18;
   const isIncl = product.priceIncludesGst ?? true;
-  
+
   const { useAuthStore } = require("@/stores/authStore");
   const customer = useAuthStore((state: any) => state.customer);
   const { resolvePrice, resolveCustomerTier } = require("@/lib/priceTierHelper");
@@ -62,7 +62,7 @@ export function AddToCartPanel() {
             </Badge>
           )}
         </div>
-        <h1 className="text-3xl font-black tracking-tight">{product.title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-[#1c1d1f]">{product.title}</h1>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1">
             <Star className="h-4.5 w-4.5 fill-amber-400 text-amber-400" />
@@ -152,11 +152,11 @@ export function AddToCartPanel() {
             ) : (
               <Badge variant="destructive">Out of Stock</Badge>
             )}
-            
+
             {activeTier === "B2B" && (
               <span className="text-muted-foreground font-semibold">• Minimum Order: {b2bMoq} units</span>
             )}
-            
+
             {visibility.showDimensions && activeVariant?.dimensions && (
               <span className="text-muted-foreground font-semibold">• Box Size: {activeVariant.dimensions}</span>
             )}

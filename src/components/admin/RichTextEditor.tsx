@@ -86,8 +86,14 @@ export default function RichTextEditor({
           }
 
           try {
-            const { customerService } = await import("@/services/customerService");
-            const res = await customerService.uploadDocument(file);
+            const formData = new FormData();
+            formData.append("file", file);
+            const uploadRes = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+            if (!uploadRes.ok) throw new Error("Upload failed");
+            const res = await uploadRes.json();
             const range = quillInstance.getSelection(true);
             quillInstance.insertEmbed(range.index, "image", res.url);
             quillInstance.setSelection(range.index + 1);

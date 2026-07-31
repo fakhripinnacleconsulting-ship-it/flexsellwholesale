@@ -13,6 +13,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@sentry/nextjs": "^10.66.0",
+    "@tailwindcss/typography": "^0.5.20",
     "@types/jsbarcode": "^3.11.4",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
