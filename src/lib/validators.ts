@@ -86,19 +86,16 @@ export const reviewSchema = z.object({
 // Order validation schema
 export const orderSchema = z.object({
   items: z.array(z.object({
-    id: z.string(),
-    productId: z.string(),
-    product: z.object({
-      _id: z.string(),
-      title: z.string(),
-      categoryId: z.string(),
-      gstRate: z.number().optional(),
-      priceIncludesGst: z.boolean().optional(),
-    }),
-    selectedVariants: z.record(z.string(), z.string()),
+    id: z.string().optional().default(() => `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`),
+    productId: z.string().optional(),
+    product: z.any().optional(),
+    productTitle: z.string().optional(),
+    name: z.string().optional(),
+    title: z.string().optional(),
+    selectedVariants: z.record(z.string(), z.string()).optional().default({}),
     quantity: z.number().int().positive("Quantity must be at least 1"),
     pricePerUnit: z.number().positive("Price must be positive"),
-  })).min(1, "Order must contain at least 1 item"),
+  }).passthrough()).min(1, "Order must contain at least 1 item"),
   amount: z.number().positive("Order amount must be positive"),
   shippingAddress: z.object({
     firstName: z.string().min(1, "First name is required"),

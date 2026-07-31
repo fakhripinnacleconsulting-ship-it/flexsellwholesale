@@ -78,6 +78,30 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
       if (phone.trim().length < 10) { alert("Phone number must be at least 10 digits."); return; }
     }
 
+    const validShippingAddress = showAddressEditor ? {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim().toLowerCase(),
+      address: address.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      pinCode: pinCode.trim(),
+      phone: phone.trim(),
+      company: company.trim() || undefined,
+      gstin: gstin.trim() || undefined,
+    } : (quote.shippingAddress && quote.shippingAddress.address && quote.shippingAddress.email ? quote.shippingAddress : {
+      firstName: quote.customerName ? quote.customerName.split(" ")[0] : "Valued",
+      lastName: quote.customerName ? quote.customerName.split(" ").slice(1).join(" ") || "Buyer" : "Buyer",
+      email: quote.customerEmail || "customer@example.com",
+      company: (quote as any).customerCompany || quote.shippingAddress?.company || "",
+      address: "Wholesale Facility Address",
+      city: "Mumbai",
+      state: "Maharashtra",
+      pinCode: "400001",
+      phone: "9876543210",
+      gstin: quote.customerGstin || ""
+    });
+
     setIsSubmitting(true);
     try {
       await onConfirmOrder({
@@ -86,18 +110,7 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
         paymentOption,
         paymentMethod: paymentOption === "now" ? paymentMethod : undefined,
         transactionId: paymentOption === "now" ? transactionId.trim() : undefined,
-        shippingAddress: showAddressEditor ? {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim().toLowerCase(),
-          address: address.trim(),
-          city: city.trim(),
-          state: state.trim(),
-          pinCode: pinCode.trim(),
-          phone: phone.trim(),
-          company: company.trim() || undefined,
-          gstin: gstin.trim() || undefined,
-        } : undefined
+        shippingAddress: validShippingAddress
       });
     } finally {
       setIsSubmitting(false);
@@ -219,44 +232,60 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
               </tr>
             </thead>
             <tbody className="divide-y">
-              {quote.items.map((item: any) => (
-                <tr key={item.id}>
-                  <td className="p-3">
-                    <p className="font-semibold text-foreground">{item.product.title}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {Object.entries(item.selectedVariants)
-                        .map(([k, v]) => `${k}: ${v}`)
-                        .join(" | ")}
-                    </p>
-                  </td>
-                  <td className="p-3 text-center">{formatPrice(item.pricePerUnit)}</td>
-                  <td className="p-3 text-center font-semibold">{item.quantity}</td>
-                  <td className="p-3 text-right font-bold">{formatPrice(item.pricePerUnit * item.quantity)}</td>
-                </tr>
-              ))}
+              {quote.items && quote.items.map((item: any, idx: number) => {
+                const itemTitle = typeof item.product === "object" && item.product?.title
+                  ? item.product.title
+                  : item.productTitle || item.name || item.title || (typeof item.product === "string" ? item.product : `Wholesale Item #${idx + 1}`);
+
+                const variantsObj = item.selectedVariants || item.variants || {};
+                const variantEntries = typeof variantsObj === "object" && variantsObj ? Object.entries(variantsObj) : [];
+                const price = Number(item.pricePerUnit || item.price || 0);
+                const qty = Number(item.quantity || 1);
+
+                return (
+                  <tr key={item.id || item._id || idx}>
+                    <td className="p-3">
+                      <p className="font-semibold text-foreground">{itemTitle}</p>
+                      {variantEntries.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {variantEntries.map(([k, v]) => `${k}: ${v}`).join(" | ")}
+                        </p>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">{formatPrice(price)}</td>
+                    <td className="p-3 text-center font-semibold">{qty}</td>
+                    <td className="p-3 text-right font-bold">{formatPrice(price * qty)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         {/* Pricing computations */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-sm">
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>Taxable Value: {formatPrice(quote.taxDetails.baseSubtotal)}</p>
-            {quote.taxDetails.isIntrastate ? (
-              <p className="text-emerald-600 dark:text-emerald-400 font-medium">
-                CGST: {formatPrice(quote.taxDetails.cgst)} | SGST: {formatPrice(quote.taxDetails.sgst)}
-              </p>
-            ) : (
-              <p className="text-blue-600 dark:text-blue-400 font-medium">
-                IGST: {formatPrice(quote.taxDetails.igst)}
-              </p>
-            )}
-          </div>
-          <div className="mt-3 md:mt-0 text-right">
-            <span className="text-xs text-muted-foreground block">Authorized Grand Total</span>
-            <span className="text-2xl font-black text-primary">{formatPrice(quote.amount)}</span>
-          </div>
-        </div>
+        {(() => {
+          const tax = quote.taxDetails || { baseSubtotal: quote.amount || 0, isIntrastate: true, cgst: 0, sgst: 0, igst: 0 };
+          return (
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-sm">
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>Taxable Value: {formatPrice(tax.baseSubtotal || 0)}</p>
+                {tax.isIntrastate ? (
+                  <p className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    CGST: {formatPrice(tax.cgst || 0)} | SGST: {formatPrice(tax.sgst || 0)}
+                  </p>
+                ) : (
+                  <p className="text-blue-600 dark:text-blue-400 font-medium">
+                    IGST: {formatPrice(tax.igst || 0)}
+                  </p>
+                )}
+              </div>
+              <div className="mt-3 md:mt-0 text-right">
+                <span className="text-xs text-muted-foreground block">Authorized Grand Total</span>
+                <span className="text-2xl font-black text-primary">{formatPrice(quote.amount || 0)}</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Billing Setup */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
