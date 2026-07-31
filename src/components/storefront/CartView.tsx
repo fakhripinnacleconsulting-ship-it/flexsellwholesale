@@ -217,7 +217,7 @@ export function CartView() {
             return (
               <Card key={item.id} className="border-border">
                 <CardContent className="p-4 flex flex-col sm:flex-row gap-4">
-                  <div className="w-24 h-24 bg-secondary rounded-md overflow-hidden flex-shrink-0 border relative">
+                  <Link href={`/products/${prod.slug || prod._id}`} className="w-24 h-24 bg-secondary rounded-md overflow-hidden flex-shrink-0 border relative hover:opacity-80 transition-opacity">
                     <Image
                       src={imgUrl || "https://placehold.co/400x400/10b981/ffffff?text=Product"}
                       alt={prod.title}
@@ -225,12 +225,14 @@ export function CartView() {
                       sizes="96px"
                       className="object-cover"
                     />
-                  </div>
+                  </Link>
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-semibold text-foreground line-clamp-2">{prod.title}</h3>
+                          <Link href={`/products/${prod.slug || prod._id}`} className="hover:text-primary transition-colors">
+                            <h3 className="font-semibold text-foreground line-clamp-2">{prod.title}</h3>
+                          </Link>
                           <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${livePriceTier === "B2B" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                             }`}>
                             {livePriceTier === "B2B" ? "Trade Price (B2B)" : "Selling Price (B2C)"}

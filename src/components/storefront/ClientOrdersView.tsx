@@ -14,6 +14,7 @@ import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
 import { formatPrice } from "@/lib/utils";
 import { Pagination } from "@/components/ui/Pagination";
+import { ViewDetailsDialog } from "@/components/ui/ViewDetailsDialog";
 
 export function ClientOrdersView() {
   const router = useRouter();
@@ -23,8 +24,53 @@ export function ClientOrdersView() {
   const { orders, initializeOrders } = useOrderStore();
   const { addToast } = useToastStore();
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("");
+  const [startDate, setStartDate] = React.useState("");
+  const [endDate, setEndDate] = React.useState("");
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
   const [reorderingId, setReorderingId] = React.useState<string | null>(null);
+
+  // Drag to scroll refs
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const isDown = React.useRef(false);
+  const startX = React.useRef(0);
+  const scrollLeft = React.useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDown.current = true;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.add('cursor-grabbing');
+      startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
+      scrollLeft.current = scrollContainerRef.current.scrollLeft;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.classList.remove('cursor-grabbing');
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDown.current || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX.current) * 2;
+    scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+
+  const truncateString = (str: string, max: number = 50) => {
+    if (!str) return str;
+    return str.length > max ? str.substring(0, max) + "..." : str;
+  };
 
   const handleReorder = async (order: Order) => {
     setReorderingId(order._id);
@@ -52,7 +98,7 @@ export function ClientOrdersView() {
   const { activeView } = useDashboardViewStore();
 
   const filteredOrders = React.useMemo(() => {
-    const viewFiltered = orders.filter(o => {
+    let viewFiltered = orders.filter(o => {
       const hasB2BItem = o.items?.some((item: any) => item.priceTier === "B2B");
       const hasDropshipItem = o.items?.some((item: any) => item.priceTier === "Dropshipping");
       
@@ -65,19 +111,41 @@ export function ClientOrdersView() {
       return !hasB2BItem && !hasDropshipItem;
     });
 
+    if (statusFilter) {
+      viewFiltered = viewFiltered.filter(o => o.status === statusFilter);
+    }
+    
+    if (startDate) {
+      viewFiltered = viewFiltered.filter(o => {
+        if (!o.date) return false;
+        const d = new Date(o.date).toISOString().split('T')[0];
+        return d >= startDate;
+      });
+    }
+
+    if (endDate) {
+      viewFiltered = viewFiltered.filter(o => {
+        if (!o.date) return false;
+        const d = new Date(o.date).toISOString().split('T')[0];
+        return d <= endDate;
+      });
+    }
+
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return viewFiltered;
-    return viewFiltered.filter(o => 
-      o._id.toLowerCase().includes(term) || 
-      ((o as any).orderId && (o as any).orderId.toLowerCase().includes(term)) ||
-      o.customerName.toLowerCase().includes(term) ||
-      o.items?.some((item: any) => 
-        (item.sku && item.sku.toLowerCase().includes(term)) ||
-        (item.productName && item.productName.toLowerCase().includes(term)) ||
-        (item.product?.title && item.product.title.toLowerCase().includes(term))
-      )
-    );
-  }, [orders, searchTerm, activeView]);
+    if (term) {
+      viewFiltered = viewFiltered.filter(o => 
+        o._id.toLowerCase().includes(term) || 
+        ((o as any).orderId && (o as any).orderId.toLowerCase().includes(term)) ||
+        o.customerName.toLowerCase().includes(term) ||
+        o.items?.some((item: any) => 
+          (item.sku && item.sku.toLowerCase().includes(term)) ||
+          (item.productName && item.productName.toLowerCase().includes(term)) ||
+          (item.product?.title && item.product.title.toLowerCase().includes(term))
+        )
+      );
+    }
+    return viewFiltered;
+  }, [orders, searchTerm, activeView, statusFilter, startDate, endDate]);
 
   const [currentPage, setCurrentPage] = React.useState(1);
   const ITEMS_PER_PAGE = 5;
@@ -115,24 +183,81 @@ export function ClientOrdersView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+      <div className="space-y-6 items-start">
         {/* Main Orders List Table */}
-        <div className="xl:col-span-2">
+        <div className="w-full">
           <Card>
-            <CardHeader className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 border-b">
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search by order ID..." 
-                  className="pl-9 text-foreground" 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <CardHeader className="flex flex-col gap-4 p-4 border-b">
+              <div className="flex flex-col xl:flex-row gap-4 items-center justify-between w-full">
+                <div className="relative w-full xl:w-72 flex-shrink-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search by order ID..." 
+                    className="pl-9 text-foreground" 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-background text-foreground text-xs font-semibold px-2.5 py-1.5 border rounded-md cursor-pointer h-9"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground font-medium">From:</span>
+                    <Input
+                      type="date"
+                      className="w-32 text-foreground h-9 px-2 py-1 text-xs"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground font-medium">To:</span>
+                    <Input
+                      type="date"
+                      className="w-32 text-foreground h-9 px-2 py-1 text-xs"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                  {(startDate || endDate || statusFilter) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                      onClick={() => {
+                        setStartDate("");
+                        setEndDate("");
+                        setStatusFilter("");
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+              <div 
+                className="overflow-x-auto custom-scrollbar cursor-grab active:cursor-grabbing select-none"
+                ref={scrollContainerRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+              >
+                <table className="w-full text-sm text-left whitespace-nowrap">
                   <thead className="text-xs text-muted-foreground uppercase bg-secondary/50">
                     <tr>
                       <th className="px-6 py-4">Order Details</th>
@@ -156,8 +281,8 @@ export function ClientOrdersView() {
                           onClick={() => router.push(`/client/orders/${order._id}`)}
                           className="hover:bg-secondary/20 transition-colors cursor-pointer"
                         >
-                          <td className="px-6 py-4">
-                            <p className="font-bold font-mono">{order._id}</p>
+                          <td className="px-6 py-4 font-mono max-w-[150px] truncate" title={order._id}>
+                            <p className="font-bold truncate">{truncateString(order._id, 20)}</p>
                             <p className="text-xs text-muted-foreground mt-1">{order.itemsCount} items</p>
                           </td>
                           <td className="px-6 py-4 text-muted-foreground">{order.date}</td>
@@ -169,13 +294,13 @@ export function ClientOrdersView() {
                           </td>
                           <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Buy Again"
+                              variant="outline"
+                              size="sm"
+                              className="text-xs font-semibold px-3 h-8"
                               disabled={reorderingId === order._id}
                               onClick={() => handleReorder(order)}
                             >
-                              <RotateCcw className="h-4 w-4" />
+                              Reorder
                             </Button>
                             <Button
                               variant="ghost"
@@ -213,71 +338,26 @@ export function ClientOrdersView() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Selected Order Detail Sidebar Panel */}
-        <div>
-          {selectedOrder ? (
-            <Card className="sticky top-24">
-              <CardHeader className="border-b pb-4 flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">Order Details</CardTitle>
-                  <p className="text-xs font-mono text-muted-foreground mt-1">{selectedOrder._id}</p>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setSelectedOrder(null)}
-                >
-                  Clear
-                </Button>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-6 text-sm">
-                <div>
-                  <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2">Shipping To:</h4>
-                  <p className="font-bold">{selectedOrder.shippingAddress.firstName} {selectedOrder.shippingAddress.lastName}</p>
-                  {selectedOrder.shippingAddress.company && (
-                    <p className="text-xs text-muted-foreground font-medium">{selectedOrder.shippingAddress.company}</p>
-                  )}
-                  <p className="text-muted-foreground mt-1">{selectedOrder.shippingAddress.address}</p>
-                  <p className="text-muted-foreground">{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.pinCode}</p>
-                  <p className="text-muted-foreground mt-1">Phone: {selectedOrder.shippingAddress.phone}</p>
-                </div>
-
-                <div className="border-t pt-4">
-                  <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3">Itemized Invoice:</h4>
-                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                    <div className="space-y-3">
-                      {selectedOrder.items.map((item, index) => (
-                        <div key={`${item.product._id}-${index}`} className="flex justify-between items-start">
-                          <div className="max-w-[70%]">
-                            <p className="font-semibold text-foreground line-clamp-1">{item.product.title}</p>
-                            <p className="text-xs text-muted-foreground">Qty: {item.quantity} x {formatPrice(item.pricePerUnit)}</p>
-                          </div>
-                          <span className="font-medium text-foreground">{formatPrice(item.pricePerUnit * item.quantity)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">Mock items details are packed.</p>
-                  )}
-                </div>
-
-                <div className="border-t pt-4 flex justify-between font-bold text-base text-foreground">
-                  <span>Grand Total (incl. GST)</span>
-                  <span>{formatPrice(selectedOrder.amount)}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="sticky top-24 bg-secondary/10 border-dashed border-2">
-              <CardContent className="py-16 text-center text-muted-foreground flex flex-col items-center">
-                <Info className="h-8 w-8 mb-2 text-muted-foreground" />
-                <p className="text-sm">Select an order row from the table to view shipment details and itemized invoices.</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
       </div>
+      
+      {/* Dialog for Selected Order */}
+      <ViewDetailsDialog 
+        isOpen={selectedOrder !== null}
+        onClose={() => setSelectedOrder(null)}
+        title="Order Details"
+        data={selectedOrder ? {
+          "Order ID": selectedOrder._id,
+          "Date": selectedOrder.date,
+          "Status": selectedOrder.status,
+          "Total Amount": formatPrice(selectedOrder.amount),
+          "Payment Method": selectedOrder.paymentMethod || "N/A",
+          "Shipping To": `${selectedOrder.shippingAddress?.firstName} ${selectedOrder.shippingAddress?.lastName}`,
+          "Company": selectedOrder.shippingAddress?.company || "N/A",
+          "Address": `${selectedOrder.shippingAddress?.address}, ${selectedOrder.shippingAddress?.city}, ${selectedOrder.shippingAddress?.state} - ${selectedOrder.shippingAddress?.pinCode}`,
+          "Phone": selectedOrder.shippingAddress?.phone || "N/A",
+          "Items": selectedOrder.items?.map(item => `${item.product?.title} (Qty: ${item.quantity} x ${formatPrice(item.pricePerUnit)})`).join(" | ") || "Mock items",
+        } : {}}
+      />
     </div>
   );
 }
