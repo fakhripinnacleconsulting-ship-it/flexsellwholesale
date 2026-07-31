@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Heart, ShoppingCart, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -193,11 +194,13 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
   if (layout === "list") {
     return (
       <Card 
-        onClick={handleCardClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="flex flex-col sm:flex-row w-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 cursor-pointer select-none rounded-xl overflow-hidden"
+        className="flex flex-col sm:flex-row w-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 select-none rounded-xl overflow-hidden"
       >
+        <Link href={`/products/${product.slug}`} className="absolute inset-0 z-10">
+          <span className="sr-only">View {product.title}</span>
+        </Link>
         {/* Wishlist Button */}
         <button 
           type="button"
@@ -373,11 +376,13 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
 
   return (
     <Card 
-      onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 cursor-pointer select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
+      className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
     >
+      <Link href={`/products/${product.slug}`} className="absolute inset-0 z-10">
+        <span className="sr-only">View {product.title}</span>
+      </Link>
       {/* Fixed Floating Overlay Badges */}
       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 pointer-events-none">
         {discount > 0 && (
