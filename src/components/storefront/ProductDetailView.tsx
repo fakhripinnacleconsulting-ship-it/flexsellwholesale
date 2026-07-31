@@ -13,6 +13,7 @@ import { VariantSelector } from "./product-detail/VariantSelector";
 import { ProductInfoTabs } from "./product-detail/ProductInfoTabs";
 import { ReviewSection } from "./product-detail/ReviewSection";
 import { RelatedProducts } from "./product-detail/RelatedProducts";
+import { useCategoryStore } from "@/stores/categoryStore";
 
 interface ProductDetailViewProps {
   slug: string;
@@ -24,6 +25,11 @@ import { trackViewItem } from "@/lib/gtm";
 
 function ProductDetailInner() {
   const { product, toggleWishlist, isInWishlist } = useProductDetail();
+  const { categories, initializeCategories } = useCategoryStore();
+
+  React.useEffect(() => {
+    initializeCategories();
+  }, [initializeCategories]);
 
   React.useEffect(() => {
     if (product) {
@@ -45,14 +51,32 @@ function ProductDetailInner() {
 
   const favorited = isInWishlist(product._id);
 
+  const breadcrumbItems = [];
+  const category = categories.find(c => c._id === product.categoryId);
+  const parentCategory = category?.parentId ? categories.find(c => c._id === category.parentId) : null;
+  
+  if (parentCategory) {
+    breadcrumbItems.push({ label: parentCategory.name, href: `/products?category=${parentCategory.slug}` });
+  }
+  if (category) {
+    breadcrumbItems.push({ label: category.name, href: `/products?category=${category.slug}` });
+  }
+  if (breadcrumbItems.length === 0) {
+    breadcrumbItems.push({ label: "Products", href: "/products" });
+  }
+  
+  const truncateTitle = (str: string, max: number = 50) => {
+    if (!str) return str;
+    return str.length > max ? str.substring(0, max) + "..." : str;
+  };
+  
+  breadcrumbItems.push({ label: truncateTitle(product.title, 50) });
+
   return (
     <div className="mx-auto max-w-8xl px-4 md:px-6 pt-4 md:pt-6 pb-12 text-foreground w-full">
       {/* Breadcrumb Header */}
       <div className="mb-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-        <Breadcrumb items={[
-          { label: "Products", href: "/products" },
-          { label: product.title }
-        ]} />
+        <Breadcrumb items={breadcrumbItems} />
         <Button
           variant="outline"
           size="sm"
