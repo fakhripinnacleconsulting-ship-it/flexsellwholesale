@@ -23,7 +23,7 @@ import {
 import { useProductStore } from "@/stores/productStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import Image from "next/image";
-import { Pagination } from "@/components/ui/Pagination";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import { notFound, usePathname, useSearchParams } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
 import { ProductCard } from "./ProductCard";
@@ -42,8 +42,8 @@ export function CategoryCatalog({ slug, initialProducts, initialCategories }: Ca
   // Layout States
   const [sortBy, setSortBy] = React.useState("recommended");
   const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const ITEMS_PER_PAGE = 12;
+  const [displayedPages, setDisplayedPages] = React.useState(1);
+  const ITEMS_PER_PAGE = 40;
 
   // Filter States
   const [selectedSubcategories, setSelectedSubcategories] = React.useState<string[]>([]);
@@ -91,7 +91,7 @@ export function CategoryCatalog({ slug, initialProducts, initialCategories }: Ca
 
   // Reset page index on state changes
   React.useEffect(() => {
-    setCurrentPage(1);
+    setDisplayedPages(1);
   }, [sortBy, selectedSubcategories, minPrice, maxPrice, inStockOnly, minDiscount]);
 
   const handleSubcategoryToggle = (catId: string) => {
@@ -227,9 +227,8 @@ export function CategoryCatalog({ slug, initialProducts, initialCategories }: Ca
   const totalPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE);
 
   const paginatedProducts = React.useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return sortedProducts.slice(start, start + ITEMS_PER_PAGE);
-  }, [sortedProducts, currentPage]);
+    return sortedProducts.slice(0, displayedPages * ITEMS_PER_PAGE);
+  }, [sortedProducts, displayedPages]);
 
 
   return (
@@ -420,12 +419,9 @@ export function CategoryCatalog({ slug, initialProducts, initialCategories }: Ca
             </div>
           )}
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={sortedProducts.length}
-            itemsPerPage={ITEMS_PER_PAGE}
+          <InfiniteScrollTrigger
+            hasMore={displayedPages < totalPages}
+            onIntersect={() => setDisplayedPages(p => p + 1)}
           />
         </div>
       </div>

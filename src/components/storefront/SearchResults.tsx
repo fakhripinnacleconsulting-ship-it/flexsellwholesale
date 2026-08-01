@@ -23,7 +23,7 @@ import {
 import { useProductStore } from "@/stores/productStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import Image from "next/image";
-import { Pagination } from "@/components/ui/Pagination";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import { formatPrice } from "@/lib/utils";
 import { ProductCard } from "./ProductCard";
 import { GlobalSearchInput } from "./GlobalSearchInput";
@@ -42,14 +42,14 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
   // Layout States
   const [sortBy, setSortBy] = React.useState("recommended");
   const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const ITEMS_PER_PAGE = 12;
+  const [displayedPages, setDisplayedPages] = React.useState(1);
+  const ITEMS_PER_PAGE = 40;
 
   // Track query prop change and reset page index during render
   const [prevQuery, setPrevQuery] = React.useState(query);
   if (query !== prevQuery) {
     setPrevQuery(query);
-    setCurrentPage(1);
+    setDisplayedPages(1);
   }
 
   // Filter States
@@ -191,7 +191,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
     setSelectedCategories(prev =>
       prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
     );
-    setCurrentPage(1);
+    setDisplayedPages(1);
   };
 
   const handleClearFilters = () => {
@@ -200,7 +200,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
     setMaxPrice("");
     setInStockOnly(false);
     setMinDiscount(0);
-    setCurrentPage(1);
+    setDisplayedPages(1);
   };
 
   // Filter Logic
@@ -270,9 +270,8 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
   const totalPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE);
 
   const paginatedProducts = React.useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return sortedProducts.slice(start, start + ITEMS_PER_PAGE);
-  }, [sortedProducts, currentPage]);
+    return sortedProducts.slice(0, displayedPages * ITEMS_PER_PAGE);
+  }, [sortedProducts, displayedPages]);
 
   const parentCategories = React.useMemo(() => {
     return categories.filter(c => !c.parentId);
@@ -352,7 +351,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
 
           <select
             value={sortBy}
-            onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => { setSortBy(e.target.value); setDisplayedPages(1); }}
             className="border-input border rounded-md px-3 py-2 text-sm bg-background text-foreground flex-1 sm:flex-none h-10"
           >
             <option value="recommended">Sort by: Recommended</option>
@@ -411,7 +410,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
                 placeholder="Min"
                 className="h-8 text-xs text-center"
                 value={minPrice}
-                onChange={(e) => { setMinPrice(e.target.value === "" ? "" : Number(e.target.value)); setCurrentPage(1); }}
+                onChange={(e) => { setMinPrice(e.target.value === "" ? "" : Number(e.target.value)); setDisplayedPages(1); }}
               />
               <span className="text-muted-foreground text-xs">—</span>
               <Input
@@ -419,7 +418,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
                 placeholder="Max"
                 className="h-8 text-xs text-center"
                 value={maxPrice}
-                onChange={(e) => { setMaxPrice(e.target.value === "" ? "" : Number(e.target.value)); setCurrentPage(1); }}
+                onChange={(e) => { setMaxPrice(e.target.value === "" ? "" : Number(e.target.value)); setDisplayedPages(1); }}
               />
             </div>
           </div>
@@ -431,7 +430,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
               <input
                 type="checkbox"
                 checked={inStockOnly}
-                onChange={(e) => { setInStockOnly(e.target.checked); setCurrentPage(1); }}
+                onChange={(e) => { setInStockOnly(e.target.checked); setDisplayedPages(1); }}
                 className="rounded border-input text-primary focus:ring-primary w-4 h-4 bg-background"
               />
               <span>In Stock Only</span>
@@ -448,7 +447,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
                     type="radio"
                     name="minDiscount"
                     checked={minDiscount === disc}
-                    onChange={() => { setMinDiscount(disc); setCurrentPage(1); }}
+                    onChange={() => { setMinDiscount(disc); setDisplayedPages(1); }}
                     className="text-primary focus:ring-primary w-4 h-4 bg-background"
                   />
                   <span>{disc === 0 ? "All Offers" : `${disc}% OFF & higher`}</span>
@@ -487,12 +486,9 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
             </div>
           )}
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={sortedProducts.length}
-            itemsPerPage={ITEMS_PER_PAGE}
+          <InfiniteScrollTrigger
+            hasMore={displayedPages < totalPages}
+            onIntersect={() => setDisplayedPages(p => p + 1)}
           />
         </div>
       </div>

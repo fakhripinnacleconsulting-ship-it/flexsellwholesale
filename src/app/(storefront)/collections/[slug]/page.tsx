@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { collectionService } from "@/services/collectionService";
-import { ProductCard } from "@/components/storefront/ProductCard";
+import { CollectionProductGrid } from "@/components/storefront/CollectionProductGrid";
 import { ExportCatalogButton } from "@/components/storefront/ExportCatalogButton";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Layers, AlertCircle, ShoppingBag } from "lucide-react";
@@ -140,19 +140,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
       </div>
 
       {/* Products Grid */}
-      {products.length === 0 ? (
-        <div className="text-center py-24 border border-dashed rounded-3xl bg-secondary/5">
-          <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="font-bold text-foreground">No Products Found</p>
-          <p className="text-xs text-muted-foreground mt-1">This collection does not contain any catalog lines at the moment.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {products.map((product: any) => (
-            <ProductCard key={product._id} product={product} />
-          ))}
-        </div>
-      )}
+      <CollectionProductGrid initialProducts={products} />
     </div>
     </>
   );
