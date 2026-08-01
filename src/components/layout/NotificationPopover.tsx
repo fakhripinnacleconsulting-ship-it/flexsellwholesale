@@ -39,8 +39,8 @@ export function NotificationPopover({ role = "customer", customerId }: Notificat
 
   React.useEffect(() => {
     fetchNotifications();
-    // Poll notifications silently every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
+    // Poll notifications silently every 5 minutes (300000ms) to save serverless function costs
+    const interval = setInterval(fetchNotifications, 300000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 

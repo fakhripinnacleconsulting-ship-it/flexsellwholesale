@@ -34,7 +34,7 @@ function AdminNotificationBell() {
 
   React.useEffect(() => {
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 60000);
+    const interval = setInterval(fetchNotifs, 300000); // 5 minutes
     return () => clearInterval(interval);
   }, [fetchNotifs]);
 
