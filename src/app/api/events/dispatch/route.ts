@@ -7,7 +7,7 @@ import { requireAuth } from "@/lib/authGuard";
 /**
  * Event types a browser is allowed to raise.
  *
- * Everything else is dispatched server-side, where `dispatchEvent()` calls
+ * Everything else is dispatched server-side, where `await dispatchEvent()` calls
  * `handleSystemEvent()` through a direct import and never touches this route. Keeping
  * this list to no-email, self-addressed events means a caller cannot use the endpoint
  * to send mail from our domain to an arbitrary address.
@@ -67,3 +67,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

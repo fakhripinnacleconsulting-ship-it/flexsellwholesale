@@ -73,7 +73,7 @@ export async function PUT(request: Request, { params }: RouteProps) {
 
           for (const email of targetEmails) {
             const cust = targetCustomers.find((c: any) => c.email.toLowerCase() === email);
-            dispatchEvent({
+            await dispatchEvent({
               eventType: "COUPON_LIVE",
               category: "system",
               actor: { id: "admin", name: "System Admin", role: "admin" },
@@ -87,7 +87,7 @@ export async function PUT(request: Request, { params }: RouteProps) {
           const allCustomers = await CustomerModel.find({ role: "customer" }).select("_id email name");
 
           for (const cust of allCustomers) {
-            dispatchEvent({
+            await dispatchEvent({
               eventType: "COUPON_LIVE",
               category: "system",
               actor: { id: "admin", name: "System Admin", role: "admin" },
@@ -98,7 +98,7 @@ export async function PUT(request: Request, { params }: RouteProps) {
           }
 
           // Global broadcast for in-app notification queries matching customerId: "all"
-          dispatchEvent({
+          await dispatchEvent({
             eventType: "COUPON_LIVE",
             category: "system",
             actor: { id: "admin", name: "System Admin", role: "admin" },

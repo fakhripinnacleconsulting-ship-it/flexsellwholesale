@@ -99,7 +99,7 @@ export async function POST(request: Request) {
         ? (await Customer.findOne({ email: email.toLowerCase() }).select("_id"))?._id || ""
         : "";
 
-      dispatchEvent({
+      await dispatchEvent({
         eventType: "PAYMENT_STATUS_CHANGED",
         category: "payments",
         actor: { id: "SYSTEM", name: "Razorpay Webhook", role: "system" },
@@ -117,3 +117,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Internal webhook error" }, { status: 500 });
   }
 }
+

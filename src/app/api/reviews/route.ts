@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     try {
       const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
       const revObj = newReview.toObject ? newReview.toObject() : newReview;
-      dispatchEvent({
+      await dispatchEvent({
         eventType: "REVIEW_SUBMITTED",
         category: "system",
         actor: { id: customer._id, name: customer.name, role: "customer" },
@@ -165,3 +165,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ message: (error as any).message || "Failed to delete review" }, { status: 500 });
   }
 }
+

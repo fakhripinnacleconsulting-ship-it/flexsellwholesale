@@ -667,7 +667,7 @@ export async function POST(request: Request) {
         ? (await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).select("_id"))?._id || payload.userId
         : payload.userId;
 
-      dispatchEvent({
+      await dispatchEvent({
         eventType: "ORDER_CREATED",
         category: "orders",
         actor: { id: payload.userId, name: payload.email, role: (payload.role as "admin" | "customer" | "system") || "customer" },
@@ -688,3 +688,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: error.message || "Failed to create order" }, { status: 500 });
   }
 }
+

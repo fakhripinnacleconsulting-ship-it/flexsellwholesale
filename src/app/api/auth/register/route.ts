@@ -117,13 +117,13 @@ export async function POST(req: Request) {
     // Dispatch Centralized Event (Triggers Welcome Email & Notification)
     try {
       const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
-      dispatchEvent({
+      await dispatchEvent({
         eventType: "AUTH_REGISTERED",
         category: "security",
         actor: { id: customerId, name, role: "customer" },
         recipient: { customerId, email: newCustomer.email, name, role: "both" },
         entity: { type: "customer", id: customerId },
-        data: { name, email: newCustomer.email, company: company || "" },
+        data: { name, email: newCustomer.email, company: company || "", customerTypes: newCustomer.customerTypes },
       });
     } catch (err) {
       console.error("Failed to dispatch AUTH_REGISTERED event:", err);

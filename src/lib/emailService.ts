@@ -576,6 +576,12 @@ export const emailService = {
 
   // 2. Welcome Email
   async sendWelcomeEmail(customer: any): Promise<boolean> {
+    const isWholesale = customer.customerTypes?.includes("B2B") || customer.customerTypes?.includes("Dropshipping");
+    const accountTypeLabel = isWholesale ? "B2B Wholesale account" : "Retail account";
+    const benefitsText = isWholesale
+      ? "You can now log in to access tiered wholesale pricing, request proforma quotes, and manage bulk purchase orders."
+      : "You can now log in to browse our catalog and manage your purchases.";
+      
     const bodyHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
         <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -583,8 +589,8 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello <strong>${customer.name}</strong>,</p>
-          <p>Your B2B buyer account (ID: <strong>${customer._id}</strong>) is now active.</p>
-          <p>You can now log in to access tiered wholesale pricing, request proforma quotes, and manage bulk purchase orders.</p>
+          <p>Your ${accountTypeLabel} (ID: <strong>${customer._id}</strong>) is now active.</p>
+          <p>${benefitsText}</p>
         </div>
         ${renderStandardEmailFooter("Account Activation")}
       </div>
@@ -683,6 +689,51 @@ export const emailService = {
       </div>
     `;
     return this.sendEmail({ to: this.getAdminEmail(), subject: `[Admin Alert] New Order #${order._id} Received`, html: bodyHtml, category: "orders" });
+  },
+
+  // 5B. Admin Order Status Update Alert
+  async sendAdminOrderStatusUpdateAlert(order: any, changeType: string): Promise<boolean> {
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #3b82f6; margin: 0;">Order ${changeType} #${order._id}</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello Admin,</p>
+          <p>Order <strong>#${order._id}</strong> has been updated:</p>
+          <ul>
+            <li><strong>Buyer:</strong> ${order.customerName}</li>
+            <li><strong>Status:</strong> ${order.status || "Updated"}</li>
+            <li><strong>Payment Status:</strong> ${order.paymentStatus || "Pending"}</li>
+            <li><strong>Total Amount:</strong> ₹${Number(order.amount || order.total || 0).toLocaleString("en-IN")}</li>
+          </ul>
+        </div>
+        ${renderStandardEmailFooter("Order Status Alert", order._id)}
+      </div>
+    `;
+    return this.sendEmail({ to: this.getAdminEmail(), subject: `[Admin Alert] Order #${order._id} Status Updated`, html: bodyHtml, category: "orders" });
+  },
+
+  // 5C. Admin Order Cancellation Alert
+  async sendAdminOrderCancelledAlert(order: any): Promise<boolean> {
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #ef4444; margin: 0;">Order Cancelled #${order._id}</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello Admin,</p>
+          <p>Order <strong>#${order._id}</strong> has been <strong>CANCELLED</strong>.</p>
+          <ul>
+            <li><strong>Buyer:</strong> ${order.customerName}</li>
+            <li><strong>Payment Status:</strong> ${order.paymentStatus || "Pending"}</li>
+            <li><strong>Total Amount:</strong> ₹${Number(order.amount || order.total || 0).toLocaleString("en-IN")}</li>
+          </ul>
+        </div>
+        ${renderStandardEmailFooter("Order Cancellation Alert", order._id)}
+      </div>
+    `;
+    return this.sendEmail({ to: this.getAdminEmail(), subject: `[Admin Alert] Order #${order._id} Cancelled`, html: bodyHtml, category: "orders" });
   },
 
   // 6. Order Modification Summary Email
@@ -975,6 +1026,66 @@ export const emailService = {
       </div>
     `;
     return this.sendEmail({ to: this.getAdminEmail(), subject: `[Review Alert] Moderation Required for ${review.productId}`, html: bodyHtml, category: "system" });
+  },
+
+  // 5. Account Upgrade Approved
+  async sendUpgradeApprovedEmail(customer: any, newTypes: string[]): Promise<boolean> {
+    const typesStr = newTypes.join(" and ");
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #10b981; margin: 0;">Account Upgrade Approved!</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello <strong>${customer.name}</strong>,</p>
+          <p>Great news! Your account has been successfully upgraded to <strong>${typesStr}</strong>.</p>
+          <p>You can now log in and access all the benefits associated with your new account type, including tiered pricing and bulk ordering features.</p>
+        </div>
+        ${renderStandardEmailFooter("Account Update")}
+      </div>
+    `;
+    return this.sendEmail({ to: customer.email, subject: "FlexSell - Account Upgrade Approved", html: bodyHtml, category: "security" });
+  },
+
+  // 6. Account Upgrade Rejected
+  async sendUpgradeRejectedEmail(customer: any, reason: string): Promise<boolean> {
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #ef4444; margin: 0;">Account Upgrade Update</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello <strong>${customer.name}</strong>,</p>
+          <p>We have reviewed your account upgrade request. Unfortunately, we are unable to approve it at this time.</p>
+          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+          <p>Please contact support if you have any questions or would like to provide additional information.</p>
+        </div>
+        ${renderStandardEmailFooter("Account Update")}
+      </div>
+    `;
+    return this.sendEmail({ to: customer.email, subject: "FlexSell - Account Upgrade Update", html: bodyHtml, category: "security" });
+  },
+
+  // 7. Admin Account Upgrade Requested Alert
+  async sendAdminUpgradeRequestedAlert(customer: any, requestedTypes: string[]): Promise<boolean> {
+    const adminEmail = this.getAdminEmail();
+    if (!adminEmail) return false;
+    const typesStr = requestedTypes.join(" and ");
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #f59e0b; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #ffffff; margin: 0;">New Account Upgrade Request</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p><strong>Customer:</strong> ${customer.name} (${customer.email})</p>
+          <p><strong>Requested Type(s):</strong> ${typesStr}</p>
+          <p><strong>Company:</strong> ${customer.company || "N/A"}</p>
+          <p>Please review this request in the admin dashboard.</p>
+        </div>
+        ${renderStandardEmailFooter("Admin Alert")}
+      </div>
+    `;
+    return this.sendEmail({ to: adminEmail, subject: `New Upgrade Request - ${customer.name}`, html: bodyHtml, category: "system" });
   },
 
   // 16. Review Moderated Notification to Customer

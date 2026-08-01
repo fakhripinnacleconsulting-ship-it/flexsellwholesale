@@ -118,7 +118,7 @@ export async function POST(req: Request) {
     await OtpVerification.deleteOne({ email: lowerEmail });
 
     // 9. Dispatch Centralized Event
-    dispatchEvent({
+    await dispatchEvent({
       eventType: "AUTH_REGISTERED",
       category: "security",
       actor: { id: customerId, name, role: "customer" },
@@ -152,3 +152,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: (error as any).message || "Verification failed" }, { status: 500 });
   }
 }
+

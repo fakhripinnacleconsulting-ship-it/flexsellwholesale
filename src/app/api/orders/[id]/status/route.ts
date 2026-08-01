@@ -93,7 +93,7 @@ export async function PUT(
 
       const eventTypeToDispatch = status === "Cancelled" ? "ORDER_CANCELLED" : status === "Shipped" ? "ORDER_SHIPPED" : "ORDER_STATUS_CHANGED";
 
-      dispatchEvent({
+      await dispatchEvent({
         eventType: eventTypeToDispatch,
         category: "orders",
         actor: { id: payload.userId, name: "Admin", role: "admin" },

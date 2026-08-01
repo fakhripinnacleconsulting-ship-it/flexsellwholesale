@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
     // Dispatch System Event (Rule 7: Admin Notif = TRUE, Admin Mail = TRUE via centralized eventHandler)
     try {
-      dispatchEvent({
+      await dispatchEvent({
         eventType: "INQUIRY_SUBMITTED",
         category: "quotes",
         actor: {
@@ -193,7 +193,7 @@ export async function PATCH(request: Request) {
     if (replyText && replyText !== previousNotes.trim()) {
       try {
         const customerName = `${updated.firstName} ${updated.lastName}`.trim();
-        dispatchEvent({
+        await dispatchEvent({
           eventType: "INQUIRY_RESPONDED",
           category: "quotes",
           actor: { id: payload.userId, name: "Support Team", role: "admin" },
@@ -216,3 +216,4 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: (error as any).message || "Failed to update inquiry" }, { status: 500 });
   }
 }
+

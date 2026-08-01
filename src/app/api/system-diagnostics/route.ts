@@ -206,7 +206,7 @@ export async function POST(req: Request) {
     }
 
     // Trigger test event notification
-    dispatchEvent({
+    await dispatchEvent({
       eventType: "DIAGNOSTIC_TEST",
       category: "system",
       actor: { id: "SYSTEM", name: "System Diagnostics", role: "admin" },
@@ -222,3 +222,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: error.message || "Failed to dispatch test email" }, { status: 500 });
   }
 }
+

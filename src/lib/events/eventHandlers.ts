@@ -97,14 +97,44 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         break;
 
       case "AUTH_REGISTERED":
+        const isWholesale = data?.customerTypes?.includes("B2B") || data?.customerTypes?.includes("Dropshipping");
         notifTitle = "Welcome to FlexSell Wholesale!";
-        notifMessage = `Your B2B buyer account (${customerId}) is active. Access tiered volume pricing and catalog specs.`;
+        notifMessage = isWholesale
+          ? `Your B2B buyer account (${customerId}) is active. Access tiered volume pricing and catalog specs.`
+          : `Your retail account (${customerId}) is active. Start shopping now!`;
         notifType = "success";
         deepLink = "/client/profile";
         const emailForWelcome = customerEmail || data?.email;
         if (emailForWelcome) {
           triggerEmailSend = () =>
-            emailService.sendWelcomeEmail({ _id: customerId, email: emailForWelcome, name: customerName || data?.name || "Valued Buyer" });
+            emailService.sendWelcomeEmail({ 
+              _id: customerId, 
+              email: emailForWelcome, 
+              name: customerName || data?.name || "Valued Buyer",
+              customerTypes: data?.customerTypes || []
+            });
+        }
+        break;
+
+      case "ACCOUNT_UPGRADE_APPROVED":
+        notifTitle = "Account Upgrade Approved";
+        notifMessage = `Your request to upgrade to ${data?.newTypes?.join(" & ")} has been approved.`;
+        notifType = "success";
+        deepLink = "/client/profile";
+        const emailForApprove = customerEmail || data?.email;
+        if (emailForApprove) {
+          triggerEmailSend = () => emailService.sendUpgradeApprovedEmail({ _id: customerId, email: emailForApprove, name: customerName || data?.name || "Customer" }, data?.newTypes || []);
+        }
+        break;
+
+      case "ACCOUNT_UPGRADE_REJECTED":
+        notifTitle = "Account Upgrade Update";
+        notifMessage = `Your request for account upgrade was not approved at this time.`;
+        notifType = "info";
+        deepLink = "/client/profile";
+        const emailForReject = customerEmail || data?.email;
+        if (emailForReject) {
+          triggerEmailSend = () => emailService.sendUpgradeRejectedEmail({ _id: customerId, email: emailForReject, name: customerName || data?.name || "Customer" }, data?.reason || "");
         }
         break;
 
@@ -286,6 +316,18 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         }
         break;
 
+      case "ACCOUNT_UPGRADE_REQUESTED":
+        notifTitle = "New Upgrade Request";
+        notifMessage = `${data?.name} has requested an upgrade to ${data?.requestedTypes?.join(" & ")}.`;
+        notifType = "info";
+        deepLink = "/admin/customers";
+        // Always alert admin via email
+        triggerEmailSend = () => emailService.sendAdminUpgradeRequestedAlert(
+          { name: data?.name || "Customer", email: data?.email, company: data?.company },
+          data?.requestedTypes || []
+        );
+        break;
+
       case "QUOTE_GENERATED":
         notifTitle = `Proforma Quote Ready #${entity.id}`;
         notifMessage = `Proforma Quote #${entity.id} for ₹${Number(data?.amount || 0).toLocaleString("en-IN")} is ready for review.`;
@@ -327,8 +369,15 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         }
         break;
 
-      // Rule 7: Enquiry Form - Customer Notif = FALSE, Customer Mail = FALSE
+      // Rule 7: Enquiry Form - Updated to send email confirmation
       case "INQUIRY_SUBMITTED":
+        notifTitle = `Inquiry Received`;
+        notifMessage = `We have received your wholesale inquiry regarding: "${data?.subject || "Support"}".`;
+        notifType = "info";
+        deepLink = "/client/support";
+        if (customerEmail && data) {
+          triggerEmailSend = () => emailService.sendCustomerInquiryConfirmation(data, customerEmail);
+        }
         break;
 
       case "INQUIRY_RESPONDED":
@@ -385,12 +434,12 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
 
     switch (eventType) {
       case "AUTH_REGISTERED":
-        // Rule 3: Admin Notif = TRUE, Admin Mail = FALSE
+        // Rule 3: Updated to enable Admin Mail
         adminTitle = "New Buyer Registration";
         adminMessage = `New wholesale buyer "${recipient.name || "Buyer"}" (${recipient.email || ""}) registered. ID: ${entity.id}`;
         adminType = "info";
         adminLink = "/admin/customers";
-        triggerAdminEmailSend = async () => {};
+        triggerAdminEmailSend = () => emailService.sendAdminNewBuyerAlert(data || { name: recipient.name, email: recipient.email, _id: entity.id, company: "N/A" });
         break;
 
       case "PROFILE_UPDATED":
@@ -424,7 +473,17 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         adminType = "info";
         adminLink = `/admin/orders/${entity.id}`;
         if (data) {
-          triggerAdminEmailSend = () => emailService.sendAdminNewOrderAlert(data.order || data);
+          triggerAdminEmailSend = () => emailService.sendAdminOrderStatusUpdateAlert(data.order || data, data?.status || data?.paymentStatus || "Updated");
+        }
+        break;
+
+      case "ORDER_CANCELLED":
+        adminTitle = `Order #${entity.id} Cancelled`;
+        adminMessage = `Order #${entity.id} has been cancelled.`;
+        adminType = "warning";
+        adminLink = `/admin/orders/${entity.id}`;
+        if (data) {
+          triggerAdminEmailSend = () => emailService.sendAdminOrderCancelledAlert(data.order || data || { _id: entity.id, customerName: actor.name });
         }
         break;
 

@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
           for (const email of targetEmails) {
             const cust = targetCustomers.find((c: any) => c.email.toLowerCase() === email);
-            dispatchEvent({
+            await dispatchEvent({
               eventType: "COUPON_LIVE",
               category: "system",
               actor: { id: "admin", name: "System Admin", role: "admin" },
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
           const allCustomers = await CustomerModel.find({ role: "customer" }).select("_id email name");
 
           for (const cust of allCustomers) {
-            dispatchEvent({
+            await dispatchEvent({
               eventType: "COUPON_LIVE",
               category: "system",
               actor: { id: "admin", name: "System Admin", role: "admin" },
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
           }
 
           // Global broadcast for in-app notification queries matching customerId: "all"
-          dispatchEvent({
+          await dispatchEvent({
             eventType: "COUPON_LIVE",
             category: "system",
             actor: { id: "admin", name: "System Admin", role: "admin" },
@@ -140,3 +140,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: (error as any).message || "Failed to create coupon" }, { status: 500 });
   }
 }
+

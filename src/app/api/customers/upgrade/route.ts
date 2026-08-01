@@ -46,6 +46,26 @@ export async function POST(request: Request) {
 
     await customer.save();
 
+    // Dispatch Event
+    try {
+      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      await dispatchEvent({
+        eventType: "ACCOUNT_UPGRADE_REQUESTED",
+        category: "security",
+        actor: { id: customer._id, name: customer.name, role: "customer" },
+        recipient: { role: "admin" }, // Sends to admin
+        entity: { type: "customer", id: customer._id },
+        data: { 
+          name: customer.name, 
+          email: customer.email, 
+          company: customer.company,
+          requestedTypes
+        },
+      });
+    } catch (err) {
+      console.error("Failed to dispatch upgrade request event:", err);
+    }
+
     const customerObj = customer.toObject();
     delete customerObj.password;
 
@@ -128,6 +148,26 @@ export async function PUT(request: Request) {
     }
 
     await customer.save();
+
+    // Dispatch Event
+    try {
+      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      await dispatchEvent({
+        eventType: action === "approve" ? "ACCOUNT_UPGRADE_APPROVED" : "ACCOUNT_UPGRADE_REJECTED",
+        category: "security",
+        actor: { id: payload.userId, name: "Admin", role: "admin" },
+        recipient: { customerId: customer._id, email: customer.email, name: customer.name, role: "customer" },
+        entity: { type: "customer", id: customer._id },
+        data: { 
+          name: customer.name, 
+          email: customer.email, 
+          newTypes: action === "approve" ? customer.customerTypes : undefined,
+          reason: action === "reject" ? reason : undefined
+        },
+      });
+    } catch (err) {
+      console.error("Failed to dispatch upgrade decision event:", err);
+    }
 
     const customerObj = customer.toObject();
     delete customerObj.password;

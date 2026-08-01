@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
           const eventData = { ...order, paymentStatus: "Paid", status: "Processing" };
 
-          dispatchEvent({
+          await dispatchEvent({
             eventType: "ORDER_CREATED",
             category: "orders",
             actor: { id: "SYSTEM", name: "Razorpay", role: "system" },
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
             data: eventData,
           });
 
-          dispatchEvent({
+          await dispatchEvent({
             eventType: "PAYMENT_STATUS_CHANGED",
             category: "payments",
             actor: { id: "SYSTEM", name: "Razorpay", role: "system" },
@@ -110,3 +110,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error during verification" }, { status: 500 });
   }
 }
+

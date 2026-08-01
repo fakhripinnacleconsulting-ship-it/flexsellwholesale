@@ -23,7 +23,7 @@ export interface SystemEventPayload {
   timestamp?: string;
 }
 
-export function dispatchEvent(payload: SystemEventPayload): void {
+export async function dispatchEvent(payload: SystemEventPayload): Promise<void> {
   const fullPayload: SystemEventPayload = {
     ...payload,
     eventId: payload.eventId || `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -32,26 +32,21 @@ export function dispatchEvent(payload: SystemEventPayload): void {
 
   console.log(`[EVENT DISPATCHED] Type: ${fullPayload.eventType} | Entity: ${fullPayload.entity.type}:${fullPayload.entity.id}`);
 
-  // Non-blocking asynchronous event handling execution
-  setTimeout(() => {
-    if (typeof window !== "undefined") {
-      // Browser environment: handle client-side mock events
-      try {
-        handleClientMockEvent(fullPayload);
-      } catch (err) {
-        console.error(`[CLIENT EVENT HANDLER ERROR] Unhandled exception in mock event ${fullPayload.eventType}:`, err);
-      }
-    } else {
-      // Server environment: dynamically import server handlers
-      import("./eventHandlers")
-        .then(({ handleSystemEvent }) => {
-          handleSystemEvent(fullPayload).catch((err) => {
-            console.error(`[EVENT HANDLER ERROR] Unhandled exception in event ${fullPayload.eventType}:`, err);
-          });
-        })
-        .catch((err) => {
-          console.error(`[EVENT DISPATCHER IMPORT ERROR] Failed to load server event handlers:`, err);
-        });
+  if (typeof window !== "undefined") {
+    // Browser environment: handle client-side mock events
+    try {
+      const { handleClientMockEvent } = await import("./eventHandlersClient");
+      await handleClientMockEvent(fullPayload);
+    } catch (err) {
+      console.error(`[CLIENT EVENT HANDLER ERROR] Unhandled exception in mock event ${fullPayload.eventType}:`, err);
     }
-  }, 0);
+  } else {
+    // Server environment: dynamically import server handlers and await execution
+    try {
+      const { handleSystemEvent } = await import("./eventHandlers");
+      await handleSystemEvent(fullPayload);
+    } catch (err) {
+      console.error(`[EVENT DISPATCHER ERROR] Failed to process server event ${fullPayload.eventType}:`, err);
+    }
+  }
 }

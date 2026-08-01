@@ -91,7 +91,7 @@ export async function PUT(request: Request) {
     if (updatedFields.length > 0) {
       try {
         const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
-        dispatchEvent({
+        await dispatchEvent({
           eventType: "PROFILE_UPDATED",
           category: "security",
           actor: { id: customer._id.toString(), name: customer.name, role: "customer" },
@@ -115,3 +115,4 @@ export async function PUT(request: Request) {
     return NextResponse.json({ message: (error as any).message || "Failed to update profile" }, { status: 500 });
   }
 }
+

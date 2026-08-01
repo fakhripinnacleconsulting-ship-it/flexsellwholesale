@@ -62,7 +62,7 @@ export async function PUT(
       const customerName = order.customerName || order.shippingAddress?.name || "Valued Customer";
       const targetCustomerId = (await Customer.findOne({ email: customerEmail.toLowerCase() }).select("_id"))?._id || "";
 
-      dispatchEvent({
+      await dispatchEvent({
         eventType: "ORDER_SHIPPED",
         category: "shipments",
         actor: { id: payload.userId, name: "Admin", role: "admin" },
