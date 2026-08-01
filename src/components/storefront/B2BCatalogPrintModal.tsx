@@ -402,7 +402,7 @@ export function B2BCatalogPrintModal({
 
   const modalContent = (
     <div className="b2b-print-modal-portal fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
-      
+
       {/* Screen Controls Header (Hidden on Print) */}
       <div className="no-print fixed top-4 right-4 z-50 flex items-center gap-3 bg-background/90 border border-border backdrop-blur-md p-2 rounded-xl shadow-2xl">
         <Button onClick={handlePrint} size="sm" className="gap-2 bg-primary text-primary-foreground font-semibold">
@@ -423,7 +423,7 @@ export function B2BCatalogPrintModal({
         {/* Printable Section Header */}
         <div className="p-6 md:p-8 bg-card border-b border-border">
           <div className="flex flex-col sm:flex-row justify-between items-start gap-6">
-            
+
             {/* Left Header: Brand & Catalog Information */}
             <div className="space-y-2.5 max-w-xl">
               <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
@@ -434,9 +434,7 @@ export function B2BCatalogPrintModal({
                   className="h-8 sm:h-9 max-h-9 max-w-[150px] w-auto object-contain shrink-0 document-logo print-logo"
                 />
                 <div className="h-5 w-px bg-border/80 hidden sm:block" />
-                <span className="bg-primary/10 text-primary border border-primary/20 text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shrink-0">
-                  B2B Sourcing Specification
-                </span>
+
               </div>
 
               <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight uppercase">
