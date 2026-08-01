@@ -22,15 +22,22 @@ export async function PUT(request: Request, { params }: RouteProps) {
     const body = await request.json();
     
     // Parse partial coupon schema
-    const validatedData = couponSchema.partial().parse(body);
+    const parsedData = couponSchema.partial().parse(body);
+
+    const updateData: any = {};
+    for (const key of Object.keys(body)) {
+      if (key in parsedData) {
+        updateData[key] = (parsedData as any)[key];
+      }
+    }
 
     const coupon = await Coupon.findById(id);
     if (!coupon) {
       return NextResponse.json({ message: "Coupon not found" }, { status: 404 });
     }
 
-    if (validatedData.code !== undefined) {
-      const uppercaseCode = validatedData.code.toUpperCase().trim();
+    if (updateData.code !== undefined) {
+      const uppercaseCode = updateData.code.toUpperCase().trim();
       if (uppercaseCode !== coupon.code) {
         // Verify code is unique
         const existing = await Coupon.findOne({ code: uppercaseCode });
@@ -41,16 +48,16 @@ export async function PUT(request: Request, { params }: RouteProps) {
       }
     }
 
-    if (validatedData.discountType !== undefined) coupon.discountType = validatedData.discountType;
-    if (validatedData.discountValue !== undefined) coupon.discountValue = validatedData.discountValue;
-    if (validatedData.minOrderValue !== undefined) coupon.minOrderValue = validatedData.minOrderValue;
-    if (validatedData.maxDiscount !== undefined) coupon.maxDiscount = validatedData.maxDiscount;
-    if (validatedData.expiryDate !== undefined) coupon.expiryDate = validatedData.expiryDate;
-    if (validatedData.isActive !== undefined) coupon.isActive = validatedData.isActive;
-    if (validatedData.isPersonalized !== undefined) coupon.isPersonalized = validatedData.isPersonalized;
-    if (validatedData.allowedCustomers !== undefined) coupon.allowedCustomers = validatedData.allowedCustomers.map((e: string) => e.toLowerCase().trim());
-    if (validatedData.usageLimit !== undefined) coupon.usageLimit = validatedData.usageLimit;
-    if (validatedData.usageLimitPerCustomer !== undefined) coupon.usageLimitPerCustomer = validatedData.usageLimitPerCustomer;
+    if (updateData.discountType !== undefined) coupon.discountType = updateData.discountType;
+    if (updateData.discountValue !== undefined) coupon.discountValue = updateData.discountValue;
+    if (updateData.minOrderValue !== undefined) coupon.minOrderValue = updateData.minOrderValue;
+    if (updateData.maxDiscount !== undefined) coupon.maxDiscount = updateData.maxDiscount;
+    if (updateData.expiryDate !== undefined) coupon.expiryDate = updateData.expiryDate;
+    if (updateData.isActive !== undefined) coupon.isActive = updateData.isActive;
+    if (updateData.isPersonalized !== undefined) coupon.isPersonalized = updateData.isPersonalized;
+    if (updateData.allowedCustomers !== undefined) coupon.allowedCustomers = updateData.allowedCustomers.map((e: string) => e.toLowerCase().trim());
+    if (updateData.usageLimit !== undefined) coupon.usageLimit = updateData.usageLimit;
+    if (updateData.usageLimitPerCustomer !== undefined) coupon.usageLimitPerCustomer = updateData.usageLimitPerCustomer;
 
     await coupon.save();
 

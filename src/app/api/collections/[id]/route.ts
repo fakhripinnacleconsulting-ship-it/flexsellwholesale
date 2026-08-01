@@ -37,11 +37,18 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    const validatedData = collectionSchema.partial().parse(body);
-    
+    const parsedData = collectionSchema.partial().parse(body);
+
+    const updateData: any = {};
+    for (const key of Object.keys(body)) {
+      if (key in parsedData) {
+        updateData[key] = (parsedData as any)[key];
+      }
+    }
+
     const updatedCollection = await Collection.findByIdAndUpdate(
       id,
-      { $set: validatedData },
+      { $set: updateData },
       { new: true, runValidators: true }
     );
     

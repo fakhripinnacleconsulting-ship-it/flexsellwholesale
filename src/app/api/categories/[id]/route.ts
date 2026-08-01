@@ -19,11 +19,18 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    const validatedData = categorySchema.partial().parse(body);
+    const parsedData = categorySchema.partial().parse(body);
+    
+    const updateData: any = {};
+    for (const key of Object.keys(body)) {
+      if (key in parsedData) {
+        updateData[key] = (parsedData as any)[key];
+      }
+    }
     
     const updatedCategory = await Category.findByIdAndUpdate(
       id,
-      { $set: validatedData },
+      { $set: updateData },
       { new: true, runValidators: true }
     );
     

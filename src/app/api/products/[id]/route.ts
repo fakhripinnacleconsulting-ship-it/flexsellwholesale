@@ -39,11 +39,21 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    const validatedData = productSchema.partial().parse(body);
+    const parsedData = productSchema.partial().parse(body);
+    
+    // Zod `.partial()` still applies `.default()` to missing fields, which causes 
+    // data erasure during partial updates (e.g., toggling isActive). 
+    // We only keep fields that were actually sent in the request body.
+    const updateData: any = {};
+    for (const key of Object.keys(body)) {
+      if (key in parsedData) {
+        updateData[key] = (parsedData as any)[key];
+      }
+    }
     
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
-      { $set: validatedData },
+      { $set: updateData },
       { new: true, runValidators: true }
     );
     
