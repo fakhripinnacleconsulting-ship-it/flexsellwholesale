@@ -45,8 +45,6 @@ export default function AdminSettingsPage() {
     ]
   });
 
-  // Commerce settings states
-  const [minOrderValue, setMinOrderValue] = React.useState("1000");
   const [defaultTaxRate, setDefaultTaxRate] = React.useState("18");
   const [enableCod, setEnableCod] = React.useState(true);
   const [enableOnlinePayment, setEnableOnlinePayment] = React.useState(true);
@@ -120,7 +118,6 @@ export default function AdminSettingsPage() {
               : prev.termsAndConditions
           }));
 
-          if (commerce.minOrderValue) setMinOrderValue(commerce.minOrderValue);
           if (commerce.defaultTaxRate) setDefaultTaxRate(commerce.defaultTaxRate);
           if (commerce.enableCod !== undefined) setEnableCod(commerce.enableCod);
           if (commerce.enableOnlinePayment !== undefined) setEnableOnlinePayment(commerce.enableOnlinePayment);
@@ -153,7 +150,7 @@ export default function AdminSettingsPage() {
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
-      const commerceSettings = { minOrderValue, defaultTaxRate, enableCod, enableOnlinePayment };
+      const commerceSettings = { defaultTaxRate, enableCod, enableOnlinePayment };
 
       const saveReqs = [
         apiClient.post("/cms", { key: "businessSettings", value: companyInfo }),
@@ -276,10 +273,6 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Minimum Order Value (₹)</label>
-                  <Input value={minOrderValue} onChange={(e) => setMinOrderValue(e.target.value)} type="number" />
-                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Default Tax Rate (%)</label>
                   <Input value={defaultTaxRate} onChange={(e) => setDefaultTaxRate(e.target.value)} type="number" />

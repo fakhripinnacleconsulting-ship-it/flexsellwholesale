@@ -245,19 +245,7 @@ export async function POST(request: Request) {
     const validatedData = orderSchema.parse(body);
     const { items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, packagingCharge, shippingCharge, quoteId, salesperson } = validatedData;
 
-    // Enforce the site-wide minimum order value from Admin Settings for direct storefront checkouts
-    // (quote conversions and admin-placed orders are exempt — those go through separate approval flows)
-    if (!quoteId && payload.role !== "admin") {
-      const commerceCms = await CmsContent.findOne({ key: "commerceSettings" }).lean();
-      const minOrderValue = parseFloat((commerceCms?.value as any)?.minOrderValue) || 0;
-      const orderItemsSubtotal = items.reduce((sum: number, item: any) => sum + (item.pricePerUnit * item.quantity), 0);
-      if (minOrderValue > 0 && orderItemsSubtotal < minOrderValue) {
-        return NextResponse.json(
-          { message: `Minimum order value is ₹${minOrderValue}. Please add more items to your cart to checkout.` },
-          { status: 400 }
-        );
-      }
-    }
+    // Validations passed, process checkout
 
     // Idempotency Check: if quoteId is provided, check if Order already exists
     if (quoteId) {
