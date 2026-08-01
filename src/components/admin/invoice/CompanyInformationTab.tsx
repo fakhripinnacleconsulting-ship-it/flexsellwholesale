@@ -63,7 +63,8 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
     try {
       const data = await apiClient.post<{ url?: string; message?: string }>("/upload", formData);
       if (data.url) {
-        setCompanyInfo(prev => ({ ...prev, signatureUrl: data.url }));
+        const signatureUrl = data.url;
+        setCompanyInfo(prev => ({ ...prev, signatureUrl }));
         addToast("Digital signature uploaded successfully!", "success");
       } else {
         throw new Error(data.message || "Upload failed");

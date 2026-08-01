@@ -84,8 +84,8 @@ export async function POST(req: Request) {
       .toUpperCase()
       .substring(0, 2) || "C";
 
-    const hasB2bOrDropship = customerTypes?.some((t) => t === "B2B" || t === "Dropshipping");
-    const requestedTypes = (customerTypes || []).filter((t) => t === "B2B" || t === "Dropshipping") as ("B2B" | "Dropshipping")[];
+    const hasB2bOrDropship = customerTypes?.some((t: string) => t === "B2B" || t === "Dropshipping");
+    const requestedTypes = (customerTypes || []).filter((t: string) => t === "B2B" || t === "Dropshipping") as ("B2B" | "Dropshipping")[];
 
     const newCustomer = new Customer({
       _id: customerId,
