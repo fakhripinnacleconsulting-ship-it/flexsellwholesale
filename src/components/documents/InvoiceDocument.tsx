@@ -190,6 +190,24 @@ export function InvoiceDocument({
   const inferredShipping = (order.amount || 0) - itemTotalWithGst + couponDiscount;
   const shippingCharge = explicitShipping > 0 ? explicitShipping : (inferredShipping > 0.01 ? parseFloat(inferredShipping.toFixed(2)) : 0);
 
+  const accountTypeLabel = (() => {
+    const rawType = (
+      customerType ||
+      (order as any)?.customerType ||
+      (order as any)?.orderType ||
+      (order as any)?.priceTier ||
+      (order as any)?.items?.[0]?.priceTier ||
+      (order as any)?.items?.[0]?.customerType ||
+      ""
+    ).toString().toUpperCase();
+
+    if (rawType.includes("DROP")) return "Dropshipping Account";
+    if (rawType.includes("B2C") || rawType.includes("RETAIL")) return "B2C Account";
+    if (rawType.includes("B2B") || rawType.includes("WHOLESALE") || rawType.includes("STANDARD") || rawType.includes("VIP")) return "B2B Account";
+    if ((order as any)?.shippingAddress?.gstin || (order as any)?.shippingAddress?.company) return "B2B Account";
+    return "B2C Account";
+  })();
+
   const handlePrint = () => {
     const docLabel = isShippingLabel
       ? "Shipping_Label"
@@ -249,7 +267,7 @@ export function InvoiceDocument({
                 {sellerInfo.legalName || sellerInfo.storeName || "FLEXSELL WHOLESALE SOURCING PVT LTD"}
               </h1>
               <p className="text-[10px] font-bold tracking-widest uppercase text-gray-700">
-                B2B WHOLESALE ORDER DISPATCH
+                {accountTypeLabel.toUpperCase()} DISPATCH
               </p>
             </div>
 
@@ -352,13 +370,37 @@ export function InvoiceDocument({
                 </thead>
                 <tbody className="divide-y divide-black font-semibold text-black">
                   {itemsList.slice(0, 4).map((item: any, i: number) => {
+                    const pId = item.productId || (typeof item.product === "object" ? item.product?._id : item.product);
+                    const matchedProduct = products.find(p => p._id === pId || p.title?.toLowerCase() === (item.product?.title || item.productTitle || item.title || "").toLowerCase());
+                    const productSource = matchedProduct || (typeof item.product === "object" ? item.product : null);
+
+                    const colorVariants = productSource?.colorVariants || [];
+                    const { color: matchingColor, size: matchingSize, weight: matchingWeight } = resolveVariantKeys(item.selectedVariants || item.variants || {});
+                    const activeVariant = colorVariants.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase()) || colorVariants[0];
+                    const activeSubVariant = activeVariant?.subVariants?.find((sv: any) =>
+                      (!matchingSize || sv.size === matchingSize) &&
+                      (!matchingWeight || sv.weight === matchingWeight)
+                    ) || activeVariant?.subVariants?.[0];
+
+                    const resolvedSku =
+                      item.sku ||
+                      item.product?.sku ||
+                      activeSubVariant?.sku ||
+                      activeVariant?.sku ||
+                      productSource?.sku ||
+                      "N/A";
+
+                    const rawTitle = item.productTitle || item.product?.title || item.title || "Product Item";
+                    const truncatedTitle = rawTitle.length > 50 ? `${rawTitle.slice(0, 50)}...` : rawTitle;
+
                     const formattedVariants = Object.entries(item.selectedVariants || {})
                       .map(([key, val]) => `${key}: ${val}`)
                       .join(" • ");
                     return (
                       <tr key={i}>
-                        <td className="p-2 font-bold truncate max-w-[200px] border-r border-black">
-                          {item.product?.title || "Product Item"}
+                        <td className="p-2 border-r border-black" title={rawTitle}>
+                          <div className="font-bold">{truncatedTitle}</div>
+                          <div className="text-[9px] font-mono text-gray-700 font-semibold mt-0.5">SKU: {resolvedSku}</div>
                         </td>
                         <td className="p-2 text-center text-gray-800 border-r border-black">
                           {formattedVariants || "Standard"}
@@ -421,6 +463,9 @@ export function InvoiceDocument({
             <h1 className="text-xl font-black tracking-tight uppercase text-gray-900">
               {documentTitle}
             </h1>
+            <p className="text-xs font-semibold text-gray-800 mt-1">
+              Account Type: <span className="font-extrabold uppercase bg-gray-100 text-gray-900 px-2 py-0.5 rounded border border-gray-300 print:bg-gray-100 print:text-gray-900">{accountTypeLabel}</span>
+            </p>
             <p className="text-xs font-mono font-bold mt-1 text-gray-700">
               {isShippingLabel ? "AWB" : isQuote ? "Quote" : isInvoice ? "Invoice" : "Receipt"} #: {documentNumber || order._id}
             </p>
@@ -490,6 +535,9 @@ export function InvoiceDocument({
                 Client ID: <span className="font-bold text-gray-950">{customerId}</span>
               </p>
             )}
+            <p className="text-xs font-medium text-gray-700 mt-0.5">
+              Account Type: <span className="font-bold text-gray-950">{accountTypeLabel}</span>
+            </p>
             {order.shippingAddress && (
               <>
                 <p className="text-gray-600 mt-1 leading-relaxed">
@@ -593,7 +641,37 @@ export function InvoiceDocument({
                           })()}
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900">{item.product?.title || "Product"}</p>
+                          {(() => {
+                            const pId = item.productId || (typeof item.product === "object" ? item.product?._id : item.product);
+                            const matchedProduct = products.find(p => p._id === pId || p.title?.toLowerCase() === (item.product?.title || item.productTitle || item.title || "").toLowerCase());
+                            const productSource = matchedProduct || (typeof item.product === "object" ? item.product : null);
+
+                            const colorVariants = productSource?.colorVariants || [];
+                            const { color: matchingColor, size: matchingSize, weight: matchingWeight } = resolveVariantKeys(item.selectedVariants || item.variants || {});
+                            const activeVariant = colorVariants.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase()) || colorVariants[0];
+                            const activeSubVariant = activeVariant?.subVariants?.find((sv: any) =>
+                              (!matchingSize || sv.size === matchingSize) &&
+                              (!matchingWeight || sv.weight === matchingWeight)
+                            ) || activeVariant?.subVariants?.[0];
+
+                            const resolvedSku =
+                              item.sku ||
+                              item.product?.sku ||
+                              activeSubVariant?.sku ||
+                              activeVariant?.sku ||
+                              productSource?.sku ||
+                              "N/A";
+
+                            const fullTitle = item.productTitle || item.product?.title || item.title || "Product";
+                            const truncatedTitle = fullTitle.length > 50 ? `${fullTitle.slice(0, 50)}...` : fullTitle;
+
+                            return (
+                              <>
+                                <p className="font-bold text-gray-900" title={fullTitle}>{truncatedTitle}</p>
+                                <p className="text-[10px] font-mono text-gray-600 font-semibold mt-0.5">SKU: {resolvedSku}</p>
+                              </>
+                            );
+                          })()}
                           {formattedVariants && (
                             <p className="text-[10px] text-gray-500 mt-0.5">{formattedVariants}</p>
                           )}

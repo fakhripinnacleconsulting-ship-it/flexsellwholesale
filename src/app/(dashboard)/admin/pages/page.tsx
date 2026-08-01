@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 import { FileText, Plus, Pencil, Trash2, ExternalLink, X } from "lucide-react";
 
 interface StaticPage {

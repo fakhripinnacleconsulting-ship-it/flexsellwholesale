@@ -527,9 +527,20 @@ export async function POST(request: Request) {
 
       // Determine B2B/B2C/Dropshipping category and order origin
       let orderType: "B2B" | "B2C" | "Dropshipping" = "B2C";
-      if (customerTypes.length === 1 && customerTypes[0] === "Dropshipping") {
+      if (quoteId) {
+        const quoteDoc = await InvoiceModel.findById(quoteId).session(session || null).lean() as unknown as { customerType?: "B2B" | "B2C" | "Dropshipping" } | null;
+        if (quoteDoc && quoteDoc.customerType) {
+          orderType = quoteDoc.customerType;
+        } else if (customerTypes.length === 1 && customerTypes[0] === "Dropshipping") {
+          orderType = "Dropshipping";
+        } else if (shippingAddress?.company || shippingAddress?.gstin || customerTypes.includes("B2B")) {
+          orderType = "B2B";
+        } else {
+          orderType = "B2C";
+        }
+      } else if (customerTypes.length === 1 && customerTypes[0] === "Dropshipping") {
         orderType = "Dropshipping";
-      } else if (!!quoteId || !!salesperson || !!shippingAddress?.company || !!shippingAddress?.gstin || customerTypes.includes("B2B")) {
+      } else if (shippingAddress?.company || shippingAddress?.gstin || customerTypes.includes("B2B")) {
         orderType = "B2B";
       } else if (customerTypes.includes("Dropshipping")) {
         orderType = "Dropshipping";

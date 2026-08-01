@@ -213,18 +213,25 @@ export const orderService = {
         salesperson
       };
 
-      invoices.unshift(newDoc);
-      localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+      let inheritedCustomerType: "B2B" | "B2C" | "Dropshipping" = "B2C";
 
-      // Mark Quote converted in local storage
+      // Mark Quote converted in local storage & read original customerType
       if (quoteId) {
         const matchIdx = invoices.findIndex((q: Invoice) => q._id === quoteId);
         if (matchIdx !== -1) {
           invoices[matchIdx].status = "converted";
           invoices[matchIdx].orderId = id;
+          const targetQuote = invoices[matchIdx] as unknown as { customerType?: "B2B" | "B2C" | "Dropshipping" };
+          if (targetQuote.customerType) {
+            inheritedCustomerType = targetQuote.customerType;
+          }
           localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
         }
       }
+
+      (newDoc as unknown as Record<string, unknown>).customerType = inheritedCustomerType;
+      invoices.unshift(newDoc);
+      localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
 
       const newOrder: Order = {
         _id: id,
@@ -244,6 +251,7 @@ export const orderService = {
         salesperson,
         couponCode,
         couponDiscount,
+        orderType: inheritedCustomerType,
         history: [
           {
             status: "Placed",

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Building, Save, Loader2 } from "lucide-react";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient, handleApiError } from "@/lib/apiClient";
 
 export interface CompanyInfoData {
   storeName: string;
@@ -42,18 +43,13 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
   const handleSaveCompanyInfo = async () => {
     setIsSavingCompanyInfo(true);
     try {
-      const res = await fetch("/api/cms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          key: "businessSettings",
-          value: companyInfo,
-        }),
+      await apiClient.post("/cms", {
+        key: "businessSettings",
+        value: companyInfo,
       });
-      if (!res.ok) throw new Error("Failed to save company settings");
       addToast("Centralized Company & Brand Settings saved successfully!", "success");
-    } catch (err: any) {
-      addToast(err.message || "Failed to save settings", "error");
+    } catch (err: unknown) {
+      addToast(handleApiError(err, "Failed to save settings"), "error");
     } finally {
       setIsSavingCompanyInfo(false);
     }
@@ -65,19 +61,15 @@ export function CompanyInformationTab({ companyInfo, setCompanyInfo }: CompanyIn
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
+      const data = await apiClient.post<{ url?: string; message?: string }>("/upload", formData);
       if (data.url) {
         setCompanyInfo(prev => ({ ...prev, signatureUrl: data.url }));
         addToast("Digital signature uploaded successfully!", "success");
       } else {
         throw new Error(data.message || "Upload failed");
       }
-    } catch (err: any) {
-      addToast(err.message || "Failed to upload signature", "error");
+    } catch (err: unknown) {
+      addToast(handleApiError(err, "Failed to upload signature"), "error");
     }
   };
 
