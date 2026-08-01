@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
 import CmsContent from "@/models/CmsContent";
@@ -26,6 +27,9 @@ export async function PUT(request: Request) {
 
     // 2. Update all products in the database
     const result = await Product.updateMany({}, { $set: { defaultPriceTier } });
+
+    // 3. Clear Next.js Cache so storefront updates instantly
+    revalidatePath("/", "layout");
 
     return NextResponse.json({
       message: `Successfully set global highlight price to ${defaultPriceTier} and updated ${result.modifiedCount} products.`,

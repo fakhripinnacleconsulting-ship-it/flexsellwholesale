@@ -65,6 +65,10 @@ export async function PUT(request: Request) {
     if (resp.shiprocket) {
       resp.shiprocket.password = resp.shiprocket.password ? "••••••••" : "";
     }
+
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/", "layout");
+
     return NextResponse.json(resp);
   } catch (error: any) {
     return NextResponse.json({ message: error.message || "Failed to update shipping configuration" }, { status: 500 });

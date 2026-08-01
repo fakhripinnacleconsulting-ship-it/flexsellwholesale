@@ -129,6 +129,9 @@ export async function POST(request: Request) {
       }
     }
 
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/", "layout");
+
     return NextResponse.json(newCoupon, { status: 201 });
   } catch (error: unknown) {
     if (error instanceof ZodError) {

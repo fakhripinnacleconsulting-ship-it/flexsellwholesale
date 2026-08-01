@@ -11,6 +11,8 @@ import { searchService } from "@/services/searchService";
 /** Upper bound for the unfiltered catalog fetch — guards against OOM at scale. */
 const UNFILTERED_CATALOG_CAP = 2000;
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     await dbConnect();

@@ -786,6 +786,7 @@ export function useProductFormState(
         await addProduct(productData);
         addToast("New product published successfully.", "success");
       }
+      router.refresh();
       router.push("/admin/products");
     } catch (err: any) {
       addToast(err?.message || "Failed to save product details.", "error");

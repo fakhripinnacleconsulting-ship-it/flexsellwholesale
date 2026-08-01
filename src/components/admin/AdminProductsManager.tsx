@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -32,6 +33,7 @@ interface AdminProductsManagerProps {
 }
 
 export function AdminProductsManager({ initialProducts, initialCategories }: AdminProductsManagerProps) {
+  const router = useRouter();
   const { products, initializeProducts, updateProduct, deleteProduct, bulkDeleteProducts } = useProductStore();
   const { categories, initializeCategories } = useCategoryStore();
   const { hsns, initializeHsns } = useHsnStore();
@@ -90,6 +92,9 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
 
       // Force refresh of products in store to update UI instantly!
       await initializeProducts(undefined, true);
+      
+      // Clear Next.js client-side router cache so navigating to storefront shows fresh data
+      router.refresh();
     } catch (err: unknown) {
       addToast((err as any).message || "Failed to update global highlight price", "error");
     }
