@@ -13,6 +13,7 @@ import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { formatPrice } from "@/lib/utils";
 import { Plus, Eye, Edit2, Trash2, Building, ShieldAlert, CheckCircle2, Search } from "lucide-react";
+import { Pagination } from "@/components/ui/Pagination";
 import { validateCustomerKycRequirements, hasUploadedKycDoc } from "@/lib/kycValidationHelper";
 
 const INDIAN_STATES = [
@@ -62,6 +63,11 @@ export default function AdminCustomersPage() {
   const [accountStatusFilter, setAccountStatusFilter] = React.useState("");
   const [dateJoinedFrom, setDateJoinedFrom] = React.useState("");
   const [dateJoinedTo, setDateJoinedTo] = React.useState("");
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  
   // Modal states
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isFormSubmitting, setIsFormSubmitting] = React.useState(false);
@@ -317,12 +323,23 @@ export default function AdminCustomersPage() {
     });
   }, [orders, filteredCustomers]);
 
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, customerTypeFilter, accountStatusFilter, kycStatusFilter, dateJoinedFrom, dateJoinedTo, itemsPerPage]);
+
+  const totalPages = Math.ceil(customerStats.length / itemsPerPage);
+  
+  const paginatedCustomers = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return customerStats.slice(start, start + itemsPerPage);
+  }, [customerStats, currentPage, itemsPerPage]);
+
   return (
     <div className="space-y-6 text-foreground container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Wholesale Customers</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage and view purchasing history of B2B wholesale buyers.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Customers</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage B2B buyers and review KYC documents.</p>
         </div>
         <Button onClick={handleOpenAddModal} className="w-full sm:w-auto font-bold flex items-center justify-center gap-1.5 shadow">
           <Plus className="h-4.5 w-4.5" /> Create Buyer Account
@@ -330,7 +347,7 @@ export default function AdminCustomersPage() {
       </div>
 
       <Card className="border border-border">
-        <CardHeader className="border-b pb-4 flex flex-col gap-4">
+        <CardHeader className="border-b pb-4 flex flex-col gap-4 bg-card rounded-t-xl">
           <div>
             <CardTitle className="text-lg font-bold">Active Buyer Accounts</CardTitle>
             <CardDescription>Dynamic purchasing volume and GSTIN credentials.</CardDescription>
@@ -416,10 +433,10 @@ export default function AdminCustomersPage() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
+        <CardContent className="p-0 flex-col">
+          <div className="overflow-x-auto overflow-y-auto h-[calc(100vh-280px)] min-h-[400px] custom-scrollbar pb-0">
             <table className="w-full text-sm text-left text-foreground whitespace-nowrap">
-              <thead className="text-xs text-muted-foreground uppercase bg-secondary/30 border-b">
+              <thead className="text-xs text-muted-foreground uppercase bg-secondary border-b border-border sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="px-6 py-3.5">ID</th>
                   <th className="px-6 py-3.5">Customer Name</th>
@@ -444,7 +461,7 @@ export default function AdminCustomersPage() {
                     </td>
                   </tr>
                 ) : (
-                  customerStats.map((cust) => (
+                  paginatedCustomers.map((cust) => (
                     <tr key={cust._id} className="hover:bg-secondary/15 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs text-muted-foreground">{cust._id}</td>
                       <td className="px-6 py-4 flex items-center gap-3">
@@ -507,6 +524,16 @@ export default function AdminCustomersPage() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="px-3 pb-1 pt-0">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={customerStats.length}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={setItemsPerPage}
+            />
           </div>
         </CardContent>
       </Card>

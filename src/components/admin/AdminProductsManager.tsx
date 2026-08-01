@@ -55,7 +55,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
 
   // Pagination states
   const [currentPage, setCurrentPage] = React.useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
   const [globalHighlightPrice, setGlobalHighlightPrice] = React.useState<"B2C" | "B2B" | "Dropshipping" | "">("");
 
@@ -85,9 +85,9 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
         body: JSON.stringify({ defaultPriceTier: tier })
       });
       if (!res.ok) throw new Error("Failed to update global highlight price");
-      
+
       addToast(`Successfully set global highlight price to ${tier} for all products!`, "success");
-      
+
       // Force refresh of products in store to update UI instantly!
       await initializeProducts(undefined, true);
     } catch (err: unknown) {
@@ -109,7 +109,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
   React.useEffect(() => {
     setCurrentPage(1);
     setSelectedProductIds([]);
-  }, [searchTerm, selectedCategory, selectedHsn, selectedStatus, selectedStockStatus, sortBy]);
+  }, [searchTerm, selectedCategory, selectedHsn, selectedStatus, selectedStockStatus, sortBy, itemsPerPage]);
 
   // Filters & Sorting logic
   const processedProducts = React.useMemo(() => {
@@ -184,12 +184,12 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
     return list;
   }, [activeProducts, searchTerm, selectedCategory, selectedHsn, selectedStatus, selectedStockStatus, sortBy]);
 
-  const totalPages = Math.ceil(processedProducts.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(processedProducts.length / itemsPerPage);
 
   const paginatedProducts = React.useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return processedProducts.slice(start, start + ITEMS_PER_PAGE);
-  }, [processedProducts, currentPage]);
+    const start = (currentPage - 1) * itemsPerPage;
+    return processedProducts.slice(start, start + itemsPerPage);
+  }, [processedProducts, currentPage, itemsPerPage]);
 
   const toggleProductActive = (id: string, currentStatus: boolean) => {
     const product = activeProducts.find(p => p._id === id);
@@ -241,9 +241,9 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
 
   // Row selection helpers
   const handleSelectRow = (productId: string) => {
-    setSelectedProductIds(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId) 
+    setSelectedProductIds(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
   };
@@ -400,7 +400,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
 
   const triggerPrintBarcodes = () => {
     if (!barcodePrintProduct) return;
-    
+
     // Create print-only layout inside a new window
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -409,10 +409,10 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
     }
 
     const titleText = barcodePrintProduct.title;
-    const cardsHtml = barcodePrintProduct.colorVariants.flatMap(cv => 
+    const cardsHtml = barcodePrintProduct.colorVariants.flatMap(cv =>
       cv.subVariants?.map(sv => {
         const barValue = sv.barcode || sv.sku || "FX0000";
-        
+
         return `
           <div style="text-align:center; width:150px; margin:8px; display:inline-block; box-sizing:border-box; padding:6px; border:1px border #e5e7eb; border-radius:4px;">
             <div style="display:flex; justify-content:center;">
@@ -453,7 +453,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
         </body>
       </html>
     `);
-    
+
     printWindow.document.close();
     addToast("Barcode printable layout generated.", "success");
   };
@@ -468,7 +468,8 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
 
   return (
     <div className="space-y-6 text-foreground">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+      {/* Header area (Title and Action Buttons) */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Products</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage B2B inventory lines, custom MOQ, and SEO tags.</p>
@@ -522,17 +523,15 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
       <div className="flex border-b border-border mb-6 overflow-x-auto whitespace-nowrap scrollbar-none">
         <button
           onClick={() => setActivePanel("catalog")}
-          className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
-            activePanel === "catalog" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${activePanel === "catalog" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
         >
           Product Catalog List
         </button>
         <button
           onClick={() => setActivePanel("inventory")}
-          className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
-            activePanel === "inventory" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${activePanel === "inventory" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
         >
           Warehouse Inventory & Ledger (10/10)
         </button>
@@ -542,34 +541,37 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
         <>
 
 
-      {/* Advanced Filters & Sorting Bar */}
-      <ProductFilters
-        searchTerm={searchTerm} setSearchTerm={setSearchTerm}
-        selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
-        selectedHsn={selectedHsn} setSelectedHsn={setSelectedHsn}
-        selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus}
-        selectedStockStatus={selectedStockStatus} setSelectedStockStatus={setSelectedStockStatus}
-        sortBy={sortBy} setSortBy={setSortBy}
-        activeCategories={activeCategories} hsns={hsns}
-      />
+          {/* Advanced Filters & Sorting Bar */}
+          <div className="mb-4">
+            <ProductFilters
+              searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+              selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
+              selectedHsn={selectedHsn} setSelectedHsn={setSelectedHsn}
+              selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus}
+              selectedStockStatus={selectedStockStatus} setSelectedStockStatus={setSelectedStockStatus}
+              sortBy={sortBy} setSortBy={setSortBy}
+              activeCategories={activeCategories} hsns={hsns}
+            />
+          </div>
 
-      {/* Table Card */}
-      <ProductTable
-        isAllPageSelected={isAllPageSelected}
-        handleSelectAllOnPage={handleSelectAllOnPage}
-        processedProducts={processedProducts}
-        paginatedProducts={paginatedProducts}
-        selectedProductIds={selectedProductIds}
-        handleSelectRow={handleSelectRow}
-        getCategoryName={getCategoryName}
-        toggleProductActive={toggleProductActive}
-        handleDeleteProduct={handleDeleteProduct}
-        setBarcodePrintProduct={setBarcodePrintProduct}
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        totalPages={totalPages}
-        ITEMS_PER_PAGE={ITEMS_PER_PAGE}
-      />
+          {/* Table Card */}
+          <ProductTable
+            isAllPageSelected={isAllPageSelected}
+            handleSelectAllOnPage={handleSelectAllOnPage}
+            processedProducts={processedProducts}
+            paginatedProducts={paginatedProducts}
+            selectedProductIds={selectedProductIds}
+            handleSelectRow={handleSelectRow}
+            getCategoryName={getCategoryName}
+            toggleProductActive={toggleProductActive}
+            handleDeleteProduct={handleDeleteProduct}
+            setBarcodePrintProduct={setBarcodePrintProduct}
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+          />
         </>
       ) : (
         <InventoryManager />
@@ -589,19 +591,19 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
               <p className="text-xs text-muted-foreground">
                 Select whether to print individual labels or generate a print sheet for all variants.
               </p>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {barcodePrintProduct.colorVariants?.flatMap((cv) => 
+                {barcodePrintProduct.colorVariants?.flatMap((cv) =>
                   cv.subVariants?.map((sv, idx) => (
                     <div key={`${cv.color}-${sv.id}-${idx}`} className="p-4 border rounded-lg bg-secondary/20 flex flex-col items-center gap-2">
                       <span className="text-xs font-bold text-primary">{cv.color} ({sv.size} / {sv.weight})</span>
                       <Barcode sku={sv.barcode || sv.sku} height={35} />
                       <span className="text-[10px] text-muted-foreground font-mono">SKU: {sv.sku}</span>
-                      
+
                       {/* Individual download option */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handlePrintIndividualBarcode(barcodePrintProduct, cv, sv)}
                         className="text-xs mt-2 w-full flex items-center justify-center gap-1.5"
                       >

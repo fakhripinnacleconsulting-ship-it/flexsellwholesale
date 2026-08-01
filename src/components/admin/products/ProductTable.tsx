@@ -23,7 +23,9 @@ interface ProductTableProps {
   currentPage: number;
   setCurrentPage: (page: number) => void;
   totalPages: number;
-  ITEMS_PER_PAGE: number;
+  itemsPerPage: number;
+  setItemsPerPage: (items: number) => void;
+  className?: string;
 }
 
 export function ProductTable({
@@ -40,7 +42,9 @@ export function ProductTable({
   currentPage,
   setCurrentPage,
   totalPages,
-  ITEMS_PER_PAGE
+  itemsPerPage,
+  setItemsPerPage,
+  className
 }: ProductTableProps) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isDown = React.useRef(false);
@@ -83,10 +87,10 @@ export function ProductTable({
   };
 
   return (
-    <Card>
-      <CardContent className="p-0">
-        <div 
-          className="overflow-x-auto custom-scrollbar cursor-grab active:cursor-grabbing select-none" 
+    <Card className={`border border-border flex flex-col ${className || ""}`}>
+      <CardContent className="p-0 flex-col">
+        <div
+          className="overflow-x-auto overflow-y-auto h-[calc(100vh-280px)] min-h-[400px] custom-scrollbar cursor-grab active:cursor-grabbing select-none pb-0"
           ref={scrollContainerRef}
           onMouseDown={handleMouseDown}
           onMouseLeave={handleMouseLeave}
@@ -94,11 +98,11 @@ export function ProductTable({
           onMouseMove={handleMouseMove}
         >
           <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="text-xs text-muted-foreground uppercase bg-secondary/50 border-b border-border">
+            <thead className="text-xs text-muted-foreground uppercase bg-secondary border-b border-border sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     className="rounded text-primary focus:ring-primary bg-background border-border cursor-pointer h-4 w-4"
                     checked={isAllPageSelected}
                     onChange={handleSelectAllOnPage}
@@ -144,8 +148,8 @@ export function ProductTable({
                   return (
                     <tr key={product._id} className={`hover:bg-secondary/15 transition-colors ${!product.isActive ? "opacity-60" : ""} ${isSelected ? "bg-primary/5" : ""}`}>
                       <td className="px-6 py-4 text-center">
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           className="rounded text-primary focus:ring-primary bg-background border-border cursor-pointer h-4 w-4"
                           checked={isSelected}
                           onChange={() => handleSelectRow(product._id)}
@@ -186,8 +190,8 @@ export function ProductTable({
                       <td className="px-6 py-4">
                         <div className="font-bold text-foreground truncate">
                           {formatPrice(
-                            defaultVariant?.subVariants?.[0] 
-                              ? resolvePrice(defaultVariant.subVariants[0], product.defaultPriceTier || "B2C") 
+                            defaultVariant?.subVariants?.[0]
+                              ? resolvePrice(defaultVariant.subVariants[0], product.defaultPriceTier || "B2C")
                               : 0
                           )}
                           <span className="text-[9px] text-muted-foreground ml-1 font-semibold">
@@ -233,9 +237,9 @@ export function ProductTable({
                             <Edit className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="text-destructive hover:bg-destructive/10"
                           onClick={() => handleDeleteProduct(product._id)}
                         >
@@ -249,16 +253,18 @@ export function ProductTable({
             </tbody>
           </table>
         </div>
-        <div className="px-4 pb-4">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={processedProducts.length}
-            itemsPerPage={ITEMS_PER_PAGE}
-          />
-        </div>
+
       </CardContent>
+      <div className="px-3  pt-0">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={processedProducts.length}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
+      </div>
     </Card>
   );
 }

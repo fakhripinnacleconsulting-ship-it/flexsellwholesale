@@ -279,9 +279,22 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   return (
     <div className="min-h-screen flex bg-secondary/10">
       {/* Desktop Sidebar (Collapsible) */}
-      <aside className={`bg-card border-r hidden md:flex flex-col sticky top-0 h-screen transition-all duration-300 ${isSidebarOpen ? "w-64" : "w-16"
+      <aside className={`bg-card border-r hidden md:flex flex-col sticky top-0 h-screen transition-all duration-300 relative ${isSidebarOpen ? "w-64" : "w-16"
         }`}>
         <SidebarContent isCollapsed={!isSidebarOpen} />
+
+        {/* Toggle Button on Border */}
+        <button
+          onClick={handleToggleSidebar}
+          className="absolute -right-3 top-8 bg-card border border-border rounded-full p-1 shadow-sm hover:bg-secondary text-foreground cursor-pointer z-50 flex items-center justify-center"
+          title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+        >
+          {isSidebarOpen ? (
+            <ChevronLeft className="h-3 w-3" />
+          ) : (
+            <ChevronRight className="h-3 w-3" />
+          )}
+        </button>
       </aside>
 
       {/* Mobile Drawer Navigation */}
@@ -291,44 +304,28 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Admin Topbar */}
-        <header className="h-16 bg-card border-b flex items-center justify-between px-6 sticky top-0 z-10 gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="md:hidden p-1.5 rounded-md hover:bg-secondary text-foreground cursor-pointer"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-
-            {/* Sidebar toggle button (Chevron Right / Chevron Left) */}
-            <button
-              onClick={handleToggleSidebar}
-              className="hidden md:flex p-1.5 rounded-md hover:bg-secondary/80 text-foreground cursor-pointer border items-center justify-center h-9 w-9 bg-card"
-              title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
-            >
-              {isSidebarOpen ? (
-                <ChevronLeft className="h-4.5 w-4.5" />
-              ) : (
-                <ChevronRight className="h-4.5 w-4.5" />
-              )}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-4 ml-auto">
-            <Link href="/" target="_blank" className="text-sm font-medium text-primary hover:underline">
-              View Storefront &rarr;
-            </Link>
-
-            {/* Admin Notification Bell */}
+        {/* Mobile Topbar */}
+        <header className="h-14 bg-card border-b flex md:hidden items-center justify-between px-4 sticky top-0 z-10 gap-4">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-1.5 rounded-md hover:bg-secondary text-foreground cursor-pointer"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-3">
             <AdminNotificationBell />
-
-            <Avatar initials="A" size="sm" className="bg-primary text-primary-foreground" />
+            <Avatar initials="A" size="sm" className="bg-primary text-primary-foreground h-7 w-7" />
           </div>
         </header>
 
+        {/* Minimal Desktop Topbar (Only Notification & Avatar) */}
+        <div className="hidden md:flex justify-end px-8 pt-4 pb-0 items-center gap-3 shrink-0">
+          <AdminNotificationBell />
+          <Avatar initials="A" size="sm" className="bg-primary text-primary-foreground h-8 w-8" />
+        </div>
+
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <main className="flex-1 overflow-y-auto px-6 pb-0 pt-2 md:px-8 md:pb-0 md:pt-4">
           {children}
         </main>
       </div>
