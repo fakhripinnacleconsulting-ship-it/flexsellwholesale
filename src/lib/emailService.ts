@@ -439,6 +439,31 @@ function getSmtpConfig() {
 
 export const emailService = {
   async sendEmail(options: EmailOptions): Promise<boolean> {
+    // TEST_MODE hook: log emails to disk for automated test verification instead of sending
+    if (typeof window === "undefined" && process.env.TEST_MODE === "true") {
+      try {
+        const fs = await import("fs");
+        const path = await import("path");
+        const logPath = path.default.join(process.cwd(), "test-email-logs.json");
+        let logs: any[] = [];
+        try {
+          const existing = fs.default.readFileSync(logPath, "utf-8");
+          logs = JSON.parse(existing);
+        } catch { /* file doesn't exist yet */ }
+        logs.push({
+          to: options.to,
+          subject: options.subject,
+          category: options.category || "general",
+          timestamp: new Date().toISOString(),
+        });
+        fs.default.writeFileSync(logPath, JSON.stringify(logs, null, 2));
+        console.log(`[TEST_MODE EMAIL] Logged: "${options.subject}" → ${options.to}`);
+      } catch (err) {
+        console.error("[TEST_MODE EMAIL] Failed to log email:", err);
+      }
+      return true;
+    }
+
     const config = getSmtpConfig();
     const smtpHost = config.host;
     const smtpUser = config.user;
