@@ -122,7 +122,7 @@ export default async function HomePage() {
 
   // Calculate product counts for featured collections without N+1 queries
   const productCounts: Record<string, number> = {};
-  const featuredCols = collections.filter(c => c.isActive && c.isFeatured);
+  const featuredCols = collections.filter(c => c.isActive && c.isFeatured).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   for (const col of featuredCols) {
     productCounts[col._id] = Array.isArray(col.productIds) ? col.productIds.length : 0;
   }

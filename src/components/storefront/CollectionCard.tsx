@@ -20,6 +20,11 @@ function toTitleCase(str: string): string {
     .join(" ");
 }
 
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>?/gm, "").trim();
+}
+
 export function CollectionCard({ collection, productCount = 0 }: CollectionCardProps) {
   const formattedTitle = toTitleCase(collection.title);
 
@@ -64,7 +69,7 @@ export function CollectionCard({ collection, productCount = 0 }: CollectionCardP
 
           {collection.description && (
             <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed font-medium">
-              {collection.description}
+              {stripHtml(collection.description || "")}
             </p>
           )}
 

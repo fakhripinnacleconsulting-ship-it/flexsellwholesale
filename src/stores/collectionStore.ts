@@ -13,6 +13,10 @@ interface CollectionStoreState {
   deleteCollection: (id: string) => Promise<void>;
 }
 
+function sortByOrder(list: Collection[]): Collection[] {
+  return [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
 export const useCollectionStore = create<CollectionStoreState>()((set, get) => ({
   collections: [],
   isLoading: false,
@@ -20,17 +24,17 @@ export const useCollectionStore = create<CollectionStoreState>()((set, get) => (
 
   initializeCollections: async (initial, force = false) => {
     if (!force && initial && initial.length > 0) {
-      set({ collections: initial, isLoading: false });
+      set({ collections: sortByOrder(initial), isLoading: false });
       return;
     }
     if (!force && get().collections.length > 0) return;
     set({ isLoading: true, error: null });
     try {
       const data = await collectionService.getCollections();
-      set({ collections: data, isLoading: false });
+      set({ collections: sortByOrder(data), isLoading: false });
     } catch (err) {
       set({ 
-        collections: initial || [], 
+        collections: sortByOrder(initial || []), 
         error: handleApiError(err, "Failed to load collections"), 
         isLoading: false 
       });
@@ -42,7 +46,7 @@ export const useCollectionStore = create<CollectionStoreState>()((set, get) => (
     try {
       const newCollection = await collectionService.createCollection(collectionData);
       set((state) => ({
-        collections: [...state.collections, newCollection],
+        collections: sortByOrder([...state.collections, newCollection]),
         isLoading: false
       }));
       return newCollection;
@@ -60,7 +64,7 @@ export const useCollectionStore = create<CollectionStoreState>()((set, get) => (
     try {
       const updatedCollection = await collectionService.updateCollection(id, updatedFields);
       set((state) => ({
-        collections: state.collections.map(c => c._id === id ? updatedCollection : c),
+        collections: sortByOrder(state.collections.map(c => c._id === id ? updatedCollection : c)),
         isLoading: false
       }));
       return updatedCollection;
@@ -78,7 +82,7 @@ export const useCollectionStore = create<CollectionStoreState>()((set, get) => (
     try {
       await collectionService.deleteCollection(id);
       set((state) => ({
-        collections: state.collections.filter(c => c._id !== id),
+        collections: sortByOrder(state.collections.filter(c => c._id !== id)),
         isLoading: false
       }));
     } catch (err) {

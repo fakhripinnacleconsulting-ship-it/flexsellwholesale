@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function CollectionsPage() {
   const collections = await collectionService.getCollections();
-  const activeCollections = collections.filter(c => c.isActive);
+  const activeCollections = collections.filter(c => c.isActive).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const productCounts: Record<string, number> = {};
   for (const col of activeCollections) {
