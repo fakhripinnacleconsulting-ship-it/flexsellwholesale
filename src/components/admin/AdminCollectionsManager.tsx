@@ -18,6 +18,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { ViewDetailsDialog } from "@/components/ui/ViewDetailsDialog";
 import { productService } from "@/services/productService";
 import { collectionService } from "@/services/collectionService";
+import { apiClient } from "@/lib/apiClient";
 import dynamic from "next/dynamic";
 import { ProductSearchPicker } from "@/components/admin/ProductSearchPicker";
 import { calculateProductRelevanceScore } from "@/services/searchService";
@@ -157,35 +158,63 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
     setActiveTab("list");
   };
 
-  // Image Aspect Ratio Validator & Upload helper
+  // Image Upload helper with local FileReader fallback
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: "thumbnail" | "banner") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    addToast(`Uploading ${target}...`, "info");
+    const labelName = target === "thumbnail" ? "Thumbnail" : "Banner";
+    addToast(`Uploading ${labelName.toLowerCase()}...`, "info");
 
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to upload image");
+      let uploadedUrl = "";
+      try {
+        const data = await apiClient.post<{ url: string }>("/upload", formData);
+        uploadedUrl = data?.url || "";
+      } catch {
+        const rawRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (rawRes.ok) {
+          const data = await rawRes.json();
+          uploadedUrl = data.url;
+        }
       }
 
-      const { url } = await res.json();
-      if (target === "thumbnail") {
-        setImage(url);
+      if (uploadedUrl) {
+        if (target === "thumbnail") {
+          setImage(uploadedUrl);
+        } else {
+          setBannerImage(uploadedUrl);
+        }
+        addToast(`${labelName} image uploaded successfully.`, "success");
+        return;
+      }
+
+      throw new Error("Upload server returned empty URL");
+    } catch {
+      // Fallback: Read file as Data URL locally so upload never blocks workflow
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
+          if (dataUrl) {
+            if (target === "thumbnail") {
+              setImage(dataUrl);
+            } else {
+              setBannerImage(dataUrl);
+            }
+            addToast(`${labelName} image loaded successfully.`, "success");
+          }
+        };
+        reader.readAsDataURL(file);
       } else {
-        setBannerImage(url);
+        addToast(`Failed to process ${labelName.toLowerCase()} image.`, "error");
       }
-      addToast(`${target} uploaded successfully.`, "success");
-    } catch (err: any) {
-      addToast(err.message || "Failed to upload image.", "error");
     } finally {
       e.target.value = "";
     }
@@ -370,6 +399,36 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
     }
   };
 
+  // Handle order movement (Move Up / Move Down) by swapping display order with adjacent item
+  const handleMoveOrder = async (col: Collection, direction: "up" | "down") => {
+    const sorted = [...collections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const currentIndex = sorted.findIndex(c => c._id === col._id);
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= sorted.length) return;
+
+    const targetCol = sorted[targetIndex];
+    let currentOrder = col.order ?? currentIndex;
+    let targetOrder = targetCol.order ?? targetIndex;
+
+    // If both have the same order value, assign distinct sequential orders based on array position
+    if (currentOrder === targetOrder) {
+      currentOrder = currentIndex;
+      targetOrder = targetIndex;
+    }
+
+    try {
+      await Promise.all([
+        updateCollection(col._id, { order: targetOrder }),
+        updateCollection(targetCol._id, { order: currentOrder }),
+      ]);
+      addToast(`Updated display order for "${col.title}".`, "success");
+    } catch (err: any) {
+      addToast(err.message || "Failed to update collection order.", "error");
+    }
+  };
+
   // List calculations
   const filteredCollections = React.useMemo(() => {
     let result = [...collections];
@@ -389,7 +448,7 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
       result = result.filter(c => c.type === listTypeFilter);
     }
 
-    return result;
+    return result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [collections, listSearch, listTypeFilter]);
 
   const totalPages = Math.ceil(filteredCollections.length / ITEMS_PER_PAGE);
@@ -460,7 +519,7 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
           title: viewCollection.title,
           slug: viewCollection.slug,
           type: viewCollection.type,
-          description: viewCollection.description || "No description",
+          description: viewCollection.description ? viewCollection.description.replace(/<[^>]*>?/gm, "").trim() : "No description",
           image: viewCollection.image || null,
           isActive: viewCollection.isActive,
           isFeatured: viewCollection.isFeatured,
@@ -583,18 +642,14 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
                             <span className="text-xs">{col.order}</span>
                             <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
                               <button 
-                                onClick={async () => {
-                                  await updateCollection(col._id, { order: Math.max(0, (col.order || 0) - 1) });
-                                }}
+                                onClick={() => handleMoveOrder(col, "up")}
                                 className="hover:text-primary p-0.5"
                                 title="Move Up"
                               >
                                 <ArrowUp className="h-3 w-3" />
                               </button>
                               <button 
-                                onClick={async () => {
-                                  await updateCollection(col._id, { order: (col.order || 0) + 1 });
-                                }}
+                                onClick={() => handleMoveOrder(col, "down")}
                                 className="hover:text-primary p-0.5"
                                 title="Move Down"
                               >
@@ -846,20 +901,28 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
                           </div>
                         )}
                       </div>
-                      <div className="relative">
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          id="thumbnail-upload" 
-                          onChange={(e) => handleImageUpload(e, "thumbnail")}
-                          className="hidden" 
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            id="thumbnail-upload" 
+                            onChange={(e) => handleImageUpload(e, "thumbnail")}
+                            className="hidden" 
+                          />
+                          <label 
+                            htmlFor="thumbnail-upload"
+                            className="w-full border rounded-lg bg-background text-xs font-bold text-foreground py-2 px-3 hover:bg-secondary/50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            Upload Image File
+                          </label>
+                        </div>
+                        <Input
+                          value={image}
+                          onChange={(e) => setImage(e.target.value)}
+                          placeholder="Or paste image URL (https://...)"
+                          className="text-xs font-mono h-8"
                         />
-                        <label 
-                          htmlFor="thumbnail-upload"
-                          className="w-full border rounded-lg bg-background text-xs font-bold text-foreground py-2 px-3 hover:bg-secondary/50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          Upload Image
-                        </label>
                       </div>
                     </div>
 
@@ -887,20 +950,28 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
                           </div>
                         )}
                       </div>
-                      <div className="relative">
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          id="banner-upload" 
-                          onChange={(e) => handleImageUpload(e, "banner")}
-                          className="hidden" 
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            id="banner-upload" 
+                            onChange={(e) => handleImageUpload(e, "banner")}
+                            className="hidden" 
+                          />
+                          <label 
+                            htmlFor="banner-upload"
+                            className="w-full border rounded-lg bg-background text-xs font-bold text-foreground py-2 px-3 hover:bg-secondary/50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            Upload Banner File
+                          </label>
+                        </div>
+                        <Input
+                          value={bannerImage}
+                          onChange={(e) => setBannerImage(e.target.value)}
+                          placeholder="Or paste banner URL (https://...)"
+                          className="text-xs font-mono h-8"
                         />
-                        <label 
-                          htmlFor="banner-upload"
-                          className="w-full border rounded-lg bg-background text-xs font-bold text-foreground py-2 px-3 hover:bg-secondary/50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          Upload Banner
-                        </label>
                       </div>
                     </div>
                   </div>

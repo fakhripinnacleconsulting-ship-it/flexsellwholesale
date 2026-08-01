@@ -205,7 +205,7 @@ export function Header({ categories, collections = [] }: HeaderProps) {
 
           <nav className="flex flex-col space-y-2.5 overflow-y-auto pr-1">
             <div className="font-bold text-[11px] text-muted-foreground uppercase tracking-wider mb-0.5">Collections</div>
-            {collections.filter(c => c.isActive).map(col => {
+            {collections.filter(c => c.isActive).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(col => {
               const formattedTitle = col.title
                 .toLowerCase()
                 .split(" ")

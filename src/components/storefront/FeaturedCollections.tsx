@@ -14,7 +14,7 @@ interface FeaturedCollectionsProps {
 }
 
 export function FeaturedCollections({ collections, productCounts, title, subtitle }: FeaturedCollectionsProps) {
-  const featured = collections.filter(c => c.isActive && c.isFeatured).slice(0, 4);
+  const featured = collections.filter(c => c.isActive && c.isFeatured).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).slice(0, 4);
 
   if (featured.length === 0) return null;
 

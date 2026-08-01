@@ -20,6 +20,11 @@ function toTitleCase(str: string): string {
     .join(" ");
 }
 
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>?/gm, "").trim();
+}
+
 export function MegaMenu({ categories, collections }: MegaMenuProps) {
   const pathname = usePathname();
   const isDropshippingPage = pathname?.startsWith("/dropshipping");
@@ -128,7 +133,7 @@ export function MegaMenu({ categories, collections }: MegaMenuProps) {
                         >
                           <div className="mb-3 border-b pb-2 border-border/80">
                             <h4 className="font-bold text-sm text-primary uppercase tracking-wider">{toTitleCase(col.title)} Categories</h4>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{col.description || "Curated factory direct catalog lines."}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{stripHtml(col.description || "") || "Curated factory direct catalog lines."}</p>
                           </div>
                           <div className="grid grid-cols-3 gap-5">
                             {linkedCats.map((cat) => {

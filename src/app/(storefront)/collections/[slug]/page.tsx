@@ -12,13 +12,19 @@ import { constructMetadata, generateCollectionSchema, generateBreadcrumbSchema }
 
 export const revalidate = 60; // ISR revalidation every 60s
 
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>?/gm, "").trim();
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   try {
     const collection = await collectionService.getCollectionBySlug(slug);
+    const cleanDesc = collection.seoDescription || stripHtml(collection.description || "") || `Shop the ${collection.title} collection at direct wholesale prices.`;
     return constructMetadata({
       title: collection.seoTitle || `${collection.title} | Curated Wholesale Sourcing`,
-      description: collection.seoDescription || collection.description || `Shop the ${collection.title} collection at direct wholesale prices.`,
+      description: cleanDesc,
       keywords: collection.seoKeywords || `${collection.title}, wholesale sourcing, bulk procurement, factory direct`,
       image: collection.bannerImage,
       path: `/collections/${collection.slug}`,
@@ -85,7 +91,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
 
       {/* Collection Hero Header */}
       <div className="relative border border-border bg-card rounded-3xl overflow-hidden shadow-md mb-10 min-h-[300px] md:min-h-[420px] flex flex-col justify-center">
-        {/* Banner image or fallback   gradient */}
+        {/* Banner image or fallback gradient */}
         {collection.bannerImage ? (
           <div className="absolute inset-0 z-0 bg-secondary">
             <Image
@@ -100,7 +106,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
           </div>
         ) : (
           <div className="absolute inset-0 z-0 bg-gradient-to-br from-secondary/50 via-background to-secondary/30">
-            {/* Glowing ambient light blobs for   fallback */}
+            {/* Glowing ambient light blobs for fallback */}
             <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-primary/20 blur-3xl" />
             <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-72 h-72 rounded-full bg-accent/20 blur-3xl" />
           </div>
@@ -119,9 +125,10 @@ export default async function CollectionDetailPage({ params }: { params: Promise
             </h1>
 
             {collection.description && (
-              <p className="text-xs md:text-sm text-muted-foreground leading-relaxed font-semibold mt-3">
-                {collection.description}
-              </p>
+              <div
+                className="text-xs md:text-sm text-muted-foreground leading-relaxed font-semibold mt-3 prose prose-sm dark:prose-invert max-w-none [&_p]:m-0 [&_p+p]:mt-2"
+                dangerouslySetInnerHTML={{ __html: collection.description }}
+              />
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-muted-foreground mt-4 pt-3 border-t border-border/40">
