@@ -16,11 +16,7 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
     const payload = auth.payload!;
 
-    const { orderId, currency = "INR" } = await request.json();
-
-    if (!orderId || typeof orderId !== "string") {
-      return NextResponse.json({ error: "orderId is required" }, { status: 400 });
-    }
+    const { orderId, amount: reqAmount, currency = "INR" } = await request.json();
 
     const key_id = process.env.RAZORPAY_KEY_ID;
     const key_secret = process.env.RAZORPAY_KEY_SECRET;
@@ -31,23 +27,29 @@ export async function POST(request: Request) {
     }
 
     await dbConnect();
-    const order = await Order.findById(orderId) as any;
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    let order: any = null;
+    let amount = Number(reqAmount || 0);
+
+    if (orderId && typeof orderId === "string") {
+      order = await Order.findById(orderId) as any;
+      if (!order) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+
+      // Only the buyer who owns the order (or an admin) may start a payment for it.
+      const ownsOrder =
+        order.customerId === payload.userId || order.shippingAddress?.email?.toLowerCase() === payload.email.toLowerCase();
+      if (payload.role !== "admin" && !ownsOrder) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      if (order.paymentStatus === "Paid") {
+        return NextResponse.json({ error: "This order is already paid" }, { status: 400 });
+      }
+
+      amount = Number(order.amount);
     }
 
-    // Only the buyer who owns the order (or an admin) may start a payment for it.
-    const ownsOrder =
-      order.customerId === payload.userId || order.shippingAddress?.email?.toLowerCase() === payload.email.toLowerCase();
-    if (payload.role !== "admin" && !ownsOrder) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    if (order.paymentStatus === "Paid") {
-      return NextResponse.json({ error: "This order is already paid" }, { status: 400 });
-    }
-
-    const amount = Number(order.amount);
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Order has no payable amount" }, { status: 400 });
     }
@@ -57,14 +59,14 @@ export async function POST(request: Request) {
     const rzpOrder = await razorpay.orders.create({
       amount: Math.round(amount * 100), // paise
       currency,
-      receipt: order._id as string,
-      notes: { flexsellOrderId: order._id as string },
+      receipt: order ? (order._id as string) : `chk_${Date.now().toString().slice(-8)}`,
+      notes: { flexsellOrderId: order ? (order._id as string) : "" },
     });
 
-    // Bind the Razorpay handle to this order so verification can confirm the callback
-    // belongs to it and not to some other, cheaper payment.
-    order.razorpayOrderId = rzpOrder.id;
-    await order.save();
+    if (order) {
+      order.razorpayOrderId = rzpOrder.id;
+      await order.save();
+    }
 
     return NextResponse.json({
       orderId: rzpOrder.id,

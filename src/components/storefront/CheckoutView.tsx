@@ -329,25 +329,8 @@ export function CheckoutView() {
       setIsSubmitting(true);
 
       try {
-        let orderId = existingOrderId;
-        
-        if (!orderId) {
-          orderId = await createOrder(
-            items,
-            amountToPay,
-            shippingAddress,
-            { paymentMethod: "Razorpay", paymentStatus: "Pending" },
-            appliedCoupon?.couponCode || undefined,
-            couponDiscount || undefined,
-            { shippingCharge }
-          );
-          setExistingOrderId(orderId);
-        }
-
-        // The gateway order is priced from the saved order server-side — we deliberately
-        // do not send an amount from here.
-        const rzpOrderData = await apiClient.post<any>("/razorpay/order", { orderId });
-        console.log("RAZORPAY INIT RESPONSE:", rzpOrderData);
+        // Mint a Razorpay order handle for amountToPay without creating a DB order yet
+        const rzpOrderData = await apiClient.post<any>("/razorpay/order", { amount: amountToPay });
 
         if (!rzpOrderData.orderId) {
           throw new Error(rzpOrderData.error || "Failed to initialize payment gateway");
@@ -358,12 +341,12 @@ export function CheckoutView() {
           amount: String(rzpOrderData.amount),
           currency: rzpOrderData.currency || "INR",
           name: "FlexSell Wholesale",
-          description: `Order ${orderId}`,
+          description: "Online Wholesale Order Payment",
           order_id: rzpOrderData.orderId,
           handler: async function (response: any) {
             try {
+              // 1. Verify payment signature
               const verifyData = await apiClient.post<any>("/razorpay/verify", {
-                orderId,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
@@ -372,24 +355,37 @@ export function CheckoutView() {
                 throw new Error(verifyData.error || "Payment verification failed");
               }
 
-              trackPurchase({ _id: orderId, amount: amountToPay, items });
-              clearCart();
-              router.push(`/order-confirmation/${orderId}`);
-            } catch (err: unknown) {
-              // The order exists and the webhook will still settle it, so send the buyer
-              // to the order rather than implying the payment was lost.
-              addToast(
-                err instanceof Error
-                  ? `${err.message}. Your order was saved — payment status will update shortly.`
-                  : "Could not confirm payment. Your order was saved.",
-                "warning"
+              // 2. Signature verified! Create the order now as Paid
+              const createdOrderId = await createOrder(
+                items,
+                amountToPay,
+                shippingAddress,
+                {
+                  paymentMethod: "Razorpay",
+                  paymentStatus: "Paid",
+                  transactionId: response.razorpay_payment_id
+                },
+                appliedCoupon?.couponCode || undefined,
+                couponDiscount || undefined,
+                { shippingCharge }
               );
+
+              trackPurchase({ _id: createdOrderId, amount: amountToPay, items });
               clearCart();
-              router.push(`/order-confirmation/${orderId}`);
+              router.push(`/order-confirmation/${createdOrderId}`);
+            } catch (err: unknown) {
+              addToast(
+                err instanceof Error ? err.message : "Could not verify payment or create order.",
+                "error"
+              );
+              setIsSubmitting(false);
             }
           },
           modal: {
-            ondismiss: () => setIsSubmitting(false),
+            ondismiss: () => {
+              setIsSubmitting(false);
+              addToast("Payment window closed. You can switch to COD or try payment again.", "info");
+            },
           },
           prefill: {
             name: `${firstName} ${lastName}`,
@@ -403,12 +399,12 @@ export function CheckoutView() {
 
         const rzp = new (Razorpay as any)(options as any);
         rzp.on("payment.failed", function (response: any) {
-          addToast(`Payment failed: ${response.error?.description || "Please try again."}`, "error");
           setIsSubmitting(false);
+          addToast(`Payment failed: ${response.error?.description || "Payment was not completed. You can try again or switch to COD."}`, "error");
         });
         rzp.open();
       } catch (err: any) {
-        addToast(err?.message || "Could not start payment", "error");
+        addToast(err?.message || "Could not start payment gateway", "error");
         setIsSubmitting(false);
       }
       return;

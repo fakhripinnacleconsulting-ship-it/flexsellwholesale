@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       await request.json();
 
-    if (!orderId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
         { error: "Missing required Razorpay verification fields" },
         { status: 400 }
@@ -41,45 +41,61 @@ export async function POST(request: Request) {
     });
 
     if (!signatureValid) {
-      console.warn(`[Razorpay] Invalid signature for order ${orderId}`);
+      console.warn(`[Razorpay] Invalid signature for order ${orderId || razorpay_order_id}`);
       return NextResponse.json({ success: false, error: "Invalid payment signature" }, { status: 400 });
     }
 
-    const result = await settleOrderPayment({
-      orderId,
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-      source: "checkout",
-    });
+    let isAlreadyPaid = false;
 
-    if (result.status === "not_found") {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-    if (result.status === "order_mismatch") {
-      console.warn(`[Razorpay] Order mismatch: ${razorpay_order_id} does not belong to ${orderId}`);
-      return NextResponse.json({ error: "Payment does not belong to this order" }, { status: 400 });
-    }
+    if (orderId && typeof orderId === "string") {
+      const result = await settleOrderPayment({
+        orderId,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        source: "checkout",
+      });
 
-    // Only announce a transition, never a replay.
-    if (result.status === "settled") {
-      try {
-        await dbConnect();
-        const order = await Order.findById(orderId).lean() as SettledOrderSummary | null;
-        const email = order?.shippingAddress?.email || "";
-        const customerId = email
-          ? (await Customer.findOne({ email: email.toLowerCase() }).select("_id"))?._id || ""
-          : "";
+      if (result.status === "not_found") {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+      if (result.status === "order_mismatch") {
+        console.warn(`[Razorpay] Order mismatch: ${razorpay_order_id} does not belong to ${orderId}`);
+        return NextResponse.json({ error: "Payment does not belong to this order" }, { status: 400 });
+      }
 
-        dispatchEvent({
-          eventType: "PAYMENT_STATUS_CHANGED",
-          category: "payments",
-          actor: { id: "SYSTEM", name: "Razorpay", role: "system" },
-          recipient: { customerId: String(customerId), email, name: order?.customerName, role: "both" },
-          entity: { type: "order", id: orderId },
-          data: { ...order, paymentStatus: "Paid" },
-        });
-      } catch (err) {
-        console.error("Failed to dispatch PAYMENT_STATUS_CHANGED:", err);
+      if (result.status === "already_paid") {
+        isAlreadyPaid = true;
+      } else if (result.status === "settled") {
+        try {
+          await dbConnect();
+          const order = await Order.findById(orderId).lean() as SettledOrderSummary | null;
+          const email = order?.shippingAddress?.email || "";
+          const customerId = email
+            ? (await Customer.findOne({ email: email.toLowerCase() }).select("_id"))?._id || ""
+            : "";
+
+          const eventData = { ...order, paymentStatus: "Paid", status: "Processing" };
+
+          dispatchEvent({
+            eventType: "ORDER_CREATED",
+            category: "orders",
+            actor: { id: "SYSTEM", name: "Razorpay", role: "system" },
+            recipient: { customerId: String(customerId), email, name: order?.customerName, role: "both" },
+            entity: { type: "order", id: orderId },
+            data: eventData,
+          });
+
+          dispatchEvent({
+            eventType: "PAYMENT_STATUS_CHANGED",
+            category: "payments",
+            actor: { id: "SYSTEM", name: "Razorpay", role: "system" },
+            recipient: { customerId: String(customerId), email, name: order?.customerName, role: "both" },
+            entity: { type: "order", id: orderId },
+            data: eventData,
+          });
+        } catch (err) {
+          console.error("Failed to dispatch ORDER_CREATED / PAYMENT_STATUS_CHANGED:", err);
+        }
       }
     }
 
@@ -87,7 +103,7 @@ export async function POST(request: Request) {
       success: true,
       message: "Payment verified successfully",
       transactionId: razorpay_payment_id,
-      alreadyProcessed: result.status === "already_paid",
+      alreadyProcessed: isAlreadyPaid,
     });
   } catch (error: unknown) {
     console.error("Razorpay verification error:", error);

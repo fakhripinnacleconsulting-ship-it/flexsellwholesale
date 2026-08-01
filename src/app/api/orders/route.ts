@@ -659,18 +659,23 @@ export async function POST(request: Request) {
     }
 
     // Dispatch Centralized System Event (Triggers In-App Notifications, Web Push Banners, and Transactional Emails)
-    const targetCustomerId = payload.role === "admin"
-      ? (await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).select("_id"))?._id || payload.userId
-      : payload.userId;
+    // Only dispatch ORDER_CREATED notification if order is already paid (e.g. admin/online instant)
+    // or if paymentMethod is NOT Razorpay (e.g. COD / Bank Transfer).
+    // Online Razorpay orders will dispatch notification upon payment verification in /api/razorpay/verify or webhook.
+    if (newOrder?.paymentStatus === "Paid" || paymentDetails?.paymentMethod !== "Razorpay") {
+      const targetCustomerId = payload.role === "admin"
+        ? (await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).select("_id"))?._id || payload.userId
+        : payload.userId;
 
-    dispatchEvent({
-      eventType: "ORDER_CREATED",
-      category: "orders",
-      actor: { id: payload.userId, name: payload.email, role: (payload.role as "admin" | "customer" | "system") || "customer" },
-      recipient: { customerId: targetCustomerId, email: shippingAddress.email, name: `${shippingAddress.firstName} ${shippingAddress.lastName}`, role: "both" },
-      entity: { type: "order", id: orderId },
-      data: newOrder,
-    });
+      dispatchEvent({
+        eventType: "ORDER_CREATED",
+        category: "orders",
+        actor: { id: payload.userId, name: payload.email, role: (payload.role as "admin" | "customer" | "system") || "customer" },
+        recipient: { customerId: targetCustomerId, email: shippingAddress.email, name: `${shippingAddress.firstName} ${shippingAddress.lastName}`, role: "both" },
+        entity: { type: "order", id: orderId },
+        data: newOrder,
+      });
+    }
 
     revalidateAdminDashboard();
     revalidateProducts();
