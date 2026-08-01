@@ -51,3 +51,5 @@ export const DATETIME_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   month: "short", day: "2-digit", year: "numeric", 
   hour: "2-digit", minute: "2-digit"
 };
+
+export const CUSTOMER_CANCELLABLE_STATUSES = ["Placed", "Pending", "Confirmed", "Processing"];

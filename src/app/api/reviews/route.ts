@@ -76,7 +76,10 @@ export async function POST(request: Request) {
 
     // 3. Verify B2B purchase history (Industry level)
     const verifiedOrder = await Order.findOne({
-      "shippingAddress.email": customer.email,
+      $or: [
+        { customerId: customer._id },
+        { "shippingAddress.email": customer.email }
+      ],
       "items.product._id": validatedData.productId,
       status: { $in: ["Shipped", "Delivered"] }
     });

@@ -29,8 +29,13 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
     }
 
     // Verify ownership
-    if (payload.role !== "admin" && (order as any).shippingAddress?.email?.toLowerCase() !== payload.email.toLowerCase()) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (payload.role !== "admin") {
+      const isOwner =
+        (order as any).customerId === payload.userId ||
+        (order as any).shippingAddress?.email?.toLowerCase() === payload.email.toLowerCase();
+      if (!isOwner) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
     }
 
     return NextResponse.json(order);

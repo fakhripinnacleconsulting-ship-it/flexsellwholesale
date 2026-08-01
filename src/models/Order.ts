@@ -42,6 +42,7 @@ const OrderSchema = new Schema<OrderType & Document>(
   {
     _id: { type: String, required: true },
     date: { type: String, required: true },
+    customerId: { type: String, index: true },
     amount: { type: Number, required: true },
     status: {
       type: String,
@@ -70,6 +71,10 @@ const OrderSchema = new Schema<OrderType & Document>(
     paymentMethod: { type: String, enum: ["Bank Transfer", "Razorpay", "UPI", "COD"] },
     paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed"], default: "Pending" },
     transactionId: { type: String },
+    // Razorpay order handle, minted server-side from this order's own amount. Payment
+    // verification requires the callback's order id to match it, so a signature captured
+    // from a different (cheaper) Razorpay order cannot settle this one.
+    razorpayOrderId: { type: String, index: true, sparse: true },
     invoiceId: { type: String, ref: "Invoice" },
     quoteId: { type: String, ref: "Invoice" },
     salesperson: { type: String },

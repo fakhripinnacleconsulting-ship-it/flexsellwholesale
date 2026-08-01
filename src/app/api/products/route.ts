@@ -8,6 +8,9 @@ import { ZodError } from "zod";
 
 import { searchService } from "@/services/searchService";
 
+/** Upper bound for the unfiltered catalog fetch — guards against OOM at scale. */
+const UNFILTERED_CATALOG_CAP = 2000;
+
 export async function GET(request: Request) {
   try {
     await dbConnect();
@@ -40,8 +43,13 @@ export async function GET(request: Request) {
       return NextResponse.json(result);
     }
 
-    // Retrieve products sorted by newest first (capped at 500 to prevent OOM at scale)
-    const products = await Product.find({}).sort({ createdAt: -1 }).limit(500);
+    // Unfiltered catalog fetch. Storefront listing pages load this once to power
+    // client-side filtering and infinite scroll, so the cap has to comfortably exceed
+    // the catalog size — past this point the tail is silently unreachable. Use the
+    // paginated branch above (?page=&limit=) for anything that must scale further.
+    const products = await Product.find({})
+      .sort({ createdAt: -1 })
+      .limit(UNFILTERED_CATALOG_CAP);
     return NextResponse.json(products);
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to fetch products" }, { status: 500 });

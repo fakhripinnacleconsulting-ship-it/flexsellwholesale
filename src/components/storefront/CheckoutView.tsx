@@ -12,6 +12,7 @@ import { customerService } from "@/services/customerService";
 import { couponService } from "@/services/couponService";
 import { useAuthStore } from "@/stores/authStore";
 import { shippingService } from "@/services/shippingService";
+import { apiClient } from "@/lib/apiClient";
 import { INDIAN_STATES } from "@/lib/constants";
 import { ShippingForm } from "./checkout/ShippingForm";
 import { PaymentSection } from "./checkout/PaymentSection";
@@ -66,11 +67,17 @@ export function CheckoutView() {
   const [isPaying, setIsPaying] = React.useState(false);
   const { Razorpay } = useRazorpay();
 
+  const [existingOrderId, setExistingOrderId] = React.useState<string | null>(null);
+
   // Coupon states
   const [couponCode, setCouponCode] = React.useState("");
   const [appliedCoupon, setAppliedCoupon] = React.useState<any>(null);
   const [couponDiscount, setCouponDiscount] = React.useState(0);
   const [isValidatingCoupon, setIsValidatingCoupon] = React.useState(false);
+
+  React.useEffect(() => {
+    setExistingOrderId(null);
+  }, [items, grandTotal, email, firstName, lastName, company, address, city, state, pinCode, phone, paymentMethod, appliedCoupon]);
 
   // Admin delegation states
   const [currentUser, setCurrentUser] = React.useState<any>(null);
@@ -174,8 +181,10 @@ export function CheckoutView() {
           setPhone(customer.phone);
           setBuyerState(customer.state || INDIAN_STATES[0]);
         }
-      } catch (err) {
-        console.error("Failed to load active customer:", err);
+      } catch (err: any) {
+        if (err?.status !== 401) {
+          console.error("Failed to load active customer:", err.message || err);
+        }
         router.push("/login?callbackUrl=/checkout");
       }
     };
@@ -318,46 +327,69 @@ export function CheckoutView() {
 
     if (paymentMethod === "Razorpay") {
       setIsSubmitting(true);
-      
+
       try {
-        const rzpOrderRes = await fetch("/api/razorpay/order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: amountToPay }),
-        });
-        const rzpOrderData = await rzpOrderRes.json();
+        let orderId = existingOrderId;
         
-        if (!rzpOrderRes.ok || !rzpOrderData.orderId) {
+        if (!orderId) {
+          orderId = await createOrder(
+            items,
+            amountToPay,
+            shippingAddress,
+            { paymentMethod: "Razorpay", paymentStatus: "Pending" },
+            appliedCoupon?.couponCode || undefined,
+            couponDiscount || undefined,
+            { shippingCharge }
+          );
+          setExistingOrderId(orderId);
+        }
+
+        // The gateway order is priced from the saved order server-side — we deliberately
+        // do not send an amount from here.
+        const rzpOrderData = await apiClient.post<any>("/razorpay/order", { orderId });
+        console.log("RAZORPAY INIT RESPONSE:", rzpOrderData);
+
+        if (!rzpOrderData.orderId) {
           throw new Error(rzpOrderData.error || "Failed to initialize payment gateway");
         }
 
         const options = {
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
-          amount: Math.round(amountToPay * 100).toString(),
-          currency: "INR",
+          amount: String(rzpOrderData.amount),
+          currency: rzpOrderData.currency || "INR",
           name: "FlexSell Wholesale",
-          description: "B2B Order Payment",
+          description: `Order ${orderId}`,
           order_id: rzpOrderData.orderId,
           handler: async function (response: any) {
             try {
-              const orderId = await createOrder(
-                items,
-                amountToPay,
-                shippingAddress,
-                {
-                  paymentMethod: "Razorpay",
-                  paymentStatus: "Paid",
-                  transactionId: response.razorpay_payment_id
-                },
-                appliedCoupon?.couponCode || undefined,
-                couponDiscount || undefined
-              );
+              const verifyData = await apiClient.post<any>("/razorpay/verify", {
+                orderId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              if (!verifyData.success) {
+                throw new Error(verifyData.error || "Payment verification failed");
+              }
+
+              trackPurchase({ _id: orderId, amount: amountToPay, items });
               clearCart();
               router.push(`/order-confirmation/${orderId}`);
             } catch (err: unknown) {
-              alert(err instanceof Error ? (err as any).message : "Failed to save order. Please contact support.");
-              setIsSubmitting(false);
+              // The order exists and the webhook will still settle it, so send the buyer
+              // to the order rather than implying the payment was lost.
+              addToast(
+                err instanceof Error
+                  ? `${err.message}. Your order was saved — payment status will update shortly.`
+                  : "Could not confirm payment. Your order was saved.",
+                "warning"
+              );
+              clearCart();
+              router.push(`/order-confirmation/${orderId}`);
             }
+          },
+          modal: {
+            ondismiss: () => setIsSubmitting(false),
           },
           prefill: {
             name: `${firstName} ${lastName}`,
@@ -371,12 +403,12 @@ export function CheckoutView() {
 
         const rzp = new (Razorpay as any)(options as any);
         rzp.on("payment.failed", function (response: any) {
-          alert("Payment failed: " + response.error.description);
+          addToast(`Payment failed: ${response.error?.description || "Please try again."}`, "error");
           setIsSubmitting(false);
         });
         rzp.open();
       } catch (err: any) {
-        alert(err.message);
+        addToast(err?.message || "Could not start payment", "error");
         setIsSubmitting(false);
       }
       return;
@@ -386,20 +418,22 @@ export function CheckoutView() {
       setIsSubmitting(true);
       try {
         const orderId = await createOrder(
-          items, 
-          amountToPay, 
+          items,
+          amountToPay,
           shippingAddress,
           {
             paymentMethod: "COD",
             paymentStatus: "Pending"
           },
           appliedCoupon?.couponCode || undefined,
-          couponDiscount || undefined
+          couponDiscount || undefined,
+          { shippingCharge }
         );
+        trackPurchase({ _id: orderId, amount: amountToPay, items });
         clearCart();
         router.push(`/order-confirmation/${orderId}`);
       } catch (err) {
-        alert(err instanceof Error ? (err as any).message : "Failed to place order. Please try again.");
+        addToast(err instanceof Error ? err.message : "Failed to place order. Please try again.", "error");
       } finally {
         setIsSubmitting(false);
       }

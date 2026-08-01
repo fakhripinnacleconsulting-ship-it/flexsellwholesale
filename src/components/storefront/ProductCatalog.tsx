@@ -37,7 +37,7 @@ interface ProductCatalogProps {
 }
 
 export function ProductCatalog({ initialProducts, initialCategories }: ProductCatalogProps) {
-  const { products, initializeProducts } = useProductStore();
+  const { products, initializeProducts, loadFullCatalog } = useProductStore();
   const { categories, initializeCategories } = useCategoryStore();
 
   // Layout States
@@ -71,11 +71,16 @@ export function ProductCatalog({ initialProducts, initialCategories }: ProductCa
     }));
   };
 
-  // Sync server products and categories into client stores
+  // Seed the client stores from the server-rendered slice, then pull the rest of the
+  // catalog in the background — filtering, sorting and infinite scroll all run on the
+  // client, so they need the complete list to be correct.
   React.useEffect(() => {
     initializeProducts(initialProducts);
     initializeCategories(initialCategories);
-  }, [initialProducts, initialCategories, initializeProducts, initializeCategories]);
+    loadFullCatalog();
+  }, [initialProducts, initialCategories, initializeProducts, initializeCategories, loadFullCatalog]);
+
+  const loadMore = React.useCallback(() => setDisplayedPages((p) => p + 1), []);
 
   const activeProducts = products.length > 0 ? products : initialProducts;
 
@@ -430,7 +435,7 @@ export function ProductCatalog({ initialProducts, initialCategories }: ProductCa
 
           <InfiniteScrollTrigger
             hasMore={displayedPages < totalPages}
-            onIntersect={() => setDisplayedPages(p => p + 1)}
+            onIntersect={loadMore}
           />
         </div>
       </div>

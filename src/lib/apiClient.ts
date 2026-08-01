@@ -38,7 +38,7 @@ async function request<T>(
   // Inject CSRF token from cookie for state-changing methods in browser environment
   if (typeof window !== "undefined" && typeof document !== "undefined") {
     const method = options.method?.toUpperCase() || "GET";
-    if (["POST", "PUT", "DELETE"].includes(method)) {
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
       const matches = document.cookie.match(/csrf_token=([^;]+)/);
       const csrfToken = matches ? matches[1] : null;
       if (csrfToken) {
@@ -50,7 +50,7 @@ async function request<T>(
   // Only force no-store for state-changing methods; allow GET requests to use
   // browser/CDN default caching. Callers can still pass cache: "no-store" via options.
   const method = options.method?.toUpperCase() || "GET";
-  const isStateChanging = ["POST", "PUT", "DELETE"].includes(method);
+  const isStateChanging = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
 
   const config: RequestInit = {
     ...options,
@@ -112,7 +112,16 @@ export const apiClient = {
     });
   },
     
-  delete: <T>(path: string, options?: RequestInit) => 
+  patch: <T>(path: string, body?: unknown, options?: RequestInit) => {
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+    return request<T>(path, {
+      ...options,
+      method: "PATCH",
+      body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined)
+    });
+  },
+
+  delete: <T>(path: string, options?: RequestInit) =>
     request<T>(path, { ...options, method: "DELETE" }),
 };
 

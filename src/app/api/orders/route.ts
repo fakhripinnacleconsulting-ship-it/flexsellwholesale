@@ -22,6 +22,12 @@ import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 import { rateLimit } from "@/lib/rateLimit";
 import { runInTransaction } from "@/lib/transactionHelper";
 import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
+import {
+  computeOrderTaxDetails,
+  computeExpectedOrderTotal,
+  isOrderTotalAcceptable,
+  resolveSellerState,
+} from "@/lib/orderTotals";
 
 async function generateInvoiceId(type: "invoice" | "receipt", session?: any): Promise<string> {
   const prefix = type === "invoice" ? "INV" : "RCP";
@@ -54,62 +60,6 @@ async function getSellerInfo() {
   };
 }
 
-function computeOrderTaxDetails(items: any[], buyerState: string, sellerState: string) {
-  const isIntrastate = buyerState.toLowerCase() === sellerState.toLowerCase();
-  const hsnMap: Record<string, any> = {};
-  let baseSubtotal = 0;
-  let totalCgst = 0;
-  let totalSgst = 0;
-  let totalIgst = 0;
-
-  items.forEach((item: any) => {
-    const rate = item.product?.gstRate ?? 18;
-    const hsn = item.product?.hsnCode ?? "3924";
-    const isIncl = item.product?.priceIncludesGst ?? true;
-    const totalAmount = item.pricePerUnit * item.quantity;
-    let itemBase = 0;
-    let itemTax = 0;
-
-    if (isIncl) {
-      itemBase = totalAmount / (1 + rate / 100);
-      itemTax = totalAmount - itemBase;
-    } else {
-      itemBase = totalAmount;
-      itemTax = itemBase * (rate / 100);
-    }
-
-    baseSubtotal += itemBase;
-    let cgst = 0, sgst = 0, igst = 0;
-    if (isIntrastate) {
-      cgst = itemTax / 2;
-      sgst = itemTax / 2;
-      totalCgst += cgst;
-      totalSgst += sgst;
-    } else {
-      igst = itemTax;
-      totalIgst += igst;
-    }
-
-    if (!hsnMap[hsn]) {
-      hsnMap[hsn] = { hsnCode: hsn, gstRate: rate, baseAmount: 0, totalTax: 0, cgst: 0, sgst: 0, igst: 0 };
-    }
-    hsnMap[hsn].baseAmount += itemBase;
-    hsnMap[hsn].totalTax += itemTax;
-    hsnMap[hsn].cgst += cgst;
-    hsnMap[hsn].sgst += sgst;
-    hsnMap[hsn].igst += igst;
-  });
-
-  return {
-    isIntrastate,
-    baseSubtotal,
-    cgst: totalCgst,
-    sgst: totalSgst,
-    igst: totalIgst,
-    hsnSlabs: Object.values(hsnMap),
-  };
-}
-
 export async function GET(request: Request) {
   try {
     const auth = await requireAuth();
@@ -120,8 +70,13 @@ export async function GET(request: Request) {
     const andConditions: any[] = [];
 
     if (payload.role !== "admin") {
-      // B2B buyer can only fetch their own orders matching their email
-      andConditions.push({ "shippingAddress.email": payload.email.toLowerCase() });
+      // B2B buyer can only fetch their own orders matching their customerId (fallback to email)
+      andConditions.push({
+        $or: [
+          { customerId: payload.userId },
+          { "shippingAddress.email": payload.email.toLowerCase() }
+        ]
+      });
     }
 
     const { searchParams } = new URL(request.url);
@@ -516,6 +471,31 @@ export async function POST(request: Request) {
         shippingAddress.company ? ` (${shippingAddress.company})` : ""
       }`;
 
+      const sellerInfo = await getSellerInfo();
+      const sellerState = resolveSellerState(sellerInfo.address);
+      const taxDetails = computeOrderTaxDetails(items, shippingAddress.state, sellerState);
+
+      // Recompute the total from server-verified item prices. Per-item prices are already
+      // re-verified above, but without this the client still controls the top-level
+      // `amount` — and that is what gets charged and invoiced.
+      // Quote conversions are exempt: those totals are admin-negotiated, same carve-out
+      // the per-item price check uses.
+      const expectedTotal = computeExpectedOrderTotal({
+        taxDetails,
+        shippingCharge: shippingCharge || 0,
+        packagingCharge: packagingCharge || 0,
+        couponDiscount: couponDiscount || 0,
+      });
+
+      if (!quoteId && !isOrderTotalAcceptable(expectedTotal, amount)) {
+        throw new Error(
+          `Order total mismatch. Expected ₹${expectedTotal.toFixed(2)}, received ₹${Number(amount).toFixed(2)}.`
+        );
+      }
+
+      // Charge the server's figure, not the client's.
+      const chargeableAmount = quoteId ? amount : expectedTotal;
+
       let pStatus = paymentDetails?.paymentStatus || "Pending";
       // Security: Force non-admin online Razorpay payments to start as Pending until verified via /api/razorpay/verify
       if (paymentDetails?.paymentMethod === "Razorpay" && payload.role !== "admin" && !quoteId) {
@@ -558,7 +538,8 @@ export async function POST(request: Request) {
         const orderInstance = new Order({
           _id: orderId,
           date: orderDate,
-          amount,
+          customerId,
+          amount: chargeableAmount,
           status: "Processing",
           statusClass: ORDER_STATUS_CLASSES["Processing"],
           itemsCount: items.reduce((sum: number, item: any) => sum + item.quantity, 0),
@@ -590,10 +571,8 @@ export async function POST(request: Request) {
         await orderInstance.save({ session });
         createdOrder = orderInstance;
 
-        // Create Invoice / Receipt document
-        const sellerInfo = await getSellerInfo();
-        const sellerState = sellerInfo.address.match(/(?:,\s*)([A-Za-z\s]+?)(?:\s*-\s*\d|$)/)?.[1]?.trim() || "Madhya Pradesh";
-        const taxDetails = computeOrderTaxDetails(items, shippingAddress.state, sellerState);
+        // Create Invoice / Receipt document — reuses the sellerInfo/taxDetails computed
+        // above so the invoice can never disagree with the order it documents.
         const generatedAt = new Date().toLocaleDateString("en-IN", {
           day: "2-digit", month: "long", year: "numeric",
         });
@@ -612,7 +591,7 @@ export async function POST(request: Request) {
           customerEmail: shippingAddress.email.toLowerCase(),
           customerGstin: shippingAddress.gstin || "",
           items,
-          amount,
+          amount: chargeableAmount,
           taxDetails,
           shippingAddress,
           paymentMethod: paymentDetails?.paymentMethod,

@@ -68,6 +68,59 @@ describe("Price Tier Helper - B2B Qualification Rules", () => {
     expect(resolvePrice(sampleSubVariant, b2cCustomer, 10)).toBe(10);
     expect(resolvePriceTierName(sampleSubVariant, b2cCustomer, 10)).toBe("B2C");
   });
+
+  // Regression: an account left at customerTypes ["B2C"] with upgradeStatus "approved"
+  // priced as B2B in the cart but as B2C on the server, so every checkout died with
+  // "Price verification failed". Entitlement now comes from customerTypes alone.
+  describe("client and server must resolve the same price", () => {
+    const staleApproved = {
+      role: "customer",
+      customerTypes: ["B2C"],
+      upgradeStatus: "approved",
+    };
+
+    it("does not grant B2B pricing on upgradeStatus alone", () => {
+      expect(resolvePrice(sampleSubVariant, staleApproved, 10)).toBe(10);
+      expect(resolvePriceTierName(sampleSubVariant, staleApproved, 10)).toBe("B2C");
+    });
+
+    it("agrees whether given a customer object or a customerTypes array", () => {
+      const cases = [
+        { role: "customer", customerTypes: ["B2C"], upgradeStatus: "approved" },
+        { role: "customer", customerTypes: ["B2C"], upgradeStatus: "pending" },
+        { role: "customer", customerTypes: ["B2B"], upgradeStatus: "none" },
+        { role: "customer", customerTypes: ["B2C", "B2B"], upgradeStatus: "approved" },
+        { role: "customer", customerTypes: ["Dropshipping"], upgradeStatus: "none" },
+        { role: "customer", customerTypes: [], upgradeStatus: "none" },
+      ];
+
+      for (const customer of cases) {
+        for (const qty of [1, 5, 20]) {
+          // Client passes the object; the server only has customerTypes.
+          expect(
+            resolvePrice(sampleSubVariant, customer, qty),
+            `price mismatch for ${JSON.stringify(customer.customerTypes)} @ qty ${qty}`
+          ).toBe(resolvePrice(sampleSubVariant, customer.customerTypes, qty));
+
+          expect(
+            resolvePriceTierName(sampleSubVariant, customer, qty),
+            `tier mismatch for ${JSON.stringify(customer.customerTypes)} @ qty ${qty}`
+          ).toBe(resolvePriceTierName(sampleSubVariant, customer.customerTypes, qty));
+        }
+      }
+    });
+
+    it("keeps MOQ consistent across both shapes", () => {
+      const b2b = { role: "customer", customerTypes: ["B2B"], upgradeStatus: "approved" };
+      expect(resolveMoq(sampleSubVariant, b2b)).toBe(resolveMoq(sampleSubVariant, b2b.customerTypes));
+    });
+
+    it("still prices Dropshipping accounts at the dropshipping rate", () => {
+      const dropshipper = { role: "customer", customerTypes: ["Dropshipping"], upgradeStatus: "approved" };
+      expect(resolvePrice(sampleSubVariant, dropshipper, 1)).toBe(7);
+      expect(resolvePriceTierName(sampleSubVariant, dropshipper, 1)).toBe("Dropshipping");
+    });
+  });
 });
 
 describe("Volumetric & Effective Weight Calculations", () => {

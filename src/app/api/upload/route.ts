@@ -48,14 +48,14 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // Validate file type — allow common images and videos
     const ALLOWED_TYPES = [
-      "image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml",
+      "image/jpeg", "image/png", "image/webp", "image/gif",
       "image/jpg", "image/avif",
       "video/mp4", "video/webm", "video/ogg", "video/quicktime", "video/x-matroska"
     ];
 
-    if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith("image/") && !isVideo) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { message: "File type not allowed. Supported formats: Images (JPEG, PNG, WebP, GIF, SVG) and Videos (MP4, WebM, QuickTime)." },
+        { message: "File type not allowed. Supported formats: Images (JPEG, PNG, WebP, GIF) and Videos (MP4, WebM, QuickTime)." },
         { status: 400 }
       );
     }
@@ -99,16 +99,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     } catch (fsError: any) {
       console.warn("Local disk write failed (read-only serverless environment):", fsError);
 
-      // Fallback: Convert images to base64 Data URL so uploads work seamlessly on Vercel even without Blob storage configured
-      if (!isVideo) {
-        const base64Data = buffer.toString("base64");
-        const mimeType = file.type || "image/jpeg";
-        const dataUrl = `data:${mimeType};base64,${base64Data}`;
-        return NextResponse.json({ url: dataUrl });
-      }
-
       return NextResponse.json(
-        { message: "Serverless filesystem is read-only. Please configure BLOB_READ_WRITE_TOKEN in Vercel environment variables to enable video uploads." },
+        { message: "Serverless filesystem is read-only. Please configure BLOB_READ_WRITE_TOKEN in Vercel environment variables to enable uploads." },
         { status: 500 }
       );
     }

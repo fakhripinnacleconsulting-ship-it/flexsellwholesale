@@ -8,7 +8,8 @@ export async function POST(req: Request) {
     await dbConnect();
     const body = await req.json();
     const { endpoint, keys, userAgent } = body;
-    let { userId, role } = body;
+    let userId = "anonymous";
+    let role = "customer";
 
     // If a valid session exists, trust the verified identity instead of the client-supplied one
     // so a caller can't register a subscription claiming to be a different customer or an admin.

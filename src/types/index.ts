@@ -169,6 +169,7 @@ export interface ShipmentDetails {
 
 export interface Order extends BaseDocument {
   date: string;
+  customerId?: string;
   amount: number;
   status: "Placed" | "Pending" | "Confirmed" | "Processing" | "Awaiting Shipment" | "In Transit" | "Shipped" | "Delivered" | "Cancelled";
   statusClass: string;
@@ -193,6 +194,8 @@ export interface Order extends BaseDocument {
   paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD" | "NEFT/RTGS" | "Cheque" | "Cash" | string;
   paymentStatus?: "Pending" | "Paid" | "Failed";
   transactionId?: string;
+  /** Razorpay order handle minted for this order; used to bind payment verification. */
+  razorpayOrderId?: string;
   invoiceId?: string;
   quoteId?: string;
   salesperson?: string;

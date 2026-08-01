@@ -157,7 +157,10 @@ export const orderService = {
     couponCode?: string,
     couponDiscount?: number,
     quoteId?: string,
-    salesperson?: string
+    salesperson?: string,
+    // Must be sent explicitly: the server recomputes the order total from verified item
+    // prices plus these charges, and rejects the order if the client's total disagrees.
+    charges?: { shippingCharge?: number; packagingCharge?: number }
   ): Promise<Order> {
     if (isMockMode) {
       const orders = getLocalOrders();
@@ -286,7 +289,9 @@ export const orderService = {
       couponCode,
       couponDiscount,
       quoteId,
-      salesperson
+      salesperson,
+      shippingCharge: charges?.shippingCharge ?? 0,
+      packagingCharge: charges?.packagingCharge ?? 0
     });
   },
 

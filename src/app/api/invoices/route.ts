@@ -6,6 +6,7 @@ import Order from "@/models/Order";
 import CmsContent from "@/models/CmsContent";
 import { requireAuth } from "@/lib/authGuard";
 import { generateNextId } from "@/lib/idGeneratorServer";
+import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
 import bcrypt from "bcryptjs";
 
 async function getSellerInfo() {
@@ -25,62 +26,6 @@ async function generateInvoiceId(type: "invoice" | "receipt" | "quote"): Promise
   return generateNextId(type);
 }
 
-function computeOrderTaxDetails(items: any[], buyerState: string, sellerState: string) {
-  const isIntrastate = buyerState?.toLowerCase() === sellerState?.toLowerCase();
-  const hsnMap: Record<string, any> = {};
-  let baseSubtotal = 0;
-  let totalCgst = 0;
-  let totalSgst = 0;
-  let totalIgst = 0;
-
-  items.forEach((item: any) => {
-    const rate = item.product?.gstRate ?? 18;
-    const hsn = item.product?.hsnCode ?? "3924";
-    const isIncl = item.product?.priceIncludesGst ?? true;
-    const totalAmount = item.pricePerUnit * item.quantity;
-    let itemBase = 0;
-    let itemTax = 0;
-
-    if (isIncl) {
-      itemBase = totalAmount / (1 + rate / 100);
-      itemTax = totalAmount - itemBase;
-    } else {
-      itemBase = totalAmount;
-      itemTax = itemBase * (rate / 100);
-    }
-
-    baseSubtotal += itemBase;
-    let cgst = 0, sgst = 0, igst = 0;
-    if (isIntrastate) {
-      cgst = itemTax / 2;
-      sgst = itemTax / 2;
-      totalCgst += cgst;
-      totalSgst += sgst;
-    } else {
-      igst = itemTax;
-      totalIgst += igst;
-    }
-
-    if (!hsnMap[hsn]) {
-      hsnMap[hsn] = { hsnCode: hsn, gstRate: rate, baseAmount: 0, totalTax: 0, cgst: 0, sgst: 0, igst: 0 };
-    }
-    hsnMap[hsn].baseAmount += itemBase;
-    hsnMap[hsn].totalTax += itemTax;
-    hsnMap[hsn].cgst += cgst;
-    hsnMap[hsn].sgst += sgst;
-    hsnMap[hsn].igst += igst;
-  });
-
-  return {
-    isIntrastate,
-    baseSubtotal,
-    cgst: totalCgst,
-    sgst: totalSgst,
-    igst: totalIgst,
-    hsnSlabs: Object.values(hsnMap),
-  };
-}
-
 async function syncMissingInvoicesForOrders() {
   try {
     // Find all orders that do not have an invoiceId or whose invoiceId doesn't exist
@@ -95,7 +40,7 @@ async function syncMissingInvoicesForOrders() {
     if (orders.length === 0) return;
 
     const sellerInfo = await getSellerInfo();
-    const sellerState = sellerInfo.address.match(/(?:,\s*)([A-Za-z\s]+?)(?:\s*-\s*\d|$)/)?.[1]?.trim() || "Madhya Pradesh";
+    const sellerState = resolveSellerState(sellerInfo.address);
 
     for (const order of orders as any[]) {
       // Check if an invoice document already exists for this orderId (to prevent duplicates)

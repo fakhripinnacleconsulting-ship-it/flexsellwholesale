@@ -3,6 +3,12 @@ import { sendSystemOSNotification } from "../browserNotifications";
 
 const NOTIFICATIONS_STORAGE_KEY = "flexsell-notifications-storage";
 
+/**
+ * Mirrors CLIENT_ALLOWED_EVENTS in /api/events/dispatch. Kept as a local literal rather
+ * than imported so this browser module never pulls in server-only route code.
+ */
+const CLIENT_FORWARDED_EVENTS = ["CART_ITEM_ADDED", "CART_ITEM_REMOVED"] as const;
+
 function saveClientMockNotification(notifData: {
   customerId: string;
   recipientRole: "customer" | "admin";
@@ -285,8 +291,11 @@ export function handleClientMockEvent(event: SystemEventPayload): void {
     }
   }
 
-  // 3. Dispatch event to server endpoint asynchronously so Nodemailer SMTP email & Web Push notifications are dispatched
-  if (typeof window !== "undefined" && typeof fetch !== "undefined") {
+  // 3. Forward to the server endpoint so SMTP email & Web Push are dispatched.
+  //    Only the allowlisted events are forwarded — the route rejects anything else with
+  //    403, and guests with 401, so posting them would just be noise.
+  const isForwardable = (CLIENT_FORWARDED_EVENTS as readonly string[]).includes(eventType);
+  if (isForwardable && typeof window !== "undefined" && typeof fetch !== "undefined") {
     fetch("/api/events/dispatch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

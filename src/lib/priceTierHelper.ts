@@ -12,25 +12,30 @@ export function isHybridB2CAndB2B(customerTypes?: string[]): boolean {
   return customerTypes.includes("B2B") && customerTypes.includes("B2C");
 }
 
+/**
+ * Whether this account is entitled to wholesale pricing.
+ *
+ * Entitlement lives in `customerTypes` and nowhere else. `upgradeStatus` used to
+ * short-circuit this to `true`, which let an account whose upgrade was marked approved
+ * but whose `customerTypes` was still `["B2C"]` see B2B prices in the cart — and then get
+ * rejected at checkout by the server's price re-verification, which only ever looked at
+ * `customerTypes`. Approval must be reflected by the approve route writing `customerTypes`.
+ *
+ * Accepts either a customer object or a bare `customerTypes` array so that callers on both
+ * sides of the wire resolve entitlement identically.
+ */
 export function isB2bVerified(customer?: any): boolean {
   if (!customer) return false;
-  if (customer.role === "admin") return true;
 
-  // Explicit approval or rejection checks
-  if (customer.upgradeStatus === "Approved" || customer.upgradeStatus === "approved") {
-    return true;
-  }
-  if (customer.upgradeStatus === "rejected" || customer.upgradeStatus === "pending") {
-    return false;
-  }
-
-  // Check customerTypes on customer object or array
   const types = Array.isArray(customer) ? customer : customer.customerTypes;
-  if (Array.isArray(types)) {
-    return types.includes("B2B") || types.includes("Dropshipping");
-  }
+  const hasWholesaleType =
+    Array.isArray(types) && (types.includes("B2B") || types.includes("Dropshipping"));
 
-  return false;
+  // Admins browse at wholesale rates. Order placement resolves pricing from the customer
+  // being ordered for, not from the admin's own account.
+  if (!Array.isArray(customer) && customer.role === "admin") return true;
+
+  return hasWholesaleType;
 }
 
 export function resolveCustomerTier(customerTypes?: string[]): PriceTier {
@@ -57,6 +62,35 @@ export function resolveMoq(sv?: SubVariant, tierOrTypes?: PriceTier | string[] |
   return tierOrTypes === "B2B" ? (sv.b2bMoq || 1) : 1;
 }
 
+/**
+ * Normalises the many shapes callers pass (customer object, `customerTypes` array, or a
+ * bare tier string) into one entitlement decision.
+ *
+ * The client passes a customer object while the server passes a `customerTypes` array;
+ * routing both through here is what stops the two sides pricing an order differently and
+ * failing checkout with "Price verification failed".
+ */
+export function resolveEntitlement(
+  customerOrTier: PriceTier | string[] | any = "B2C"
+): { isVerified: boolean; isDropshipper: boolean } {
+  if (customerOrTier === "B2B") {
+    return { isVerified: true, isDropshipper: false };
+  }
+  if (customerOrTier === "Dropshipping") {
+    return { isVerified: true, isDropshipper: true };
+  }
+  if (customerOrTier === "B2C") {
+    return { isVerified: false, isDropshipper: false };
+  }
+
+  const isVerified = isB2bVerified(customerOrTier);
+  const types = Array.isArray(customerOrTier) ? customerOrTier : customerOrTier?.customerTypes;
+  const isDropshipper =
+    isVerified && Array.isArray(types) && types.includes("Dropshipping");
+
+  return { isVerified, isDropshipper };
+}
+
 export function resolvePrice(
   sv?: SubVariant,
   customerOrTier: PriceTier | string[] | any = "B2C",
@@ -64,21 +98,7 @@ export function resolvePrice(
 ): number {
   if (!sv) return 0;
 
-  let isVerified = false;
-  let isDropshipper = false;
-
-  if (typeof customerOrTier === "object" && customerOrTier !== null && !Array.isArray(customerOrTier)) {
-    isVerified = isB2bVerified(customerOrTier);
-    isDropshipper = (customerOrTier.customerTypes?.includes("Dropshipping") || false) && isVerified;
-  } else if (Array.isArray(customerOrTier)) {
-    isVerified = customerOrTier.includes("B2B") || customerOrTier.includes("Dropshipping");
-    isDropshipper = customerOrTier.includes("Dropshipping");
-  } else if (customerOrTier === "B2B") {
-    isVerified = true;
-  } else if (customerOrTier === "Dropshipping") {
-    isVerified = true;
-    isDropshipper = true;
-  }
+  const { isVerified, isDropshipper } = resolveEntitlement(customerOrTier);
 
   const b2bMoq = sv.b2bMoq || 1;
 
@@ -101,20 +121,7 @@ export function resolvePriceTierName(
 ): PriceTier {
   if (!sv) return "B2C";
 
-  let isVerified = false;
-  let isDropshipper = false;
-
-  if (typeof customerOrTypes === "object" && customerOrTypes !== null && !Array.isArray(customerOrTypes)) {
-    isVerified = isB2bVerified(customerOrTypes);
-    isDropshipper = (customerOrTypes.customerTypes?.includes("Dropshipping") || false) && isVerified;
-  } else if (Array.isArray(customerOrTypes)) {
-    isVerified = customerOrTypes.includes("B2B") || customerOrTypes.includes("Dropshipping");
-    isDropshipper = customerOrTypes.includes("Dropshipping");
-  } else if (customerOrTypes === "B2B") {
-    isVerified = true;
-  } else if (customerOrTypes === "Dropshipping") {
-    isVerified = true;
-  }
+  const { isVerified, isDropshipper } = resolveEntitlement(customerOrTypes);
 
   const b2bMoq = sv.b2bMoq || 1;
 

@@ -116,9 +116,9 @@ export async function PUT(
           const linkedOrder = await Order.findById(existingDoc.orderId);
           if (linkedOrder) {
             orderBackup = {
-              paymentStatus: linkedOrder.paymentStatus,
-              paymentMethod: linkedOrder.paymentMethod,
-              transactionId: linkedOrder.transactionId
+              paymentStatus: (linkedOrder as any).paymentStatus,
+              paymentMethod: (linkedOrder as any).paymentMethod,
+              transactionId: (linkedOrder as any).transactionId
             };
             await Order.findByIdAndUpdate(existingDoc.orderId, {
               paymentStatus: "Paid",

@@ -36,7 +36,7 @@ interface SearchResultsProps {
 }
 
 export function SearchResults({ query, initialProducts, initialCategories }: SearchResultsProps) {
-  const { products, initializeProducts } = useProductStore();
+  const { products, initializeProducts, loadFullCatalog } = useProductStore();
   const { categories, initializeCategories } = useCategoryStore();
 
   // Layout States
@@ -77,10 +77,15 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
     }));
   };
 
+  // Seed from the server-rendered slice, then pull the rest in the background so search
+  // scoring and filtering run against the whole catalog, not just the seeded page.
   React.useEffect(() => {
     initializeProducts(initialProducts);
     initializeCategories(initialCategories);
-  }, [initialProducts, initialCategories, initializeProducts, initializeCategories]);
+    loadFullCatalog();
+  }, [initialProducts, initialCategories, initializeProducts, initializeCategories, loadFullCatalog]);
+
+  const loadMore = React.useCallback(() => setDisplayedPages((p) => p + 1), []);
 
   const activeProducts = products.length > 0 ? products : initialProducts;
   const lowercaseQuery = query.toLowerCase();
@@ -488,7 +493,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
 
           <InfiniteScrollTrigger
             hasMore={displayedPages < totalPages}
-            onIntersect={() => setDisplayedPages(p => p + 1)}
+            onIntersect={loadMore}
           />
         </div>
       </div>

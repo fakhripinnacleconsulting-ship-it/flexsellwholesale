@@ -4,7 +4,7 @@ import Order from "@/models/Order";
 import Product from "@/models/Product";
 import { requireAuth } from "@/lib/authGuard";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { ORDER_STATUS_CLASSES } from "@/lib/constants";
+import { ORDER_STATUS_CLASSES, CUSTOMER_CANCELLABLE_STATUSES } from "@/lib/constants";
 import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
 
 interface RouteProps {
@@ -12,7 +12,7 @@ interface RouteProps {
 }
 
 // Statuses a customer may still back out of — once shipping has started, only admin can intervene.
-const CUSTOMER_CANCELLABLE_STATUSES = ["Placed", "Pending", "Confirmed"];
+// (imported CUSTOMER_CANCELLABLE_STATUSES from constants)
 
 // PUT: Customer (or admin) cancels a pre-shipment order — soft-cancels and restores stock,
 // unlike the admin DELETE endpoint which permanently removes the order record.
@@ -30,8 +30,11 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
-    if (payload.role !== "admin" && order.shippingAddress?.email?.toLowerCase() !== payload.email.toLowerCase()) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (payload.role !== "admin") {
+      const isOwner = order.customerId === payload.userId || order.shippingAddress?.email?.toLowerCase() === payload.email.toLowerCase();
+      if (!isOwner) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
     }
 
     if (order.status === "Cancelled") {

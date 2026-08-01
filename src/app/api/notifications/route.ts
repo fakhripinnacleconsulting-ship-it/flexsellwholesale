@@ -3,62 +3,75 @@ import dbConnect from "@/lib/dbConnect";
 import Notification from "@/models/Notification";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 
-// GET: Retrieve notifications (role or customer specific)
-export async function GET(request: Request) {
+interface Session {
+  userId: string;
+  role: string;
+}
+
+/**
+ * Resolves the caller from the session cookie.
+ *
+ * Every handler below scopes its query off this and never off a client-supplied
+ * `role`/`customerId` parameter — trusting those let any customer read another
+ * customer's feed and wipe the admin feed.
+ */
+async function getSession(): Promise<{ session?: Session; error?: NextResponse }> {
+  const token = await getTokenFromCookie();
+  if (!token) {
+    return { error: NextResponse.json({ message: "Not authenticated" }, { status: 401 }) };
+  }
+  const payload = verifyToken(token);
+  if (!payload) {
+    return { error: NextResponse.json({ message: "Invalid session" }, { status: 401 }) };
+  }
+  return { session: { userId: payload.userId, role: payload.role } };
+}
+
+/** The set of notifications a given caller is allowed to see or act on. */
+function scopeFor(session: Session) {
+  if (session.role === "admin") {
+    return { $or: [{ recipientRole: "admin" }, { customerId: "admin" }] };
+  }
+  return {
+    customerId: { $in: [session.userId, "all"] },
+    recipientRole: { $ne: "admin" },
+  };
+}
+
+// GET: Retrieve notifications for the authenticated caller
+export async function GET() {
   try {
+    const { session, error } = await getSession();
+    if (error) return error;
+
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ message: "Invalid session" }, { status: 401 });
-    }
+    const notifications = await Notification.find(scopeFor(session!))
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
 
-    const { searchParams } = new URL(request.url);
-    const roleParam = searchParams.get("role");
-    const customerIdParam = searchParams.get("customerId");
-
-    let query: any = {};
-    if (roleParam === "admin" || payload.role === "admin") {
-      query = { $or: [{ recipientRole: "admin" }, { customerId: "admin" }] };
-    } else {
-      const targetId = customerIdParam || payload.userId;
-      query = { customerId: { $in: [targetId, "all"] }, recipientRole: { $ne: "admin" } };
-    }
-
-    const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(100).lean();
     return NextResponse.json(notifications);
   } catch (error: unknown) {
-    return NextResponse.json({ message: (error as any).message || "Failed to fetch notifications" }, { status: 500 });
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Failed to fetch notifications" },
+      { status: 500 }
+    );
   }
 }
 
-// PUT: Mark notification as read or mark all as read
+// PUT: Mark a notification as read, or mark all as read
 export async function PUT(request: Request) {
   try {
+    const { session, error } = await getSession();
+    if (error) return error;
+
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ message: "Invalid session" }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { _id, markAll, role } = body;
+    const { _id, markAll } = body;
 
     if (markAll) {
-      const query = role === "admin" || payload.role === "admin"
-        ? { $or: [{ recipientRole: "admin" }, { customerId: "admin" }] }
-        : { customerId: payload.userId };
-
-      await Notification.updateMany(query, { $set: { isRead: true } });
+      await Notification.updateMany(scopeFor(session!), { $set: { isRead: true } });
       return NextResponse.json({ message: "All notifications marked as read." });
     }
 
@@ -66,49 +79,40 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: "Notification ID is required" }, { status: 400 });
     }
 
-    const notif = await Notification.findById(_id);
-    if (!notif) {
+    // Scoping the update itself means an id outside the caller's scope simply matches
+    // nothing — no separate ownership branch that could be forgotten.
+    const result = await Notification.updateOne(
+      { $and: [{ _id }, scopeFor(session!)] },
+      { $set: { isRead: true } }
+    );
+
+    if (result.matchedCount === 0) {
       return NextResponse.json({ message: "Notification not found" }, { status: 404 });
     }
 
-    notif.isRead = true;
-    await notif.save();
-
-    return NextResponse.json(notif);
+    const updated = await Notification.findById(_id).lean();
+    return NextResponse.json(updated);
   } catch (error: unknown) {
-    return NextResponse.json({ message: (error as any).message || "Failed to update notification" }, { status: 500 });
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Failed to update notification" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE: Remove notification
+// DELETE: Remove one notification, or clear all of the caller's own
 export async function DELETE(request: Request) {
   try {
+    const { session, error } = await getSession();
+    if (error) return error;
+
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ message: "Invalid session" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const clearAll = searchParams.get("clearAll");
 
     if (clearAll === "true") {
-      const roleParam = searchParams.get("role");
-      let query: any = {};
-      
-      if (roleParam === "admin" || payload.role === "admin") {
-        query = { $or: [{ recipientRole: "admin" }, { customerId: "admin" }] };
-      } else {
-        query = { customerId: payload.userId, recipientRole: { $ne: "admin" } };
-      }
-      
-      await Notification.deleteMany(query);
+      await Notification.deleteMany(scopeFor(session!));
       return NextResponse.json({ message: "All notifications cleared successfully" });
     }
 
@@ -116,20 +120,17 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ message: "Notification ID is required" }, { status: 400 });
     }
 
-    const notif = await Notification.findById(id);
-    if (!notif) {
+    const result = await Notification.deleteOne({ $and: [{ _id: id }, scopeFor(session!)] });
+
+    if (result.deletedCount === 0) {
       return NextResponse.json({ message: "Notification not found" }, { status: 404 });
     }
 
-    const isOwnNotification = notif.customerId === payload.userId || notif.customerId === "all";
-    const isOwnAdminNotification = payload.role === "admin" && (notif.recipientRole === "admin" || notif.customerId === "admin");
-    if (!isOwnNotification && !isOwnAdminNotification && payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
-
-    await Notification.findByIdAndDelete(id);
     return NextResponse.json({ message: "Notification deleted successfully" });
   } catch (error: unknown) {
-    return NextResponse.json({ message: (error as any).message || "Failed to delete notification" }, { status: 500 });
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Failed to delete notification" },
+      { status: 500 }
+    );
   }
 }

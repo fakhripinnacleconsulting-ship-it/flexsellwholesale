@@ -56,8 +56,9 @@ export const notificationService = {
     if (isMockMode) {
       return getLocalNotifications(role, customerId);
     }
-    const query = role === "admin" ? "?role=admin" : customerId ? `?customerId=${customerId}` : "";
-    return apiClient.get<Notification[]>(`/notifications${query}`);
+    // Live mode scopes off the session cookie server-side; role/customerId are only
+    // used by the mock-mode branch above.
+    return apiClient.get<Notification[]>("/notifications");
   },
 
   async markAsRead(id: string): Promise<Notification> {
@@ -85,7 +86,7 @@ export const notificationService = {
       saveLocalNotifications(updatedList);
       return;
     }
-    return apiClient.put<void>("/notifications", { markAll: true, role });
+    return apiClient.put<void>("/notifications", { markAll: true });
   },
 
   async deleteNotification(id: string): Promise<void> {
@@ -108,7 +109,6 @@ export const notificationService = {
       saveLocalNotifications(updatedList);
       return;
     }
-    const query = role === "admin" ? "?role=admin&clearAll=true" : "?clearAll=true";
-    return apiClient.delete<void>(`/notifications${query}`);
+    return apiClient.delete<void>("/notifications?clearAll=true");
   }
 };

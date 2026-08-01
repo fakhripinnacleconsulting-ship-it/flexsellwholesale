@@ -11,13 +11,13 @@ import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { SellerInfo } from "@/types";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
+import { CUSTOMER_CANCELLABLE_STATUSES } from "@/lib/constants";
 import { orderService } from "@/services/orderService";
 import { useToastStore } from "@/stores/toastStore";
 import { useCartStore } from "@/stores/cartStore";
 import { useProductStore } from "@/stores/productStore";
 import { useRouter } from "next/navigation";
 
-const CUSTOMER_CANCELLABLE_STATUSES = ["Placed", "Pending", "Confirmed"];
 
 interface PageProps {
   params: Promise<{ id: string }>;

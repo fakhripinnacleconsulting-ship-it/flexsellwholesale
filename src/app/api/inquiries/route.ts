@@ -5,6 +5,7 @@ import Notification from "@/models/Notification";
 import { emailService } from "@/lib/emailService";
 import { dispatchEvent } from "@/lib/events/eventDispatcher";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { rateLimit } from "@/lib/rateLimit";
 
 export async function GET(request: Request) {
   try {
@@ -15,8 +16,8 @@ export async function GET(request: Request) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (!payload) {
+      return NextResponse.json({ message: "Invalid session" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -24,22 +25,31 @@ export async function GET(request: Request) {
     const status = searchParams.get("status");
     const search = searchParams.get("search");
 
-    const query: any = {};
-    if (category && category !== "all") {
-      query.category = category;
-    }
-    if (status && status !== "all") {
-      query.status = status;
-    }
-    if (search) {
-      query.$or = [
-        { firstName: { $regex: search, $options: "i" } },
-        { lastName: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { company: { $regex: search, $options: "i" } },
-        { subject: { $regex: search, $options: "i" } },
-        { message: { $regex: search, $options: "i" } }
-      ];
+    const query: Record<string, unknown> = {};
+
+    // A customer sees only the tickets they filed. This route used to be admin-only,
+    // which meant /client/support always got a 403 and showed an empty ticket list.
+    if (payload.role !== "admin") {
+      query.email = payload.email.toLowerCase();
+    } else {
+      if (category && category !== "all") {
+        query.category = category;
+      }
+      if (status && status !== "all") {
+        query.status = status;
+      }
+      if (search) {
+        // Escape regex metacharacters so a search string cannot alter the query shape.
+        const safe = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        query.$or = [
+          { firstName: { $regex: safe, $options: "i" } },
+          { lastName: { $regex: safe, $options: "i" } },
+          { email: { $regex: safe, $options: "i" } },
+          { company: { $regex: safe, $options: "i" } },
+          { subject: { $regex: safe, $options: "i" } },
+          { message: { $regex: safe, $options: "i" } }
+        ];
+      }
     }
 
     const inquiries = await Inquiry.find(query).sort({ createdAt: -1 });
@@ -51,6 +61,19 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // Public endpoint that emails the admin on every submission — rate-limit per IP so it
+    // cannot be used to flood the support inbox.
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : "unknown";
+    try {
+      await rateLimit(ip, "general");
+    } catch {
+      return NextResponse.json(
+        { message: "Too many submissions. Please try again in a minute." },
+        { status: 429 }
+      );
+    }
+
     await dbConnect();
     const body = await request.json();
 
@@ -149,13 +172,43 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "Inquiry ID is required" }, { status: 400 });
     }
 
-    const updateFields: any = {};
+    const existing = await Inquiry.findById(id);
+    if (!existing) {
+      return NextResponse.json({ message: "Inquiry not found" }, { status: 404 });
+    }
+    const previousNotes = existing.adminNotes || "";
+
+    const updateFields: Record<string, unknown> = {};
     if (status) updateFields.status = status;
     if (adminNotes !== undefined) updateFields.adminNotes = adminNotes;
 
     const updated = await Inquiry.findByIdAndUpdate(id, updateFields, { new: true });
     if (!updated) {
       return NextResponse.json({ message: "Inquiry not found" }, { status: 404 });
+    }
+
+    // Notify the customer when an admin actually writes a reply. Gated on the text having
+    // changed so a plain status update doesn't re-send the same email.
+    const replyText = (adminNotes || "").trim();
+    if (replyText && replyText !== previousNotes.trim()) {
+      try {
+        const customerName = `${updated.firstName} ${updated.lastName}`.trim();
+        dispatchEvent({
+          eventType: "INQUIRY_RESPONDED",
+          category: "quotes",
+          actor: { id: payload.userId, name: "Support Team", role: "admin" },
+          recipient: { email: updated.email, name: customerName, role: "customer" },
+          entity: { type: "inquiry", id: String(updated._id) },
+          data: {
+            subject: updated.subject,
+            responseText: replyText,
+            customerName,
+            email: updated.email,
+          },
+        });
+      } catch (err) {
+        console.error("[INQUIRY EVENT ERROR] Failed to dispatch INQUIRY_RESPONDED:", err);
+      }
     }
 
     return NextResponse.json(updated);

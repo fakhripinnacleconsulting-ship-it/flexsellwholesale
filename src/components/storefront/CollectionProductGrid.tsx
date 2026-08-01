@@ -19,6 +19,10 @@ export function CollectionProductGrid({ initialProducts }: Props) {
     return initialProducts.slice(0, displayedPages * ITEMS_PER_PAGE);
   }, [initialProducts, displayedPages]);
 
+  // Stable identity: InfiniteScrollTrigger keys its observer off this, so an inline
+  // arrow would rebuild the observer on every render and fire it repeatedly.
+  const loadMore = React.useCallback(() => setDisplayedPages((p) => p + 1), []);
+
   if (initialProducts.length === 0) {
     return (
       <div className="text-center py-24 border border-dashed rounded-3xl bg-secondary/5">
@@ -38,7 +42,7 @@ export function CollectionProductGrid({ initialProducts }: Props) {
       </div>
       <InfiniteScrollTrigger
         hasMore={displayedPages < totalPages}
-        onIntersect={() => setDisplayedPages(p => p + 1)}
+        onIntersect={loadMore}
       />
     </div>
   );

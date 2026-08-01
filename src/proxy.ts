@@ -11,11 +11,13 @@ export async function proxy(request: NextRequest) {
   // CSRF validation for state-changing API routes
   const isApiRoute = pathname.startsWith("/api");
   const isStateChanging = ["POST", "PUT", "DELETE"].includes(request.method);
+  // Third-party callbacks cannot carry our CSRF cookie; each of these verifies its own
+  // HMAC/token signature instead.
   const isExcludedCsrf =
     pathname.startsWith("/api/auth/") ||
-    pathname.startsWith("/api/inquiries") ||
     pathname.startsWith("/api/system-diagnostics") ||
-    pathname.startsWith("/api/shiprocket/webhook");
+    pathname.startsWith("/api/shiprocket/webhook") ||
+    pathname.startsWith("/api/razorpay/webhook");
 
   if (isApiRoute && isStateChanging && !isExcludedCsrf) {
     if (!validateCsrf(request)) {

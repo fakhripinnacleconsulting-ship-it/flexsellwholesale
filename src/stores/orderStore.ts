@@ -27,7 +27,8 @@ interface OrderStoreState {
       transactionId?: string;
     },
     couponCode?: string,
-    couponDiscount?: number
+    couponDiscount?: number,
+    charges?: { shippingCharge?: number; packagingCharge?: number }
   ) => Promise<string>;
   updateOrderStatus: (id: string, status: Order["status"], paymentDetails?: any) => Promise<void>;
   shipOrder: (id: string, shipmentDetails: ShipmentDetails) => Promise<void>;
@@ -52,10 +53,10 @@ export const useOrderStore = create<OrderStoreState>()((set) => ({
     }
   },
 
-  createOrder: async (items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount) => {
+  createOrder: async (items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, charges) => {
     set({ isLoading: true, error: null });
     try {
-      const newOrder = await orderService.createOrder(items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount);
+      const newOrder = await orderService.createOrder(items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, undefined, undefined, charges);
       set((state) => ({
         orders: [newOrder, ...state.orders],
         isLoading: false

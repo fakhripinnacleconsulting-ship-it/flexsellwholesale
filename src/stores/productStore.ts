@@ -7,6 +7,16 @@ interface ProductStoreState {
   products: Product[];
   isLoading: boolean;
   error: string | null;
+  /** True once the full catalog has been fetched, not just an SSR seed slice. */
+  isCatalogComplete: boolean;
+  /**
+   * Fetches the whole catalog once, in the background.
+   *
+   * Listing pages are server-rendered with a small slice for fast first paint, but all
+   * filtering, sorting and infinite scroll run client-side — so without this the user
+   * could never reach past the seeded slice and filters would silently miss products.
+   */
+  loadFullCatalog: () => Promise<void>;
   initializeProducts: (initial?: Product[], force?: boolean) => Promise<void>;
   addProduct: (product: Omit<Product, "_id" | "createdAt">) => Promise<void>;
   updateProduct: (id: string, updatedFields: Partial<Product>) => Promise<void>;
@@ -19,6 +29,23 @@ export const useProductStore = create<ProductStoreState>()((set, get) => ({
   products: [],
   isLoading: false,
   error: null,
+  isCatalogComplete: false,
+
+  loadFullCatalog: async () => {
+    if (get().isCatalogComplete) return;
+    try {
+      const data = await productService.getProducts();
+      // Never replace a fuller list with a shorter one (e.g. a request that raced a seed).
+      if (data.length >= get().products.length) {
+        set({ products: data, isCatalogComplete: true, error: null });
+      } else {
+        set({ isCatalogComplete: true });
+      }
+    } catch (err) {
+      // Non-fatal: the seeded slice stays usable, we just could not extend it.
+      console.warn("Background catalog load failed:", handleApiError(err, "Failed to load full catalog"));
+    }
+  },
 
   initializeProducts: async (initial, force = false) => {
     if (!force && initial && initial.length > 0) {
@@ -33,12 +60,13 @@ export const useProductStore = create<ProductStoreState>()((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await productService.getProducts();
-      set({ products: data, isLoading: false });
+      // This branch fetches unbounded, so the catalog is complete afterwards.
+      set({ products: data, isLoading: false, isCatalogComplete: true });
     } catch (err) {
-      set({ 
-        products: get().products.length > 0 ? get().products : (initial || []), 
-        error: handleApiError(err, "Failed to load products"), 
-        isLoading: false 
+      set({
+        products: get().products.length > 0 ? get().products : (initial || []),
+        error: handleApiError(err, "Failed to load products"),
+        isLoading: false
       });
     }
   },
