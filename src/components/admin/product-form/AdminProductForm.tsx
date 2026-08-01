@@ -8,7 +8,7 @@ import { Product, Category } from "@/types";
 import { ProductFormProvider, useProductForm } from "./ProductFormContext";
 import { BasicInfoCard } from "./BasicInfoCard";
 import { TaxComplianceCard } from "./TaxComplianceCard";
-import { BarcodeCard } from "./BarcodeCard";
+
 import { FieldVisibilityCard } from "./FieldVisibilityCard";
 import { VariantEditor } from "./VariantEditor";
 import { SEOCard } from "./SEOCard";
@@ -44,7 +44,7 @@ function ProductFormInner() {
       <form onSubmit={handleSave} className="space-y-6">
         <BasicInfoCard />
         <TaxComplianceCard />
-        <BarcodeCard />
+
         <FieldVisibilityCard />
         <VariantEditor />
         <SEOCard />
