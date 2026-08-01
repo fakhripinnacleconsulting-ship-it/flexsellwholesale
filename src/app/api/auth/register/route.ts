@@ -22,11 +22,51 @@ export async function POST(req: Request) {
     await dbConnect();
     const body = await req.json();
     const validatedData = registerSchema.parse(body);
-    const { name, email, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments } = validatedData;
+    const { name, email, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments, otp } = body;
+
+    // Enforce OTP Verification to prevent registration bypass
+    if (!otp || typeof otp !== "string" || !otp.trim()) {
+      return NextResponse.json(
+        { message: "OTP verification code is required to complete registration." },
+        { status: 400 }
+      );
+    }
+
+    const lowerEmail = email.toLowerCase().trim();
+
+    // Check OTP record in OtpVerification model
+    const OtpVerification = (await import("@/models/OtpVerification")).default;
+    const otpRecord = await OtpVerification.findOne({ email: lowerEmail });
+    if (!otpRecord) {
+      return NextResponse.json(
+        { message: "Verification code expired or not found. Please request a new verification code." },
+        { status: 400 }
+      );
+    }
+
+    if (otpRecord.expiresAt < new Date()) {
+      await OtpVerification.deleteOne({ email: lowerEmail });
+      return NextResponse.json(
+        { message: "Verification code has expired. Please request a new code." },
+        { status: 400 }
+      );
+    }
+
+    const crypto = await import("crypto");
+    const inputHash = crypto.createHash("sha256").update(otp.trim()).digest("hex");
+    if (inputHash !== otpRecord.otpHash) {
+      otpRecord.attempts = (otpRecord.attempts || 0) + 1;
+      await otpRecord.save();
+      return NextResponse.json(
+        { message: "Invalid verification code." },
+        { status: 400 }
+      );
+    }
 
     // Check if email already exists
-    const existingCustomer = await Customer.findOne({ email: email.toLowerCase() });
+    const existingCustomer = await Customer.findOne({ email: lowerEmail });
     if (existingCustomer) {
+      await OtpVerification.deleteOne({ email: lowerEmail });
       return NextResponse.json({ message: "Email is already registered" }, { status: 400 });
     }
 
@@ -70,6 +110,9 @@ export async function POST(req: Request) {
     });
 
     await newCustomer.save();
+
+    // Clean up used OTP verification record
+    await OtpVerification.deleteOne({ email: lowerEmail });
 
     // Dispatch Centralized Event (Triggers Welcome Email & Notification)
     try {
@@ -122,7 +165,7 @@ export async function POST(req: Request) {
       const firstError = error.issues[0]?.message || "Validation failed";
       return NextResponse.json({ message: firstError }, { status: 400 });
     }
-    console.error("Register error:", error);
-    return NextResponse.json({ message: (error as any).message || "Registration failed" }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : "Registration failed";
+    return NextResponse.json({ message: errMsg }, { status: 500 });
   }
 }

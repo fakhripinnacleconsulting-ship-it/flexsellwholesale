@@ -82,6 +82,21 @@ vi.mock("@/lib/idGeneratorServer", () => {
   };
 });
 
+vi.mock("@/models/OtpVerification", () => {
+  return {
+    default: {
+      findOne: vi.fn().mockResolvedValue({
+        email: "john@example.com",
+        otpHash: require("crypto").createHash("sha256").update("123456").digest("hex"),
+        expiresAt: new Date(Date.now() + 600000),
+        attempts: 0,
+        save: vi.fn().mockResolvedValue(true),
+      }),
+      deleteOne: vi.fn().mockResolvedValue({}),
+    },
+  };
+});
+
 
 vi.mock("@/models/Customer", () => {
   class MockCustomer {
@@ -132,6 +147,7 @@ describe("Authentication API Routes", () => {
       phone: "9876543210",
       gstin: "",
       customerTypes: ["B2B"],
+      otp: "123456",
     };
 
     it("should fail registration if email is already registered", async () => {
