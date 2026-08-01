@@ -263,7 +263,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
                 data?.trackingUrl || data?.shipmentDetails?.trackingUrl
               );
           } else if (data) {
-            triggerEmailSend = () => emailService.sendPaymentStatusEmail(data, statusEmail);
+            triggerEmailSend = () => emailService.sendPaymentStatusEmail(data?.order || data, statusEmail);
           }
         }
         break;
@@ -274,7 +274,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         notifType = data?.paymentStatus === "Paid" ? "success" : "warning";
         deepLink = `/client/orders/${entity.id}`;
         if (customerEmail && data) {
-          triggerEmailSend = () => emailService.sendPaymentStatusEmail(data, customerEmail);
+          triggerEmailSend = () => emailService.sendPaymentStatusEmail(data?.order || data, customerEmail);
         }
         break;
 
@@ -424,7 +424,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
       }
 
       // 3. Email Notification (Checks Preferences)
-      if (prefs.email && customerEmail) {
+      if (prefs.email) {
         await triggerEmailSend();
       }
     }
