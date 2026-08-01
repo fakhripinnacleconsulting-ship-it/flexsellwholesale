@@ -1,6 +1,6 @@
 // FlexSell Wholesale Progressive Web App (PWA) & Web Push Service Worker
 
-const CACHE_NAME = "flexsell-pwa-v3";
+const CACHE_NAME = "flexsell-pwa-v4";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE_ASSETS = [
@@ -36,7 +36,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch Event — Network-first for dynamic navigation, Cache-first for CSS/JS/Fonts, Offline page fallback
+// Fetch Event — Network-first for dynamic navigation, Stale-While-Revalidate for CSS/JS/Fonts
 // IMPORTANT: Image requests are intentionally BYPASSED so native browser HTTP caching and Next.js Image Optimization
 // handle dynamic product/user images reliably on page refresh and back navigation without CORS/opaque issues.
 self.addEventListener("fetch", (event) => {
@@ -63,7 +63,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static Assets (Styles, Scripts, Fonts only — Images bypassed for native browser loading)
+  // Static Assets (Styles, Scripts, Fonts only) -> Stale-While-Revalidate
   if (
     event.request.destination === "style" ||
     event.request.destination === "script" ||
@@ -71,8 +71,7 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) return cachedResponse;
-        return fetch(event.request).then((networkResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -81,9 +80,11 @@ self.addEventListener("fetch", (event) => {
           }
           return networkResponse;
         }).catch(() => {
-          // If network fetch fails, fallback gracefully
           return cachedResponse || Response.error();
         });
+        
+        // Return cached immediately if available, while network request updates cache in background
+        return cachedResponse || fetchPromise;
       })
     );
     return;

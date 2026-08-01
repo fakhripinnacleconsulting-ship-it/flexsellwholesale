@@ -9,13 +9,19 @@ const nextConfig: NextConfig = {
       { protocol: "http", hostname: "**" },
     ],
   },
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 180,
+    },
+  },
   async headers() {
     return [
-      // Public read-only API routes — allow CDN edge caching
+      // Public read-only API routes — allow CDN edge caching but force browser to revalidate
       {
         source: "/api/(products|categories|collections|search|cms|reviews|health)(.*)",
         headers: [
-          { key: "Cache-Control", value: "public, s-maxage=60, stale-while-revalidate=120" },
+          { key: "Cache-Control", value: "public, max-age=0, s-maxage=60, stale-while-revalidate=120" },
         ],
       },
       // Auth, admin, and state-changing API routes — never cache
