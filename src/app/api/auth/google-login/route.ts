@@ -4,8 +4,6 @@ import Customer from "@/models/Customer";
 import { signToken, setTokenCookie } from "@/lib/auth";
 import { generateNextId } from "@/lib/idGeneratorServer";
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-
 export async function POST(req: Request) {
   try {
     await dbConnect();
@@ -24,14 +22,19 @@ export async function POST(req: Request) {
 
     const payload = await response.json();
 
-    // Verify audience
+    // Verify audience. No hardcoded fallback: an unset client ID must fail closed,
+    // otherwise a token minted for someone else's project would be accepted.
     const validClientIds = [
       process.env.GOOGLE_CLIENT_ID,
       process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-      "652908610181-88s80steoogb6d6lsg60eo5vsc7pn5ff.apps.googleusercontent.com",
     ].filter(Boolean);
 
-    if (validClientIds.length > 0 && !validClientIds.includes(payload.aud)) {
+    if (validClientIds.length === 0) {
+      console.error("Google login rejected: GOOGLE_CLIENT_ID is not configured.");
+      return NextResponse.json({ message: "Google Sign-In is not configured on this server" }, { status: 500 });
+    }
+
+    if (!validClientIds.includes(payload.aud)) {
       return NextResponse.json({ message: "Token client ID mismatch" }, { status: 400 });
     }
 

@@ -14,6 +14,7 @@ import { KycDocuments } from "@/types";
 import { motion } from "framer-motion";
 
 import { OtpVerificationModal } from "@/components/auth/OtpVerificationModal";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { trackSignUp } from "@/lib/gtm";
 
 interface DocSlot {
@@ -71,59 +72,12 @@ export default function RegisterPage() {
     } else if (requestedType === "dropshipping") {
       setCustomerTypes(["Dropshipping"]);
     }
-
-    const initGoogleGsi = () => {
-      if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
-        try {
-          (window as any).google.accounts.id.initialize({
-            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "327707227008-017vqk7dtsdl5c5pbqcokf0a1752lqc3.apps.googleusercontent.com",
-            callback: handleGoogleResponse,
-          });
-
-          const container = document.getElementById("google-signup-btn");
-          if (container) {
-            container.innerHTML = "";
-            (window as any).google.accounts.id.renderButton(container, {
-              theme: "outline",
-              size: "large",
-              width: 400,
-              text: "signup_with",
-              shape: "rectangular",
-              logo_alignment: "left",
-            });
-          }
-        } catch (err) {
-          console.error("Failed to initialize Google Sign-Up:", err);
-        }
-      }
-    };
-
-    if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
-      initGoogleGsi();
-    } else {
-      const existingScript = document.getElementById("google-gsi-script");
-      if (!existingScript) {
-        const script = document.createElement("script");
-        script.id = "google-gsi-script";
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        script.onload = initGoogleGsi;
-        document.body.appendChild(script);
-      } else {
-        existingScript.addEventListener("load", initGoogleGsi);
-      }
-    }
   }, []);
 
-  const handleGoogleResponse = async (response: any) => {
-    if (!response || !response.credential) {
-      addToast("Google Sign-In credential missing", "error");
-      return;
-    }
+  const handleGoogleResponse = React.useCallback(async (credential: string) => {
     setIsSubmitting(true);
     try {
-      const success = await loginWithGoogle(response.credential);
+      const success = await loginWithGoogle(credential);
       if (success) {
         addToast("Registered via Google successfully!", "success");
         const currentCustomer = useAuthStore.getState().customer;
@@ -138,7 +92,7 @@ export default function RegisterPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [loginWithGoogle, addToast, router]);
 
   const handleFileUpload = async (slotKey: keyof KycDocuments, file: File) => {
     if (file.size > 1024 * 1024) {
@@ -571,7 +525,7 @@ export default function RegisterPage() {
                 <div className="flex-grow border-t border-border"></div>
               </div>
 
-              <div id="google-signup-btn" className="w-full min-h-[40px] flex justify-center items-center"></div>
+              <GoogleSignInButton onCredential={handleGoogleResponse} text="signup_with" />
 
               <div className="text-center text-xs border-t pt-4">
                 Already have an account?{" "}

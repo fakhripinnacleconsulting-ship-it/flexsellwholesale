@@ -382,7 +382,7 @@ function getSmtpConfig() {
     host: "smtp.zeptomail.in",
     port: 465,
     user: process.env.SMTP_USER || "emailapikey",
-    pass: process.env.SMTP_PASS || (isProd ? "" : cleanPassword("PHtE6r1fE+7piGUp+hFR4/G4QpWkZoMq/7tmKggWtIdLCPRRTE0H+Y8oxj+2rxgqUaIQFaHKnI8+tezNuumNIznkYGkdDWqyqK3sx/VYSPOZsbq6x00asFwYcULVU4PmdNFj1CTRu93TNA==")),
+    pass: cleanPassword(process.env.SMTP_PASS),
     from: process.env.SMTP_FROM || `"FlexSell Wholesale Support" <noreply@flexsellwholesale.com>`,
     provider: "ZeptoMail"
   };
@@ -392,7 +392,7 @@ function getSmtpConfig() {
     host: "smtp.gmail.com",
     port: 465,
     user: process.env.SMTP_USER || "kuldeepmaurya4296@gmail.com",
-    pass: process.env.SMTP_PASS || (isProd ? "" : cleanPassword("jtns mwcp yteo ibxq")),
+    pass: cleanPassword(process.env.SMTP_PASS),
     from: process.env.SMTP_FROM || `"FlexSell Wholesale Support" <kuldeepmaurya4296@gmail.com>`,
     provider: "Gmail"
   };

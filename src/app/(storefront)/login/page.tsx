@@ -11,6 +11,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useToastStore } from "@/stores/toastStore";
 import { motion } from "framer-motion";
 import { trackLogin } from "@/lib/gtm";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 
 function LoginForm() {
   const router = useRouter();
@@ -34,59 +35,12 @@ function LoginForm() {
       router.replace(redirectDest);
       return;
     }
-
-    const initGoogleGsi = () => {
-      if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
-        try {
-          (window as any).google.accounts.id.initialize({
-            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "327707227008-017vqk7dtsdl5c5pbqcokf0a1752lqc3.apps.googleusercontent.com",
-            callback: handleGoogleResponse,
-          });
-
-          const container = document.getElementById("google-signin-btn");
-          if (container) {
-            container.innerHTML = "";
-            (window as any).google.accounts.id.renderButton(container, {
-              theme: "outline",
-              size: "large",
-              width: 400,
-              text: "signin_with",
-              shape: "rectangular",
-              logo_alignment: "left",
-            });
-          }
-        } catch (err) {
-          console.error("Failed to initialize Google Sign-In:", err);
-        }
-      }
-    };
-
-    if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
-      initGoogleGsi();
-    } else {
-      const existingScript = document.getElementById("google-gsi-script");
-      if (!existingScript) {
-        const script = document.createElement("script");
-        script.id = "google-gsi-script";
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        script.onload = initGoogleGsi;
-        document.body.appendChild(script);
-      } else {
-        existingScript.addEventListener("load", initGoogleGsi);
-      }
-    }
   }, []);
 
-  const handleGoogleResponse = async (response: any) => {
-    if (!response || !response.credential) {
-      addToast("Google Sign-In credential missing", "error");
-      return;
-    }
+  const handleGoogleResponse = React.useCallback(async (credential: string) => {
     setIsSubmitting(true);
     try {
-      const success = await loginWithGoogle(response.credential);
+      const success = await loginWithGoogle(credential);
       if (success) {
         trackLogin("google");
         addToast("Logged in via Google successfully!", "success");
@@ -102,7 +56,7 @@ function LoginForm() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [loginWithGoogle, addToast, router, callbackUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,7 +189,7 @@ function LoginForm() {
             <div className="flex-grow border-t border-border"></div>
           </div>
 
-          <div id="google-signin-btn" className="w-full min-h-[40px] flex justify-center items-center"></div>
+          <GoogleSignInButton onCredential={handleGoogleResponse} text="signin_with" />
 
           <div className="text-center text-xs border-t pt-4">
             Don't have an account?{" "}
