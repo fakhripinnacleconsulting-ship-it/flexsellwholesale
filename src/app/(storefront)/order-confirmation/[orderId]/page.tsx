@@ -60,7 +60,7 @@ export default function OrderConfirmationPage() {
 
   const handlePrint = () => {
     const customerName = order?.shippingAddress.company || (order?.shippingAddress.firstName ? `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}` : "");
-    triggerPrintWithTitle("Invoice", order?._id || (orderId as string), customerName);
+    triggerPrintWithTitle("Invoice", order?._id || (orderId as string), customerName, undefined, "printing-inline-document");
   };
 
   if (loading) {

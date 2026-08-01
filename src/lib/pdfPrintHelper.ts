@@ -44,7 +44,8 @@ export function triggerPrintWithTitle(
   docType: string,
   referenceId?: string,
   customerName?: string,
-  customAction?: () => void
+  customAction?: () => void,
+  bodyPrintClass?: string
 ) {
   if (typeof window === "undefined") return;
 
@@ -52,12 +53,14 @@ export function triggerPrintWithTitle(
   const printableTitle = generateDocumentTitle(docType, referenceId, customerName);
 
   document.title = printableTitle;
+  if (bodyPrintClass) document.body.classList.add(bodyPrintClass);
 
   let restored = false;
   const restoreTitle = () => {
     if (restored) return;
     restored = true;
     document.title = originalTitle;
+    if (bodyPrintClass) document.body.classList.remove(bodyPrintClass);
     window.removeEventListener("afterprint", onAfterPrint);
     window.removeEventListener("focus", restoreTitle);
   };

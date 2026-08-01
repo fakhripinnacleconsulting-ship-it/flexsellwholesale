@@ -431,7 +431,7 @@ export function InvoiceDocument({
   }
 
   return (
-    <div className="invoice-document bg-white text-gray-900 max-w-4xl mx-auto print:w-full print:max-w-none print:m-0 print:p-0 print:overflow-visible print:bg-white">
+    <div className="invoice-document bg-white text-gray-900 max-w-[794px] mx-auto print:w-full print:max-w-none print:m-0 print:p-0 print:overflow-visible print:bg-white">
       {/* Print/Download Controls */}
       {showActions && (
         <div className="no-print flex justify-end gap-3 mb-6 pb-4 border-b border-gray-200">
@@ -445,7 +445,7 @@ export function InvoiceDocument({
       )}
 
       {/* Document Container */}
-      <div data-print-area="true" className="invoice-document print-container border border-gray-200 rounded-xl p-8 print:border-none print:rounded-none print:p-0 print:shadow-none print:w-full print:max-w-none print:overflow-visible">
+      <div data-print-area="true" className="invoice-document print-container border border-gray-200 rounded-xl p-6 sm:p-8 print:border-none print:rounded-none print:p-0 print:shadow-none print:w-full print:max-w-none print:overflow-visible">
         {/* ─── HEADER ─── */}
         <div className="flex justify-between items-start pb-6 border-b-2 border-gray-800">
           <div className="flex items-center gap-4">

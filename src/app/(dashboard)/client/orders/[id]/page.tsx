@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
 import { ArrowLeft, Printer, Truck, Calendar, CheckCircle, Clock, AlertTriangle, FileText, Check, MapPin, Ban, RotateCcw } from "lucide-react";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
+import { InvoicePreviewModal } from "@/components/admin/invoice/InvoicePreviewModal";
 import { SellerInfo } from "@/types";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
@@ -34,6 +35,7 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
   const [invoice, setInvoice] = React.useState<any>(null);
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [isReordering, setIsReordering] = React.useState(false);
+  const [showPrintModal, setShowPrintModal] = React.useState(false);
 
   React.useEffect(() => {
     initializeOrders();
@@ -56,8 +58,7 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
   const order = React.useMemo(() => orders.find(o => o._id === orderId), [orders, orderId]);
 
   const handlePrint = () => {
-    const docLabel = invoice?.type === "receipt" ? "RECEIPT" : invoice?.type === "quote" ? "Quote" : "Invoice";
-    triggerPrintWithTitle(docLabel, orderId, order?.customerName);
+    setShowPrintModal(true);
   };
 
   const handleCancelOrder = async () => {
@@ -328,6 +329,16 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
           </Card>
         </div>
       </div>
+
+      {/* Printable PDF Preview Modal */}
+      {showPrintModal && (
+        <InvoicePreviewModal
+          order={order}
+          invoice={invoice}
+          sellerInfo={buildSellerInfo(cmsData)}
+          onClose={() => setShowPrintModal(false)}
+        />
+      )}
     </div>
   );
 }

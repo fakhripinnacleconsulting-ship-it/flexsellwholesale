@@ -12,6 +12,7 @@ import { formatPrice } from "@/lib/utils";
 import { ArrowLeft, Printer, Truck, Calendar, MapPin, CheckCircle, Clock, AlertTriangle, FileText, Edit2, Trash2 } from "lucide-react";
 
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
+import { InvoicePreviewModal } from "@/components/admin/invoice/InvoicePreviewModal";
 import { ShippingLabelDocument } from "@/components/documents/ShippingLabelDocument";
 import { FulfillmentForm } from "@/components/admin/order/FulfillmentForm";
 import { ShipmentDetails } from "@/stores/orderStore";
@@ -68,6 +69,7 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
   // Shipment modal state
   const [isShipModalOpen, setIsShipModalOpen] = React.useState(false);
   const [showLabelModal, setShowLabelModal] = React.useState(false);
+  const [showPrintModal, setShowPrintModal] = React.useState(false);
 
   // Edit modal states
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
@@ -242,8 +244,7 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
   }
 
   const handlePrint = () => {
-    const docLabel = invoice?.type === "receipt" ? "RECEIPT" : invoice?.type === "quote" ? "Quote" : "Invoice";
-    triggerPrintWithTitle(docLabel, orderId, order?.customerName);
+    setShowPrintModal(true);
   };
 
   return (
@@ -676,6 +677,16 @@ export default function AdminOrderDetailPage({ params }: PageProps) {
         <ShippingLabelDocument
           order={order}
           onClose={() => setShowLabelModal(false)}
+        />
+      )}
+
+      {/* Printable PDF Preview Modal */}
+      {showPrintModal && (
+        <InvoicePreviewModal
+          order={order}
+          invoice={invoice}
+          sellerInfo={buildSellerInfo(cmsData)}
+          onClose={() => setShowPrintModal(false)}
         />
       )}
     </div>

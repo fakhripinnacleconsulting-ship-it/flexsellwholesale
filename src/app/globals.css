@@ -413,8 +413,11 @@
     visibility: hidden !important;
   }
 
-  /* Completely collapse non-printable siblings from layout flow so Page 1 never starts blank */
-  body > *:not(.print-preview-modal-wrapper):not(.print-portal-root):not(.b2b-print-modal-portal):not([data-print-portal]) {
+  /* Completely collapse non-printable siblings from layout flow so Page 1 never starts blank.
+     Skipped for inline (non-portal) page printouts — e.g. order detail invoices — where the
+     printable document is a normal descendant of the page layout rather than a body-level portal;
+     those pages mark <body> with .printing-inline-document and rely on print:hidden to hide chrome. */
+  body:not(.printing-inline-document) > *:not(.print-preview-modal-wrapper):not(.print-portal-root):not(.b2b-print-modal-portal):not([data-print-portal]) {
     display: none !important;
   }
 
@@ -426,6 +429,9 @@
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
+    font-size: 13px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* Position active printable modal portal at (0,0) of Page 1 */
@@ -490,6 +496,8 @@
     color: #000000 !important;
     transform: none !important;
     overflow: visible !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
   }
 
   /* Ensure text, tables, borders, and images inside printable components remain visible */
