@@ -11,7 +11,7 @@ import CmsContent from "@/models/CmsContent";
 import Coupon from "@/models/Coupon";
 import { requireAuth } from "@/lib/authGuard";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
-import { dispatchEvent } from "@/lib/events/eventDispatcher";
+import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
@@ -667,7 +667,7 @@ export async function POST(request: Request) {
         ? (await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).select("_id"))?._id || payload.userId
         : payload.userId;
 
-      await dispatchEvent({
+      dispatchEventServer({
         eventType: "ORDER_CREATED",
         category: "orders",
         actor: { id: payload.userId, name: payload.email, role: (payload.role as "admin" | "customer" | "system") || "customer" },

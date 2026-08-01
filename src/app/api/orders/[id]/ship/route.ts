@@ -57,12 +57,12 @@ export async function PUT(
 
     // Dispatch Centralized Event (Triggers Email & Notifications)
     try {
-      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      const { dispatchEventServer } = await import("@/lib/events/eventDispatcherServer");
       const customerEmail = order.shippingAddress?.email || "";
       const customerName = order.customerName || order.shippingAddress?.name || "Valued Customer";
       const targetCustomerId = (await Customer.findOne({ email: customerEmail.toLowerCase() }).select("_id"))?._id || "";
 
-      await dispatchEvent({
+      dispatchEventServer({
         eventType: "ORDER_SHIPPED",
         category: "shipments",
         actor: { id: payload.userId, name: "Admin", role: "admin" },

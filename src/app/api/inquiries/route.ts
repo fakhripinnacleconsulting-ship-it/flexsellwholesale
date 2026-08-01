@@ -3,7 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Inquiry from "@/models/Inquiry";
 import Notification from "@/models/Notification";
 import { emailService } from "@/lib/emailService";
-import { dispatchEvent } from "@/lib/events/eventDispatcher";
+import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 import { rateLimit } from "@/lib/rateLimit";
 
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
     // Dispatch System Event (Rule 7: Admin Notif = TRUE, Admin Mail = TRUE via centralized eventHandler)
     try {
-      await dispatchEvent({
+      dispatchEventServer({
         eventType: "INQUIRY_SUBMITTED",
         category: "quotes",
         actor: {
@@ -193,7 +193,7 @@ export async function PATCH(request: Request) {
     if (replyText && replyText !== previousNotes.trim()) {
       try {
         const customerName = `${updated.firstName} ${updated.lastName}`.trim();
-        await dispatchEvent({
+        dispatchEventServer({
           eventType: "INQUIRY_RESPONDED",
           category: "quotes",
           actor: { id: payload.userId, name: "Support Team", role: "admin" },

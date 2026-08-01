@@ -80,46 +80,31 @@ export async function POST(request: Request) {
 
     if (newCoupon.isActive) {
       try {
-        const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+        const { dispatchEventServer } = await import("@/lib/events/eventDispatcherServer");
         const CustomerModel = (await import("@/models/Customer")).default;
         const couponObj = newCoupon.toObject ? newCoupon.toObject() : newCoupon;
 
         if (newCoupon.isPersonalized && newCoupon.allowedCustomers?.length > 0) {
           const targetEmails = newCoupon.allowedCustomers.map((e: string) => e.toLowerCase().trim());
-          const targetCustomers = await CustomerModel.find({ email: { $in: targetEmails } }).select("_id email name");
-
-          for (const email of targetEmails) {
-            const cust = targetCustomers.find((c: any) => c.email.toLowerCase() === email);
-            await dispatchEvent({
-              eventType: "COUPON_LIVE",
-              category: "system",
-              actor: { id: "admin", name: "System Admin", role: "admin" },
-              recipient: { customerId: cust?._id || "all", email, name: cust?.name || "Valued Buyer", role: "customer" },
-              entity: { type: "coupon", id: newCoupon._id.toString() },
-              data: couponObj
-            });
-          }
-        } else {
-          // Public Coupon: Dispatch to all registered buyers + global broadcast
-          const allCustomers = await CustomerModel.find({ role: "customer" }).select("_id email name");
-
-          for (const cust of allCustomers) {
-            await dispatchEvent({
-              eventType: "COUPON_LIVE",
-              category: "system",
-              actor: { id: "admin", name: "System Admin", role: "admin" },
-              recipient: { customerId: cust._id.toString(), email: cust.email, name: cust.name, role: "customer" },
-              entity: { type: "coupon", id: newCoupon._id.toString() },
-              data: couponObj
-            });
-          }
-
-          // Global broadcast for in-app notification queries matching customerId: "all"
-          await dispatchEvent({
+          
+          dispatchEventServer({
             eventType: "COUPON_LIVE",
             category: "system",
             actor: { id: "admin", name: "System Admin", role: "admin" },
-            recipient: { customerId: "all", role: "customer" },
+            recipient: { customerId: "personalized", emailList: targetEmails, role: "customer" },
+            entity: { type: "coupon", id: newCoupon._id.toString() },
+            data: couponObj
+          });
+        } else {
+          // Public Coupon: Dispatch to all registered buyers + global broadcast
+          const allCustomers = await CustomerModel.find({ role: "customer" }).select("email");
+          const allEmails = allCustomers.map((c: any) => c.email);
+
+          dispatchEventServer({
+            eventType: "COUPON_LIVE",
+            category: "system",
+            actor: { id: "admin", name: "System Admin", role: "admin" },
+            recipient: { customerId: "all", emailList: allEmails, role: "customer" },
             entity: { type: "coupon", id: newCoupon._id.toString() },
             data: couponObj
           });

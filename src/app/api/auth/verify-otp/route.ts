@@ -6,7 +6,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { signToken, setTokenCookie } from "@/lib/auth";
 import { generateNextId } from "@/lib/idGeneratorServer";
-import { dispatchEvent } from "@/lib/events/eventDispatcher";
+import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 
 export async function POST(req: Request) {
   try {
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
     await OtpVerification.deleteOne({ email: lowerEmail });
 
     // 9. Dispatch Centralized Event
-    await dispatchEvent({
+    dispatchEventServer({
       eventType: "AUTH_REGISTERED",
       category: "security",
       actor: { id: customerId, name, role: "customer" },

@@ -12,6 +12,7 @@ export interface SystemEventPayload {
   recipient: {
     customerId?: string;
     email?: string;
+    emailList?: string[];
     name?: string;
     role: "customer" | "admin" | "both";
   };

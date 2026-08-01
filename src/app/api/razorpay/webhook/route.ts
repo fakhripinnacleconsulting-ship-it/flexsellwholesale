@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature, settleOrderPayment, type SettledOrderSummary } from "@/lib/razorpayPayment";
-import { dispatchEvent } from "@/lib/events/eventDispatcher";
+import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Customer from "@/models/Customer";
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
         ? (await Customer.findOne({ email: email.toLowerCase() }).select("_id"))?._id || ""
         : "";
 
-      await dispatchEvent({
+      dispatchEventServer({
         eventType: "PAYMENT_STATUS_CHANGED",
         category: "payments",
         actor: { id: "SYSTEM", name: "Razorpay Webhook", role: "system" },

@@ -297,12 +297,20 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         break;
 
       case "COUPON_LIVE":
-        notifTitle = `New Promo Coupon Live: ${data?.code || "DISCOUNT"}`;
-        notifMessage = `Use promo code "${data?.code}" to get ${data?.discountType === "percentage" ? `${data?.discountValue}% OFF` : `₹${data?.discountValue} FLAT OFF`} on your wholesale purchase!`;
+        notifTitle = "New Coupon Available!";
+        notifMessage = `Use code ${data?.code} to get ${data?.discountType === "percentage" ? data?.discountValue + "%" : "₹" + data?.discountValue} off on your next order!`;
         notifType = "success";
-        deepLink = "/products";
-        if (customerEmail && data) {
-          triggerEmailSend = () => emailService.sendCouponLiveEmail(data, customerEmail);
+        deepLink = "/client/coupons";
+        if (recipient.emailList && recipient.emailList.length > 0) {
+          triggerEmailSend = () => emailService.sendEmail({
+            bcc: recipient.emailList,
+            subject: `🎁 Special Offer: Use Code ${data?.code}`,
+            html: `<h2>New Coupon Available!</h2>
+                   <p>Use code <strong>${data?.code}</strong> to get ${data?.discountType === "percentage" ? data?.discountValue + "%" : "₹" + data?.discountValue} off on your next order!</p>
+                   ${data?.minOrderValue ? `<p>Minimum order value: ₹${data?.minOrderValue}</p>` : ""}
+                   <p>Valid until: ${new Date(data?.expiryDate || Date.now()).toLocaleDateString()}</p>`,
+            category: "marketing",
+          });
         }
         break;
 

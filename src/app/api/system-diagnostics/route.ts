@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import { getShiprocketToken } from "@/lib/shiprocketClient";
 import { emailService } from "@/lib/emailService";
-import { dispatchEvent } from "@/lib/events/eventDispatcher";
+import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import { requireAuth } from "@/lib/authGuard";
 
 export const dynamic = "force-dynamic";
@@ -206,7 +206,7 @@ export async function POST(req: Request) {
     }
 
     // Trigger test event notification
-    await dispatchEvent({
+    dispatchEventServer({
       eventType: "DIAGNOSTIC_TEST",
       category: "system",
       actor: { id: "SYSTEM", name: "System Diagnostics", role: "admin" },

@@ -14,11 +14,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Subject and HTML content are required." }, { status: 400 });
     }
 
-    // Join emails with comma for the "To:" field
-    const to = emails.join(", ");
+    // Join emails with comma for the "bcc:" field to hide recipient addresses
+    const bccList = emails.join(", ");
 
     const success = await emailService.sendEmail({
-      to,
+      to: "noreply@flexsellwholesale.com",
+      bcc: bccList,
       subject,
       html,
       category: "bulk-admin",

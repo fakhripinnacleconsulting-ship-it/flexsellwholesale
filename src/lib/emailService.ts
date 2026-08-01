@@ -8,7 +8,8 @@ export interface EmailAttachment {
 }
 
 export interface EmailOptions {
-  to: string;
+  to?: string;
+  bcc?: string | string[];
   subject: string;
   html: string;
   text?: string;
@@ -516,7 +517,8 @@ export const emailService = {
 
       await transporter.sendMail({
         from: fromAddress,
-        to: options.to,
+        to: options.to || "noreply@flexsellwholesale.com",
+        bcc: options.bcc,
         subject: options.subject,
         html: options.html,
         text: options.text || options.subject,

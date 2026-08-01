@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/authGuard";
 import { verifyPaymentSignature, settleOrderPayment, type SettledOrderSummary } from "@/lib/razorpayPayment";
-import { dispatchEvent } from "@/lib/events/eventDispatcher";
+import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Customer from "@/models/Customer";
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
           const eventData = { ...order, paymentStatus: "Paid", status: "Processing" };
 
-          await dispatchEvent({
+          dispatchEventServer({
             eventType: "ORDER_CREATED",
             category: "orders",
             actor: { id: "SYSTEM", name: "Razorpay", role: "system" },
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
             data: eventData,
           });
 
-          await dispatchEvent({
+          dispatchEventServer({
             eventType: "PAYMENT_STATUS_CHANGED",
             category: "payments",
             actor: { id: "SYSTEM", name: "Razorpay", role: "system" },

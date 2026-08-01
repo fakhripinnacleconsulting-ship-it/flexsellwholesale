@@ -265,11 +265,11 @@ export async function DELETE(request: NextRequest, { params }: RouteProps) {
 
     // Dispatch Centralized Event (Triggers Email & Notifications)
     try {
-      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      const { dispatchEventServer } = await import("@/lib/events/eventDispatcherServer");
       const customerEmail = order.shippingAddress?.email || "";
       const customerName = order.customerName || order.shippingAddress?.name || "Valued Customer";
 
-      await dispatchEvent({
+      dispatchEventServer({
         eventType: "ORDER_CANCELLED",
         category: "orders",
         actor: { id: auth.payload?.userId || "admin", name: "Admin", role: "admin" },

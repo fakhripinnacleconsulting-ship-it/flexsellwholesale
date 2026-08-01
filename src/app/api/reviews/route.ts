@@ -101,9 +101,9 @@ export async function POST(request: Request) {
 
     // Trigger Rule 6 Event: Customer Notif & Mail = TRUE, Admin Notif & Mail = TRUE
     try {
-      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
+      const { dispatchEventServer } = await import("@/lib/events/eventDispatcherServer");
       const revObj = newReview.toObject ? newReview.toObject() : newReview;
-      await dispatchEvent({
+      dispatchEventServer({
         eventType: "REVIEW_SUBMITTED",
         category: "system",
         actor: { id: customer._id, name: customer.name, role: "customer" },

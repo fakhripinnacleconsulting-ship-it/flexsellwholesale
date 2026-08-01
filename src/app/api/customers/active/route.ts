@@ -90,8 +90,8 @@ export async function PUT(request: Request) {
 
     if (updatedFields.length > 0) {
       try {
-        const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
-        await dispatchEvent({
+        const { dispatchEventServer } = await import("@/lib/events/eventDispatcherServer");
+        dispatchEventServer({
           eventType: "PROFILE_UPDATED",
           category: "security",
           actor: { id: customer._id.toString(), name: customer.name, role: "customer" },

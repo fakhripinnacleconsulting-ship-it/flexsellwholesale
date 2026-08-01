@@ -48,8 +48,8 @@ export async function POST(request: Request) {
 
     // Dispatch Event
     try {
-      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
-      await dispatchEvent({
+      const { dispatchEventServer } = await import("@/lib/events/eventDispatcherServer");
+      dispatchEventServer({
         eventType: "ACCOUNT_UPGRADE_REQUESTED",
         category: "security",
         actor: { id: customer._id, name: customer.name, role: "customer" },
@@ -151,8 +151,8 @@ export async function PUT(request: Request) {
 
     // Dispatch Event
     try {
-      const { dispatchEvent } = await import("@/lib/events/eventDispatcher");
-      await dispatchEvent({
+      const { dispatchEventServer } = await import("@/lib/events/eventDispatcherServer");
+      dispatchEventServer({
         eventType: action === "approve" ? "ACCOUNT_UPGRADE_APPROVED" : "ACCOUNT_UPGRADE_REJECTED",
         category: "security",
         actor: { id: payload.userId, name: "Admin", role: "admin" },
