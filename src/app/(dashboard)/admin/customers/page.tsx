@@ -12,9 +12,11 @@ import { useOrderStore } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { formatPrice } from "@/lib/utils";
-import { Plus, Eye, Edit2, Trash2, Building, ShieldAlert, CheckCircle2, Search } from "lucide-react";
+import { Plus, Eye, Edit2, Trash2, Building, ShieldAlert, CheckCircle2, Search, Mail } from "lucide-react";
 import { Pagination } from "@/components/ui/Pagination";
 import { validateCustomerKycRequirements, hasUploadedKycDoc } from "@/lib/kycValidationHelper";
+import RichTextEditor from "@/components/admin/RichTextEditor";
+import { apiClient } from "@/lib/apiClient";
 
 const INDIAN_STATES = [
   "Madhya Pradesh",
@@ -72,6 +74,13 @@ export default function AdminCustomersPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isFormSubmitting, setIsFormSubmitting] = React.useState(false);
   const [editingCustomer, setEditingCustomer] = React.useState<Customer | null>(null);
+
+  // Bulk Mail states
+  const [selectedCustomerEmails, setSelectedCustomerEmails] = React.useState<string[]>([]);
+  const [isMailModalOpen, setIsMailModalOpen] = React.useState(false);
+  const [mailSubject, setMailSubject] = React.useState("");
+  const [mailContent, setMailContent] = React.useState("");
+  const [isSendingMail, setIsSendingMail] = React.useState(false);
 
   // Form input states
   const [name, setName] = React.useState("");
@@ -334,6 +343,61 @@ export default function AdminCustomersPage() {
     return customerStats.slice(start, start + itemsPerPage);
   }, [customerStats, currentPage, itemsPerPage]);
 
+  const handleSendBulkMail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedCustomerEmails.length === 0) {
+      addToast("No customers selected.", "warning");
+      return;
+    }
+    if (!mailSubject.trim() || !mailContent.trim()) {
+      addToast("Subject and content are required.", "warning");
+      return;
+    }
+
+    setIsSendingMail(true);
+    try {
+      const data = await apiClient.post<any>("/admin/bulk-email", {
+        emails: selectedCustomerEmails,
+        subject: mailSubject,
+        html: mailContent,
+      });
+      addToast(data.message || "Emails sent successfully!", "success");
+      setIsMailModalOpen(false);
+      setMailSubject("");
+      setMailContent("");
+      setSelectedCustomerEmails([]);
+    } catch (err: any) {
+      console.error(err);
+      addToast(err.message || "Failed to send emails.", "error");
+    } finally {
+      setIsSendingMail(false);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allEmails = paginatedCustomers.map((c) => c.email).filter(Boolean);
+      const uniqueEmails = Array.from(new Set([...selectedCustomerEmails, ...allEmails]));
+      setSelectedCustomerEmails(uniqueEmails);
+    } else {
+      const visibleEmails = paginatedCustomers.map((c) => c.email).filter(Boolean);
+      setSelectedCustomerEmails((prev) => prev.filter((email) => !visibleEmails.includes(email)));
+    }
+  };
+
+  const handleSelectOne = (email: string, checked: boolean) => {
+    if (!email) return;
+    if (checked) {
+      setSelectedCustomerEmails((prev) => [...prev, email]);
+    } else {
+      setSelectedCustomerEmails((prev) => prev.filter((e) => e !== email));
+    }
+  };
+
+  const isAllVisibleSelected =
+    paginatedCustomers.length > 0 &&
+    paginatedCustomers.every((c) => c.email && selectedCustomerEmails.includes(c.email));
+
   return (
     <div className="space-y-6 text-foreground container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -341,9 +405,21 @@ export default function AdminCustomersPage() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Customers</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage B2B buyers and review KYC documents.</p>
         </div>
-        <Button onClick={handleOpenAddModal} className="w-full sm:w-auto font-bold flex items-center justify-center gap-1.5 shadow">
-          <Plus className="h-4.5 w-4.5" /> Create Buyer Account
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          {selectedCustomerEmails.length > 0 && (
+            <Button 
+              variant="outline" 
+              onClick={() => setIsMailModalOpen(true)} 
+              className="w-full sm:w-auto font-bold flex items-center justify-center gap-1.5 shadow"
+            >
+              <Mail className="h-4.5 w-4.5" /> 
+              Send Mail ({selectedCustomerEmails.length})
+            </Button>
+          )}
+          <Button onClick={handleOpenAddModal} className="w-full sm:w-auto font-bold flex items-center justify-center gap-1.5 shadow">
+            <Plus className="h-4.5 w-4.5" /> Create Buyer Account
+          </Button>
+        </div>
       </div>
 
       <Card className="border border-border">
@@ -438,6 +514,14 @@ export default function AdminCustomersPage() {
             <table className="w-full text-sm text-left text-foreground whitespace-nowrap">
               <thead className="text-xs text-muted-foreground uppercase bg-secondary border-b border-border sticky top-0 z-10 shadow-sm">
                 <tr>
+                  <th className="px-6 py-3.5 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      className="rounded text-primary focus:ring-primary cursor-pointer"
+                      checked={isAllVisibleSelected}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                    />
+                  </th>
                   <th className="px-6 py-3.5">ID</th>
                   <th className="px-6 py-3.5">Customer Name</th>
                   <th className="px-6 py-3.5">Company Details</th>
@@ -450,19 +534,27 @@ export default function AdminCustomersPage() {
               <tbody className="divide-y divide-border">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
                       Loading B2B customers...
                     </td>
                   </tr>
                 ) : customerStats.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
                       No customer accounts found.
                     </td>
                   </tr>
                 ) : (
                   paginatedCustomers.map((cust) => (
                     <tr key={cust._id} className="hover:bg-secondary/15 transition-colors">
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          className="rounded text-primary focus:ring-primary cursor-pointer"
+                          checked={cust.email ? selectedCustomerEmails.includes(cust.email) : false}
+                          onChange={(e) => handleSelectOne(cust.email, e.target.checked)}
+                        />
+                      </td>
                       <td className="px-6 py-4 font-mono text-xs text-muted-foreground">{cust._id}</td>
                       <td className="px-6 py-4 flex items-center gap-3">
                         <Avatar initials={cust.initials} className="bg-primary text-primary-foreground border shrink-0" />
@@ -713,6 +805,56 @@ export default function AdminCustomersPage() {
                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto">Cancel</Button>
                 <Button type="submit" disabled={isFormSubmitting} className="w-full sm:w-auto">
                   {isFormSubmitting ? "Saving..." : "Save Account"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Mail Modal */}
+      {isMailModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-card border rounded-xl max-w-2xl w-full shadow-2xl p-6 text-foreground space-y-4">
+            <div>
+              <h3 className="text-xl font-bold tracking-tight">Send Bulk Email</h3>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                Sending email to {selectedCustomerEmails.length} selected customer(s).
+              </p>
+            </div>
+
+            <form onSubmit={handleSendBulkMail} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="font-bold text-muted-foreground text-xs">To</label>
+                <div className="p-2 border rounded-md bg-secondary/20 text-xs max-h-24 overflow-y-auto">
+                  {selectedCustomerEmails.join(", ")}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold text-muted-foreground text-xs">Subject *</label>
+                <Input
+                  placeholder="Email Subject"
+                  value={mailSubject}
+                  onChange={(e) => setMailSubject(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold text-muted-foreground text-xs">Message *</label>
+                <RichTextEditor
+                  value={mailContent}
+                  onChange={setMailContent}
+                  placeholder="Write your email content here..."
+                  minHeight="300px"
+                />
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setIsMailModalOpen(false)} className="w-full sm:w-auto">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSendingMail} className="w-full sm:w-auto">
+                  {isSendingMail ? "Sending..." : "Send Email"}
                 </Button>
               </div>
             </form>
