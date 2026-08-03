@@ -12,11 +12,12 @@ import { TrendingProducts } from "@/components/storefront/TrendingProducts";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
 import { TrustBar } from "@/components/storefront/TrustBar";
-import { RecentlyViewed } from "@/components/storefront/RecentlyViewed";
-import { WholesaleBusinessSection } from "@/components/storefront/WholesaleBusinessSection";
-import { DropshippingBusinessSection } from "@/components/storefront/DropshippingBusinessSection";
-import { TestimonialsSection } from "@/components/storefront/TestimonialsSection";
-import { BrandPartnersBar } from "@/components/storefront/BrandPartnersBar";
+import dynamic from "next/dynamic";
+const WholesaleBusinessSection = dynamic(() => import("@/components/storefront/WholesaleBusinessSection").then(m => m.WholesaleBusinessSection));
+const DropshippingBusinessSection = dynamic(() => import("@/components/storefront/DropshippingBusinessSection").then(m => m.DropshippingBusinessSection));
+const TestimonialsSection = dynamic(() => import("@/components/storefront/TestimonialsSection").then(m => m.TestimonialsSection));
+const BrandPartnersBar = dynamic(() => import("@/components/storefront/BrandPartnersBar").then(m => m.BrandPartnersBar));
+const RecentlyViewed = dynamic(() => import("@/components/storefront/RecentlyViewed").then(m => m.RecentlyViewed));
 import { FeaturedCollections } from "@/components/storefront/FeaturedCollections";
 
 import { constructMetadata } from "@/lib/seo";

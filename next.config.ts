@@ -3,8 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
-    unoptimized: true,
     remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "flexsellwholesale.com" },
+      { protocol: "https", hostname: "placehold.co" },
+      { protocol: "https", hostname: "assets.mixkit.co" },
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },
     ],

@@ -167,7 +167,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </ThemeProvider>
         <Script
           id="pwa-sw-register"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
