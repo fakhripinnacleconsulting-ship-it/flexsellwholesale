@@ -7,6 +7,7 @@ import { invoiceService } from "@/services/invoiceService";
 import { Invoice } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface QuoteSelectorStepProps {
   onSelectQuote: (quote: Invoice) => void;
@@ -14,6 +15,8 @@ interface QuoteSelectorStepProps {
 }
 
 export function QuoteSelectorStep({ onSelectQuote, onClose }: QuoteSelectorStepProps) {
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager/documents" : "/admin";
   const [query, setQuery] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [matchingQuotes, setMatchingQuotes] = React.useState<Invoice[]>([]);
@@ -68,7 +71,7 @@ export function QuoteSelectorStep({ onSelectQuote, onClose }: QuoteSelectorStepP
           <div className="border border-dashed rounded-lg p-8 text-center text-sm text-muted-foreground">
             No matching unconverted quotes. Input a keyword above and search.
             <div className="mt-4">
-              <Link href="/admin/invoices?createQuote=true" onClick={onClose}>
+              <Link href={`${basePath}/invoices?createQuote=true`} onClick={onClose}>
                 <Button variant="outline" size="sm" className="font-semibold cursor-pointer">
                   Create New Quote First
                 </Button>

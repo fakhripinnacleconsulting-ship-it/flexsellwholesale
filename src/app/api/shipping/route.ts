@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import ShippingConfig from "@/models/ShippingConfig";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 
 export async function GET() {
   try {
@@ -32,15 +33,8 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdminOrManagerAuth("ops_shipping:update");
+    if (auth.error) return auth.error;
 
     const body = await request.json();
     const { weightSlabs, b2bFixedCharge, dropshippingFixedCharge, shiprocket } = body;

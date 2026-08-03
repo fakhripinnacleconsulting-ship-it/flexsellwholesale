@@ -3,11 +3,11 @@ import { revalidatePath } from "next/cache";
 import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
 import CmsContent from "@/models/CmsContent";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 
 export async function PUT(request: Request) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_products:update");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -39,3 +39,4 @@ export async function PUT(request: Request) {
     return NextResponse.json({ message: (error as any).message || "Failed to update global highlight price" }, { status: 500 });
   }
 }
+

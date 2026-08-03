@@ -3,13 +3,13 @@ import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
 import Category from "@/models/Category";
 import HsnRecord from "@/models/HsnRecord";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { parseAndValidateExcel } from "@/lib/excelHelper";
 
 export async function POST(request: Request) {
   try {
     // 1. Guard route with admin credentials
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_products:create");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -52,3 +52,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

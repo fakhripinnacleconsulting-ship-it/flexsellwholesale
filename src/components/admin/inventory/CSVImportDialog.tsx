@@ -2,12 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AlertTriangle, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useInventory } from "./InventoryContext";
 
 export function CSVImportDialog() {
   const { importResults, setImportResults } = useInventory();
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
 
   if (!importResults || !importResults.isOpen) return null;
 
@@ -65,10 +68,10 @@ export function CSVImportDialog() {
                   Stock adjustments can only be applied to **existing** catalog SKUs. If you are importing new inventory lines or new variations (different colors, sizes, or weights), you must add them first.
                 </p>
                 <div className="flex gap-4 pt-1.5 font-bold">
-                  <Link href="/admin/products/new" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                  <Link href={`${basePath}/products/new`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
                     Add New Product <ArrowRight className="h-3 w-3" />
                   </Link>
-                  <Link href="/admin/products" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                  <Link href={`${basePath}/products`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
                     Manage Existing Products <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
@@ -109,7 +112,7 @@ export function CSVImportDialog() {
                             {err.detail}
                             {err.reason === "SKU Not Found" && (
                               <Link 
-                                href="/admin/products/new" 
+                                href={`${basePath}/products/new`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="text-primary hover:underline font-bold inline-flex items-center gap-0.5 ml-1"

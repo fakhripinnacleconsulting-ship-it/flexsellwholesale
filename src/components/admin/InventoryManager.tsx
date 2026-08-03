@@ -7,6 +7,7 @@ import { InventoryProvider, useInventory } from "./inventory/InventoryContext";
 import { InventoryGrid } from "./inventory/InventoryGrid";
 import { InventoryLedger } from "./inventory/InventoryLedger";
 import { CSVImportDialog } from "./inventory/CSVImportDialog";
+import { usePermissions } from "@/hooks/usePermissions";
 
 function InventoryManagerInner() {
   const {
@@ -15,6 +16,8 @@ function InventoryManagerInner() {
     handleExportCSV,
     handleImportCSV
   } = useInventory();
+  
+  const { hasPermission } = usePermissions();
 
   return (
     <div className="space-y-6">
@@ -37,15 +40,17 @@ function InventoryManagerInner() {
             <Download className="h-3.5 w-3.5" /> Export Stock Sheet
           </Button>
 
-          <label className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 border rounded-md cursor-pointer text-xs font-bold shadow-sm transition-colors">
-            <Upload className="h-3.5 w-3.5" /> Import Stock Update
-            <input 
-              type="file" 
-              accept=".csv" 
-              onChange={handleImportCSV} 
-              className="hidden" 
-            />
-          </label>
+          {hasPermission("catalog_products", "update") && (
+            <label className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 border rounded-md cursor-pointer text-xs font-bold shadow-sm transition-colors">
+              <Upload className="h-3.5 w-3.5" /> Import Stock Update
+              <input 
+                type="file" 
+                accept=".csv" 
+                onChange={handleImportCSV} 
+                className="hidden" 
+              />
+            </label>
+          )}
         </div>
       </div>
 

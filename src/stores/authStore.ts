@@ -5,10 +5,12 @@ import { apiClient } from "@/lib/apiClient";
 
 interface AuthState {
   customer: Customer | null;
+  manager: any | null;
   isLoading: boolean;
   error: string | null;
   
   login: (identifier: string, password: string) => Promise<boolean>;
+  managerLogin: (email: string, password: string) => Promise<boolean>;
   registerCustomer: (data: any) => Promise<boolean>;
   loginWithGoogle: (idToken: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       customer: null,
+      manager: null,
       isLoading: false,
       error: null,
 
@@ -45,6 +48,18 @@ export const useAuthStore = create<AuthState>()(
           return true;
         } catch (err: unknown) {
           set({ error: err instanceof Error ? (err as any).message : "Login failed", isLoading: false });
+          return false;
+        }
+      },
+
+      managerLogin: async (email, password) => {
+        set({ isLoading: true, error: null });
+        try {
+          const data = await apiClient.post<{ manager: any; message: string }>("/auth/manager-login", { identifier: email, password });
+          set({ manager: data.manager, isLoading: false });
+          return true;
+        } catch (err: unknown) {
+          set({ error: err instanceof Error ? (err as any).message : "Manager login failed", isLoading: false });
           return false;
         }
       },
@@ -108,7 +123,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (err) {
           console.error("Logout API failed", err);
         } finally {
-          set({ customer: null, isLoading: false });
+          set({ customer: null, manager: null, isLoading: false });
           window.location.href = "/login";
         }
       },
@@ -116,8 +131,12 @@ export const useAuthStore = create<AuthState>()(
       checkSession: async () => {
         set({ isLoading: true });
         try {
+          // Check if it's a manager or customer by fetching a generic profile endpoint or active customer
+          // For now, since managers have a separate UI, we can check if they have a manager token
+          // Since /customers/active currently returns the customer or 401 if it's a manager
+          // we can catch it and try to fetch manager profile if it fails.
           const data = await apiClient.get<Customer>("/customers/active");
-          set({ customer: data });
+          set({ customer: data, manager: null });
           if (data?.customerTypes?.length > 0) {
             try {
               const { useDashboardViewStore } = await import("./dashboardViewStore");
@@ -136,7 +155,13 @@ export const useAuthStore = create<AuthState>()(
             console.error("Failed to hydrate cart on session check", e);
           }
         } catch (err) {
-          set({ customer: null });
+          // If customer fetch fails, it might be a manager. Let's try fetching manager active session
+          try {
+             const mgrData = await apiClient.get<any>("/managers/active");
+             set({ manager: mgrData, customer: null });
+          } catch (mgrErr) {
+             set({ customer: null, manager: null });
+          }
         } finally {
           set({ isLoading: false });
         }
@@ -146,7 +171,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "flexsell-auth-storage",
-      partialize: (state) => ({ customer: state.customer }),
+      partialize: (state) => ({ customer: state.customer, manager: state.manager }),
     }
   )
 );

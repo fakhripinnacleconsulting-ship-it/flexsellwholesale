@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
+    if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -25,8 +25,39 @@ export async function GET(request: Request) {
     const page = searchParams.get("page");
     const limit = searchParams.get("limit");
     const search = searchParams.get("search") || searchParams.get("q");
+    const requestedCustomerType = searchParams.get("customerType");
 
     const query: any = { role: { $ne: "admin" } };
+    
+    if (requestedCustomerType) {
+      query.customerTypes = requestedCustomerType;
+    }
+    
+    if (payload.role === "manager") {
+      const perms = (payload as any).permissions || [];
+      const hasInvoiceOrOrderPerms = perms.some((p: string) => p.startsWith("invoices_") || p.startsWith("orders_"));
+      
+      const hasB2C = perms.includes("customers_b2c") || perms.some((p: string) => p.startsWith("customers_b2c:")) || hasInvoiceOrOrderPerms;
+      const hasB2B = perms.includes("customers_b2b") || perms.some((p: string) => p.startsWith("customers_b2b:")) || hasInvoiceOrOrderPerms;
+      const hasDrop = perms.includes("customers_dropshipping") || perms.some((p: string) => p.startsWith("customers_dropshipping:") || p.startsWith("customers_dropship:")) || hasInvoiceOrOrderPerms;
+
+      if (!hasB2C && !hasB2B && !hasDrop) {
+        return NextResponse.json({ message: "Forbidden: No customer access" }, { status: 403 });
+      }
+
+      const allowedTypes = [];
+      if (hasB2C) allowedTypes.push("B2C");
+      if (hasB2B) allowedTypes.push("B2B");
+      if (hasDrop) allowedTypes.push("Dropshipping");
+
+      if (requestedCustomerType) {
+         if (!allowedTypes.includes(requestedCustomerType)) {
+            return NextResponse.json({ message: "Forbidden: You do not have access to this customer type" }, { status: 403 });
+         }
+      } else if (allowedTypes.length < 3) {
+        query.customerTypes = { $in: allowedTypes };
+      }
+    }
     if (search) {
       // Escaped: a search box otherwise feeds arbitrary regex to Mongo, so "(((" crashes the
       // query and a nested-quantifier pattern pins the server on backtracking.
@@ -77,12 +108,26 @@ export async function POST(request: Request) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
+    if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
     const { name, email, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments } = body;
+
+    if (payload.role === "manager") {
+      const perms = (payload as any).permissions || [];
+      const cTypes = customerTypes || ["B2C"];
+      const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:create");
+      const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:create");
+      const hasDrop = perms.includes("customers_dropshipping") || perms.includes("customers_dropship:create") || perms.includes("customers_dropshipping:create");
+      
+      for (const t of cTypes) {
+        if (t === "B2C" && !hasB2C) return NextResponse.json({ message: "Forbidden: Cannot create B2C customers" }, { status: 403 });
+        if (t === "B2B" && !hasB2B) return NextResponse.json({ message: "Forbidden: Cannot create B2B customers" }, { status: 403 });
+        if (t === "Dropshipping" && !hasDrop) return NextResponse.json({ message: "Forbidden: Cannot create Dropshipping customers" }, { status: 403 });
+      }
+    }
 
     if (!name || !email || !password || !address || !city || !state || !pinCode || !phone) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
@@ -155,7 +200,7 @@ export async function PUT(request: Request) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
+    if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -169,6 +214,20 @@ export async function PUT(request: Request) {
     const customer = await Customer.findById(_id);
     if (!customer) {
       return NextResponse.json({ message: "Customer not found" }, { status: 404 });
+    }
+
+    if (payload.role === "manager") {
+      const perms = (payload as any).permissions || [];
+      const cTypes = customer.customerTypes || ["B2C"];
+      const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:update");
+      const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:update");
+      const hasDrop = perms.includes("customers_dropshipping") || perms.includes("customers_dropship:update") || perms.includes("customers_dropshipping:update");
+      
+      for (const t of cTypes) {
+        if (t === "B2C" && !hasB2C) return NextResponse.json({ message: "Forbidden: Cannot edit this B2C customer" }, { status: 403 });
+        if (t === "B2B" && !hasB2B) return NextResponse.json({ message: "Forbidden: Cannot edit this B2B customer" }, { status: 403 });
+        if (t === "Dropshipping" && !hasDrop) return NextResponse.json({ message: "Forbidden: Cannot edit this Dropshipping customer" }, { status: 403 });
+      }
     }
 
     // Validate KYC document and business field requirements for B2B / Dropshipping
@@ -243,7 +302,7 @@ export async function DELETE(request: Request) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
+    if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -256,6 +315,20 @@ export async function DELETE(request: Request) {
     const customer = await Customer.findById(id);
     if (!customer) {
       return NextResponse.json({ message: "Customer not found" }, { status: 404 });
+    }
+
+    if (payload.role === "manager") {
+      const perms = (payload as any).permissions || [];
+      const cTypes = customer.customerTypes || ["B2C"];
+      const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:delete");
+      const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:delete");
+      const hasDrop = perms.includes("customers_dropshipping") || perms.includes("customers_dropship:delete") || perms.includes("customers_dropshipping:delete");
+      
+      for (const t of cTypes) {
+        if (t === "B2C" && !hasB2C) return NextResponse.json({ message: "Forbidden: Cannot delete this B2C customer" }, { status: 403 });
+        if (t === "B2B" && !hasB2B) return NextResponse.json({ message: "Forbidden: Cannot delete this B2B customer" }, { status: 403 });
+        if (t === "Dropshipping" && !hasDrop) return NextResponse.json({ message: "Forbidden: Cannot delete this Dropshipping customer" }, { status: 403 });
+      }
     }
 
     await Customer.findByIdAndDelete(id);

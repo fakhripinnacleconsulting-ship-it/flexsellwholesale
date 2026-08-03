@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -77,6 +77,8 @@ const STATUS_COLORS: Record<string, string> = {
 export function AdminOverview({ dbData }: AdminOverviewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager" : "/admin";
 
   const {
     totalRevenue,
@@ -145,7 +147,7 @@ export function AdminOverview({ dbData }: AdminOverviewProps) {
       params.delete("compEndDate");
     }
 
-    router.push(`/admin?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   const handlePresetSelect = (preset: "today" | "7d" | "30d" | "thisMonth" | "lastMonth") => {
@@ -214,7 +216,7 @@ export function AdminOverview({ dbData }: AdminOverviewProps) {
     setFilterCompStartDate("");
     setFilterCompEndDate("");
 
-    router.push("/admin");
+    router.push(basePath);
   };
 
   // Calculate percentage change helpers
@@ -256,7 +258,7 @@ export function AdminOverview({ dbData }: AdminOverviewProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/admin/orders">
+          <Link href={`${basePath}/orders`}>
             <Button size="sm" className="font-bold text-xs bg-primary text-primary-foreground">
               Manage Orders <ArrowRight className="h-3.5 w-3.5 ml-1" />
             </Button>
@@ -669,7 +671,7 @@ export function AdminOverview({ dbData }: AdminOverviewProps) {
               <CardTitle className="text-base font-bold">Recent Orders</CardTitle>
               <CardDescription className="text-xs">Latest customer purchase requests and commercial orders.</CardDescription>
             </div>
-            <Link href="/admin/orders">
+            <Link href={`${basePath}/orders`}>
               <Button variant="ghost" size="sm" className="text-xs font-bold text-primary hover:text-primary">
                 View All &rarr;
               </Button>
@@ -703,7 +705,7 @@ export function AdminOverview({ dbData }: AdminOverviewProps) {
                         <td className="p-3 text-center">{getStatusBadge(o.status)}</td>
                         <td className="p-3 text-right font-bold text-foreground">{formatPrice(o.amount)}</td>
                         <td className="p-3 text-right">
-                          <Link href={`/admin/orders/${o._id}`}>
+                          <Link href={`${basePath}/orders/${o._id}`}>
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0 cursor-pointer">
                               <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                             </Button>

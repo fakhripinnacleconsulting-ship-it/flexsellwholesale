@@ -31,3 +31,43 @@ export async function requireAuth(requiredRole?: "admin" | "customer"): Promise<
     return { error: NextResponse.json({ message: "Auth validation error" }, { status: 401 }) };
   }
 }
+
+export async function requireAdminOrManagerAuth(permission?: string): Promise<{
+  payload?: AuthenticatedRequestState;
+  error?: NextResponse;
+}> {
+  try {
+    const token = await getTokenFromCookie();
+    if (!token) {
+      return { error: NextResponse.json({ message: "Not authenticated" }, { status: 401 }) };
+    }
+
+    const payload = verifyToken(token);
+    if (!payload) {
+      return { error: NextResponse.json({ message: "Invalid session" }, { status: 401 }) };
+    }
+
+    if (payload.role === "admin") {
+      return { payload };
+    }
+
+    if (payload.role === "manager") {
+      if (permission) {
+        const perms = (payload as any).permissions || [];
+        const rootPermission = permission.split(":")[0];
+        
+        // Allow access if they have the specific 'module:action' permission
+        // OR if they have the legacy 'module' permission which implies full CRUD
+        if (perms.includes(permission) || perms.includes(rootPermission)) {
+          return { payload };
+        }
+      } else {
+        return { payload };
+      }
+    }
+
+    return { error: NextResponse.json({ message: "Forbidden: Insufficient permissions" }, { status: 403 }) };
+  } catch (_error) {
+    return { error: NextResponse.json({ message: "Auth validation error" }, { status: 401 }) };
+  }
+}

@@ -22,6 +22,7 @@ import { apiClient } from "@/lib/apiClient";
 import dynamic from "next/dynamic";
 import { ProductSearchPicker } from "@/components/admin/ProductSearchPicker";
 import { calculateProductRelevanceScore } from "@/services/searchService";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const RichTextEditor = dynamic(() => import("@/components/admin/RichTextEditor"), {
   ssr: false,
@@ -41,6 +42,7 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
   const { categories, initializeCategories } = useCategoryStore();
   const { addToast } = useToastStore();
   const confirmAction = useConfirmStore((state) => state.confirm);
+  const { hasPermission } = usePermissions();
 
   const [activeTab, setActiveTab] = React.useState<"list" | "form">("list");
   const [editCollectionId, setEditCollectionId] = React.useState<string | null>(null);
@@ -544,7 +546,7 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
             Group products into curated marketing segments or automated rule-based collections.
           </p>
         </div>
-        {activeTab === "list" && (
+        {activeTab === "list" && hasPermission("catalog_collections", "create") && (
           <Button onClick={handleCreateClick} className="font-bold flex items-center gap-1.5 shadow-md">
             <Plus className="h-4.5 w-4.5" />
             Create Collection
@@ -659,17 +661,18 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
                           </div>
                         </td>
                         <td className="py-4 px-6">
-                          <button onClick={() => handleToggleFeatured(col)} className="focus:outline-none">
-                            <Star className={`h-5 w-5 transition-colors cursor-pointer ${col.isFeatured ? "text-amber-500 fill-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-amber-500"}`} />
+                          <button onClick={() => handleToggleFeatured(col)} className="focus:outline-none" disabled={!hasPermission("catalog_collections", "update")}>
+                            <Star className={`h-5 w-5 transition-colors ${!hasPermission("catalog_collections", "update") ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${col.isFeatured ? "text-amber-500 fill-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-amber-500"}`} />
                           </button>
                         </td>
                         <td className="py-4 px-6">
-                          <label className="relative inline-flex items-center cursor-pointer select-none">
+                          <label className={`relative inline-flex items-center select-none ${hasPermission("catalog_collections", "update") ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}>
                             <input 
                               type="checkbox" 
                               checked={col.isActive}
                               onChange={() => handleToggleActive(col)}
                               className="sr-only peer"
+                              disabled={!hasPermission("catalog_collections", "update")}
                             />
                             <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                           </label>
@@ -678,12 +681,16 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
                           <Button variant="ghost" size="icon" onClick={() => setViewCollection(col)} title="View Details" className="hover:bg-secondary">
                             <Eye className="h-4.5 w-4.5 text-foreground" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(col)} title="Edit collection" className="hover:bg-secondary">
-                            <Edit className="h-4.5 w-4.5 text-foreground" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(col)} title="Delete collection" className="hover:bg-destructive/10 text-destructive">
-                            <Trash2 className="h-4.5 w-4.5" />
-                          </Button>
+                          {hasPermission("catalog_collections", "update") && (
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(col)} title="Edit collection" className="hover:bg-secondary">
+                              <Edit className="h-4.5 w-4.5 text-foreground" />
+                            </Button>
+                          )}
+                          {hasPermission("catalog_collections", "delete") && (
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(col)} title="Delete collection" className="hover:bg-destructive/10 text-destructive">
+                              <Trash2 className="h-4.5 w-4.5" />
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))}

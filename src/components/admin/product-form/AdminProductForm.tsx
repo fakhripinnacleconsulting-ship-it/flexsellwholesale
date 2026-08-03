@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Product, Category } from "@/types";
@@ -22,11 +23,13 @@ interface AdminProductFormProps {
 
 function ProductFormInner() {
   const { existingProduct, handleSave, isSaving } = useProductForm();
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
 
   return (
     <div className="space-y-6 pb-12">
       <div className="flex items-center gap-4">
-        <Link href="/admin/products">
+        <Link href={`${basePath}/products`}>
           <Button variant="outline" size="icon" className="h-9 w-9 cursor-pointer">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -52,7 +55,7 @@ function ProductFormInner() {
 
         {/* Sticky Save Bar at the bottom of the screen */}
         <div className="sticky -bottom-10 -mx-4 sm:-mx-6 md:-mx-8 p-3 sm:p-4 bg-background/95 backdrop-blur-md border-t border-border flex flex-wrap sm:flex-nowrap justify-between sm:justify-end items-center gap-3 z-30 shadow-xl">
-          <Link href="/admin/products" className="w-full sm:w-auto">
+          <Link href={`${basePath}/products`} className="w-full sm:w-auto">
             <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto h-10 text-sm font-semibold cursor-pointer" disabled={isSaving}>
               Cancel
             </Button>

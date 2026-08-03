@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Eye, Edit, Trash2, Check, RefreshCw, Loader2, ShoppingBag } from "lucide-react";
 import { Invoice } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface InvoiceTableProps {
   invoices: Invoice[];
@@ -36,6 +37,8 @@ export function InvoiceTable({
   onVoidInvoice,
   onDeleteInvoice,
 }: InvoiceTableProps) {
+  const { hasPermission } = usePermissions();
+
   if (isLoading) {
     return (
       <Card className="border border-border">
@@ -125,15 +128,15 @@ export function InvoiceTable({
                           <Eye className="h-4 w-4" />
                         </Button>
 
-                        {inv.type === "quote" && inv.status !== "converted" && (
+                        {inv.type === "quote" && inv.status !== "converted" && hasPermission(`invoices_${activeTab}` as any, "update") && (
                           <>
                             {onConvertQuote && (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => onConvertQuote(inv)}
-                                title="Convert Quote to Order"
-                                className="h-8 text-xs font-semibold px-2 cursor-pointer bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
+                                title="Convert to Order"
+                                className="h-8 text-xs font-semibold px-2 cursor-pointer bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
                               >
                                 <ShoppingBag className="h-3.5 w-3.5 mr-1" /> Convert
                               </Button>
@@ -150,7 +153,7 @@ export function InvoiceTable({
                           </>
                         )}
 
-                        {inv.type === "receipt" && inv.status === "pending" && (
+                        {inv.type === "receipt" && inv.status === "pending" && hasPermission(`invoices_${activeTab}` as any, "update") && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -162,7 +165,7 @@ export function InvoiceTable({
                           </Button>
                         )}
 
-                        {inv.status !== "void" && inv.type !== "quote" && (
+                        {inv.status !== "void" && inv.type !== "quote" && hasPermission(`invoices_${activeTab}` as any, "update") && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -174,15 +177,17 @@ export function InvoiceTable({
                           </Button>
                         )}
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDeleteInvoice(inv._id)}
-                          title="Delete Record"
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 cursor-pointer"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {inv.type !== "invoice" && hasPermission(`invoices_${activeTab}` as any, "delete") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDeleteInvoice(inv._id)}
+                            title="Delete Record"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

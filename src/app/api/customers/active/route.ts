@@ -15,6 +15,10 @@ export async function GET() {
     if (!payload) {
       return NextResponse.json({ message: "Invalid session" }, { status: 401 });
     }
+    
+    if (payload.role !== "customer") {
+      return NextResponse.json({ message: "Role mismatch" }, { status: 403 });
+    }
 
     const customer = await Customer.findById(payload.userId).select("-password").lean();
     if (!customer) {
@@ -40,6 +44,10 @@ export async function PUT(request: Request) {
     const payload = verifyToken(token);
     if (!payload) {
       return NextResponse.json({ message: "Invalid session" }, { status: 401 });
+    }
+    
+    if (payload.role !== "customer") {
+      return NextResponse.json({ message: "Role mismatch" }, { status: 403 });
     }
 
     const body = await request.json();

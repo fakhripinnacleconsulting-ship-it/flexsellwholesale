@@ -11,6 +11,8 @@ import { formatPrice } from "@/lib/utils";
 import { resolvePrice, resolveMoq } from "@/lib/priceTierHelper";
 import CustomerSearchPicker from "@/components/admin/CustomerSearchPicker";
 import { BarcodeScanner } from "@/components/admin/BarcodeScanner";
+import { useAuthStore } from "@/stores/authStore";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface InvoiceCreateModalProps {
   isOpen: boolean;
@@ -165,6 +167,28 @@ export function InvoiceCreateModal({
   const [isProductDropdownOpen, setIsProductDropdownOpen] = React.useState(false);
   const productWrapperRef = React.useRef<HTMLDivElement>(null);
 
+  const { hasPermission } = usePermissions();
+  const canCreateInvoice = hasPermission("invoices_invoice", "create") || hasPermission("invoices_invoice");
+  const canCreateQuote = hasPermission("invoices_quote", "create") || hasPermission("invoices_quote");
+  const canCreateReceipt = hasPermission("invoices_receipt", "create") || hasPermission("invoices_receipt");
+
+  // Ensure default formDocType is allowed
+  React.useEffect(() => {
+    if (isOpen) {
+      if (formDocType === "invoice" && !canCreateInvoice) {
+        if (canCreateQuote) setFormDocType("quote");
+        else if (canCreateReceipt) setFormDocType("receipt");
+      }
+      if (formDocType === "quote" && !canCreateQuote) {
+        if (canCreateInvoice) setFormDocType("invoice");
+        else if (canCreateReceipt) setFormDocType("receipt");
+      }
+      if (formDocType === "receipt" && !canCreateReceipt) {
+        if (canCreateInvoice) setFormDocType("invoice");
+        else if (canCreateQuote) setFormDocType("quote");
+      }
+    }
+  }, [isOpen, formDocType, canCreateInvoice, canCreateQuote, canCreateReceipt, setFormDocType]);
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (productWrapperRef.current && !productWrapperRef.current.contains(event.target as Node)) {
@@ -363,9 +387,9 @@ export function InvoiceCreateModal({
                 onChange={(e) => setFormDocType(e.target.value as any)}
                 className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md font-bold cursor-pointer"
               >
-                <option value="invoice">Tax Invoice</option>
-                <option value="receipt">Payment Receipt</option>
-                <option value="quote">Price Quote</option>
+                {canCreateInvoice && <option value="invoice">Tax Invoice</option>}
+                {canCreateReceipt && <option value="receipt">Payment Receipt</option>}
+                {canCreateQuote && <option value="quote">Price Quote</option>}
               </select>
             </div>
             <div>
@@ -392,18 +416,16 @@ export function InvoiceCreateModal({
               <button
                 type="button"
                 onClick={() => setCustomerMode("existing")}
-                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${
-                  customerMode === "existing" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
-                }`}
+                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${customerMode === "existing" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
+                  }`}
               >
                 Registered Client
               </button>
               <button
                 type="button"
                 onClick={() => setCustomerMode("new")}
-                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${
-                  customerMode === "new" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
-                }`}
+                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${customerMode === "new" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
+                  }`}
               >
                 New Client (Auto-Create)
               </button>
@@ -416,6 +438,7 @@ export function InvoiceCreateModal({
                   selectedCustomer={customers.find(c => c._id === selectedCustomerId) || null}
                   onSelect={(c) => setSelectedCustomerId(c ? c._id : "")}
                   placeholder={`Type to search registered ${formCustomerType} client...`}
+                  customerType={formCustomerType}
                 />
               </div>
             ) : (
@@ -517,9 +540,8 @@ export function InvoiceCreateModal({
                               setSelectedSize("");
                               setSelectedWeight("");
                             }}
-                            className={`p-2.5 text-xs hover:bg-accent hover:text-accent-foreground cursor-pointer border-b border-border/40 ${
-                              selectedProductId === p._id ? "bg-accent/50 font-bold" : ""
-                            }`}
+                            className={`p-2.5 text-xs hover:bg-accent hover:text-accent-foreground cursor-pointer border-b border-border/40 ${selectedProductId === p._id ? "bg-accent/50 font-bold" : ""
+                              }`}
                           >
                             <div className="font-bold">{p.title}</div>
                             <div className="text-[10px] text-muted-foreground flex justify-between mt-0.5 font-mono">
@@ -643,9 +665,12 @@ export function InvoiceCreateModal({
                     formItems.map((item, idx) => (
                       <tr key={idx}>
                         <td className="p-3">
-                          <div className="font-bold text-foreground">{item.productTitle}</div>
+                          <div className="font-bold text-foreground" title={item.productTitle}>
+                            {item.productTitle.length > 50 ? `${item.productTitle.substring(0, 50)}...` : item.productTitle}
+                          </div>
                           <div className="text-[10px] text-muted-foreground font-mono">
-                            Varient: {item.color} • Size: {item.size} • SKU: {item.sku}
+                            <div>Varient: {item.color || "N/A"} • Size: {item.size || "N/A"}</div>
+                            <div>SKU: {item.sku || "N/A"}</div>
                           </div>
                         </td>
                         <td className="p-3 font-mono text-[11px]">

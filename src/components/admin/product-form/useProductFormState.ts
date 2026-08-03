@@ -5,6 +5,7 @@ import { useProductStore } from "@/stores/productStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useHsnStore } from "@/stores/hsnStore";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 import { parseWeightToGrams, parseDimensionsToCm } from "@/lib/priceTierHelper";
 
 export interface ProductFormContextProps {
@@ -434,17 +435,7 @@ export function useProductFormState(
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to upload image");
-      }
-
-      const { url } = await res.json();
+      const { url } = await apiClient.post<{ url: string }>("/upload", formData);
 
       const newImgIndex = currentImages.length + 1;
       const colorName = variantsList[variantIndex].color || "Variant";
@@ -528,17 +519,7 @@ export function useProductFormState(
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to upload to Vercel Blob");
-      }
-
-      const { url } = await res.json();
+      const { url } = await apiClient.post<{ url: string }>("/upload", formData);
 
       setAPlusBlocks(prev => prev.map((b, idx) =>
         b.id === blockId ? {
@@ -575,17 +556,7 @@ export function useProductFormState(
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to upload barcode image");
-      }
-
-      const { url } = await res.json();
+      const { url } = await apiClient.post<{ url: string }>("/upload", formData);
 
       setVariantsList(prev => prev.map((item, idx) => {
         if (idx !== colorIdx) return item;
@@ -623,17 +594,7 @@ export function useProductFormState(
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to upload product barcode image");
-      }
-
-      const { url } = await res.json();
+      const { url } = await apiClient.post<{ url: string }>("/upload", formData);
       setBarcodeImage(url);
       setBarcodeSource("image");
       addToast("Product barcode image uploaded and validated successfully!", "success");
@@ -787,7 +748,8 @@ export function useProductFormState(
         addToast("New product published successfully.", "success");
       }
       router.refresh();
-      router.push("/admin/products");
+      const basePath = window.location.pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
+      router.push(`${basePath}/products`);
     } catch (err: any) {
       addToast(err?.message || "Failed to save product details.", "error");
     } finally {

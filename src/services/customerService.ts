@@ -24,7 +24,7 @@ function saveLocalAddresses(addresses: SavedAddress[]): void {
 }
 
 export const customerService = {
-  async getCustomers(params?: { search?: string; page?: number; limit?: number; type?: string }): Promise<any> { // eslint-disable-line @typescript-eslint/no-explicit-any
+  async getCustomers(params?: { search?: string; page?: number; limit?: number; type?: string; customerType?: string }): Promise<any> { // eslint-disable-line @typescript-eslint/no-explicit-any
     if (isMockMode) {
       if (typeof window === "undefined") return { customers: [], total: 0, page: 1, totalPages: 1 };
       try {
@@ -77,8 +77,9 @@ export const customerService = {
           localStorage.setItem("flexsell-customers-storage", JSON.stringify(list));
         }
 
-        if (params?.type) {
-          list = list.filter(c => c.customerTypes?.includes(params.type as "B2B" | "B2C" | "Dropshipping"));
+        if (params?.type || params?.customerType) {
+          const t = params?.customerType || params?.type;
+          list = list.filter(c => c.customerTypes?.includes(t as "B2B" | "B2C" | "Dropshipping"));
         }
 
         if (params?.search) {
@@ -117,6 +118,7 @@ export const customerService = {
     if (params?.page) queryParams.push(`page=${params.page}`);
     if (params?.limit) queryParams.push(`limit=${params.limit}`);
     if (params?.type) queryParams.push(`type=${params.type}`);
+    if (params?.customerType) queryParams.push(`customerType=${params.customerType}`);
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;
     }

@@ -3,7 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
 import Collection from "@/models/Collection";
 import Customer from "@/models/Customer";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { productSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { revalidateProducts } from "@/lib/revalidate";
@@ -32,7 +32,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_products:update");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -76,7 +76,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_products:delete");
     if (auth.error) return auth.error;
 
     await dbConnect();

@@ -1,13 +1,16 @@
 import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
 import { Edit, Trash2, ExternalLink, Download } from "lucide-react";
 import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
+import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { Product } from "@/types";
 import { resolvePrice } from "@/lib/priceTierHelper";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ProductTableProps {
   isAllPageSelected: boolean;
@@ -46,40 +49,11 @@ export function ProductTable({
   setItemsPerPage,
   className
 }: ProductTableProps) {
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-  const isDown = React.useRef(false);
-  const startX = React.useRef(0);
-  const scrollLeft = React.useRef(0);
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
+  const { hasPermission } = usePermissions();
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollContainerRef.current) return;
-    isDown.current = true;
-    scrollContainerRef.current.classList.add('cursor-grabbing');
-    startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
-    scrollLeft.current = scrollContainerRef.current.scrollLeft;
-  };
-
-  const handleMouseLeave = () => {
-    isDown.current = false;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.classList.remove('cursor-grabbing');
-    }
-  };
-
-  const handleMouseUp = () => {
-    isDown.current = false;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.classList.remove('cursor-grabbing');
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDown.current || !scrollContainerRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX.current) * 2;
-    scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
-  };
+  const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
 
   const truncateString = (str: string, max: number = 50) => {
     if (!str) return str;
@@ -91,13 +65,13 @@ export function ProductTable({
       <CardContent className="p-0 flex-col">
         <div
           className="overflow-x-auto overflow-y-auto h-[calc(100vh-280px)] min-h-[400px] custom-scrollbar cursor-grab active:cursor-grabbing select-none pb-0"
-          ref={scrollContainerRef}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
+          ref={ref}
+          onMouseDown={onMouseDown}
+          onMouseLeave={onMouseLeave}
+          onMouseUp={onMouseUp}
+          onMouseMove={onMouseMove}
         >
-          <table className="w-full text-sm text-left whitespace-nowrap">
+          <table className="w-full text-sm text-left whitespace-nowrap" onDragStart={onDragStart}>
             <thead className="text-xs text-muted-foreground uppercase bg-secondary border-b border-border sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
@@ -217,8 +191,9 @@ export function ProductTable({
                             className="sr-only peer"
                             checked={product.isActive}
                             onChange={() => toggleProductActive(product._id, product.isActive)}
+                            disabled={!hasPermission("catalog_products", "update")}
                           />
-                          <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                          <div className={`w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary ${!hasPermission("catalog_products", "update") ? "opacity-50 cursor-not-allowed" : ""}`}></div>
                         </label>
                       </td>
                       <td className="px-6 py-4 text-right space-x-1 whitespace-nowrap">
@@ -232,19 +207,29 @@ export function ProductTable({
                         <Button variant="ghost" size="icon" title="Download Barcodes" onClick={() => setBarcodePrintProduct(product)}>
                           <Download className="h-4 w-4" />
                         </Button>
-                        <Link href={`/admin/products/${product._id}`}>
-                          <Button variant="ghost" size="icon">
-                            <Edit className="h-4 w-4" />
+                        {hasPermission("catalog_products", "update") ? (
+                          <Link href={`${basePath}/products/${product._id}`}>
+                            <Button variant="ghost" size="icon">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Link href={`${basePath}/products/${product._id}`}>
+                            <Button variant="ghost" size="icon" title="View details">
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        )}
+                        {hasPermission("catalog_products", "delete") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteProduct(product._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeleteProduct(product._id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        )}
                       </td>
                     </tr>
                   );

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import CmsContent from "@/models/CmsContent";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { revalidateCms } from "@/lib/revalidate";
 
 import { initialDropshippingCMSData } from "@/lib/seedDropshippingCMS";
@@ -134,15 +135,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdminOrManagerAuth("content_cms:create");
+    if (auth.error) return auth.error;
+    const payload = auth.payload!;
 
     const body = await request.json();
     const { key, value } = body;

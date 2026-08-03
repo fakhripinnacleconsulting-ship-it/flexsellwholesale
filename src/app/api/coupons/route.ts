@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Coupon from "@/models/Coupon";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAuth, requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { couponSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 
@@ -17,7 +17,7 @@ export async function GET() {
     if (token) {
       const payload = verifyToken(token);
       if (payload) {
-        if (payload.role === "admin") {
+        if (payload.role === "admin" || (payload.role === "manager" && (payload as any).permissions?.includes("ops_coupons"))) {
           isAdmin = true;
         } else {
           userEmail = payload.email?.toLowerCase() || "";
@@ -49,7 +49,7 @@ export async function GET() {
 // POST: Create a new B2B coupon (restricted to admins)
 export async function POST(request: Request) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("ops_coupons:create");
     if (auth.error) return auth.error;
 
     await dbConnect();

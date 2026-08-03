@@ -200,6 +200,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { name: "Shipping Options", href: "/admin/shipping", icon: Truck },
     { name: "Coupons", href: "/admin/coupons", icon: Tags },
     { name: "Website CMS", href: "/admin/cms", icon: FileText },
+    { name: "Staff & Managers", href: "/admin/managers", icon: Users },
     { name: "Settings", href: "/admin/settings", icon: Settings },
   ];
 

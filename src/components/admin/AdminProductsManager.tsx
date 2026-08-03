@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +26,7 @@ import { InventoryManager } from "./InventoryManager";
 import { BulkOperationsModal } from "./BulkOperationsModal";
 import { ProductFilters } from "./products/ProductFilters";
 import { ProductTable } from "./products/ProductTable";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface AdminProductsManagerProps {
   initialProducts: Product[];
@@ -34,11 +35,14 @@ interface AdminProductsManagerProps {
 
 export function AdminProductsManager({ initialProducts, initialCategories }: AdminProductsManagerProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
   const { products, initializeProducts, updateProduct, deleteProduct, bulkDeleteProducts } = useProductStore();
   const { categories, initializeCategories } = useCategoryStore();
   const { hsns, initializeHsns } = useHsnStore();
   const { addToast } = useToastStore();
   const confirmAction = useConfirmStore((state) => state.confirm);
+  const { hasPermission } = usePermissions();
 
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState("all");
@@ -480,22 +484,26 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage B2B inventory lines, custom MOQ, and SEO tags.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          <Button variant="outline" onClick={() => setIsBulkOpen(true)} className="flex-1 sm:flex-none text-xs font-bold">
-            <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-600" /> Bulk Operations
-          </Button>
+          {hasPermission("catalog_products", "update") && (
+            <Button variant="outline" onClick={() => setIsBulkOpen(true)} className="flex-1 sm:flex-none text-xs font-bold">
+              <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-600" /> Bulk Operations
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setIsScannerOpen(true)} className="flex-1 sm:flex-none text-xs font-bold">
             <QrCode className="h-4 w-4 mr-1.5" /> Scan Barcode / Audit
           </Button>
-          <Link href="/admin/products/new" className="flex-1 sm:flex-none">
-            <Button className="w-full text-xs font-bold">
-              <Plus className="h-4 w-4 mr-1.5" /> Add Product
-            </Button>
-          </Link>
+          {hasPermission("catalog_products", "create") && (
+            <Link href={`${basePath}/products/new`} className="flex-1 sm:flex-none">
+              <Button className="w-full text-xs font-bold">
+                <Plus className="h-4 w-4 mr-1.5" /> Add Product
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
       {/* Global Setting for Default Highlight Price */}
-      {globalHighlightPrice && (
+      {globalHighlightPrice && hasPermission("system_settings", "update") && (
         <Card className="border border-border/80 p-4 bg-secondary/5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>

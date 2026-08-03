@@ -105,9 +105,11 @@ export async function GET(request: Request) {
   try {
     const auth = await requireAuth();
     if (auth.error) return auth.error;
+    const payload = auth.payload!;
 
     await dbConnect();
-    await syncMissingInvoicesForOrders();
+    // Removed syncMissingInvoicesForOrders() to prevent auto-recreation of deleted receipts 
+    // and to improve performance. Migration should be handled manually if needed.
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
@@ -123,7 +125,34 @@ export async function GET(request: Request) {
     const customerType = searchParams.get("customerType");
 
     const query: any = {};
-    if (type) query.type = type;
+    
+    if (payload.role === "manager") {
+      const perms = (payload as any).permissions || [];
+      const hasInvoices = perms.includes("invoices_invoice");
+      const hasQuotes = perms.includes("invoices_quote");
+      const hasReceipts = perms.includes("invoices_receipt");
+      
+      if (!hasInvoices && !hasQuotes && !hasReceipts) {
+        return NextResponse.json({ message: "Forbidden: No document access" }, { status: 403 });
+      }
+      
+      const allowedDocTypes = [];
+      if (hasInvoices) allowedDocTypes.push("invoice");
+      if (hasQuotes) allowedDocTypes.push("quote");
+      if (hasReceipts) allowedDocTypes.push("receipt");
+
+      if (type) {
+        if (!allowedDocTypes.includes(type)) {
+          return NextResponse.json({ message: "Forbidden document type" }, { status: 403 });
+        }
+        query.type = type;
+      } else {
+        query.type = { $in: allowedDocTypes };
+      }
+    } else {
+      if (type) query.type = type;
+    }
+
     if (status) {
       query.status = status;
     } else if (!showArchived) {
@@ -199,9 +228,8 @@ export async function GET(request: Request) {
       query.$and = andConditions;
     }
 
-    // Non-admin users can only see their own invoices
-    const payload = auth.payload!;
-    if (payload.role !== "admin") {
+    // Non-staff users can only see their own invoices
+    if (payload.role !== "admin" && payload.role !== "manager") {
       query.customerEmail = payload.email.toLowerCase();
     }
 
@@ -239,11 +267,9 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
     const payload = auth.payload!;
 
-    // Only admin can create invoices manually.
-    // There used to be an `x-system-call` header escape hatch here, but a header is
-    // caller-supplied — any logged-in buyer could set it and mint quotes at prices of their
-    // choosing (and auto-create customer records). Nothing in the codebase sent it.
-    if (payload.role !== "admin") {
+    // Only admin/manager can create invoices manually.
+    const isStaff = payload.role === "admin" || payload.role === "manager";
+    if (!isStaff) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
@@ -268,6 +294,13 @@ export async function POST(request: Request) {
       salesperson,
       status
     } = body;
+
+    if (payload.role === "manager") {
+      const perms = (payload as any).permissions || [];
+      if (type === "invoice" && !perms.includes("invoices_invoice")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      if (type === "quote" && !perms.includes("invoices_quote")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      if (type === "receipt" && !perms.includes("invoices_receipt")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
 
     // Handle new customer auto-creation
     let resolvedCustomerId = customerId;
@@ -373,7 +406,7 @@ export async function POST(request: Request) {
       sellerInfo,
       notes,
       generatedAt,
-      generatedBy: payload.role === "admin" ? payload.email : "system",
+      generatedBy: isStaff ? payload.email : "system",
       status: status || defaultStatus,
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,

@@ -13,6 +13,7 @@ import {
   Sparkles,
   X
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { type ExcelValidationError } from "@/lib/excelHelper";
 
 interface BulkValidationPanelProps {
@@ -53,6 +54,8 @@ export function BulkValidationPanel({
   setParsedData,
   setImportStats
 }: BulkValidationPanelProps) {
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
   const criticalErrors = validationErrors.filter((e) => e.type === "error");
   const warnings = validationErrors.filter((e) => e.type === "warning");
   const hasErrors = criticalErrors.length > 0;
@@ -258,7 +261,7 @@ export function BulkValidationPanel({
                 </div>
                 {err.productId && (
                   <a
-                    href={`/admin/products/${err.productId}`}
+                    href={`${basePath}/products/${err.productId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="self-start sm:self-center shrink-0"

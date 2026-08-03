@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Category from "@/models/Category";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { categorySchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { revalidateCategories } from "@/lib/revalidate";
@@ -18,7 +18,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_categories:create");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -43,3 +43,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: (error as any).message || "Failed to create category" }, { status: 500 });
   }
 }
+

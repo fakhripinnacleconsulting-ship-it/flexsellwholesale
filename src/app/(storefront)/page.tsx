@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/Card";
 import dbConnect from "@/lib/dbConnect";
 import CmsContent from "@/models/CmsContent";
 
-import { TrendingProducts } from "@/components/storefront/TrendingProducts";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
 import { TrustBar } from "@/components/storefront/TrustBar";
@@ -18,7 +17,8 @@ const DropshippingBusinessSection = dynamic(() => import("@/components/storefron
 const TestimonialsSection = dynamic(() => import("@/components/storefront/TestimonialsSection").then(m => m.TestimonialsSection));
 const BrandPartnersBar = dynamic(() => import("@/components/storefront/BrandPartnersBar").then(m => m.BrandPartnersBar));
 const RecentlyViewed = dynamic(() => import("@/components/storefront/RecentlyViewed").then(m => m.RecentlyViewed));
-import { FeaturedCollections } from "@/components/storefront/FeaturedCollections";
+const FeaturedCollections = dynamic(() => import("@/components/storefront/FeaturedCollections").then(m => m.FeaturedCollections));
+const TrendingProducts = dynamic(() => import("@/components/storefront/TrendingProducts").then(m => m.TrendingProducts));
 
 import { constructMetadata } from "@/lib/seo";
 
