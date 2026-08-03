@@ -108,7 +108,8 @@ export async function GET(request: Request) {
     const payload = auth.payload!;
 
     await dbConnect();
-    await syncMissingInvoicesForOrders();
+    // Removed syncMissingInvoicesForOrders() to prevent auto-recreation of deleted receipts 
+    // and to improve performance. Migration should be handled manually if needed.
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
