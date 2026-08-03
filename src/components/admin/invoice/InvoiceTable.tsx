@@ -174,15 +174,17 @@ export function InvoiceTable({
                           </Button>
                         )}
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDeleteInvoice(inv._id)}
-                          title="Delete Record"
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 cursor-pointer"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {inv.type !== "invoice" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDeleteInvoice(inv._id)}
+                            title="Delete Record"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
