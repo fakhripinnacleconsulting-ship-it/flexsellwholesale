@@ -254,6 +254,8 @@ export function AdminOrderViewManager({ params }: PageProps) {
     setShowPrintModal(true);
   };
 
+  const isDropshippingOrder = order.items?.some((item: any) => item.priceTier === "Dropshipping") || false;
+
   return (
     <div className="space-y-6 container mx-auto px-4 py-8 text-foreground max-w-5xl">
       {/* Back & Print Bar (Hidden during printing) */}
@@ -314,7 +316,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
               >
                 <FileText className="h-3.5 w-3.5" /> Download Label
               </Button>
-              {order.status !== "Delivered" && order.status !== "Cancelled" && (hasPermission("orders_b2b", "delete") || hasPermission("orders_b2c", "delete") || hasPermission("orders_dropship", "delete")) && (
+              {!isDropshippingOrder && order.status !== "Delivered" && order.status !== "Cancelled" && (hasPermission("orders_b2b", "delete") || hasPermission("orders_b2c", "delete") || hasPermission("orders_dropship", "delete")) && (
                 <Button
                   variant="outline"
                   className="font-bold text-destructive hover:bg-destructive/10 h-9 text-xs"
@@ -360,7 +362,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
                   <Edit2 className="h-3.5 w-3.5" /> Edit Details
                 </Button>
               )}
-              {(hasPermission("orders_b2b", "delete") || hasPermission("orders_b2c", "delete") || hasPermission("orders_dropship", "delete")) && (
+              {!isDropshippingOrder && (hasPermission("orders_b2b", "delete") || hasPermission("orders_b2c", "delete") || hasPermission("orders_dropship", "delete")) && (
                 <Button onClick={handleCancelOrder} variant="outline" className="font-bold text-destructive hover:bg-destructive/5 hover:text-destructive flex items-center gap-1.5 h-9 text-xs">
                   <Trash2 className="h-3.5 w-3.5" /> Cancel Order
                 </Button>

@@ -9,6 +9,7 @@ interface CustomerSearchPickerProps {
   selectedCustomer: Customer | null;
   placeholder?: string;
   error?: string;
+  customerType?: string;
 }
 
 export default function CustomerSearchPicker({
@@ -16,6 +17,7 @@ export default function CustomerSearchPicker({
   selectedCustomer,
   placeholder = "Search customer by name, email, company or ID...",
   error,
+  customerType,
 }: CustomerSearchPickerProps) {
   const [search, setSearch] = useState("");
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -59,14 +61,9 @@ export default function CustomerSearchPicker({
   }, [selectedCustomer]);
 
   const searchCustomers = async (query: string) => {
-    if (!query.trim()) {
-      setCustomers([]);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
-      const res = await customerService.getCustomers({ search: query, limit: 10 });
+      const res = await customerService.getCustomers({ search: query, limit: 10, customerType });
       if (res && Array.isArray(res)) {
         setCustomers(res);
       } else if (res && Array.isArray(res.customers)) {
@@ -91,15 +88,14 @@ export default function CustomerSearchPicker({
       clearTimeout(debounceRef.current);
     }
 
-    if (!val.trim()) {
-      setCustomers([]);
-      onSelect(null);
-      return;
-    }
-
     debounceRef.current = setTimeout(() => {
       searchCustomers(val);
     }, 400);
+  };
+
+  const handleFocus = () => {
+    setIsOpen(true);
+    searchCustomers(search);
   };
 
   const handleSelectCustomer = (customer: Customer) => {
@@ -119,7 +115,7 @@ export default function CustomerSearchPicker({
           type="text"
           value={search}
           onChange={handleInputChange}
-          onFocus={() => setIsOpen(true)}
+          onFocus={handleFocus}
           placeholder={placeholder}
           className={`w-full px-4 py-2 text-sm bg-white dark:bg-zinc-900 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
             error

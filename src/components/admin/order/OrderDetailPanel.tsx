@@ -26,6 +26,8 @@ export function OrderDetailPanel({
   const basePath = pathname.startsWith("/manager") ? "/manager/documents" : "/admin";
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+  const isDropshippingOrder = order.items?.some((item: any) => item.priceTier === "Dropshipping");
+
   const handleStatusChange = async (status: Order["status"]) => {
     setIsSubmitting(true);
     try {
@@ -82,15 +84,17 @@ export function OrderDetailPanel({
                 >
                   <Truck className="h-3.5 w-3.5" /> Dispatch Order
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isSubmitting}
-                  onClick={() => handleStatusChange("Cancelled")}
-                  className="text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive h-8 text-xs font-bold cursor-pointer"
-                >
-                  Cancel Order
-                </Button>
+                {!isDropshippingOrder && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isSubmitting}
+                    onClick={() => handleStatusChange("Cancelled")}
+                    className="text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive h-8 text-xs font-bold cursor-pointer"
+                  >
+                    Cancel Order
+                  </Button>
+                )}
               </>
             )}
             {order.status === "Shipped" && (
@@ -103,15 +107,17 @@ export function OrderDetailPanel({
                 >
                   <CheckCircle className="h-3.5 w-3.5" /> Mark Delivered
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isSubmitting}
-                  onClick={() => handleStatusChange("Cancelled")}
-                  className="text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive h-8 text-xs font-bold cursor-pointer"
-                >
-                  Cancel Order
-                </Button>
+                {!isDropshippingOrder && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isSubmitting}
+                    onClick={() => handleStatusChange("Cancelled")}
+                    className="text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive h-8 text-xs font-bold cursor-pointer"
+                  >
+                    Cancel Order
+                  </Button>
+                )}
               </div>
             )}
             {(order.status === "Delivered" || order.status === "Cancelled") && (

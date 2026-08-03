@@ -35,9 +35,11 @@ export async function GET(request: Request) {
     
     if (payload.role === "manager") {
       const perms = (payload as any).permissions || [];
-      const hasB2C = perms.includes("customers_b2c");
-      const hasB2B = perms.includes("customers_b2b");
-      const hasDrop = perms.includes("customers_dropshipping");
+      const hasInvoiceOrOrderPerms = perms.some((p: string) => p.startsWith("invoices_") || p.startsWith("orders_"));
+      
+      const hasB2C = perms.includes("customers_b2c") || perms.some((p: string) => p.startsWith("customers_b2c:")) || hasInvoiceOrOrderPerms;
+      const hasB2B = perms.includes("customers_b2b") || perms.some((p: string) => p.startsWith("customers_b2b:")) || hasInvoiceOrOrderPerms;
+      const hasDrop = perms.includes("customers_dropshipping") || perms.some((p: string) => p.startsWith("customers_dropshipping:") || p.startsWith("customers_dropship:")) || hasInvoiceOrOrderPerms;
 
       if (!hasB2C && !hasB2B && !hasDrop) {
         return NextResponse.json({ message: "Forbidden: No customer access" }, { status: 403 });
@@ -116,10 +118,14 @@ export async function POST(request: Request) {
     if (payload.role === "manager") {
       const perms = (payload as any).permissions || [];
       const cTypes = customerTypes || ["B2C"];
+      const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:create");
+      const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:create");
+      const hasDrop = perms.includes("customers_dropshipping") || perms.includes("customers_dropship:create") || perms.includes("customers_dropshipping:create");
+      
       for (const t of cTypes) {
-        if (t === "B2C" && !perms.includes("customers_b2c")) return NextResponse.json({ message: "Forbidden: Cannot create B2C customers" }, { status: 403 });
-        if (t === "B2B" && !perms.includes("customers_b2b")) return NextResponse.json({ message: "Forbidden: Cannot create B2B customers" }, { status: 403 });
-        if (t === "Dropshipping" && !perms.includes("customers_dropshipping")) return NextResponse.json({ message: "Forbidden: Cannot create Dropshipping customers" }, { status: 403 });
+        if (t === "B2C" && !hasB2C) return NextResponse.json({ message: "Forbidden: Cannot create B2C customers" }, { status: 403 });
+        if (t === "B2B" && !hasB2B) return NextResponse.json({ message: "Forbidden: Cannot create B2B customers" }, { status: 403 });
+        if (t === "Dropshipping" && !hasDrop) return NextResponse.json({ message: "Forbidden: Cannot create Dropshipping customers" }, { status: 403 });
       }
     }
 
@@ -213,10 +219,14 @@ export async function PUT(request: Request) {
     if (payload.role === "manager") {
       const perms = (payload as any).permissions || [];
       const cTypes = customer.customerTypes || ["B2C"];
+      const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:update");
+      const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:update");
+      const hasDrop = perms.includes("customers_dropshipping") || perms.includes("customers_dropship:update") || perms.includes("customers_dropshipping:update");
+      
       for (const t of cTypes) {
-        if (t === "B2C" && !perms.includes("customers_b2c")) return NextResponse.json({ message: "Forbidden: Cannot edit this B2C customer" }, { status: 403 });
-        if (t === "B2B" && !perms.includes("customers_b2b")) return NextResponse.json({ message: "Forbidden: Cannot edit this B2B customer" }, { status: 403 });
-        if (t === "Dropshipping" && !perms.includes("customers_dropshipping")) return NextResponse.json({ message: "Forbidden: Cannot edit this Dropshipping customer" }, { status: 403 });
+        if (t === "B2C" && !hasB2C) return NextResponse.json({ message: "Forbidden: Cannot edit this B2C customer" }, { status: 403 });
+        if (t === "B2B" && !hasB2B) return NextResponse.json({ message: "Forbidden: Cannot edit this B2B customer" }, { status: 403 });
+        if (t === "Dropshipping" && !hasDrop) return NextResponse.json({ message: "Forbidden: Cannot edit this Dropshipping customer" }, { status: 403 });
       }
     }
 
@@ -310,10 +320,14 @@ export async function DELETE(request: Request) {
     if (payload.role === "manager") {
       const perms = (payload as any).permissions || [];
       const cTypes = customer.customerTypes || ["B2C"];
+      const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:delete");
+      const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:delete");
+      const hasDrop = perms.includes("customers_dropshipping") || perms.includes("customers_dropship:delete") || perms.includes("customers_dropshipping:delete");
+      
       for (const t of cTypes) {
-        if (t === "B2C" && !perms.includes("customers_b2c")) return NextResponse.json({ message: "Forbidden: Cannot delete this B2C customer" }, { status: 403 });
-        if (t === "B2B" && !perms.includes("customers_b2b")) return NextResponse.json({ message: "Forbidden: Cannot delete this B2B customer" }, { status: 403 });
-        if (t === "Dropshipping" && !perms.includes("customers_dropshipping")) return NextResponse.json({ message: "Forbidden: Cannot delete this Dropshipping customer" }, { status: 403 });
+        if (t === "B2C" && !hasB2C) return NextResponse.json({ message: "Forbidden: Cannot delete this B2C customer" }, { status: 403 });
+        if (t === "B2B" && !hasB2B) return NextResponse.json({ message: "Forbidden: Cannot delete this B2B customer" }, { status: 403 });
+        if (t === "Dropshipping" && !hasDrop) return NextResponse.json({ message: "Forbidden: Cannot delete this Dropshipping customer" }, { status: 403 });
       }
     }
 

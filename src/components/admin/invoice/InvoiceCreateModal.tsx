@@ -11,6 +11,7 @@ import { formatPrice } from "@/lib/utils";
 import { resolvePrice, resolveMoq } from "@/lib/priceTierHelper";
 import CustomerSearchPicker from "@/components/admin/CustomerSearchPicker";
 import { BarcodeScanner } from "@/components/admin/BarcodeScanner";
+import { useAuthStore } from "@/stores/authStore";
 
 interface InvoiceCreateModalProps {
   isOpen: boolean;
@@ -165,6 +166,31 @@ export function InvoiceCreateModal({
   const [isProductDropdownOpen, setIsProductDropdownOpen] = React.useState(false);
   const productWrapperRef = React.useRef<HTMLDivElement>(null);
 
+  // RBAC permissions check
+  const { manager, customer } = useAuthStore();
+  const perms = manager?.permissions || [];
+  const hasPerm = (p: string) => customer?.role === "admin" || perms.includes(p) || perms.includes(`${p}:create`);
+  const canCreateInvoice = hasPerm("invoices_invoice");
+  const canCreateQuote = hasPerm("invoices_quote");
+  const canCreateReceipt = hasPerm("invoices_receipt");
+
+  // Ensure default formDocType is allowed
+  React.useEffect(() => {
+    if (isOpen) {
+      if (formDocType === "invoice" && !canCreateInvoice) {
+        if (canCreateQuote) setFormDocType("quote");
+        else if (canCreateReceipt) setFormDocType("receipt");
+      }
+      if (formDocType === "quote" && !canCreateQuote) {
+        if (canCreateInvoice) setFormDocType("invoice");
+        else if (canCreateReceipt) setFormDocType("receipt");
+      }
+      if (formDocType === "receipt" && !canCreateReceipt) {
+        if (canCreateInvoice) setFormDocType("invoice");
+        else if (canCreateQuote) setFormDocType("quote");
+      }
+    }
+  }, [isOpen, formDocType, canCreateInvoice, canCreateQuote, canCreateReceipt, setFormDocType]);
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (productWrapperRef.current && !productWrapperRef.current.contains(event.target as Node)) {
@@ -363,9 +389,9 @@ export function InvoiceCreateModal({
                 onChange={(e) => setFormDocType(e.target.value as any)}
                 className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md font-bold cursor-pointer"
               >
-                <option value="invoice">Tax Invoice</option>
-                <option value="receipt">Payment Receipt</option>
-                <option value="quote">Price Quote</option>
+                {canCreateInvoice && <option value="invoice">Tax Invoice</option>}
+                {canCreateReceipt && <option value="receipt">Payment Receipt</option>}
+                {canCreateQuote && <option value="quote">Price Quote</option>}
               </select>
             </div>
             <div>
@@ -416,6 +442,7 @@ export function InvoiceCreateModal({
                   selectedCustomer={customers.find(c => c._id === selectedCustomerId) || null}
                   onSelect={(c) => setSelectedCustomerId(c ? c._id : "")}
                   placeholder={`Type to search registered ${formCustomerType} client...`}
+                  customerType={formCustomerType}
                 />
               </div>
             ) : (
@@ -643,9 +670,12 @@ export function InvoiceCreateModal({
                     formItems.map((item, idx) => (
                       <tr key={idx}>
                         <td className="p-3">
-                          <div className="font-bold text-foreground">{item.productTitle}</div>
+                          <div className="font-bold text-foreground" title={item.productTitle}>
+                            {item.productTitle.length > 50 ? `${item.productTitle.substring(0, 50)}...` : item.productTitle}
+                          </div>
                           <div className="text-[10px] text-muted-foreground font-mono">
-                            Varient: {item.color} • Size: {item.size} • SKU: {item.sku}
+                            <div>Varient: {item.color || "N/A"} • Size: {item.size || "N/A"}</div>
+                            <div>SKU: {item.sku || "N/A"}</div>
                           </div>
                         </td>
                         <td className="p-3 font-mono text-[11px]">
