@@ -5,6 +5,7 @@ import Customer from "@/models/Customer";
 import { shiprocketClient } from "@/lib/shiprocketClient";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
+import { timingSafeCompare } from "@/lib/utils";
 
 // Dedicated IP rate limiter for webhook (30 req/min) [UPDATED-3]
 const webhookIpMap = new Map<string, { count: number; resetTime: number }>();
@@ -39,9 +40,16 @@ export async function POST(request: NextRequest) {
     const creds = await shiprocketClient.getCredentials();
     const expectedToken = creds.webhookToken || process.env.SHIPROCKET_WEBHOOK_TOKEN;
 
-    // 2. Webhook Token Verification
+    // 2. Webhook Token Verification — fail closed.
+    // Previously an unset token skipped the check entirely, leaving the endpoint open to
+    // anyone who could guess the URL and mark any order Delivered or Cancelled.
+    if (!expectedToken) {
+      console.error("[Shiprocket Webhook] No webhook token configured — rejecting request.");
+      return NextResponse.json({ message: "Webhook not configured" }, { status: 500 });
+    }
+
     const incomingToken = request.headers.get("x-shiprocket-webhook-token") || request.headers.get("token");
-    if (expectedToken && incomingToken !== expectedToken) {
+    if (!incomingToken || !timingSafeCompare(incomingToken, expectedToken)) {
       console.warn(`[Shiprocket Webhook] Unauthorized attempt with invalid token from IP: ${clientIp}`);
       return NextResponse.json({ message: "Invalid webhook token" }, { status: 401 });
     }
@@ -71,15 +79,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Missing order reference in payload" }, { status: 400 });
     }
 
+    // Build the lookup from the references actually present. Including empty or NaN values
+    // is not merely useless: `{ awbCode: "" }` matches the first order that has no AWB yet,
+    // so a payload without an AWB would silently update an unrelated order.
+    const orderRefs: Record<string, unknown>[] = [];
+    if (srOrderId) {
+      orderRefs.push({ _id: String(srOrderId) });
+      if (!isNaN(Number(srOrderId))) {
+        orderRefs.push({ "shipmentDetails.shiprocket.orderId": Number(srOrderId) });
+      }
+    }
+    if (srShipmentId && !isNaN(Number(srShipmentId))) {
+      orderRefs.push({ "shipmentDetails.shiprocket.shipmentId": Number(srShipmentId) });
+    }
+    if (awbCode) {
+      orderRefs.push({ "shipmentDetails.shiprocket.awbCode": awbCode });
+    }
+
+    if (orderRefs.length === 0) {
+      return NextResponse.json({ message: "Missing order reference in payload" }, { status: 400 });
+    }
+
     // Find local order
-    const order: any = await Order.findOne({
-      $or: [
-        { _id: srOrderId },
-        { "shipmentDetails.shiprocket.orderId": Number(srOrderId) },
-        { "shipmentDetails.shiprocket.shipmentId": Number(srShipmentId) },
-        { "shipmentDetails.shiprocket.awbCode": awbCode },
-      ]
-    });
+    const order: any = await Order.findOne({ $or: orderRefs });
 
     if (!order) {
       console.warn(`[Shiprocket Webhook] No local order found for SR Order ID ${srOrderId} / Shipment ID ${srShipmentId}`);

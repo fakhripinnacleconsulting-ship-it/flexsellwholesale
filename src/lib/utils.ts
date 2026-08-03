@@ -26,6 +26,35 @@ export function truncate(str: string, length: number) {
   return str.length > length ? `${str.substring(0, length)}...` : str;
 }
 
+/**
+ * Constant-time string comparison for secrets (CSRF tokens, webhook tokens).
+ *
+ * A plain `===` short-circuits on the first differing character, which leaks how much of a
+ * guessed token was correct. Implemented in pure JS rather than `crypto.timingSafeEqual` so
+ * it is usable from the Edge runtime (`proxy.ts`) as well as Node route handlers.
+ */
+export function timingSafeCompare(a: string, b: string): boolean {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  // Length is not secret — but still fold it into the result rather than returning early
+  // on a mismatch, so the loop below always runs over a fixed span.
+  const len = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < len; i++) {
+    diff |= a.charCodeAt(i % (a.length || 1)) ^ b.charCodeAt(i % (b.length || 1));
+  }
+  return diff === 0;
+}
+
+/**
+ * Escapes a user-supplied string for safe use inside `new RegExp()`.
+ *
+ * Without this, a search box feeds arbitrary regex to Mongo — at best a crash on an
+ * unbalanced bracket, at worst a catastrophically backtracking pattern that pins the CPU.
+ */
+export function escapeRegex(input: string): string {
+  return String(input).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function sanitizeImgUrl(
   url: string,
   fallback: string = ""

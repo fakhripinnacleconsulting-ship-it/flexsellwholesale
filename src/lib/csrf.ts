@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { timingSafeCompare } from "@/lib/utils";
 
 export function generateCsrfToken(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -32,7 +33,7 @@ export function validateCsrf(request: NextRequest | Request): boolean {
       return false;
     }
 
-    return cookieToken === headerToken;
+    return timingSafeCompare(cookieToken, headerToken);
   } catch (error) {
     return false;
   }

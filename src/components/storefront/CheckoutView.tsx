@@ -329,12 +329,55 @@ export function CheckoutView() {
       setIsSubmitting(true);
 
       try {
-        // Mint a Razorpay order handle for amountToPay without creating a DB order yet
-        const rzpOrderData = await apiClient.post<any>("/razorpay/order", { amount: amountToPay });
+        // Order first, then pay.
+        //
+        // The order (and its stock reservation) has to exist before the buyer reaches
+        // Razorpay: it is what binds the payment to a price the server computed, and its id
+        // is what both the callback and the webhook use to settle. Paying first left the
+        // gateway with no order to point at, so captured payments never marked anything Paid.
+        //
+        // Because the order holds stock from this moment, an abandoned payment is released
+        // immediately below rather than waiting for the daily /api/orders/reap-abandoned
+        // sweep, which stays on as the safety net for buyers who close the tab outright.
+        const pendingOrderId = await createOrder(
+          items,
+          amountToPay,
+          shippingAddress,
+          {
+            paymentMethod: "Razorpay",
+            paymentStatus: "Pending"
+          },
+          appliedCoupon?.couponCode || undefined,
+          couponDiscount || undefined,
+          { shippingCharge }
+        );
+
+        if (!pendingOrderId) {
+          throw new Error("Could not create your order. Please try again.");
+        }
+
+        // Amount comes from the stored order, never from this page.
+        const rzpOrderData = await apiClient.post<any>("/razorpay/order", { orderId: pendingOrderId });
 
         if (!rzpOrderData.orderId) {
           throw new Error(rzpOrderData.error || "Failed to initialize payment gateway");
         }
+
+        // Razorpay fires `handler` on success and `ondismiss` on a manual close, but a slow
+        // network can let both run. This flag makes sure a completed payment never triggers
+        // the release path below.
+        let paymentStarted = false;
+
+        const releaseAbandonedOrder = async () => {
+          if (paymentStarted) return;
+          try {
+            await apiClient.post("/orders/cancel-pending", { orderId: pendingOrderId });
+          } catch (err) {
+            // Non-fatal: the daily reaper will pick the order up. Keep the buyer's cart so
+            // they can simply try again.
+            console.error("Failed to release abandoned order:", err);
+          }
+        };
 
         const options = {
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
@@ -344,9 +387,11 @@ export function CheckoutView() {
           description: "Online Wholesale Order Payment",
           order_id: rzpOrderData.orderId,
           handler: async function (response: any) {
+            paymentStarted = true;
             try {
-              // 1. Verify payment signature
+              // Settle the order this payment was minted for.
               const verifyData = await apiClient.post<any>("/razorpay/verify", {
+                orderId: pendingOrderId,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
@@ -355,36 +400,30 @@ export function CheckoutView() {
                 throw new Error(verifyData.error || "Payment verification failed");
               }
 
-              // 2. Signature verified! Create the order now as Paid
-              const createdOrderId = await createOrder(
-                items,
-                amountToPay,
-                shippingAddress,
-                {
-                  paymentMethod: "Razorpay",
-                  paymentStatus: "Paid",
-                  transactionId: response.razorpay_payment_id
-                },
-                appliedCoupon?.couponCode || undefined,
-                couponDiscount || undefined,
-                { shippingCharge }
-              );
-
-              trackPurchase({ _id: createdOrderId, amount: amountToPay, items });
+              trackPurchase({ _id: pendingOrderId, amount: amountToPay, items });
               clearCart();
-              router.push(`/order-confirmation/${createdOrderId}`);
+              router.push(`/order-confirmation/${pendingOrderId}`);
             } catch (err: unknown) {
+              // The money may well have been captured — the webhook is the backstop, so send
+              // the buyer to their order rather than implying the payment was lost.
               addToast(
-                err instanceof Error ? err.message : "Could not verify payment or create order.",
-                "error"
+                err instanceof Error
+                  ? `${err.message}. If your payment was debited it will be confirmed shortly.`
+                  : "Could not confirm payment. If your payment was debited it will be confirmed shortly.",
+                "warning"
               );
-              setIsSubmitting(false);
+              clearCart();
+              router.push(`/order-confirmation/${pendingOrderId}`);
             }
           },
           modal: {
-            ondismiss: () => {
+            ondismiss: async () => {
+              // Release the reserved stock straight away and leave the buyer on checkout
+              // with their cart intact, so clicking "Place Order" again is a clean retry
+              // rather than a second order competing for the same stock.
               setIsSubmitting(false);
-              addToast("Payment window closed. You can switch to COD or try payment again.", "info");
+              await releaseAbandonedOrder();
+              addToast("Payment cancelled. Your cart is saved — you can try again or switch to COD.", "info");
             },
           },
           prefill: {
@@ -399,8 +438,12 @@ export function CheckoutView() {
 
         const rzp = new (Razorpay as any)(options as any);
         rzp.on("payment.failed", function (response: any) {
+          // Deliberately does NOT release the order: Razorpay lets the buyer retry with
+          // another method inside the same modal, and a released order would leave that
+          // retry paying for something already cancelled. `ondismiss` fires when they
+          // actually close the window, and that is where the release belongs.
           setIsSubmitting(false);
-          addToast(`Payment failed: ${response.error?.description || "Payment was not completed. You can try again or switch to COD."}`, "error");
+          addToast(`Payment failed: ${response.error?.description || "Payment was not completed."} You can try another method.`, "error");
         });
         rzp.open();
       } catch (err: any) {

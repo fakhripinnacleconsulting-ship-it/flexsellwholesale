@@ -8,6 +8,20 @@ import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { resolvePrice, resolveMoq, resolvePriceTierName, isPureB2B } from "@/lib/priceTierHelper";
 import { dispatchEvent } from "@/lib/events/eventDispatcher";
 
+/**
+ * Canonical, order-independent identity for a chosen set of variant options.
+ *
+ * Matching cart lines by `item.id.includes(variantKey)` was a substring test, so a key like
+ * `Size:M` matched a line for `Size:ML` and the two variants collapsed into one — adding one
+ * silently overwrote the other's quantity and price. Compare these keys with `===` instead.
+ */
+function buildVariantKey(selectedVariants: Record<string, string>): string {
+  return Object.entries(selectedVariants || {})
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([k, v]) => `${k}:${v}`)
+    .join("|");
+}
+
 interface TaxBreakdown {
   hsnCode: string;
   gstRate: number;
@@ -84,16 +98,13 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const variantKey = Object.entries(selectedVariants)
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([k, v]) => `${k}:${v}`)
-          .join("|");
+        const variantKey = buildVariantKey(selectedVariants);
 
         const availableStock = matchedVariant.stock;
         const moq = resolveMoq(matchedVariant, customer || customerTypes);
 
         // Check if item exists in cart
-        const existingItem = get().items.find(item => item.productId === liveProduct._id && item.id.includes(variantKey));
+        const existingItem = get().items.find(item => item.productId === liveProduct._id && buildVariantKey(item.selectedVariants) === variantKey);
         const currentQty = existingItem ? existingItem.quantity : 0;
         let targetQty = currentQty + quantity;
 
@@ -119,7 +130,7 @@ export const useCartStore = create<CartState>()(
         const itemId = `${product._id}-${variantKey}-${resolvedTierName}`;
 
         set((state) => {
-          const existingIndex = state.items.findIndex(item => item.productId === liveProduct._id && item.id.includes(variantKey));
+          const existingIndex = state.items.findIndex(item => item.productId === liveProduct._id && buildVariantKey(item.selectedVariants) === variantKey);
           const updatedItems = [...state.items];
 
           if (existingIndex > -1) {
@@ -386,7 +397,7 @@ export const useCartStore = create<CartState>()(
 
             const updatedPrice = sv ? resolvePrice(sv, customer || customerTypes, targetQty) : item.pricePerUnit;
             const updatedTierName = sv ? resolvePriceTierName(sv, customer || customerTypes, targetQty) : (item.priceTier || "B2C");
-            const variantKey = Object.entries(item.selectedVariants).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>`${k}:${v}`).join("|");
+            const variantKey = buildVariantKey(item.selectedVariants);
 
             return {
               ...item,

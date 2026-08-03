@@ -5,6 +5,7 @@ import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { validateCustomerKycRequirements } from "@/lib/kycValidationHelper";
+import { escapeRegex } from "@/lib/utils";
 
 // GET: Fetch all customers (restricted to admins)
 export async function GET(request: Request) {
@@ -27,7 +28,9 @@ export async function GET(request: Request) {
 
     const query: any = { role: { $ne: "admin" } };
     if (search) {
-      const regex = new RegExp(search.trim(), "i");
+      // Escaped: a search box otherwise feeds arbitrary regex to Mongo, so "(((" crashes the
+      // query and a nested-quantifier pattern pins the server on backtracking.
+      const regex = new RegExp(escapeRegex(search.trim()), "i");
       query.$or = [
         { _id: regex },
         { name: regex },

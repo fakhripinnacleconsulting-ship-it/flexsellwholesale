@@ -12,7 +12,7 @@ import Coupon from "@/models/Coupon";
 import { requireAuth } from "@/lib/authGuard";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
-import { generateNextId } from "@/lib/idGeneratorServer";
+import { generateNextId, nextCounterValue } from "@/lib/idGeneratorServer";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
@@ -25,26 +25,36 @@ import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
 import {
   computeOrderTaxDetails,
   computeExpectedOrderTotal,
+  computeGoodsGrossTotal,
   isOrderTotalAcceptable,
   resolveSellerState,
 } from "@/lib/orderTotals";
 
-async function generateInvoiceId(type: "invoice" | "receipt", session?: any): Promise<string> {
+/**
+ * Allocates the next invoice/receipt number for the current year.
+ *
+ * Backed by an atomic counter rather than "read the highest existing id and add one" —
+ * two checkouts landing together both read the same highest id, both derived the same
+ * number, and the second lost its invoice to a duplicate-key error mid-transaction.
+ *
+ * The counter is seeded from the existing documents the first time a given
+ * prefix/year is used, so numbering continues rather than restarting at 1.
+ */
+async function generateInvoiceId(type: "invoice" | "receipt", _session?: any): Promise<string> {
   const prefix = type === "invoice" ? "INV" : "RCP";
   const year = new Date().getFullYear();
-  const regex = new RegExp(`^${prefix}-${year}-`);
-  const lastDoc = await InvoiceModel.findOne({ _id: regex })
-    .sort({ _id: -1 })
-    .select("_id")
-    .session(session || null)
-    .lean() as any;
-  let nextSeq = 1;
-  if (lastDoc) {
-    const parts = (lastDoc._id as string).split("-");
-    const lastSeq = parseInt(parts[2], 10);
-    if (!isNaN(lastSeq)) nextSeq = lastSeq + 1;
-  }
-  return `${prefix}-${year}-${String(nextSeq).padStart(5, "0")}`;
+
+  const seq = await nextCounterValue(`counter_doc_${prefix}_${year}`, async () => {
+    const lastDoc = await InvoiceModel.findOne({ _id: new RegExp(`^${prefix}-${year}-`) })
+      .sort({ _id: -1 })
+      .select("_id")
+      .lean() as any;
+    if (!lastDoc) return 0;
+    const lastSeq = parseInt((lastDoc._id as string).split("-")[2], 10);
+    return isNaN(lastSeq) ? 0 : lastSeq;
+  });
+
+  return `${prefix}-${year}-${String(seq).padStart(5, "0")}`;
 }
 
 async function getSellerInfo() {
@@ -190,7 +200,8 @@ export async function POST(request: Request) {
     await dbConnect();
     const body = await request.json();
     
-    // If quoteId is provided, pre-populate missing items, amount, and shippingAddress from the quote to satisfy Zod and build the order
+    // If quoteId is provided, populate items, amount, and shippingAddress from the quote to
+    // satisfy Zod and build the order.
     if (body.quoteId) {
       const quote = await InvoiceModel.findById(body.quoteId).lean() as any;
       if (!quote) {
@@ -199,7 +210,18 @@ export async function POST(request: Request) {
       if (quote.status === "converted") {
         return NextResponse.json({ message: "This quote has already been converted to an order." }, { status: 400 });
       }
-      
+
+      // A quote conversion skips the per-item price check and the order-total check further
+      // down, because those totals are admin-negotiated. That carve-out is only safe if the
+      // caller actually owns the quote — otherwise any buyer could name someone else's quote
+      // id and buy at an arbitrary price.
+      if (payload.role !== "admin") {
+        const quoteEmail = (quote.customerEmail || "").toLowerCase();
+        if (!quoteEmail || quoteEmail !== payload.email.toLowerCase()) {
+          return NextResponse.json({ message: "This quote does not belong to your account." }, { status: 403 });
+        }
+      }
+
       const normalizedItems = (quote.items || []).map((i: any, idx: number) => {
         const pId = typeof i.product === "object" ? (i.product?._id || i.productId || `PROD-${idx}`) : (i.productId || (typeof i.product === "string" ? i.product : `PROD-${idx}`));
         const pTitle = typeof i.product === "object" ? (i.product?.title || i.product?.name || "Wholesale Product") : (i.productTitle || i.name || i.title || "Wholesale Product");
@@ -219,9 +241,12 @@ export async function POST(request: Request) {
         };
       });
 
-      body.items = (body.items && Array.isArray(body.items) && body.items.length > 0) ? body.items : normalizedItems;
-      body.amount = (body.amount && Number(body.amount) > 0) ? Number(body.amount) : Number(quote.amount || 0);
-      
+      // Always take lines and total from the stored quote, never from the request. The
+      // price/total verification below is deliberately skipped for quote conversions, so
+      // letting the client override these would hand it a blank cheque.
+      body.items = normalizedItems;
+      body.amount = Number(quote.amount || 0);
+
       const isInputAddrValid = body.shippingAddress && body.shippingAddress.address && body.shippingAddress.email;
       body.shippingAddress = isInputAddrValid ? body.shippingAddress : (quote.shippingAddress || {
         firstName: quote.customerName ? quote.customerName.split(" ")[0] : "Valued",
@@ -297,7 +322,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "You have already reached the maximum usage limit for this coupon" }, { status: 400 });
       }
 
-      const orderSubtotal = items.reduce((sum: number, item: any) => sum + (item.pricePerUnit * item.quantity), 0);
+      // Same GST-inclusive basis the checkout used when it called /api/coupons/validate.
+      const orderSubtotal = computeGoodsGrossTotal(items);
       if (dbCoupon.minOrderValue && dbCoupon.minOrderValue > 0 && orderSubtotal < dbCoupon.minOrderValue) {
         return NextResponse.json({ message: `Minimum order value of ₹${dbCoupon.minOrderValue} required for coupon "${cleanCode}".` }, { status: 400 });
       }
@@ -323,7 +349,14 @@ export async function POST(request: Request) {
 
     const orderId = await generateNextId("order");
 
+    let couponClaimed = false;
+
     const newOrder = await runInTransaction(async (session) => {
+      // runInTransaction re-invokes this callback without a session when it detects a
+      // standalone (non-replica-set) MongoDB, so per-attempt state has to be reset here
+      // rather than carried over from the aborted attempt.
+      couponClaimed = false;
+
       // Re-verify idempotency check inside transaction
       if (quoteId) {
         const existingOrder = await Order.findOne({ quoteId }).session(session || null).lean();
@@ -338,7 +371,10 @@ export async function POST(request: Request) {
       const customerTypes: string[] = customerDoc?.customerTypes || ["B2C"];
 
       // Deduct stock for each ordered item atomically
-      const stockRollbacks: Array<{ productId: string; cvColor: string; size: string; weight: string; qty: number }> = [];
+      // size/weight are stored exactly as the deduction used them (including undefined for
+      // variants that have no such dimension), so the compensating update targets the same
+      // sub-variant. Normalising them to "" and back to undefined desynchronised the two.
+      const stockRollbacks: Array<{ productId: string; cvColor: string; size?: string; weight?: string; qty: number }> = [];
       try {
         for (const item of items) {
           const dbProduct = await Product.findById(item.product._id).session(session || null);
@@ -409,8 +445,8 @@ export async function POST(request: Request) {
           stockRollbacks.push({
             productId: item.product._id,
             cvColor: cv.color,
-            size: sv.size || "",
-            weight: sv.weight || "",
+            size: sv.size,
+            weight: sv.weight,
             qty: item.quantity
           });
         }
@@ -424,8 +460,8 @@ export async function POST(request: Request) {
                 "colorVariants.color": rb.cvColor,
                 "colorVariants.subVariants": {
                   $elemMatch: {
-                    size: rb.size || undefined,
-                    weight: rb.weight || undefined
+                    size: rb.size,
+                    weight: rb.weight
                   }
                 }
               },
@@ -438,7 +474,7 @@ export async function POST(request: Request) {
               {
                 arrayFilters: [
                   { "cv.color": rb.cvColor },
-                  { "sv.size": rb.size || undefined, "sv.weight": rb.weight || undefined }
+                  { "sv.size": rb.size, "sv.weight": rb.weight }
                 ]
               }
             );
@@ -484,11 +520,20 @@ export async function POST(request: Request) {
       // Charge the server's figure, not the client's.
       const chargeableAmount = quoteId ? amount : expectedTotal;
 
-      let pStatus = paymentDetails?.paymentStatus || "Pending";
-      // Security: Force non-admin online Razorpay payments to start as Pending until verified via /api/razorpay/verify
-      if (paymentDetails?.paymentMethod === "Razorpay" && payload.role !== "admin" && !quoteId) {
-        pStatus = "Pending";
-      }
+      // Only an admin may declare an order paid at creation time (offline settlement, cash,
+      // bank transfer they have confirmed). For everyone else the order starts Pending and
+      // is promoted only by `settleOrderPayment`, after a verified gateway signature.
+      //
+      // The previous rule only forced Pending for `paymentMethod === "Razorpay"` outside a
+      // quote, so `{"paymentMethod":"COD","paymentStatus":"Paid"}` — or any payload carrying
+      // a quoteId — created a fully paid order without a rupee changing hands.
+      const pStatus = payload.role === "admin"
+        ? (paymentDetails?.paymentStatus || "Pending")
+        : "Pending";
+
+      // Same reasoning as pStatus: a buyer-supplied transaction id is unverifiable. The real
+      // one is stamped by `settleOrderPayment` once the gateway signature checks out.
+      const pTransactionId = payload.role === "admin" ? paymentDetails?.transactionId : undefined;
 
       const docType = pStatus === "Paid" ? "invoice" : "receipt";
       const invoiceId = await generateInvoiceId(docType, session);
@@ -536,7 +581,7 @@ export async function POST(request: Request) {
           items: items as any,
           paymentMethod: paymentDetails?.paymentMethod,
           paymentStatus: pStatus,
-          transactionId: paymentDetails?.transactionId,
+          transactionId: pTransactionId,
           couponCode,
           couponDiscount,
           packagingCharge: packagingCharge || 0,
@@ -551,7 +596,7 @@ export async function POST(request: Request) {
               status: "Placed",
               timestamp: orderTime,
               description: pStatus === "Paid"
-                ? `Wholesale order generated successfully. Online Payment verified (Txn ID: ${paymentDetails?.transactionId}).`
+                ? `Wholesale order generated successfully. Payment recorded by admin (Txn ID: ${pTransactionId || "N/A"}).`
                 : "Wholesale order generated successfully. Payment pending verification."
             }
           ]
@@ -584,7 +629,7 @@ export async function POST(request: Request) {
           shippingAddress,
           paymentMethod: paymentDetails?.paymentMethod,
           paymentStatus: pStatus,
-          transactionId: paymentDetails?.transactionId,
+          transactionId: pTransactionId,
           sellerInfo,
           generatedAt,
           generatedBy: payload.role === "admin" ? payload.userId : "system",
@@ -606,10 +651,74 @@ export async function POST(request: Request) {
           );
         }
 
+        // 6. Claim the coupon.
+        //
+        // The eligibility checks ran before the transaction; re-assert the limits here as
+        // update conditions so the claim is atomic. Previously the increment happened after
+        // the transaction with no conditions at all, so concurrent checkouts all passed the
+        // earlier read and a single-use coupon could be redeemed any number of times.
+        if (dbCoupon) {
+          const buyerEmail = payload.email.toLowerCase();
+          const limitGuard =
+            dbCoupon.usageLimit !== null && dbCoupon.usageLimit !== undefined
+              ? { $expr: { $lt: [{ $ifNull: ["$usedCount", 0] }, dbCoupon.usageLimit] } }
+              : {};
+
+          const claimed = await Coupon.findOneAndUpdate(
+            { _id: dbCoupon._id, isActive: true, ...limitGuard } as Record<string, unknown>,
+            { $inc: { usedCount: 1 }, $push: { usedBy: buyerEmail } },
+            { new: true, session: session || null }
+          );
+
+          if (!claimed) {
+            throw new Error("This coupon has reached its usage limit.");
+          }
+
+          // Per-customer limit, re-checked against the post-claim document.
+          const usesByBuyer = (claimed.usedBy || []).filter(
+            (e: string) => e.toLowerCase() === buyerEmail
+          ).length;
+          if (usesByBuyer > (dbCoupon.usageLimitPerCustomer || 1)) {
+            throw new Error("You have already reached the maximum usage limit for this coupon.");
+          }
+
+          couponClaimed = true;
+        }
+
         return JSON.parse(JSON.stringify(createdOrder));
       } catch (err: any) {
         // Rollback created docs manually if standalone database fallback
         if (!session) {
+          if (couponClaimed && dbCoupon) {
+            // Release exactly one redemption. `$pull` would drop every entry for this buyer,
+            // erasing their earlier legitimate uses of the same coupon, so splice out only
+            // the first match.
+            const buyerEmail = payload.email.toLowerCase();
+            await Coupon.updateOne({ _id: dbCoupon._id } as Record<string, unknown>, [
+              {
+                $set: {
+                  usedCount: { $max: [0, { $subtract: [{ $ifNull: ["$usedCount", 1] }, 1] }] },
+                  usedBy: {
+                    $let: {
+                      vars: { i: { $indexOfArray: [{ $ifNull: ["$usedBy", []] }, buyerEmail] } },
+                      in: {
+                        $cond: [
+                          { $gte: ["$$i", 0] },
+                          {
+                            $concatArrays: [
+                              { $slice: ["$usedBy", 0, "$$i"] },
+                              { $slice: ["$usedBy", { $add: ["$$i", 1] }, { $size: "$usedBy" }] },
+                            ],
+                          },
+                          { $ifNull: ["$usedBy", []] },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            ] as Record<string, unknown>[]);
+          }
           if (createdDoc) {
             await InvoiceModel.deleteOne({ _id: invoiceId } as any);
           }
@@ -624,8 +733,8 @@ export async function POST(request: Request) {
                 "colorVariants.color": rb.cvColor,
                 "colorVariants.subVariants": {
                   $elemMatch: {
-                    size: rb.size || undefined,
-                    weight: rb.weight || undefined
+                    size: rb.size,
+                    weight: rb.weight
                   }
                 }
               } as any,
@@ -638,7 +747,7 @@ export async function POST(request: Request) {
               {
                 arrayFilters: [
                   { "cv.color": rb.cvColor },
-                  { "sv.size": rb.size || undefined, "sv.weight": rb.weight || undefined }
+                  { "sv.size": rb.size, "sv.weight": rb.weight }
                 ]
               }
             );
@@ -647,16 +756,6 @@ export async function POST(request: Request) {
         throw err;
       }
     });
-
-    if (dbCoupon) {
-      await Coupon.updateOne(
-        { _id: dbCoupon._id },
-        { 
-          $inc: { usedCount: 1 },
-          $push: { usedBy: payload.email.toLowerCase() }
-        }
-      );
-    }
 
     // Dispatch Centralized System Event (Triggers In-App Notifications, Web Push Banners, and Transactional Emails)
     // Only dispatch ORDER_CREATED notification if order is already paid (e.g. admin/online instant)

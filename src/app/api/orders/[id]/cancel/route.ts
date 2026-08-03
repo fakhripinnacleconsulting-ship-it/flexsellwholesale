@@ -48,6 +48,41 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
       );
     }
 
+    // Claim the cancellation before restoring anything.
+    //
+    // The status was previously written after the stock loop, so two cancel requests for the
+    // same order (a double-click, or a retry racing the abandoned-order reaper) both passed
+    // the checks above and both credited the stock back — inventory grew out of thin air.
+    // Conditioning the update on a still-cancellable status makes exactly one caller win.
+    // Filter is untyped because the Order model declares `_id` as a string while Mongoose's
+    // FilterQuery generic expects an ObjectId here.
+    const claimed = await Order.findOneAndUpdate(
+      { _id: id, status: { $in: CUSTOMER_CANCELLABLE_STATUSES } } as Record<string, unknown>,
+      {
+        $set: {
+          status: "Cancelled",
+          statusClass: ORDER_STATUS_CLASSES.Cancelled,
+        },
+        $push: {
+          history: {
+            $each: [{
+              status: "Cancelled",
+              timestamp: new Date().toLocaleString("en-US", {
+                month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+              }),
+              description: payload.role === "admin" ? "Order cancelled by administrator." : "Order cancelled by customer.",
+            }],
+            $position: 0,
+          },
+        },
+      },
+      { new: true }
+    );
+
+    if (!claimed) {
+      return NextResponse.json({ message: "This order is already cancelled." }, { status: 400 });
+    }
+
     // Restore stock for every item, same atomic pattern used by the admin cancel/delete flow.
     for (const oldItem of order.items) {
       try {
@@ -91,21 +126,10 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
       }
     }
 
-    order.status = "Cancelled";
-    order.statusClass = ORDER_STATUS_CLASSES.Cancelled;
-    order.history.unshift({
-      status: "Cancelled",
-      timestamp: new Date().toLocaleString("en-US", {
-        month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
-      }),
-      description: payload.role === "admin" ? "Order cancelled by administrator." : "Order cancelled by customer."
-    });
-
-    await order.save();
     revalidateAdminDashboard();
     revalidateProducts();
 
-    return NextResponse.json(order);
+    return NextResponse.json(claimed);
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to cancel order" }, { status: 500 });
   }

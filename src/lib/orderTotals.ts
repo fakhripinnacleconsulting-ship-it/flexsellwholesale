@@ -127,6 +127,22 @@ export function computeOrderTaxDetails(
 }
 
 /**
+ * GST-inclusive value of the goods alone, before shipping, packaging or discount.
+ *
+ * This is the basis coupons are judged on — both `minOrderValue` and a percentage discount.
+ * The order route used to sum `pricePerUnit * quantity` instead, which only coincides with
+ * this for products priced GST-inclusive; for GST-exclusive ones it came out lower than the
+ * figure the checkout had validated against, so a coupon accepted at the cart was rejected
+ * at submit, or its discount failed the mismatch check.
+ *
+ * The CGST/SGST-vs-IGST split does not change the sum, so place of supply is irrelevant here.
+ */
+export function computeGoodsGrossTotal(items: TaxableItem[]): number {
+  const t = computeOrderTaxDetails(items, "", "");
+  return parseFloat((t.baseSubtotal + t.cgst + t.sgst + t.igst).toFixed(2));
+}
+
+/**
  * The amount the customer should actually be charged.
  *
  * Derived entirely from server-verified item prices — never from a client-supplied

@@ -14,6 +14,40 @@ const CounterSchema = new mongoose.Schema({
 
 const Counter = mongoose.models.Counter || mongoose.model("Counter", CounterSchema);
 
+/**
+ * Hands out the next value of a named sequence atomically.
+ *
+ * `seedIfMissing` supplies the value the sequence should have *before* its first hand-out,
+ * and runs only when the counter does not exist yet — that lets a counter be introduced for
+ * an ID series that already has documents in the wild without reissuing their numbers.
+ *
+ * Deliberately runs outside any caller transaction: a counter that rolls back with an
+ * aborted transaction would hand the same number to the next caller. Burning a number is
+ * the cheaper failure.
+ */
+export async function nextCounterValue(
+  counterId: string,
+  seedIfMissing: () => Promise<number>
+): Promise<number> {
+  const bump = async () =>
+    await Counter.findByIdAndUpdate(counterId, { $inc: { seq: 1 } }, { new: true });
+
+  const existing = await bump();
+  if (existing) return existing.seq;
+
+  // First use of this counter — seed it, tolerating a concurrent caller doing the same.
+  const seed = await seedIfMissing();
+  try {
+    await Counter.updateOne({ _id: counterId }, { $setOnInsert: { seq: seed } }, { upsert: true });
+  } catch (err: unknown) {
+    // A concurrent caller seeding the same counter is expected; anything else is not.
+    if ((err as { code?: number })?.code !== 11000) throw err;
+  }
+
+  const seeded = await bump();
+  return seeded ? seeded.seq : seed + 1;
+}
+
 async function isIdTaken(type: string, id: string): Promise<boolean> {
   try {
     const modelMap: Record<string, any> = {
@@ -89,19 +123,10 @@ export async function generateNextId(type: string): Promise<string> {
   };
 
   const counterId = `counter_${type}`;
-  const counterExist = await Counter.findById(counterId);
 
-  let currentSeq = currentSetting.startCount;
-  if (!counterExist) {
-    await Counter.create({ _id: counterId, seq: currentSeq });
-  } else {
-    const result = await Counter.findByIdAndUpdate(
-      counterId,
-      { $inc: { seq: 1 } },
-      { new: true }
-    );
-    currentSeq = result.seq;
-  }
+  // Read-then-create raced: two concurrent registrations both saw "no counter yet", both
+  // created it at startCount, and both walked away with the same customer/order id.
+  let currentSeq = await nextCounterValue(counterId, async () => currentSetting.startCount - 1);
 
   let candidateId = formatIdPreview(
     currentSetting.prefix,

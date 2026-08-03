@@ -3,7 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { CheckCircle, Printer, ArrowRight, ShoppingBag, MapPin, ClipboardList, ShieldCheck } from "lucide-react";
+import { CheckCircle, Printer, ArrowRight, ShoppingBag, MapPin, ClipboardList, ShieldCheck, CreditCard } from "lucide-react";
+import { useRazorpay } from "react-razorpay";
+import { apiClient } from "@/lib/apiClient";
+import { useToastStore } from "@/stores/toastStore";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { orderService } from "@/services/orderService";
@@ -23,6 +26,9 @@ export default function OrderConfirmationPage() {
   const [error, setError] = React.useState("");
   const [cmsData, setCmsData] = React.useState<any>(null);
   const [invoice, setInvoice] = React.useState<any>(null);
+  const [paying, setPaying] = React.useState(false);
+  const { Razorpay } = useRazorpay();
+  const { addToast } = useToastStore();
 
   React.useEffect(() => {
     if (!orderId) return;
@@ -57,6 +63,68 @@ export default function OrderConfirmationPage() {
       })
       .catch(err => console.error("Failed to load invoice:", err));
   }, [orderId]);
+
+  // An order can legitimately sit here unpaid — an admin-converted Razorpay quote, or a
+  // checkout whose stock release failed. Without this the buyer has no way to pay it.
+  const needsPayment =
+    !!order && order.paymentMethod === "Razorpay" && order.paymentStatus !== "Paid" && order.status !== "Cancelled";
+
+  const handleCompletePayment = async () => {
+    if (!order || paying) return;
+    setPaying(true);
+    try {
+      // Amount is read from the stored order server-side; nothing here can influence it.
+      const init = await apiClient.post<{ orderId?: string; amount?: number; currency?: string; error?: string }>(
+        "/razorpay/order", { orderId: order._id }
+      );
+      if (!init.orderId) throw new Error(init.error || "Failed to initialize payment gateway");
+
+      const rzp = new (Razorpay as any)({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
+        amount: String(init.amount),
+        currency: init.currency || "INR",
+        name: "FlexSell Wholesale",
+        description: `Payment for order ${order._id}`,
+        order_id: init.orderId,
+        handler: async (response: any) => {
+          try {
+            const res = await apiClient.post<{ success?: boolean; error?: string }>("/razorpay/verify", {
+              orderId: order._id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            if (!res.success) throw new Error(res.error || "Payment verification failed");
+            addToast("Payment received. Thank you!", "success");
+            setOrder(await orderService.getOrderById(order._id));
+          } catch (err: unknown) {
+            // The webhook is the backstop if this failed after capture.
+            addToast(
+              `${err instanceof Error ? err.message : "Could not confirm payment"}. If you were debited it will be confirmed shortly.`,
+              "warning"
+            );
+          } finally {
+            setPaying(false);
+          }
+        },
+        modal: { ondismiss: () => setPaying(false) },
+        prefill: {
+          name: `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}`,
+          email: order.shippingAddress.email,
+          contact: order.shippingAddress.phone,
+        },
+        theme: { color: "#10b981" },
+      });
+      rzp.on("payment.failed", (r: any) => {
+        setPaying(false);
+        addToast(`Payment failed: ${r.error?.description || "Payment was not completed."}`, "error");
+      });
+      rzp.open();
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : "Could not start payment gateway", "error");
+      setPaying(false);
+    }
+  };
 
   const handlePrint = () => {
     const customerName = order?.shippingAddress.company || (order?.shippingAddress.firstName ? `${order.shippingAddress.firstName} ${order.shippingAddress.lastName}` : "");
@@ -106,10 +174,22 @@ export default function OrderConfirmationPage() {
           <div className="inline-flex items-center justify-center p-3 bg-emerald-500/10 text-emerald-500 rounded-full animate-bounce">
             <CheckCircle className="h-16 w-16" />
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight">Order Confirmed!</h1>
+          <h1 className="text-4xl font-extrabold tracking-tight">
+            {needsPayment ? "Order Placed" : "Order Confirmed!"}
+          </h1>
           <p className="text-muted-foreground text-lg max-w-md mx-auto">
-            Thank you for sourcing with FlexSell. Your B2B order has been generated and queued for wholesale fulfillment.
+            {needsPayment
+              ? "Your order is saved but payment is still pending. Complete it below to send it for fulfillment."
+              : "Thank you for sourcing with FlexSell. Your B2B order has been generated and queued for wholesale fulfillment."}
           </p>
+          {needsPayment && (
+            <div className="pt-1">
+              <Button onClick={handleCompletePayment} disabled={paying} size="lg" className="flex items-center gap-2 font-semibold mx-auto">
+                <CreditCard className="h-4 w-4" />
+                {paying ? "Opening payment..." : `Complete Payment · ${formatPrice(order.amount)}`}
+              </Button>
+            </div>
+          )}
           <div className="flex justify-center gap-3 pt-2">
             <Button onClick={handlePrint} variant="outline" className="flex items-center gap-2 font-semibold">
               <Printer className="h-4 w-4" /> Print Purchase Invoice
@@ -144,8 +224,10 @@ export default function OrderConfirmationPage() {
                   <span className="font-semibold text-foreground">{order.date || (order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "")}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wider">Payment Term</span>
-                  <span className="font-semibold text-emerald-600">Pending Shipment Verification</span>
+                  <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wider">Payment Status</span>
+                  <span className={order.paymentStatus === "Paid" ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+                    {order.paymentStatus === "Paid" ? "Paid" : order.paymentMethod === "COD" ? "Cash on Delivery" : (order.paymentStatus || "Pending")}
+                  </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wider">Fulfillment Status</span>

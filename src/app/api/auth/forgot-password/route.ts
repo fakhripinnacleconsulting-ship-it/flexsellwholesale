@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rateLimit";
 import { forgotPasswordSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { emailService } from "@/lib/emailService";
+import { escapeRegex } from "@/lib/utils";
 
 export async function POST(req: Request) {
   try {
@@ -21,26 +22,29 @@ export async function POST(req: Request) {
     const validatedData = forgotPasswordSchema.parse(body);
     const { email } = validatedData;
 
+    // Same response whichever branch we take, so the endpoint cannot be used to test which
+    // email addresses hold accounts.
+    const GENERIC_RESPONSE = {
+      message: "If an account exists for that email address, a password reset link has been sent."
+    };
+
     const targetEmail = email.trim().toLowerCase();
     const customer = await Customer.findOne({
       $or: [
         { email: targetEmail },
-        { email: { $regex: new RegExp(`^${targetEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, "i") } }
+        { email: { $regex: new RegExp(`^${escapeRegex(targetEmail)}$`, "i") } }
       ]
     });
 
-
     if (!customer) {
-      return NextResponse.json(
-        { message: "Customer account does not exist with this email address." },
-        { status: 404 }
-      );
+      return NextResponse.json(GENERIC_RESPONSE);
     }
 
-
-    // Generate token
+    // Generate token. Only the hash is stored: a leaked DB snapshot (or a log line, or an
+    // over-broad customer query) would otherwise hand over working reset links for every
+    // pending request.
     const token = crypto.randomBytes(32).toString("hex");
-    customer.resetPasswordToken = token;
+    customer.resetPasswordToken = crypto.createHash("sha256").update(token).digest("hex");
     customer.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
 
     await customer.save();
@@ -62,9 +66,7 @@ export async function POST(req: Request) {
       }, { status: 500 });
     }
 
-    return NextResponse.json({
-      message: "Password reset link sent successfully to your email."
-    });
+    return NextResponse.json(GENERIC_RESPONSE);
 
   } catch (error: unknown) {
     if (error instanceof ZodError) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Customer from "@/models/Customer";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { rateLimit } from "@/lib/rateLimit";
 import { resetPasswordSchema } from "@/lib/validators";
 import { ZodError } from "zod";
@@ -20,8 +21,12 @@ export async function POST(req: Request) {
     const validatedData = resetPasswordSchema.parse(body);
     const { token, password: newPassword } = validatedData;
 
+    // forgot-password stores only the SHA-256 of the token it emailed, so hash the incoming
+    // one to look it up.
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
     const customer = await Customer.findOne({
-      resetPasswordToken: token,
+      resetPasswordToken: tokenHash,
       resetPasswordExpires: { $gt: new Date() }
     });
 

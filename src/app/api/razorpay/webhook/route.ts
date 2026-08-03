@@ -91,6 +91,11 @@ export async function POST(request: Request) {
     if (result.status === "already_paid") {
       return NextResponse.json({ message: "Already processed", orderId });
     }
+    if (result.status === "cancelled") {
+      // 200 on purpose: the payment is genuine and Razorpay must not keep retrying. The
+      // mismatch is logged inside settleOrderPayment for manual refund.
+      return NextResponse.json({ message: "Order was cancelled; flagged for manual review", orderId });
+    }
 
     try {
       const order = await Order.findById(orderId).lean() as SettledOrderSummary | null;

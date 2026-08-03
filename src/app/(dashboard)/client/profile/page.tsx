@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { customerService } from "@/services/customerService";
 import { Customer } from "@/types";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 import { NotificationPreferencesCard } from "@/components/common/NotificationPreferencesCard";
 
 const INDIAN_STATES = [
@@ -111,13 +112,9 @@ export default function ClientProfilePage() {
     }
     setIsChangingPassword(true);
     try {
-      const res = await fetch("/api/auth/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to change password");
+      // Via apiClient so the CSRF token travels with it — change-password is no longer
+      // exempt from CSRF validation, and a bare fetch does not attach the header.
+      await apiClient.post("/auth/change-password", { currentPassword, newPassword });
       addToast("Password changed successfully!", "success");
       setCurrentPassword("");
       setNewPassword("");

@@ -11,10 +11,24 @@ export async function proxy(request: NextRequest) {
   // CSRF validation for state-changing API routes
   const isApiRoute = pathname.startsWith("/api");
   const isStateChanging = ["POST", "PUT", "DELETE"].includes(request.method);
+  // Pre-session auth endpoints have no session to protect and are reached before a CSRF
+  // cookie exists. Note this is deliberately a list of specific routes rather than the whole
+  // /api/auth/ prefix: change-password acts on an established session, so blanket-excluding
+  // the prefix left it open to a cross-site POST that takes over the account.
+  const CSRF_EXEMPT_AUTH_ROUTES = [
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/google-login",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+    "/api/auth/send-otp",
+    "/api/auth/verify-otp",
+  ];
+
   // Third-party callbacks cannot carry our CSRF cookie; each of these verifies its own
   // HMAC/token signature instead.
   const isExcludedCsrf =
-    pathname.startsWith("/api/auth/") ||
+    CSRF_EXEMPT_AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`)) ||
     pathname.startsWith("/api/system-diagnostics") ||
     pathname.startsWith("/api/shiprocket/webhook") ||
     pathname.startsWith("/api/razorpay/webhook");

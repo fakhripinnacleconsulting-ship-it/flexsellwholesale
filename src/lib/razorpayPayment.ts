@@ -48,7 +48,8 @@ export type SettleResult =
   | { status: "settled"; orderId: string }
   | { status: "already_paid"; orderId: string }
   | { status: "not_found" }
-  | { status: "order_mismatch" };
+  | { status: "order_mismatch" }
+  | { status: "cancelled"; orderId: string };
 
 /**
  * Marks an order paid and promotes its receipt to a tax invoice.
@@ -74,12 +75,27 @@ export async function settleOrderPayment(params: {
 
   // The callback must refer to the Razorpay order we minted for THIS order, otherwise a
   // valid signature from a cheaper payment could be replayed to settle an expensive one.
-  if (order.razorpayOrderId && order.razorpayOrderId !== params.razorpayOrderId) {
+  //
+  // An order with no razorpayOrderId never had a payment started against it, so there is
+  // nothing a genuine callback could be referring to — treat that as a mismatch too rather
+  // than letting the check pass by default.
+  if (!order.razorpayOrderId || order.razorpayOrderId !== params.razorpayOrderId) {
     return { status: "order_mismatch" };
   }
 
   if (order.paymentStatus === "Paid") {
     return { status: "already_paid", orderId: order._id as string };
+  }
+
+  // A cancelled order has already had its stock credited back. Marking it paid now would
+  // let the same units be sold twice, so refuse and make the money loud instead of silent —
+  // this needs a human to refund or re-place the order.
+  if (order.status === "Cancelled") {
+    console.error(
+      `[Razorpay] Payment ${params.razorpayPaymentId} received for CANCELLED order ${order._id} ` +
+      `(via ${params.source}). Stock was already restored — refund or re-create the order manually.`
+    );
+    return { status: "cancelled", orderId: order._id as string };
   }
 
   order.paymentStatus = "Paid";

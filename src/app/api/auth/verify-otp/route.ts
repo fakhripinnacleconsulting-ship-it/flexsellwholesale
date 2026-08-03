@@ -7,8 +7,22 @@ import bcrypt from "bcryptjs";
 import { signToken, setTokenCookie } from "@/lib/auth";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
+import { rateLimit } from "@/lib/rateLimit";
+import { timingSafeCompare } from "@/lib/utils";
+
+const MAX_OTP_ATTEMPTS = 5;
 
 export async function POST(req: Request) {
+  // The per-record attempt cap below only slows an attacker down per email address; without
+  // an IP limit they can churn through addresses, and each miss still costs a DB round trip.
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  const ip = forwardedFor ? forwardedFor.split(",")[0] : "127.0.0.1";
+  try {
+    await rateLimit(ip);
+  } catch {
+    return NextResponse.json({ message: "Too many verification attempts. Try again later." }, { status: 429 });
+  }
+
   try {
     await dbConnect();
     const body = await req.json();
@@ -32,18 +46,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Verification code has expired. Please request a new code." }, { status: 400 });
     }
 
-    // 3. Check attempt limit (max 5)
-    if (otpRecord.attempts >= 5) {
+    // 3. Check attempt limit
+    if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
       await OtpVerification.deleteOne({ email: lowerEmail });
       return NextResponse.json({ message: "Maximum verification attempts exceeded. Please request a new code." }, { status: 400 });
     }
 
     // 4. Verify SHA-256 hash
     const inputHash = crypto.createHash("sha256").update(otp.trim()).digest("hex");
-    if (inputHash !== otpRecord.otpHash) {
+    if (!timingSafeCompare(inputHash, otpRecord.otpHash)) {
       otpRecord.attempts += 1;
       await otpRecord.save();
-      const remaining = 5 - otpRecord.attempts;
+      const remaining = MAX_OTP_ATTEMPTS - otpRecord.attempts;
       return NextResponse.json(
         { message: `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.` },
         { status: 400 }

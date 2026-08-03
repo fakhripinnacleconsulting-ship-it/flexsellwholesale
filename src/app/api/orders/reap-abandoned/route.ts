@@ -39,6 +39,12 @@ async function sweepAbandonedOrders(request: Request) {
 
     // Only online prepaid orders. COD is legitimately unpaid at this stage, and anything
     // already shipped or cancelled must not be touched.
+    //
+    // Restricted to storefront orders as well. An admin converting a quote whose payment
+    // method is Razorpay also produces a Razorpay/Pending order, but that one is waiting on
+    // a buyer the sales team is chasing — not on an abandoned checkout — and auto-cancelling
+    // it half an hour later would be wrong.
+    //
     // Filter is untyped because the Order model declares `createdAt` as a string while
     // Mongoose stores a real Date via `timestamps: true`.
     const staleFilter: Record<string, unknown> = {
@@ -46,6 +52,13 @@ async function sweepAbandonedOrders(request: Request) {
       paymentStatus: "Pending",
       status: { $nin: ["Cancelled", "Shipped", "In Transit", "Delivered"] },
       createdAt: { $lt: cutoff },
+      // `origin` predates neither field reliably on older orders, so treat "not self" as
+      // storefront and additionally exclude anything carrying a quote or a salesperson.
+      $and: [
+        { origin: { $ne: "self" } },
+        { $or: [{ quoteId: { $exists: false } }, { quoteId: null }, { quoteId: "" }] },
+        { $or: [{ salesperson: { $exists: false } }, { salesperson: null }, { salesperson: "" }] },
+      ],
     };
 
     const stale = await Order.find(staleFilter);
@@ -53,6 +66,37 @@ async function sweepAbandonedOrders(request: Request) {
     let cancelled = 0;
 
     for (const order of stale) {
+      // Claim the order before crediting stock back. A buyer cancelling (or completing
+      // payment on) the same order while this sweep runs would otherwise have the stock
+      // restored twice, or restored for an order that just got paid.
+      const claimed = await Order.findOneAndUpdate(
+        {
+          _id: (order as any)._id,
+          // Re-assert payment status: an order that completed payment between the scan
+          // above and this claim must not be cancelled out from under the buyer.
+          paymentStatus: "Pending",
+          status: { $nin: ["Cancelled", "Shipped", "In Transit", "Delivered"] },
+        } as Record<string, unknown>,
+        {
+          $set: { status: "Cancelled", statusClass: ORDER_STATUS_CLASSES.Cancelled },
+          $push: {
+            history: {
+              $each: [{
+                status: "Cancelled",
+                timestamp: new Date().toLocaleString("en-US", {
+                  month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+                }),
+                description: `Auto-cancelled: online payment not completed within ${ABANDON_AFTER_MINUTES} minutes. Stock returned.`,
+              }],
+              $position: 0,
+            },
+          },
+        },
+        { new: true }
+      );
+
+      if (!claimed) continue;
+
       for (const item of (order as any).items || []) {
         try {
           const dbProduct = await Product.findById(item.product?._id);
@@ -95,16 +139,6 @@ async function sweepAbandonedOrders(request: Request) {
         }
       }
 
-      (order as any).status = "Cancelled";
-      (order as any).statusClass = ORDER_STATUS_CLASSES.Cancelled;
-      (order as any).history.unshift({
-        status: "Cancelled",
-        timestamp: new Date().toLocaleString("en-US", {
-          month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-        }),
-        description: `Auto-cancelled: online payment not completed within ${ABANDON_AFTER_MINUTES} minutes. Stock returned.`,
-      });
-      await order.save();
       cancelled++;
     }
 

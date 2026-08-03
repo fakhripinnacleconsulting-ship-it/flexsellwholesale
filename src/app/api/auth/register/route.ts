@@ -7,7 +7,11 @@ import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { rateLimit } from "@/lib/rateLimit";
 import { registerSchema } from "@/lib/validators";
+import { timingSafeCompare } from "@/lib/utils";
 import { ZodError } from "zod";
+
+/** Shared with /api/auth/verify-otp — both consume the same OtpVerification record. */
+const MAX_OTP_ATTEMPTS = 5;
 
 export async function POST(req: Request) {
   const forwardedFor = req.headers.get("x-forwarded-for");
@@ -22,7 +26,11 @@ export async function POST(req: Request) {
     await dbConnect();
     const body = await req.json();
     const validatedData = registerSchema.parse(body);
-    const { name, email, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments, otp } = body;
+    // Read from the parsed result, not the raw body — parsing the body and then ignoring it
+    // meant every field skipped its own validation (unbounded name, weak password, arbitrary
+    // customerTypes) while still reporting as validated.
+    const { name, email, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments } = validatedData;
+    const otp = body?.otp;
 
     // Enforce OTP Verification to prevent registration bypass
     if (!otp || typeof otp !== "string" || !otp.trim()) {
@@ -52,13 +60,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // Attempt cap. /api/auth/verify-otp enforces this but register did not, so the same
+    // OTP record could be brute-forced here without limit — six digits fall in minutes.
+    if ((otpRecord.attempts || 0) >= MAX_OTP_ATTEMPTS) {
+      await OtpVerification.deleteOne({ email: lowerEmail });
+      return NextResponse.json(
+        { message: "Maximum verification attempts exceeded. Please request a new code." },
+        { status: 400 }
+      );
+    }
+
     const crypto = await import("crypto");
     const inputHash = crypto.createHash("sha256").update(otp.trim()).digest("hex");
-    if (inputHash !== otpRecord.otpHash) {
+    if (!timingSafeCompare(inputHash, otpRecord.otpHash)) {
       otpRecord.attempts = (otpRecord.attempts || 0) + 1;
       await otpRecord.save();
+      const remaining = MAX_OTP_ATTEMPTS - otpRecord.attempts;
       return NextResponse.json(
-        { message: "Invalid verification code." },
+        { message: `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.` },
         { status: 400 }
       );
     }

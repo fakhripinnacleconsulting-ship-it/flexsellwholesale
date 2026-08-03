@@ -44,6 +44,47 @@ const mockOrders = [
   }
 ];
 
+/**
+ * Chainable stand-in for a Mongoose query.
+ *
+ * The service composes `.find().sort().select().limit().lean()` in varying orders, so the
+ * mock has to return itself from every builder method. Modelling only the subset a caller
+ * happened to use is what let a `.limit()` added to the service go unnoticed here: the
+ * missing method threw, the service swallowed it, and both tests saw an empty list.
+ */
+const { makeQuery } = vi.hoisted(() => {
+  const toComparable = (value: unknown): number => {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === "string") return new Date(value).getTime();
+    if (typeof value === "number") return value;
+    return 0;
+  };
+
+  function makeQuery<T extends Record<string, unknown>>(rows: T[]) {
+    let list = [...rows];
+
+    const query = {
+      sort: vi.fn((spec: Record<string, 1 | -1>) => {
+        for (const [key, direction] of Object.entries(spec || {})) {
+          // Array.prototype.sort is stable, so rows that tie keep their input order.
+          list.sort((a, b) => (toComparable(b[key]) - toComparable(a[key])) * (direction === -1 ? 1 : -1));
+        }
+        return query;
+      }),
+      select: vi.fn(() => query),
+      limit: vi.fn((n: number) => {
+        list = list.slice(0, n);
+        return query;
+      }),
+      lean: vi.fn(async () => list),
+    };
+
+    return query;
+  }
+
+  return { makeQuery };
+});
+
 // Mock Mongoose model methods
 vi.mock("@/models/Product", () => {
   return {
@@ -57,17 +98,7 @@ vi.mock("@/models/Product", () => {
           const cutDate = new Date(query.createdAt.$gte).getTime();
           list = list.filter(p => new Date(p.createdAt).getTime() >= cutDate);
         }
-        return {
-          sort: vi.fn().mockImplementation((sortObj) => {
-            if (sortObj.createdAt === -1) {
-              list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            }
-            return {
-              lean: vi.fn().mockResolvedValue(list),
-            };
-          }),
-          lean: vi.fn().mockResolvedValue(list),
-        };
+        return makeQuery(list);
       }),
     },
   };
@@ -81,14 +112,7 @@ vi.mock("@/models/Category", () => {
         if (query.isActive !== undefined) {
           list = list.filter(c => c.isActive === query.isActive);
         }
-        return {
-          select: vi.fn().mockImplementation(() => {
-            return {
-              lean: vi.fn().mockResolvedValue(list),
-            };
-          }),
-          lean: vi.fn().mockResolvedValue(list),
-        };
+        return makeQuery(list);
       }),
     },
   };
@@ -102,14 +126,7 @@ vi.mock("@/models/Order", () => {
         if (query.status && query.status.$ne) {
           list = list.filter(o => o.status !== query.status.$ne);
         }
-        return {
-          select: vi.fn().mockImplementation(() => {
-            return {
-              lean: vi.fn().mockResolvedValue(list),
-            };
-          }),
-          lean: vi.fn().mockResolvedValue(list),
-        };
+        return makeQuery(list);
       }),
     },
   };

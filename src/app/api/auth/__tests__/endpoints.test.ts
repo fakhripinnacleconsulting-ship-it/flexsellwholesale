@@ -319,7 +319,7 @@ describe("Authentication API Routes", () => {
       expect(body.message).toContain("email");
     });
 
-    it("should return 404 error when email is not found", async () => {
+    it("should not reveal whether an email is registered", async () => {
       (Customer.findOne as any).mockResolvedValue(null);
 
       const request = new Request("http://localhost/api/auth/forgot-password", {
@@ -328,9 +328,11 @@ describe("Authentication API Routes", () => {
       });
 
       const response = await forgotPasswordPOST(request);
-      expect(response.status).toBe(404);
+      // Same status and wording as the found-account path, so the endpoint cannot be used
+      // to enumerate which addresses hold accounts.
+      expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.message).toContain("Customer account does not exist");
+      expect(body.message).toContain("If an account exists");
       expect(nodemailerCreateTransportMock).not.toHaveBeenCalled();
     });
 
@@ -354,10 +356,14 @@ describe("Authentication API Routes", () => {
       expect(response.status).toBe(200);
       
       const body = await response.json();
-      expect(body.message).toContain("Password reset link sent successfully");
+      expect(body.message).toContain("If an account exists");
       expect(mockCustomer.resetPasswordToken).toBeDefined();
       expect(mockCustomer.resetPasswordExpires).toBeDefined();
       expect(mockCustomer.save).toHaveBeenCalled();
+
+      // Only the hash is persisted — the emailed token itself must never be recoverable
+      // from the database.
+      expect(mockCustomer.resetPasswordToken).toMatch(/^[a-f0-9]{64}$/);
 
       
       // Verify SMTP transport call details

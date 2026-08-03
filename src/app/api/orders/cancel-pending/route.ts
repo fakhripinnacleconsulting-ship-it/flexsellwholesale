@@ -36,6 +36,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Paid orders cannot be cancelled via this endpoint" }, { status: 400 });
     }
 
+    // Claim the cancellation before restoring stock. Checking the status and writing it
+    // after the restore loop let two callers — or one caller racing the abandoned-order
+    // reaper — both credit the same stock back. Conditioning the write on the order still
+    // being unpaid and uncancelled means exactly one of them proceeds, and an order that
+    // completed payment mid-request is left alone.
+    const { ORDER_STATUS_CLASSES } = await import("@/lib/constants");
+
+    const claimed = await Order.findOneAndUpdate(
+      {
+        _id: orderId,
+        paymentStatus: { $ne: "Paid" },
+        status: { $ne: "Cancelled" },
+      } as Record<string, unknown>,
+      {
+        $set: {
+          status: "Cancelled",
+          statusClass: ORDER_STATUS_CLASSES.Cancelled,
+          paymentStatus: "Failed",
+        },
+        $push: {
+          history: {
+            $each: [{
+              status: "Cancelled",
+              timestamp: new Date().toLocaleString("en-US", {
+                month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+              }),
+              description: "Order cancelled: Online payment window closed without completing payment. Stock restored.",
+            }],
+            $position: 0,
+          },
+        },
+      },
+      { new: true }
+    );
+
+    if (!claimed) {
+      return NextResponse.json(
+        { message: "This order is already cancelled or has been paid." },
+        { status: 400 }
+      );
+    }
+
     // Restore stock for all items
     for (const oldItem of order.items || []) {
       try {
@@ -77,22 +119,6 @@ export async function POST(request: Request) {
         console.error("Failed to restore stock on pending order cancel:", err);
       }
     }
-
-    // Mark order as Cancelled and Failed payment so it exists in DB as valid cancelled record
-    const { ORDER_STATUS_CLASSES } = await import("@/lib/constants");
-    order.status = "Cancelled";
-    order.statusClass = ORDER_STATUS_CLASSES.Cancelled;
-    order.paymentStatus = "Failed";
-    order.history = order.history || [];
-    order.history.unshift({
-      status: "Cancelled",
-      timestamp: new Date().toLocaleString("en-US", {
-        month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-      }),
-      description: "Order cancelled: Online payment window closed without completing payment. Stock restored.",
-    });
-
-    await order.save();
 
     revalidateAdminDashboard();
     revalidateProducts();

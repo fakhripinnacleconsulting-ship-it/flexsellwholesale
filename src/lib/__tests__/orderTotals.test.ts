@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   computeOrderTaxDetails,
   computeExpectedOrderTotal,
+  computeGoodsGrossTotal,
   isOrderTotalAcceptable,
   resolveSellerState,
   ORDER_TOTAL_TOLERANCE,
@@ -178,5 +179,41 @@ describe("resolveSellerState", () => {
 
   it("ignores a blank configured state", () => {
     expect(resolveSellerState("Plot 42, Karnataka - 560001", "   ")).toBe("Karnataka");
+  });
+});
+
+describe("computeGoodsGrossTotal", () => {
+  it("returns the line total for GST-inclusive pricing", () => {
+    // 2 x 118 is already the gross the buyer sees.
+    expect(computeGoodsGrossTotal([inclusiveItem()])).toBe(236);
+  });
+
+  it("adds the tax on for GST-exclusive pricing", () => {
+    // 1 x 100 ex-GST at 18% => 118 gross. Summing pricePerUnit * quantity would have
+    // said 100, which is the mismatch that made a valid coupon fail at order submit.
+    expect(computeGoodsGrossTotal([exclusiveItem()])).toBe(118);
+  });
+
+  it("agrees with the charged total when there are no charges or discounts", () => {
+    const items = [inclusiveItem(), exclusiveItem()];
+    const taxDetails = computeOrderTaxDetails(items, "Madhya Pradesh", "Madhya Pradesh");
+
+    expect(computeGoodsGrossTotal(items)).toBe(computeExpectedOrderTotal({ taxDetails }));
+  });
+
+  it("is unaffected by place of supply", () => {
+    // CGST+SGST vs IGST changes how the tax is apportioned, never the total.
+    const items = [inclusiveItem(), exclusiveItem()];
+    const intrastate = computeOrderTaxDetails(items, "Madhya Pradesh", "Madhya Pradesh");
+    const interstate = computeOrderTaxDetails(items, "Karnataka", "Madhya Pradesh");
+
+    expect(computeExpectedOrderTotal({ taxDetails: intrastate })).toBe(
+      computeExpectedOrderTotal({ taxDetails: interstate })
+    );
+    expect(computeGoodsGrossTotal(items)).toBe(computeExpectedOrderTotal({ taxDetails: interstate }));
+  });
+
+  it("returns zero for an empty cart", () => {
+    expect(computeGoodsGrossTotal([])).toBe(0);
   });
 });

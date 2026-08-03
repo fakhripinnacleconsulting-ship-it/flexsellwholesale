@@ -7,6 +7,7 @@ import CmsContent from "@/models/CmsContent";
 import { requireAuth } from "@/lib/authGuard";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
+import { escapeRegex } from "@/lib/utils";
 import bcrypt from "bcryptjs";
 
 async function getSellerInfo() {
@@ -182,7 +183,7 @@ export async function GET(request: Request) {
     }
 
     if (search) {
-      const searchRegex = new RegExp(search, "i");
+      const searchRegex = new RegExp(escapeRegex(search), "i");
       andConditions.push({
         $or: [
           { _id: searchRegex },
@@ -238,8 +239,11 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
     const payload = auth.payload!;
 
-    // Only admin can create invoices manually
-    if (payload.role !== "admin" && !request.headers.get("x-system-call")) {
+    // Only admin can create invoices manually.
+    // There used to be an `x-system-call` header escape hatch here, but a header is
+    // caller-supplied — any logged-in buyer could set it and mint quotes at prices of their
+    // choosing (and auto-create customer records). Nothing in the codebase sent it.
+    if (payload.role !== "admin") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
