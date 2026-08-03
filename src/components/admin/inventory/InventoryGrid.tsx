@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { CardContent } from "@/components/ui/Card";
 import { useInventory } from "./InventoryContext";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export function InventoryGrid() {
   const {
@@ -23,6 +24,9 @@ export function InventoryGrid() {
     gridPageSize,
     totalGridPages
   } = useInventory();
+  
+  const { hasPermission } = usePermissions();
+  const canUpdate = hasPermission("catalog_products", "update");
 
   return (
     <div className="border border-border shadow-sm bg-card rounded-xl text-foreground">
@@ -102,44 +106,48 @@ export function InventoryGrid() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end items-center gap-1">
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="Qty"
-                          className="w-14 h-8 text-center text-xs p-1"
-                          value={inputVal}
-                          onChange={(e) => setAdjustments(prev => ({ ...prev, [sku]: e.target.value }))}
-                        />
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-success hover:bg-success/15 cursor-pointer"
-                          title="Add Stock (+)"
-                          onClick={() => handleQuickAdjust(sku, stock, item, "add")}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/15 cursor-pointer"
-                          title="Deduct Stock (-)"
-                          disabled={stock === 0}
-                          onClick={() => handleQuickAdjust(sku, stock, item, "sub")}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
-                          className="h-8 px-2 text-[10px] font-bold cursor-pointer"
-                          title="Override Absolute Stock (=)"
-                          onClick={() => handleQuickAdjust(sku, stock, item, "set")}
-                        >
-                          Set
-                        </Button>
-                      </div>
+                      {canUpdate ? (
+                        <div className="flex justify-end items-center gap-1">
+                          <Input
+                            type="number"
+                            min={1}
+                            placeholder="Qty"
+                            className="w-14 h-8 text-center text-xs p-1"
+                            value={inputVal}
+                            onChange={(e) => setAdjustments(prev => ({ ...prev, [sku]: e.target.value }))}
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-success hover:bg-success/15 cursor-pointer"
+                            title="Add Stock (+)"
+                            onClick={() => handleQuickAdjust(sku, stock, item, "add")}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/15 cursor-pointer"
+                            title="Deduct Stock (-)"
+                            disabled={stock === 0}
+                            onClick={() => handleQuickAdjust(sku, stock, item, "sub")}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="h-8 px-2 text-[10px] font-bold cursor-pointer"
+                            title="Override Absolute Stock (=)"
+                            onClick={() => handleQuickAdjust(sku, stock, item, "set")}
+                          >
+                            Set
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Read-only</span>
+                      )}
                     </td>
                   </tr>
                 );

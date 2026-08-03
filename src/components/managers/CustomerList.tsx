@@ -15,6 +15,7 @@ import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { CustomerFormModal } from "@/components/shared/CustomerFormModal";
 import { customerService } from "@/services/customerService";
 import { Customer } from "@/types";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface CustomerListProps {
   title: string;
@@ -36,6 +37,11 @@ export function CustomerList({ title, description, customerTypeFilter }: Custome
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
   const [totalItems, setTotalItems] = React.useState(0);
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
+
+  const { hasPermission } = usePermissions();
+  let moduleName = "customers_b2c";
+  if (customerTypeFilter === "B2B") moduleName = "customers_b2b";
+  else if (customerTypeFilter === "Dropshipping") moduleName = "customers_dropshipping";
 
   const fetchCustomers = React.useCallback(async () => {
     try {
@@ -101,10 +107,12 @@ export function CustomerList({ title, description, customerTypeFilter }: Custome
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{description}</p>
         </div>
-        <Button onClick={handleOpenAddModal} className="shrink-0 gap-2 font-bold h-9 shadow-sm shadow-primary/20">
-          <Plus className="h-4 w-4" />
-          Create Customer
-        </Button>
+        {hasPermission(moduleName, "create") && (
+          <Button onClick={handleOpenAddModal} className="shrink-0 gap-2 font-bold h-9 shadow-sm shadow-primary/20">
+            <Plus className="h-4 w-4" />
+            Create Customer
+          </Button>
+        )}
       </div>
 
       <Card className="border border-border">
@@ -171,12 +179,16 @@ export function CustomerList({ title, description, customerTypeFilter }: Custome
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </Link>
-                          <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0" title="Edit Customer" onClick={() => handleOpenEditModal(cust)}>
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0 text-destructive hover:bg-destructive/5 hover:text-destructive" title="Delete Customer" onClick={() => handleDeleteCustomer(cust._id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {hasPermission(moduleName, "update") && (
+                            <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0" title="Edit Customer" onClick={() => handleOpenEditModal(cust)}>
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {hasPermission(moduleName, "delete") && (
+                            <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0 text-destructive hover:bg-destructive/5 hover:text-destructive" title="Delete Customer" onClick={() => handleDeleteCustomer(cust._id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

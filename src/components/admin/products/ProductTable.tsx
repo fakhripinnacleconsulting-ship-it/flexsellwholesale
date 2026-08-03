@@ -10,6 +10,7 @@ import { formatPrice, sanitizeImgUrl } from "@/lib/utils";
 import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { Product } from "@/types";
 import { resolvePrice } from "@/lib/priceTierHelper";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ProductTableProps {
   isAllPageSelected: boolean;
@@ -50,6 +51,7 @@ export function ProductTable({
 }: ProductTableProps) {
   const pathname = usePathname();
   const basePath = pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
+  const { hasPermission } = usePermissions();
 
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
 
@@ -189,8 +191,9 @@ export function ProductTable({
                             className="sr-only peer"
                             checked={product.isActive}
                             onChange={() => toggleProductActive(product._id, product.isActive)}
+                            disabled={!hasPermission("catalog_products", "update")}
                           />
-                          <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                          <div className={`w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary ${!hasPermission("catalog_products", "update") ? "opacity-50 cursor-not-allowed" : ""}`}></div>
                         </label>
                       </td>
                       <td className="px-6 py-4 text-right space-x-1 whitespace-nowrap">
@@ -204,19 +207,29 @@ export function ProductTable({
                         <Button variant="ghost" size="icon" title="Download Barcodes" onClick={() => setBarcodePrintProduct(product)}>
                           <Download className="h-4 w-4" />
                         </Button>
-                        <Link href={`${basePath}/products/${product._id}`}>
-                          <Button variant="ghost" size="icon">
-                            <Edit className="h-4 w-4" />
+                        {hasPermission("catalog_products", "update") ? (
+                          <Link href={`${basePath}/products/${product._id}`}>
+                            <Button variant="ghost" size="icon">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Link href={`${basePath}/products/${product._id}`}>
+                            <Button variant="ghost" size="icon" title="View details">
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        )}
+                        {hasPermission("catalog_products", "delete") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteProduct(product._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeleteProduct(product._id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        )}
                       </td>
                     </tr>
                   );

@@ -12,6 +12,7 @@ import { Category } from "@/types";
 import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { Pagination } from "@/components/ui/Pagination";
 import { ViewDetailsDialog } from "../ui/ViewDetailsDialog";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface AdminCategoriesManagerProps {
   initialCategories: Category[];
@@ -21,6 +22,7 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
   const { categories, initializeCategories, addCategory, updateCategory, deleteCategory } = useCategoryStore();
   const { addToast } = useToastStore();
   const confirmAction = useConfirmStore((state) => state.confirm);
+  const { hasPermission } = usePermissions();
 
   const [editCategoryId, setEditCategoryId] = React.useState<string | null>(null);
 
@@ -267,7 +269,7 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Left/Middle Column: List of Categories */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className={`space-y-4 ${hasPermission("catalog_categories", "create") || hasPermission("catalog_categories", "update") ? "lg:col-span-2" : "lg:col-span-3"}`}>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -355,23 +357,27 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Edit Category"
-                              onClick={() => handleEditClick(cat)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:bg-destructive/10"
-                              title="Delete Category"
-                              onClick={() => handleDeleteClick(cat)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {hasPermission("catalog_categories", "update") && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Edit Category"
+                                onClick={() => handleEditClick(cat)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {hasPermission("catalog_categories", "delete") && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:bg-destructive/10"
+                                title="Delete Category"
+                                onClick={() => handleDeleteClick(cat)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -393,118 +399,129 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
         </div>
 
         {/* Right Column: Add/Edit Form Card */}
-        <div>
-          <Card className="sticky top-24">
-            <CardHeader>
-              <CardTitle className="text-foreground">
-                {editCategoryId ? "Edit Category" : "Add B2B Category"}
-              </CardTitle>
-              <CardDescription>
-                {editCategoryId ? "Modify catalog properties for this category node" : "Insert a new category into the taxonomy"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSave} className="space-y-4 text-foreground">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Category Name</label>
-                  <Input
-                    placeholder="e.g., Kitchen Storage"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      if (!editCategoryId) {
-                        setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
-                      }
-                    }}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">URL Slug</label>
-                  <Input
-                    placeholder="e.g., kitchen-storage"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium flex justify-between">
-                    Category Image
-                    <span className="text-xs text-muted-foreground font-normal">* 1:1 aspect ratio mandated</span>
-                  </label>
-                  <div className="flex gap-2">
+        {(hasPermission("catalog_categories", "create") || hasPermission("catalog_categories", "update")) && (
+          <div>
+            <Card className="sticky top-24">
+              <CardHeader>
+                <CardTitle className="text-foreground">
+                  {editCategoryId ? "Edit Category" : "Add B2B Category"}
+                </CardTitle>
+                <CardDescription>
+                  {editCategoryId ? "Modify catalog properties for this category node" : "Insert a new category into the taxonomy"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSave} className="space-y-4 text-foreground">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Category Name</label>
                     <Input
-                      placeholder="https://example.com/image.jpg"
-                      value={image}
-                      onChange={(e) => setImage(e.target.value)}
-                      className="flex-1"
+                      placeholder="e.g., Kitchen Storage"
+                      value={name}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        if (!editCategoryId) {
+                          setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+                        }
+                      }}
+                      required
+                      disabled={!hasPermission("catalog_categories", editCategoryId ? "update" : "create")}
                     />
-                    <div className="relative">
-                      <Button type="button" variant="outline" className="w-[100px]">
-                        Upload
-                      </Button>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      />
-                    </div>
                   </div>
-                  {image && (
-                    <div className="mt-2">
-                      <p className="text-xs text-muted-foreground mb-1">Preview (Square Crop):</p>
-                      <img src={image} alt="Preview" className="h-20 w-20 object-cover rounded border" />
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">URL Slug</label>
+                    <Input
+                      placeholder="e.g., kitchen-storage"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      required
+                      disabled={!hasPermission("catalog_categories", editCategoryId ? "update" : "create")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex justify-between">
+                      Category Image
+                      <span className="text-xs text-muted-foreground font-normal">* 1:1 aspect ratio mandated</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://example.com/image.jpg"
+                        value={image}
+                        onChange={(e) => setImage(e.target.value)}
+                        className="flex-1"
+                        disabled={!hasPermission("catalog_categories", editCategoryId ? "update" : "create")}
+                      />
+                      <div className="relative">
+                        <Button type="button" variant="outline" className="w-[100px]" disabled={!hasPermission("catalog_categories", editCategoryId ? "update" : "create")}>
+                          Upload
+                        </Button>
+                        {hasPermission("catalog_categories", editCategoryId ? "update" : "create") && (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          />
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
+                    {image && (
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Preview (Square Crop):</p>
+                        <img src={image} alt="Preview" className="h-20 w-20 object-cover rounded border" />
+                      </div>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Description</label>
-                  <Input
-                    placeholder="Description..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Description</label>
+                    <Input
+                      placeholder="Description..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      disabled={!hasPermission("catalog_categories", editCategoryId ? "update" : "create")}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Parent Category (Optional)</label>
-                  <select
-                    value={parentId}
-                    onChange={(e) => setParentId(e.target.value)}
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground"
-                  >
-                    <option value="">None (Root Category)</option>
-                    {parentCategories
-                      .filter(c => c._id !== editCategoryId) // prevent self-parenting
-                      .map(cat => (
-                        <option key={cat._id} value={cat._id}>{cat.name}</option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <Button type="submit" className="flex-1">
-                    {editCategoryId ? "Save Changes" : "Create Node"}
-                  </Button>
-                  {editCategoryId && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCancelEdit}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Parent Category (Optional)</label>
+                    <select
+                      value={parentId}
+                      onChange={(e) => setParentId(e.target.value)}
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground"
+                      disabled={!hasPermission("catalog_categories", editCategoryId ? "update" : "create")}
                     >
-                      Cancel
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+                      <option value="">None (Root Category)</option>
+                      {parentCategories
+                        .filter(c => c._id !== editCategoryId) // prevent self-parenting
+                        .map(cat => (
+                          <option key={cat._id} value={cat._id}>{cat.name}</option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    {hasPermission("catalog_categories", editCategoryId ? "update" : "create") && (
+                      <Button type="submit" className="flex-1">
+                        {editCategoryId ? "Save Changes" : "Create Node"}
+                      </Button>
+                    )}
+                    {editCategoryId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
