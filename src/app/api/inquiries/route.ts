@@ -29,12 +29,36 @@ export async function GET(request: Request) {
 
     // A customer sees only the tickets they filed. This route used to be admin-only,
     // which meant /client/support always got a 403 and showed an empty ticket list.
-    if (payload.role !== "admin") {
+    if (payload.role !== "admin" && payload.role !== "manager") {
       query.email = payload.email.toLowerCase();
     } else {
-      if (category && category !== "all") {
-        query.category = category;
+      if (payload.role === "manager") {
+        const perms = (payload as any).permissions || [];
+        const allowedCategories = [];
+        if (perms.includes("inquiries_wholesale")) allowedCategories.push("wholesale");
+        if (perms.includes("inquiries_dropshipping")) allowedCategories.push("dropshipping");
+        if (perms.includes("inquiries_support")) allowedCategories.push("support");
+        if (perms.includes("inquiries_franchise")) allowedCategories.push("franchise");
+        if (perms.includes("inquiries_general")) allowedCategories.push("general");
+        
+        if (allowedCategories.length === 0) {
+          return NextResponse.json({ message: "Forbidden: No inquiry access" }, { status: 403 });
+        }
+        
+        if (category && category !== "all") {
+          if (!allowedCategories.includes(category)) {
+            return NextResponse.json({ message: "Forbidden category" }, { status: 403 });
+          }
+          query.category = category;
+        } else {
+          query.category = { $in: allowedCategories };
+        }
+      } else {
+        if (category && category !== "all") {
+          query.category = category;
+        }
       }
+      
       if (status && status !== "all") {
         query.status = status;
       }
@@ -161,7 +185,7 @@ export async function PATCH(request: Request) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
+    if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -176,6 +200,21 @@ export async function PATCH(request: Request) {
     if (!existing) {
       return NextResponse.json({ message: "Inquiry not found" }, { status: 404 });
     }
+
+    if (payload.role === "manager") {
+      const perms = (payload as any).permissions || [];
+      const cat = existing.category;
+      if (
+        (cat === "wholesale" && !perms.includes("inquiries_wholesale")) ||
+        (cat === "dropshipping" && !perms.includes("inquiries_dropshipping")) ||
+        (cat === "support" && !perms.includes("inquiries_support")) ||
+        (cat === "franchise" && !perms.includes("inquiries_franchise")) ||
+        (cat === "general" && !perms.includes("inquiries_general"))
+      ) {
+        return NextResponse.json({ message: "Forbidden: Cannot edit this inquiry" }, { status: 403 });
+      }
+    }
+
     const previousNotes = existing.adminNotes || "";
 
     const updateFields: Record<string, unknown> = {};

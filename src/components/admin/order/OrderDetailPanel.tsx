@@ -7,6 +7,7 @@ import { Truck, CheckCircle, Clock, X, Printer } from "lucide-react";
 import { Order } from "@/stores/orderStore";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface OrderDetailPanelProps {
   order: Order;
@@ -21,6 +22,8 @@ export function OrderDetailPanel({
   onToggleFulfill,
   onClose,
 }: OrderDetailPanelProps) {
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager/documents" : "/admin";
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleStatusChange = async (status: Order["status"]) => {
@@ -41,7 +44,7 @@ export function OrderDetailPanel({
         </div>
         <div className="flex items-center gap-1.5">
           {order.invoiceId && (
-            <Link href={`/admin/invoices?search=${order.invoiceId}`} target="_blank">
+            <Link href={`${basePath}/invoices?search=${order.invoiceId}`} target="_blank">
               <Button
                 variant="outline"
                 size="sm"

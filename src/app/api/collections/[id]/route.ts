@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Collection from "@/models/Collection";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { collectionSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { revalidateCollections } from "@/lib/revalidate";
@@ -30,7 +30,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_collections:update");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -71,7 +71,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_collections:delete");
     if (auth.error) return auth.error;
 
     await dbConnect();

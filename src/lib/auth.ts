@@ -12,6 +12,7 @@ export interface JWTPayload {
   email: string;
   role: string;
   customerTypes?: string[];
+  permissions?: string[];
 }
 
 export function signToken(payload: JWTPayload): string {
@@ -86,6 +87,26 @@ export async function getActiveCustomerServer() {
     return JSON.parse(JSON.stringify(customer));
   } catch (error) {
     console.error("Error in getActiveCustomerServer:", error);
+    return null;
+  }
+}
+
+export async function getActiveManagerServer() {
+  try {
+    const token = await getTokenFromCookie();
+    if (!token) return null;
+
+    const payload = verifyToken(token);
+    if (!payload || payload.role !== "manager") return null;
+
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    await dbConnect();
+    const ManagerModel = (await import("@/models/Manager")).default;
+    const manager = await ManagerModel.findById(payload.userId).select("-password").lean();
+    if (!manager) return null;
+    return JSON.parse(JSON.stringify(manager));
+  } catch (error) {
+    console.error("Error in getActiveManagerServer:", error);
     return null;
   }
 }

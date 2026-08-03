@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     await dbConnect();
     const andConditions: any[] = [];
 
-    if (payload.role !== "admin") {
+    if (payload.role !== "admin" && payload.role !== "manager") {
       // B2B buyer can only fetch their own orders matching their customerId (fallback to email)
       andConditions.push({
         $or: [
@@ -87,6 +87,32 @@ export async function GET(request: Request) {
           { "shippingAddress.email": payload.email.toLowerCase() }
         ]
       });
+    } else if (payload.role === "manager") {
+      // Enforce granular RBAC for managers
+      const perms = (payload as any).permissions || [];
+      const hasPerm = (p: string) => perms.includes(p) || perms.includes(`${p}:read`) || perms.includes(`${p}:update`) || perms.includes(`${p}:create`) || perms.includes(`${p}:delete`);
+      
+      const hasB2C = hasPerm("orders_b2c");
+      const hasB2B = hasPerm("orders_b2b");
+      const hasDrop = hasPerm("orders_dropshipping");
+
+      if (!hasB2C && !hasB2B && !hasDrop) {
+        return NextResponse.json({ message: "Forbidden: You don't have access to orders." }, { status: 403 });
+      }
+
+      const allowedTypes = [];
+      if (hasB2C) allowedTypes.push("B2C");
+      if (hasB2B) allowedTypes.push("B2B", null, undefined); // B2B often has null orderType in legacy
+      if (hasDrop) allowedTypes.push("Dropshipping");
+
+      if (allowedTypes.length < 3) {
+         andConditions.push({
+           $or: [
+             { orderType: { $in: allowedTypes.filter(Boolean) } },
+             ...(allowedTypes.includes(null) ? [{ orderType: { $exists: false } }, { orderType: null }] : [])
+           ]
+         });
+      }
     }
 
     const { searchParams } = new URL(request.url);
@@ -215,7 +241,7 @@ export async function POST(request: Request) {
       // down, because those totals are admin-negotiated. That carve-out is only safe if the
       // caller actually owns the quote — otherwise any buyer could name someone else's quote
       // id and buy at an arbitrary price.
-      if (payload.role !== "admin") {
+      if (payload.role !== "admin" && payload.role !== "manager") {
         const quoteEmail = (quote.customerEmail || "").toLowerCase();
         if (!quoteEmail || quoteEmail !== payload.email.toLowerCase()) {
           return NextResponse.json({ message: "This quote does not belong to your account." }, { status: 403 });
@@ -520,20 +546,21 @@ export async function POST(request: Request) {
       // Charge the server's figure, not the client's.
       const chargeableAmount = quoteId ? amount : expectedTotal;
 
-      // Only an admin may declare an order paid at creation time (offline settlement, cash,
+      // Only an admin/manager may declare an order paid at creation time (offline settlement, cash,
       // bank transfer they have confirmed). For everyone else the order starts Pending and
       // is promoted only by `settleOrderPayment`, after a verified gateway signature.
       //
       // The previous rule only forced Pending for `paymentMethod === "Razorpay"` outside a
       // quote, so `{"paymentMethod":"COD","paymentStatus":"Paid"}` — or any payload carrying
       // a quoteId — created a fully paid order without a rupee changing hands.
-      const pStatus = payload.role === "admin"
+      const isStaff = payload.role === "admin" || payload.role === "manager";
+      const pStatus = isStaff
         ? (paymentDetails?.paymentStatus || "Pending")
         : "Pending";
 
       // Same reasoning as pStatus: a buyer-supplied transaction id is unverifiable. The real
       // one is stamped by `settleOrderPayment` once the gateway signature checks out.
-      const pTransactionId = payload.role === "admin" ? paymentDetails?.transactionId : undefined;
+      const pTransactionId = isStaff ? paymentDetails?.transactionId : undefined;
 
       const docType = pStatus === "Paid" ? "invoice" : "receipt";
       const invoiceId = await generateInvoiceId(docType, session);
@@ -561,7 +588,7 @@ export async function POST(request: Request) {
         orderType = "B2C";
       }
 
-      const isSelf = payload.role === "admin" || !!quoteId;
+      const isSelf = isStaff || !!quoteId;
       const origin = isSelf ? "self" : "website";
 
       let createdOrder: any = null;
@@ -632,7 +659,7 @@ export async function POST(request: Request) {
           transactionId: pTransactionId,
           sellerInfo,
           generatedAt,
-          generatedBy: payload.role === "admin" ? payload.userId : "system",
+          generatedBy: isStaff ? payload.userId : "system",
           status: defaultDocStatus,
           salesperson,
           couponCode,
@@ -762,7 +789,8 @@ export async function POST(request: Request) {
     // or if paymentMethod is NOT Razorpay (e.g. COD / Bank Transfer).
     // Online Razorpay orders will dispatch notification upon payment verification in /api/razorpay/verify or webhook.
     if (newOrder?.paymentStatus === "Paid" || paymentDetails?.paymentMethod !== "Razorpay") {
-      const targetCustomerId = payload.role === "admin"
+      const isStaff = payload.role === "admin" || payload.role === "manager";
+      const targetCustomerId = isStaff
         ? (await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).select("_id"))?._id || payload.userId
         : payload.userId;
 

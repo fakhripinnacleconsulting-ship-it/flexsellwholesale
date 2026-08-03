@@ -45,27 +45,33 @@ export async function proxy(request: NextRequest) {
 
   const isClientPath = pathname.startsWith("/client");
   const isAdminPath = pathname.startsWith("/admin");
+  const isManagerPath = pathname.startsWith("/manager") && !pathname.startsWith("/manager/login");
   const isAuthPage =
     pathname.startsWith("/login") ||
+    pathname.startsWith("/manager/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password");
 
-  if (isClientPath || isAdminPath) {
+  if (isClientPath || isAdminPath || isManagerPath) {
     if (!token) {
-      const url = new URL("/login", request.url);
+      const url = new URL(isManagerPath ? "/manager/login" : "/login", request.url);
       url.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(url);
     }
 
     const payload = await verifyJwtEdge(token);
     if (!payload || !payload.exp || payload.exp * 1000 < Date.now()) {
-      const response = NextResponse.redirect(new URL("/login", request.url));
+      const response = NextResponse.redirect(new URL(isManagerPath ? "/manager/login" : "/login", request.url));
       response.cookies.delete("token");
       return response;
     }
 
     if (isAdminPath && payload.role !== "admin") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    if (isManagerPath && payload.role !== "manager" && payload.role !== "admin") {
       return NextResponse.redirect(new URL("/", request.url));
     }
 
@@ -77,7 +83,9 @@ export async function proxy(request: NextRequest) {
   if (isAuthPage && token) {
     const payload = await verifyJwtEdge(token);
     if (payload && payload.exp && payload.exp * 1000 > Date.now()) {
-      const dest = payload.role === "admin" ? "/admin" : "/client";
+      let dest = "/client";
+      if (payload.role === "admin") dest = "/admin";
+      if (payload.role === "manager") dest = "/manager";
       return NextResponse.redirect(new URL(dest, request.url));
     }
   }
@@ -108,7 +116,9 @@ async function verifyJwtEdge(token: string) {
     const [headerB64, payloadB64, signatureB64] = parts;
 
     // Decode header to ensure it's HS256
-    const headerString = atob(headerB64.replace(/-/g, "+").replace(/_/g, "/"));
+    let headerB64Padded = headerB64.replace(/-/g, "+").replace(/_/g, "/");
+    headerB64Padded = headerB64Padded.padEnd(headerB64Padded.length + (4 - (headerB64Padded.length % 4)) % 4, "=");
+    const headerString = atob(headerB64Padded);
     const headerJson = JSON.parse(headerString);
     if (headerJson.alg !== "HS256") return null;
 
@@ -122,7 +132,8 @@ async function verifyJwtEdge(token: string) {
     );
 
     // Convert signature from base64url to bytes
-    const sigBase64 = signatureB64.replace(/-/g, "+").replace(/_/g, "/");
+    let sigBase64 = signatureB64.replace(/-/g, "+").replace(/_/g, "/");
+    sigBase64 = sigBase64.padEnd(sigBase64.length + (4 - (sigBase64.length % 4)) % 4, "=");
     const sigString = atob(sigBase64);
     const sigBytes = new Uint8Array(sigString.length);
     for (let i = 0; i < sigString.length; i++) {
@@ -134,8 +145,10 @@ async function verifyJwtEdge(token: string) {
     if (!isValid) return null;
 
     // Decode payload
+    let payloadB64Padded = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+    payloadB64Padded = payloadB64Padded.padEnd(payloadB64Padded.length + (4 - (payloadB64Padded.length % 4)) % 4, "=");
     const jsonPayload = decodeURIComponent(
-      atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"))
+      atob(payloadB64Padded)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
@@ -150,6 +163,7 @@ export const config = {
   matcher: [
     "/client/:path*",
     "/admin/:path*",
+    "/manager/:path*",
     "/login",
     "/register",
     "/forgot-password",

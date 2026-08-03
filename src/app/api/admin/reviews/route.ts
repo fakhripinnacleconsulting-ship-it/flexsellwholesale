@@ -3,20 +3,14 @@ import dbConnect from "@/lib/dbConnect";
 import Review from "@/models/Review";
 import Product from "@/models/Product";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 
 // GET: Retrieve all reviews for moderation
 export async function GET() {
   try {
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdminOrManagerAuth("content_reviews:read");
+    if (auth.error) return auth.error;
 
     const reviews = await Review.find().sort({ createdAt: -1 }).lean();
 
@@ -42,15 +36,8 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdminOrManagerAuth("content_reviews:update");
+    if (auth.error) return auth.error;
 
     const body = await request.json();
     const { _id, status, adminResponse } = body;
@@ -95,15 +82,8 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireAdminOrManagerAuth("content_reviews:delete");
+    if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

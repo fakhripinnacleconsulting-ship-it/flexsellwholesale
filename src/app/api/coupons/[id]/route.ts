@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Coupon from "@/models/Coupon";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAuth, requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { couponSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 
@@ -12,7 +12,7 @@ interface RouteProps {
 // PUT: Update coupon parameters (restricted to admins)
 export async function PUT(request: Request, { params }: RouteProps) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("ops_coupons:update");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -109,7 +109,7 @@ export async function PUT(request: Request, { params }: RouteProps) {
 // DELETE: Delete a coupon permanently (restricted to admins)
 export async function DELETE(request: Request, { params }: RouteProps) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("ops_coupons:delete");
     if (auth.error) return auth.error;
 
     await dbConnect();

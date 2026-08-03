@@ -10,6 +10,7 @@ import { Search, Filter, Eye, Download, Info, FileText, RotateCcw } from "lucide
 import { useOrderStore, Order } from "@/stores/orderStore";
 import { useDashboardViewStore } from "@/stores/dashboardViewStore";
 import { useCartStore } from "@/stores/cartStore";
+import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
 import { formatPrice } from "@/lib/utils";
@@ -30,42 +31,7 @@ export function ClientOrdersView() {
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
   const [reorderingId, setReorderingId] = React.useState<string | null>(null);
 
-  // Drag to scroll refs
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-  const isDown = React.useRef(false);
-  const startX = React.useRef(0);
-  const scrollLeft = React.useRef(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDown.current = true;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.classList.add('cursor-grabbing');
-      startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
-      scrollLeft.current = scrollContainerRef.current.scrollLeft;
-    }
-  };
-
-  const handleMouseLeave = () => {
-    isDown.current = false;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.classList.remove('cursor-grabbing');
-    }
-  };
-
-  const handleMouseUp = () => {
-    isDown.current = false;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.classList.remove('cursor-grabbing');
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDown.current || !scrollContainerRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX.current) * 2;
-    scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
-  };
+  const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
 
   const truncateString = (str: string, max: number = 50) => {
     if (!str) return str;
@@ -249,15 +215,15 @@ export function ClientOrdersView() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div 
+              <div
                 className="overflow-x-auto custom-scrollbar cursor-grab active:cursor-grabbing select-none"
-                ref={scrollContainerRef}
-                onMouseDown={handleMouseDown}
-                onMouseLeave={handleMouseLeave}
-                onMouseUp={handleMouseUp}
-                onMouseMove={handleMouseMove}
+                ref={ref}
+                onMouseDown={onMouseDown}
+                onMouseLeave={onMouseLeave}
+                onMouseUp={onMouseUp}
+                onMouseMove={onMouseMove}
               >
-                <table className="w-full text-sm text-left whitespace-nowrap">
+                <table className="w-full text-sm text-left whitespace-nowrap" onDragStart={onDragStart}>
                   <thead className="text-xs text-muted-foreground uppercase bg-secondary/50">
                     <tr>
                       <th className="px-6 py-4">Order Details</th>

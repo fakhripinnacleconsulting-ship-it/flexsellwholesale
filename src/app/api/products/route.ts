@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
 import { generateNextId } from "@/lib/idGeneratorServer";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { productSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 
@@ -62,7 +62,7 @@ import { revalidateProducts } from "@/lib/revalidate";
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_products:create");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -105,3 +105,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: (error as any).message || "Failed to create product" }, { status: 500 });
   }
 }
+

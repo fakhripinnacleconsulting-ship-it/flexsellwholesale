@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -34,6 +34,8 @@ interface AdminProductsManagerProps {
 
 export function AdminProductsManager({ initialProducts, initialCategories }: AdminProductsManagerProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
   const { products, initializeProducts, updateProduct, deleteProduct, bulkDeleteProducts } = useProductStore();
   const { categories, initializeCategories } = useCategoryStore();
   const { hsns, initializeHsns } = useHsnStore();
@@ -486,7 +488,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
           <Button variant="outline" onClick={() => setIsScannerOpen(true)} className="flex-1 sm:flex-none text-xs font-bold">
             <QrCode className="h-4 w-4 mr-1.5" /> Scan Barcode / Audit
           </Button>
-          <Link href="/admin/products/new" className="flex-1 sm:flex-none">
+          <Link href={`${basePath}/products/new`} className="flex-1 sm:flex-none">
             <Button className="w-full text-xs font-bold">
               <Plus className="h-4 w-4 mr-1.5" /> Add Product
             </Button>

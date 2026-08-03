@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAuth, requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
 // PUT: Modify order details (quantities, items, shipping address) - Restricted to Admin
 export async function PUT(request: NextRequest, { params }: RouteProps) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth();
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -204,7 +204,7 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
 // DELETE: Cancel or Delete order permanently
 export async function DELETE(request: NextRequest, { params }: RouteProps) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth();
     if (auth.error) return auth.error;
 
     await dbConnect();

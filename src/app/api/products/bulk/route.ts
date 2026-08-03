@@ -4,7 +4,7 @@ import Product from "@/models/Product";
 import Category from "@/models/Category";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import HsnRecord from "@/models/HsnRecord";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { revalidateProducts } from "@/lib/revalidate";
 
 // Helper to generate a slug from title
@@ -18,7 +18,7 @@ function generateSlug(title: string): string {
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_products:create");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -289,7 +289,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_products:delete");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -316,3 +316,4 @@ export async function DELETE(request: Request) {
     );
   }
 }
+

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Collection from "@/models/Collection";
 import Product from "@/models/Product";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { collectionSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { revalidateCollections } from "@/lib/revalidate";
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireAuth("admin");
+    const auth = await requireAdminOrManagerAuth("catalog_collections:create");
     if (auth.error) return auth.error;
 
     await dbConnect();
@@ -61,3 +61,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: error.message || "Failed to create collection" }, { status: 500 });
   }
 }
+

@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Search, Eye, FileText } from "lucide-react";
 import { Order } from "@/stores/orderStore";
+import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { formatPrice } from "@/lib/utils";
 import { ShippingLabelDocument } from "@/components/documents/ShippingLabelDocument";
 
@@ -38,6 +39,8 @@ export function OrdersListTable({
   setOriginFilter,
 }: OrdersListTableProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/manager") ? "/manager" : "/admin";
   const [currentPage, setCurrentPage] = React.useState(1);
   const [selectedLabelOrder, setSelectedLabelOrder] = React.useState<Order | null>(null);
   const ITEMS_PER_PAGE = 10;
@@ -76,40 +79,7 @@ export function OrdersListTable({
     return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredOrders, currentPage]);
 
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-  const isDown = React.useRef(false);
-  const startX = React.useRef(0);
-  const scrollLeft = React.useRef(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollContainerRef.current) return;
-    isDown.current = true;
-    scrollContainerRef.current.classList.add('cursor-grabbing');
-    startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
-    scrollLeft.current = scrollContainerRef.current.scrollLeft;
-  };
-
-  const handleMouseLeave = () => {
-    isDown.current = false;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.classList.remove('cursor-grabbing');
-    }
-  };
-
-  const handleMouseUp = () => {
-    isDown.current = false;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.classList.remove('cursor-grabbing');
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDown.current || !scrollContainerRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX.current) * 2;
-    scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
-  };
+  const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
 
   const truncateString = (str: string, max: number = 50) => {
     if (!str) return str;
@@ -201,13 +171,13 @@ export function OrdersListTable({
       <CardContent className="p-0">
         <div 
           className="overflow-x-auto custom-scrollbar cursor-grab active:cursor-grabbing select-none"
-          ref={scrollContainerRef}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
+          ref={ref}
+          onMouseDown={onMouseDown}
+          onMouseLeave={onMouseLeave}
+          onMouseUp={onMouseUp}
+          onMouseMove={onMouseMove}
         >
-          <table className="w-full text-sm text-left whitespace-nowrap">
+          <table className="w-full text-sm text-left whitespace-nowrap" onDragStart={onDragStart}>
             <thead className="text-xs text-muted-foreground uppercase bg-secondary/50">
               <tr>
                 <th className="px-6 py-4 font-semibold tracking-wide">Order ID & Origin</th>
@@ -231,7 +201,7 @@ export function OrdersListTable({
                     key={order._id}
                     onClick={() => {
                       onSelectOrder(order);
-                      router.push(`/admin/orders/${order._id}`);
+                      router.push(`${basePath}/orders/${order._id}`);
                     }}
                     className={`hover:bg-secondary/20 transition-colors border-b last:border-0 cursor-pointer ${
                       selectedOrderId === order._id ? "bg-primary/5 font-medium" : ""
@@ -314,7 +284,7 @@ export function OrdersListTable({
                           variant="outline"
                           onClick={() => {
                             onSelectOrder(order);
-                            router.push(`/admin/orders/${order._id}`);
+                            router.push(`${basePath}/orders/${order._id}`);
                           }}
                           className="flex items-center gap-1.5 h-8 text-xs cursor-pointer font-semibold"
                         >
