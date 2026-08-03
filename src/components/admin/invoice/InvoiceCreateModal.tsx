@@ -12,6 +12,7 @@ import { resolvePrice, resolveMoq } from "@/lib/priceTierHelper";
 import CustomerSearchPicker from "@/components/admin/CustomerSearchPicker";
 import { BarcodeScanner } from "@/components/admin/BarcodeScanner";
 import { useAuthStore } from "@/stores/authStore";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface InvoiceCreateModalProps {
   isOpen: boolean;
@@ -166,13 +167,10 @@ export function InvoiceCreateModal({
   const [isProductDropdownOpen, setIsProductDropdownOpen] = React.useState(false);
   const productWrapperRef = React.useRef<HTMLDivElement>(null);
 
-  // RBAC permissions check
-  const { manager, customer } = useAuthStore();
-  const perms = manager?.permissions || [];
-  const hasPerm = (p: string) => customer?.role === "admin" || perms.includes(p) || perms.includes(`${p}:create`);
-  const canCreateInvoice = hasPerm("invoices_invoice");
-  const canCreateQuote = hasPerm("invoices_quote");
-  const canCreateReceipt = hasPerm("invoices_receipt");
+  const { hasPermission } = usePermissions();
+  const canCreateInvoice = hasPermission("invoices_invoice", "create") || hasPermission("invoices_invoice");
+  const canCreateQuote = hasPermission("invoices_quote", "create") || hasPermission("invoices_quote");
+  const canCreateReceipt = hasPermission("invoices_receipt", "create") || hasPermission("invoices_receipt");
 
   // Ensure default formDocType is allowed
   React.useEffect(() => {
@@ -418,18 +416,16 @@ export function InvoiceCreateModal({
               <button
                 type="button"
                 onClick={() => setCustomerMode("existing")}
-                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${
-                  customerMode === "existing" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
-                }`}
+                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${customerMode === "existing" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
+                  }`}
               >
                 Registered Client
               </button>
               <button
                 type="button"
                 onClick={() => setCustomerMode("new")}
-                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${
-                  customerMode === "new" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
-                }`}
+                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${customerMode === "new" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
+                  }`}
               >
                 New Client (Auto-Create)
               </button>
@@ -544,9 +540,8 @@ export function InvoiceCreateModal({
                               setSelectedSize("");
                               setSelectedWeight("");
                             }}
-                            className={`p-2.5 text-xs hover:bg-accent hover:text-accent-foreground cursor-pointer border-b border-border/40 ${
-                              selectedProductId === p._id ? "bg-accent/50 font-bold" : ""
-                            }`}
+                            className={`p-2.5 text-xs hover:bg-accent hover:text-accent-foreground cursor-pointer border-b border-border/40 ${selectedProductId === p._id ? "bg-accent/50 font-bold" : ""
+                              }`}
                           >
                             <div className="font-bold">{p.title}</div>
                             <div className="text-[10px] text-muted-foreground flex justify-between mt-0.5 font-mono">
