@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Package, Truck, MapPin, Users, Award, ShieldCheck } from "lucide-react";
-import { motion } from "framer-motion";
 
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 
@@ -48,13 +47,10 @@ export function TrustBar({ stats }: TrustBarProps) {
     <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         {activeStats.map((item, idx) => (
-          <motion.div
+          <div
             key={idx}
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: idx * 0.1 }}
-            className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card/60 backdrop-blur-sm shadow-sm hover:border-primary/40 hover:shadow-md transition-all hover:scale-[1.02]"
+            style={{ animationDelay: `${idx * 100}ms` }}
+            className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card/60 backdrop-blur-sm shadow-sm hover:border-primary/40 hover:shadow-md transition-all hover:scale-[1.02] animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"
           >
             <div className="p-3 bg-primary/10 rounded-xl flex-shrink-0">
               {getStatIcon(item.icon)}
@@ -65,7 +61,7 @@ export function TrustBar({ stats }: TrustBarProps) {
               </p>
               <p className="text-xs text-muted-foreground font-medium mt-0.5">{item.label}</p>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
     </section>

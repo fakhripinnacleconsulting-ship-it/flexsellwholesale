@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, LazyMotion, domAnimation, AnimatePresence } from "framer-motion";
 import { BannerSlide } from "@/components/admin/cms/types";
 
 interface HeroCarouselProps {
@@ -189,6 +189,28 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
     })
   };
 
+  // Prepare Art Direction Image Props
+  const hasMobileSpecificImg = !!currentSlide?.mobileImageUrl;
+  const commonImgProps = {
+    alt: currentSlide?.altText || "FlexSell Wholesale Banner",
+    fill: true,
+    priority: current === 0,
+    sizes: "100vw",
+    className: "object-contain w-full h-full",
+  };
+
+  // Generate desktop image props
+  const { props: { srcSet: desktopSrcSet, src: dSrc, ...restDesktopProps } } = getImageProps({
+    ...commonImgProps,
+    src: fallbackImage,
+  });
+
+  // Generate mobile image props (fallback to desktop if none)
+  const { props: { srcSet: mobileSrcSet } } = getImageProps({
+    ...commonImgProps,
+    src: hasMobileSpecificImg ? currentSlide.mobileImageUrl! : fallbackImage,
+  });
+
   return (
     <section
       ref={sectionRef}
@@ -199,9 +221,10 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       }}
       className="relative w-full overflow-hidden group select-none bg-background flex items-center justify-center transition-[aspect-ratio] duration-500 ease-in-out"
     >
-      <AnimatePresence initial={false} custom={direction}>
-        <motion.div
-          key={current}
+      <LazyMotion features={domAnimation}>
+        <AnimatePresence initial={false} custom={direction}>
+          <m.div
+            key={current}
           custom={direction}
           variants={variants}
           initial="enter"
@@ -278,35 +301,20 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               </button>
             </div>
           ) : (
-            /* IMAGE BANNER SLIDE (Complete Uncropped Actual Size for Mobile & Desktop) */
-            <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-              {/* Desktop Banner Image */}
-              <div className={`relative w-full h-full z-10 ${currentSlide.mobileImageUrl ? "hidden sm:block" : "block"}`}>
-                <Image
-                  src={fallbackImage}
-                  alt={currentSlide.altText || "FlexSell Wholesale Banner"}
-                  fill
-                  priority={current === 0}
-                  onLoad={(e) => handleImageLoad(current, false, e)}
-                  className="object-contain w-full h-full"
-                  sizes="100vw"
+            /* IMAGE BANNER SLIDE (Native Picture Tag for Art Direction) */
+            <div className="relative w-full h-full flex items-center justify-center overflow-hidden z-10">
+              <picture className="relative w-full h-full block">
+                {hasMobileSpecificImg && (
+                  <source media="(max-width: 639px)" srcSet={mobileSrcSet} />
+                )}
+                <source media="(min-width: 640px)" srcSet={desktopSrcSet} />
+                <img 
+                  src={dSrc} 
+                  {...restDesktopProps}
+                  fetchPriority={current === 0 ? "high" : "auto"}
+                  onLoad={(e) => handleImageLoad(current, isMobile, e as any)} 
                 />
-              </div>
-
-              {/* Mobile Specific Image if available */}
-              {currentSlide.mobileImageUrl && (
-                <div className="relative w-full h-full z-10 block sm:hidden">
-                  <Image
-                    src={currentSlide.mobileImageUrl}
-                    alt={currentSlide.altText || "FlexSell Wholesale Banner"}
-                    fill
-                    priority={current === 0}
-                    onLoad={(e) => handleImageLoad(current, true, e)}
-                    className="object-contain w-full h-full"
-                    sizes="100vw"
-                  />
-                </div>
-              )}
+              </picture>
             </div>
           )}
 
@@ -341,8 +349,9 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               </div>
             </div>
           )}
-        </motion.div>
+        </m.div>
       </AnimatePresence>
+      </LazyMotion>
 
       {/* Nav Arrow Controls (Only when > 1 slide) */}
       {slides.length > 1 && (
