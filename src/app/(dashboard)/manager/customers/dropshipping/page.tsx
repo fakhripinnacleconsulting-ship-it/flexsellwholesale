@@ -1,11 +1,6 @@
-import { CustomerList } from "@/components/managers/CustomerList";
+import * as React from "react";
+import { AdminCustomersManager } from "@/components/admin/AdminCustomersManager";
 
 export default function ManagerDropshippingCustomersPage() {
-  return (
-    <CustomerList
-      title="Dropshipping Customers"
-      description="Manage dropshipping partners."
-      customerTypeFilter="Dropshipping"
-    />
-  );
+  return <AdminCustomersManager initialType="Dropshipping" />;
 }

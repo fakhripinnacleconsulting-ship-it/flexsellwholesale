@@ -15,10 +15,13 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
 
-export function AdminOrdersManager() {
+import { usePermissions } from "@/hooks/usePermissions";
+
+export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" | "B2B" | "Dropshipping" | "B2C" }) {
   const { orders, initializeOrders, updateOrderStatus, shipOrder } = useOrderStore();
   const { addToast } = useToastStore();
   const confirm = useConfirmStore((state) => state.confirm);
+  const { hasPermission } = usePermissions();
 
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
@@ -26,7 +29,7 @@ export function AdminOrdersManager() {
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
 
-  const [activeOrderTab, setActiveOrderTab] = React.useState<"ALL" | "B2B" | "Dropshipping" | "B2C">("ALL");
+  const [activeOrderTab, setActiveOrderTab] = React.useState<"ALL" | "B2B" | "Dropshipping" | "B2C">(initialTab);
   const [originFilter, setOriginFilter] = React.useState<"" | "self" | "website">("");
 
   React.useEffect(() => {
@@ -233,15 +236,17 @@ export function AdminOrdersManager() {
             Manage dispatch statuses, track logistical fulfillment, and convert approved price quotes.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setInitialQuoteId(null);
-            setIsCreateOrderModalOpen(true);
-          }}
-          className="flex items-center gap-1.5 font-bold text-xs bg-primary text-primary-foreground cursor-pointer"
-        >
-          <Plus className="h-4 w-4" /> Convert Quote
-        </Button>
+        {(hasPermission("orders_b2b", "create") || hasPermission("orders_b2c", "create") || hasPermission("orders_dropship", "create")) && (
+          <Button
+            onClick={() => {
+              setInitialQuoteId(null);
+              setIsCreateOrderModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 font-bold text-xs bg-primary text-primary-foreground cursor-pointer"
+          >
+            <Plus className="h-4 w-4" /> Convert Quote
+          </Button>
+        )}
       </div>
 
       {/* Short Analytics */}

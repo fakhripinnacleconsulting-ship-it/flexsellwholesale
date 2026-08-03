@@ -1,11 +1,6 @@
-import { CustomerList } from "@/components/managers/CustomerList";
+import * as React from "react";
+import { AdminCustomersManager } from "@/components/admin/AdminCustomersManager";
 
 export default function ManagerB2BCustomersPage() {
-  return (
-    <CustomerList
-      title="B2B Customers"
-      description="Manage wholesale customers and businesses."
-      customerTypeFilter="B2B"
-    />
-  );
+  return <AdminCustomersManager initialType="B2B" />;
 }

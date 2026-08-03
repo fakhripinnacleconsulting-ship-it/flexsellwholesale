@@ -1,11 +1,6 @@
-import { OrderList } from "@/components/managers/OrderList";
+import * as React from "react";
+import { AdminOrdersManager } from "@/components/admin/order";
 
 export default function ManagerB2COrdersPage() {
-  return (
-    <OrderList
-      title="B2C Orders"
-      description="Manage retail orders from direct consumers."
-      customerTypeFilter="B2C"
-    />
-  );
+  return <AdminOrdersManager initialTab="B2C" />;
 }

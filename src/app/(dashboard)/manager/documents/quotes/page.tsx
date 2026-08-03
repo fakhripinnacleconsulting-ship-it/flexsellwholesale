@@ -1,11 +1,6 @@
-import { InvoiceList } from "@/components/managers/InvoiceList";
+import * as React from "react";
+import { AdminInvoicesManager } from "@/components/admin/invoice/AdminInvoicesManager";
 
 export default function ManagerQuotesPage() {
-  return (
-    <InvoiceList
-      title="Quotes"
-      description="Manage customer quotes and estimates."
-      docType="quote"
-    />
-  );
+  return <AdminInvoicesManager initialTab="quote" />;
 }

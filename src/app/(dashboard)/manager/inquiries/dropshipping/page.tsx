@@ -1,11 +1,6 @@
-import { InquiryList } from "@/components/managers/InquiryList";
+import * as React from "react";
+import { AdminInquiriesManager } from "@/components/admin/AdminInquiriesManager";
 
-export default function ManagerDropshipInquiriesPage() {
-  return (
-    <InquiryList
-      title="Dropshipping Inquiries"
-      description="Manage dropshipping partnership inquiries."
-      category="dropshipping"
-    />
-  );
+export default function ManagerDropshippingInquiriesPage() {
+  return <AdminInquiriesManager initialCategory="dropshipping" />;
 }

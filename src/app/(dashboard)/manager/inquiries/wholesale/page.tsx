@@ -1,11 +1,6 @@
-import { InquiryList } from "@/components/managers/InquiryList";
+import * as React from "react";
+import { AdminInquiriesManager } from "@/components/admin/AdminInquiriesManager";
 
 export default function ManagerWholesaleInquiriesPage() {
-  return (
-    <InquiryList
-      title="Wholesale Inquiries"
-      description="Manage B2B wholesale partnership inquiries."
-      category="wholesale"
-    />
-  );
+  return <AdminInquiriesManager initialCategory="wholesale" />;
 }

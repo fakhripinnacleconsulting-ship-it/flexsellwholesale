@@ -1,11 +1,6 @@
-import { InquiryList } from "@/components/managers/InquiryList";
+import * as React from "react";
+import { AdminInquiriesManager } from "@/components/admin/AdminInquiriesManager";
 
 export default function ManagerFranchiseInquiriesPage() {
-  return (
-    <InquiryList
-      title="Franchise Inquiries"
-      description="Manage franchise partnership inquiries."
-      category="franchise"
-    />
-  );
+  return <AdminInquiriesManager initialCategory="franchise" />;
 }

@@ -1,11 +1,6 @@
-import { InvoiceList } from "@/components/managers/InvoiceList";
+import * as React from "react";
+import { AdminInvoicesManager } from "@/components/admin/invoice/AdminInvoicesManager";
 
 export default function ManagerReceiptsPage() {
-  return (
-    <InvoiceList
-      title="Receipts"
-      description="Manage payment receipts."
-      docType="receipt"
-    />
-  );
+  return <AdminInvoicesManager initialTab="receipt" />;
 }

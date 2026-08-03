@@ -1,11 +1,6 @@
-import { OrderList } from "@/components/managers/OrderList";
+import * as React from "react";
+import { AdminOrdersManager } from "@/components/admin/order";
 
-export default function ManagerDropshipOrdersPage() {
-  return (
-    <OrderList
-      title="Dropshipping Orders"
-      description="Manage orders for dropshipping accounts."
-      customerTypeFilter="Dropshipping"
-    />
-  );
+export default function ManagerDropshippingOrdersPage() {
+  return <AdminOrdersManager initialTab="Dropshipping" />;
 }

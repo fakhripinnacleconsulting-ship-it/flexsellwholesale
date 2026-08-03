@@ -1,11 +1,6 @@
-import { CustomerList } from "@/components/managers/CustomerList";
+import * as React from "react";
+import { AdminCustomersManager } from "@/components/admin/AdminCustomersManager";
 
 export default function ManagerB2CCustomersPage() {
-  return (
-    <CustomerList
-      title="B2C Customers"
-      description="Manage retail customers and individual buyers."
-      customerTypeFilter="B2C"
-    />
-  );
+  return <AdminCustomersManager initialType="B2C" />;
 }

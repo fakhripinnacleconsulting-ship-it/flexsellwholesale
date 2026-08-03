@@ -1,11 +1,6 @@
-import { InquiryList } from "@/components/managers/InquiryList";
+import * as React from "react";
+import { AdminInquiriesManager } from "@/components/admin/AdminInquiriesManager";
 
 export default function ManagerSupportInquiriesPage() {
-  return (
-    <InquiryList
-      title="Support Inquiries"
-      description="Manage customer support inquiries."
-      category="support"
-    />
-  );
+  return <AdminInquiriesManager initialCategory="support" />;
 }
