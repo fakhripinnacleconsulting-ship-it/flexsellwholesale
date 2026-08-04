@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Inquiry from "@/models/Inquiry";
 import Notification from "@/models/Notification";
+import Manager from "@/models/Manager";
 import { emailService } from "@/lib/emailService";
 import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
@@ -33,13 +34,18 @@ export async function GET(request: Request) {
       query.email = payload.email.toLowerCase();
     } else {
       if (payload.role === "manager") {
-        const perms = (payload as any).permissions || [];
+        let perms = (payload as any).permissions || [];
+        const managerUser = await Manager.findById(payload.userId).lean();
+        if (managerUser) {
+          perms = managerUser.permissions || [];
+        }
+        
         const allowedCategories = [];
-        if (perms.includes("inquiries_wholesale")) allowedCategories.push("wholesale");
-        if (perms.includes("inquiries_dropshipping")) allowedCategories.push("dropshipping");
-        if (perms.includes("inquiries_support")) allowedCategories.push("support");
-        if (perms.includes("inquiries_franchise")) allowedCategories.push("franchise");
-        if (perms.includes("inquiries_general")) allowedCategories.push("general");
+        if (perms.includes("inquiries_wholesale") || perms.includes("inquiries_wholesale:read")) allowedCategories.push("wholesale");
+        if (perms.includes("inquiries_dropshipping") || perms.includes("inquiries_dropshipping:read")) allowedCategories.push("dropshipping");
+        if (perms.includes("inquiries_support") || perms.includes("inquiries_support:read")) allowedCategories.push("support");
+        if (perms.includes("inquiries_franchise") || perms.includes("inquiries_franchise:read")) allowedCategories.push("franchise");
+        if (perms.includes("inquiries_general") || perms.includes("inquiries_general:read")) allowedCategories.push("general");
         
         if (allowedCategories.length === 0) {
           return NextResponse.json({ message: "Forbidden: No inquiry access" }, { status: 403 });
@@ -121,23 +127,6 @@ export async function POST(request: Request) {
     });
 
     const customerName = `${newInquiry.firstName} ${newInquiry.lastName}`.trim();
-
-    // 1. Create In-App Notification document for Admin in MongoDB
-    try {
-      await Notification.create({
-        customerId: "admin",
-        recipientRole: "admin",
-        title: `New ${body.category === "dropshipping" ? "Dropshipping" : "Wholesale"} Inquiry: ${newInquiry.subject}`,
-        message: `${customerName} (${newInquiry.email}) submitted: "${newInquiry.subject}".`,
-        type: "info",
-        isRead: false,
-        link: "/admin/inquiries",
-        actionType: "INQUIRY_SUBMITTED",
-        entityId: newInquiry._id.toString()
-      });
-    } catch (notifErr) {
-      console.error("[INQUIRY NOTIFICATION ERROR] Failed to create admin notification:", notifErr);
-    }
 
     // Dispatch System Event (Rule 7: Admin Notif = TRUE, Admin Mail = TRUE via centralized eventHandler)
     try {

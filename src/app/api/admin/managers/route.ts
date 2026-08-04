@@ -3,6 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Manager from "@/models/Manager";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { emailService } from "@/lib/emailService";
 
 // GET all managers
 export async function GET(request: Request) {
@@ -54,6 +55,11 @@ export async function POST(request: Request) {
 
     const managerObj = newManager.toObject();
     delete managerObj.password;
+
+    // Send welcome email asynchronously
+    emailService.sendManagerWelcomeEmail(managerObj, password).catch(err => {
+      console.error("Failed to send manager welcome email:", err);
+    });
 
     return NextResponse.json(managerObj, { status: 201 });
   } catch (error: any) {

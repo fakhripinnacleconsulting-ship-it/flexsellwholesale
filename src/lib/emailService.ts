@@ -600,6 +600,75 @@ export const emailService = {
     return this.sendEmail({ to: customer.email, subject: "Welcome to FlexSell Wholesale - Account Activated", html: bodyHtml, category: "security" });
   },
 
+  // 2.1 Manager Welcome Email
+  async sendManagerWelcomeEmail(manager: any, rawPassword?: string): Promise<boolean> {
+    const loginUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "") + "/manager/login";
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #10b981; margin: 0;">Manager Account Created</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello <strong>${manager.name}</strong>,</p>
+          <p>An administrator has created a Manager account for you on FlexSell Wholesale.</p>
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; margin: 20px 0;">
+            <p style="margin: 0 0 8px 0;"><strong>Login URL:</strong> <a href="${loginUrl}" style="color: #0ea5e9;">${loginUrl}</a></p>
+            <p style="margin: 0 0 8px 0;"><strong>Email (Username):</strong> ${manager.email}</p>
+            ${rawPassword ? `<p style="margin: 0;"><strong>Temporary Password:</strong> <span style="font-family: monospace; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${rawPassword}</span></p>` : ""}
+          </div>
+          <p>Please log in and update your password if this is a temporary one.</p>
+        </div>
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
+          FlexSell Wholesale © 2026. All rights reserved.
+        </div>
+      </div>
+    `;
+    return this.sendEmail({ to: manager.email, subject: "Welcome to FlexSell Wholesale - Manager Account Details", html: bodyHtml, category: "security" });
+  },
+
+  // 2.2 Manager Security Alert
+  async sendAdminSecurityAlert(managerName: string, attemptedAction: string, route?: string): Promise<boolean> {
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #ef4444; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #ffffff; margin: 0;">Security Alert: Unauthorized Access Attempt</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello Admin,</p>
+          <p>The system intercepted a forbidden access attempt by a manager.</p>
+          <ul>
+            <li><strong>Manager:</strong> ${managerName}</li>
+            <li><strong>Attempted Action/Route:</strong> ${attemptedAction} ${route ? `(${route})` : ""}</li>
+            <li><strong>Timestamp:</strong> ${new Date().toLocaleString()}</li>
+          </ul>
+          <p>This action was automatically blocked by the RBAC guard.</p>
+        </div>
+        ${renderStandardEmailFooter("Security Audit Alert")}
+      </div>
+    `;
+    return this.sendEmail({ to: this.getAdminEmail(), subject: `[SECURITY ALERT] Unauthorized Access by ${managerName}`, html: bodyHtml, category: "security" });
+  },
+
+  // 2.3 Manager Activity Alert
+  async sendAdminManagerActivityAlert(managerName: string, actionDetails: string): Promise<boolean> {
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #10b981; margin: 0;">Manager Activity Report</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello Admin,</p>
+          <p>Manager <strong>${managerName}</strong> recently performed the following action:</p>
+          <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; margin: 16px 0; border-radius: 4px;">
+            ${actionDetails}
+          </div>
+        </div>
+        ${renderStandardEmailFooter("Manager Activity Log")}
+      </div>
+    `;
+    return this.sendEmail({ to: this.getAdminEmail(), subject: `[Activity Log] Manager ${managerName} Action`, html: bodyHtml, category: "system" });
+  },
+
   // 3. Admin New Buyer Alert Email
   async sendAdminNewBuyerAlert(customer: any): Promise<boolean> {
     const bodyHtml = `

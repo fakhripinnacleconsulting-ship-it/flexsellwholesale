@@ -29,9 +29,30 @@ import { usePermissions } from "@/hooks/usePermissions";
 export function AdminInquiriesManager({ initialCategory = "all" }: { initialCategory?: string }) {
   const { addToast } = useToastStore();
   const { hasPermission } = usePermissions();
+  
+  const canWholesale = hasPermission("inquiries_wholesale");
+  const canDropshipping = hasPermission("inquiries_dropshipping");
+  const canSupport = hasPermission("inquiries_support");
+  const canFranchise = hasPermission("inquiries_franchise");
+  const canGeneral = hasPermission("inquiries_general");
+  const canAny = canWholesale || canDropshipping || canSupport || canFranchise || canGeneral;
+
+  const allowedTabs = [
+    ...(canAny ? [{ id: "all", label: "All Inquiries" }] : []),
+    ...(canWholesale ? [{ id: "wholesale", label: "Wholesale Sourcing" }] : []),
+    ...(canDropshipping ? [{ id: "dropshipping", label: "Dropshipping" }] : []),
+    ...(canSupport ? [{ id: "support", label: "Support & Claims" }] : []),
+    ...(canFranchise ? [{ id: "franchise", label: "Franchise" }] : []),
+    ...(canGeneral ? [{ id: "general", label: "General" }] : [])
+  ];
+
   const [inquiries, setInquiries] = React.useState<Inquiry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [activeTab, setActiveTab] = React.useState<string>(initialCategory);
+  const [activeTab, setActiveTab] = React.useState<string>(() => {
+    if (allowedTabs.some(t => t.id === initialCategory)) return initialCategory;
+    if (allowedTabs.length > 0) return allowedTabs[0].id;
+    return "all";
+  });
   const [searchQuery, setSearchQuery] = React.useState("");
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [editNotes, setEditNotes] = React.useState<Record<string, string>>({});
@@ -149,14 +170,7 @@ export function AdminInquiriesManager({ initialCategory = "all" }: { initialCate
 
       {/* Category Filter Tabs */}
       <div className="flex border-b gap-2 overflow-x-auto">
-        {[
-          { id: "all", label: "All Inquiries" },
-          { id: "wholesale", label: "Wholesale Sourcing" },
-          { id: "dropshipping", label: "Dropshipping" },
-          { id: "support", label: "Support & Claims" },
-          { id: "franchise", label: "Franchise" },
-          { id: "general", label: "General" }
-        ].map(tab => (
+        {allowedTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}

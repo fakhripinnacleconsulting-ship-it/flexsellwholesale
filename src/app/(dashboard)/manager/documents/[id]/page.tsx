@@ -15,7 +15,17 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default function DocumentPreviewPage({ params }: PageProps) {
+import { PermissionGuard } from "@/components/managers/PermissionGuard";
+
+export default function ProtectedDocumentPreviewPage(props: any) {
+  return (
+    <PermissionGuard requiredPermissions={["invoices_invoice","invoices_quote","invoices_receipt"]}>
+      <DocumentPreviewPage {...props} />
+    </PermissionGuard>
+  );
+}
+
+function DocumentPreviewPage({ params }: PageProps) {
   const router = useRouter();
   const { addToast } = useToastStore();
   const resolvedParams = React.use(params);
