@@ -180,10 +180,10 @@ export function InvoiceDocument({
   const documentTitle = isShippingLabel
     ? "Shipping Dispatch Label"
     : isQuote
-    ? "Price Quote"
-    : isInvoice
-    ? "Tax Invoice"
-    : "Payment Receipt";
+      ? "Price Quote"
+      : isInvoice
+        ? "Tax Invoice"
+        : "Payment Receipt";
 
   const itemsList = order.items || [];
   const itemTotalWithGst = itemsList.reduce((sum: number, item: any) => sum + (item.pricePerUnit * item.quantity), 0);
@@ -214,10 +214,10 @@ export function InvoiceDocument({
     const docLabel = isShippingLabel
       ? "Shipping_Label"
       : isInvoice
-      ? "Invoice"
-      : isReceipt
-      ? "RECEIPT"
-      : "Quote";
+        ? "Invoice"
+        : isReceipt
+          ? "RECEIPT"
+          : "Quote";
     const refId = documentNumber && documentNumber !== "DRAFT-PREVIEW" ? documentNumber : order._id;
     triggerPrintWithTitle(docLabel, refId);
   };
@@ -305,43 +305,72 @@ export function InvoiceDocument({
           <div className="grid grid-cols-2 gap-4 border-b-2 border-black pb-4 text-xs">
             <div className="space-y-1.5 pr-3 border-r-2 border-black">
               <div className="bg-black text-white font-black text-[10px] uppercase px-2 py-0.5 inline-block tracking-wider">
-                SHIP TO (DELIVERY DOCK)
+                SHIP TO
               </div>
-              {order.shippingAddress?.company ? (
+              {((order as any).dropshipDetails && Object.keys((order as any).dropshipDetails).length > 0) ? (
                 <>
                   <p className="font-black text-base uppercase leading-tight text-black mt-1">
-                    {order.shippingAddress.company}
+                    {(order as any).dropshipDetails.customerName}
                   </p>
-                  <p className="font-bold text-xs text-gray-900">
-                    Attn: {order.customerName || order.shippingAddress?.firstName}
-                  </p>
-                </>
-              ) : (
-                <p className="font-black text-base uppercase leading-tight text-black mt-1">
-                  {order.customerName || "TECHNOLOGIES"}
-                </p>
-              )}
-              {order.shippingAddress && (
-                <>
                   <p className="font-semibold text-xs leading-snug text-gray-900 mt-1">
-                    {order.shippingAddress.address}
-                    {order.shippingAddress.apartment ? `, ${order.shippingAddress.apartment}` : ""}
+                    {(order as any).dropshipDetails.address}
                   </p>
                   <p className="font-black text-xs uppercase text-black mt-1">
-                    {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pinCode}
+                    {(order as any).dropshipDetails.city}, {(order as any).dropshipDetails.state} - {(order as any).dropshipDetails.pinCode}
                   </p>
                   <p className="font-mono font-black text-xs pt-1 text-black">
-                    Ph: {order.shippingAddress.phone}
+                    Ph: {(order as any).dropshipDetails.phone}
                   </p>
-                  {(order.shippingAddress.email || (order as any).customerEmail) && (
-                    <p className="font-mono font-black text-xs pt-0.5 text-black">
-                      Email: {order.shippingAddress.email || (order as any).customerEmail}
+                  {(order as any).dropshipDetails.amazonOrderId && (
+                    <p className="font-mono font-bold text-[10px] text-gray-800 mt-1">
+                      Amazon Order: {(order as any).dropshipDetails.amazonOrderId}
                     </p>
                   )}
-                  {order.shippingAddress.gstin && (
+                  {(order as any).dropshipDetails.amazonInvoiceId && (
                     <p className="font-mono font-bold text-[10px] text-gray-800">
-                      GSTIN: {order.shippingAddress.gstin}
+                      Amazon Invoice: {(order as any).dropshipDetails.amazonInvoiceId}
                     </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  {order.shippingAddress?.company ? (
+                    <>
+                      <p className="font-black text-base uppercase leading-tight text-black mt-1">
+                        {order.shippingAddress.company}
+                      </p>
+                      <p className="font-bold text-xs text-gray-900">
+                        Attn: {order.customerName || order.shippingAddress?.firstName}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="font-black text-base uppercase leading-tight text-black mt-1">
+                      {order.customerName || "TECHNOLOGIES"}
+                    </p>
+                  )}
+                  {order.shippingAddress && (
+                    <>
+                      <p className="font-semibold text-xs leading-snug text-gray-900 mt-1">
+                        {order.shippingAddress.address}
+                        {order.shippingAddress.apartment ? `, ${order.shippingAddress.apartment}` : ""}
+                      </p>
+                      <p className="font-black text-xs uppercase text-black mt-1">
+                        {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pinCode}
+                      </p>
+                      <p className="font-mono font-black text-xs pt-1 text-black">
+                        Ph: {order.shippingAddress.phone}
+                      </p>
+                      {(order.shippingAddress.email || (order as any).customerEmail) && (
+                        <p className="font-mono font-black text-xs pt-0.5 text-black">
+                          Email: {order.shippingAddress.email || (order as any).customerEmail}
+                        </p>
+                      )}
+                      {order.shippingAddress.gstin && (
+                        <p className="font-mono font-bold text-[10px] text-gray-800">
+                          GSTIN: {order.shippingAddress.gstin}
+                        </p>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -544,9 +573,9 @@ export function InvoiceDocument({
                 Client ID: <span className="font-bold text-gray-950">{customerId}</span>
               </p>
             )}
-            <p className="text-xs font-medium text-gray-700 mt-0.5">
+            {/* <p className="text-xs font-medium text-gray-700 mt-0.5">
               Account Type: <span className="font-bold text-gray-950">{accountTypeLabel}</span>
-            </p>
+            </p> */}
             {order.shippingAddress && (
               <>
                 <p className="text-gray-600 mt-1 leading-relaxed">
@@ -566,6 +595,27 @@ export function InvoiceDocument({
                   </p>
                 )}
               </>
+            )}
+            {(order as any).dropshipDetails && Object.keys((order as any).dropshipDetails).length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest mb-2">
+                  Ship To (End Customer):
+                </h3>
+                <p className="font-bold text-gray-900 text-sm">{(order as any).dropshipDetails.customerName}</p>
+                <p className="text-gray-600 mt-1 leading-relaxed">
+                  {(order as any).dropshipDetails.address}
+                </p>
+                <p className="text-gray-600">
+                  {(order as any).dropshipDetails.city}, {(order as any).dropshipDetails.state} - {(order as any).dropshipDetails.pinCode}
+                </p>
+                {(order as any).dropshipDetails.phone && <p className="text-gray-500 mt-1">Phone: {(order as any).dropshipDetails.phone}</p>}
+                {(order as any).dropshipDetails.amazonOrderId && (
+                  <p className="font-mono text-gray-700 mt-1.5">Amazon Order: <span className="font-bold">{(order as any).dropshipDetails.amazonOrderId}</span></p>
+                )}
+                {(order as any).dropshipDetails.amazonInvoiceId && (
+                  <p className="font-mono text-gray-700">Amazon Invoice: <span className="font-bold">{(order as any).dropshipDetails.amazonInvoiceId}</span></p>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -610,7 +660,7 @@ export function InvoiceDocument({
                             const pId = item.productId || (typeof item.product === "object" ? item.product?._id : item.product);
                             const matchedProduct = products.find(p => p._id === pId || p.title?.toLowerCase() === (item.product?.title || item.title || "").toLowerCase());
                             const productSource = matchedProduct || (typeof item.product === "object" ? item.product : null);
-                            
+
                             const colorVariants = productSource?.colorVariants || [];
                             const { color: matchingColor } = resolveVariantKeys(item.selectedVariants || item.variants || {});
                             const activeVariant = colorVariants.find((cv: any) => cv.color?.toLowerCase() === matchingColor?.toLowerCase())
@@ -820,11 +870,10 @@ export function InvoiceDocument({
             </p>
             <p className="text-gray-600 mt-2">
               Status:{" "}
-              <span className={`font-bold ${
-                order.paymentStatus === "Paid" ? "text-emerald-700" :
+              <span className={`font-bold ${order.paymentStatus === "Paid" ? "text-emerald-700" :
                 order.paymentStatus === "Failed" ? "text-red-600" :
-                "text-amber-600"
-              }`}>
+                  "text-amber-600"
+                }`}>
                 {order.paymentStatus || "Pending"}
               </span>
             </p>

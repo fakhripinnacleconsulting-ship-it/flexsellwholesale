@@ -521,39 +521,39 @@ export function InvoiceCreateModal({
                   Add Amazon Shipment Details
                 </label>
               </div>
-              
+
               {includeDropshipDetails && dropshipDetails && setDropshipDetails && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Order ID *</label>
-                    <Input 
-                      value={dropshipDetails.amazonOrderId || ""} 
-                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonOrderId: e.target.value })} 
-                      placeholder="e.g. 171-1234567-8901234" 
+                    <Input
+                      value={dropshipDetails.amazonOrderId || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonOrderId: e.target.value })}
+                      placeholder="e.g. 171-1234567-8901234"
                       required={includeDropshipDetails}
                     />
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Invoice ID</label>
-                    <Input 
-                      value={dropshipDetails.amazonInvoiceId || ""} 
-                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonInvoiceId: e.target.value })} 
-                      placeholder="e.g. IN-1234" 
+                    <Input
+                      value={dropshipDetails.amazonInvoiceId || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonInvoiceId: e.target.value })}
+                      placeholder="e.g. IN-1234"
                     />
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Customer Name *</label>
-                    <Input 
-                      value={dropshipDetails.customerName || ""} 
-                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, customerName: e.target.value })} 
+                    <Input
+                      value={dropshipDetails.customerName || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, customerName: e.target.value })}
                       required={includeDropshipDetails}
                     />
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">City *</label>
-                    <Input 
-                      value={dropshipDetails.city || ""} 
-                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, city: e.target.value })} 
+                    <Input
+                      value={dropshipDetails.city || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, city: e.target.value })}
                       required={includeDropshipDetails}
                     />
                   </div>
@@ -573,18 +573,18 @@ export function InvoiceCreateModal({
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Pincode *</label>
-                    <Input 
-                      value={dropshipDetails.pinCode || ""} 
-                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, pinCode: e.target.value })} 
+                    <Input
+                      value={dropshipDetails.pinCode || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, pinCode: e.target.value })}
                       className="font-mono"
                       required={includeDropshipDetails}
                     />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Full Shipping Address *</label>
-                    <Input 
-                      value={dropshipDetails.address || ""} 
-                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, address: e.target.value })} 
+                    <Input
+                      value={dropshipDetails.address || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, address: e.target.value })}
                       required={includeDropshipDetails}
                     />
                   </div>
@@ -854,7 +854,7 @@ export function InvoiceCreateModal({
                 />
               </div>
               <div className="col-span-1 sm:col-span-2">
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Admin Notes (Will appear on print)</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Notes (Will appear on print)</label>
                 <textarea
                   value={invoiceNotes}
                   onChange={(e) => setInvoiceNotes(e.target.value)}

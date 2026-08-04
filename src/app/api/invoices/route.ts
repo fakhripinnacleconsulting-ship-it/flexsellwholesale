@@ -300,13 +300,40 @@ export async function POST(request: Request) {
       salesperson,
       status,
       dropshipDetails,
+      isOrder,
     } = body;
 
     if (payload.role === "manager") {
-      const perms = (payload as any).permissions || [];
-      if (type === "invoice" && !perms.includes("invoices_invoice")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-      if (type === "quote" && !perms.includes("invoices_quote")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-      if (type === "receipt" && !perms.includes("invoices_receipt")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      let perms = (payload as any).permissions || [];
+      
+      // Fetch latest permissions from DB to avoid stale JWT issues
+      const { default: Manager } = await import("@/models/Manager");
+      const managerDoc = await Manager.findById(payload.userId).lean() as any;
+      if (managerDoc && managerDoc.permissions) {
+        perms = managerDoc.permissions;
+      }
+      
+      const hasPerm = (module: string, action: string = "create") => perms.includes(module) || perms.includes(`${module}:${action}`);
+
+      if (isOrder) {
+        // Resolve target order permission based on customerType parameter (which drives orderType)
+        let targetPerm = "orders_b2b";
+        if (body.customerType === "Dropshipping") targetPerm = "orders_dropshipping";
+        else if (body.customerType === "B2C") targetPerm = "orders_b2c";
+        
+        // Fallback mapping for legacy dropship permission name
+        if (targetPerm === "orders_dropshipping" && hasPerm("orders_dropship")) {
+           targetPerm = "orders_dropship";
+        }
+        
+        if (!hasPerm(targetPerm)) {
+          return NextResponse.json({ message: `Forbidden: Missing ${targetPerm} permission` }, { status: 403 });
+        }
+      } else {
+        if (type === "invoice" && !hasPerm("invoices_invoice")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        if (type === "quote" && !hasPerm("invoices_quote")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        if (type === "receipt" && !hasPerm("invoices_receipt")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
     }
 
     // Handle new customer auto-creation

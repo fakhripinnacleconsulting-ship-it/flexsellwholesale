@@ -231,6 +231,7 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
 
       const payloadData = {
         type: formDocType,
+        isOrder: isOrderCreationMode,
         ...customerPayload,
         items: formItems,
         amount: formGrandTotal,

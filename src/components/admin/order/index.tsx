@@ -262,13 +262,15 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-black text-foreground">B2B/B2C Orders Manager</h1>
+          <h1 className="text-2xl font-black text-foreground">
+            {activeOrderTab === "ALL" ? "All Orders Manager" : `${activeOrderTab} Orders Manager`}
+          </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Manage dispatch statuses, track logistical fulfillment, and convert approved price quotes.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {(hasPermission("orders_b2b", "create") || hasPermission("orders_b2c", "create") || hasPermission("orders_dropship", "create")) && (
+          {(hasPermission("orders_b2b", "create") || hasPermission("orders_b2c", "create") || hasPermission("orders_dropshipping", "create") || hasPermission("orders_dropship", "create")) && (
             <>
               <Button
                 onClick={() => {

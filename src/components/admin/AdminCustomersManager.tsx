@@ -76,6 +76,10 @@ export function AdminCustomersManager({ initialType = "B2B" }: { initialType?: "
   ];
 
   const [customerTypeFilter, setCustomerTypeFilter] = React.useState<"B2B" | "B2C" | "Dropshipping" | "B2B_Pending" | "">(() => {
+    // If a specific type is requested and the user has permission for it, default to it
+    if (initialType && initialType !== "B2B_Pending" && allowedCustomerTypes.some(t => t.value === initialType)) {
+      return initialType;
+    }
     if (allowedCustomerTypes.some(t => t.value === "")) return "";
     return allowedCustomerTypes.length > 0 ? (allowedCustomerTypes[0].value as any) : "";
   });
@@ -172,6 +176,15 @@ export function AdminCustomersManager({ initialType = "B2B" }: { initialType?: "
 
     if (customerTypeFilter) {
       result = result.filter(c => c.customerTypes && c.customerTypes.includes(customerTypeFilter as any));
+    } else {
+      const allowed = allowedCustomerTypes.map(t => t.value).filter(Boolean);
+      if (allowed.length > 0 && allowed.length < 3) {
+        result = result.filter(c => 
+          c.customerTypes && c.customerTypes.some(type => allowed.includes(type))
+        );
+      } else if (allowed.length === 0) {
+        result = []; // Has no customer view permissions
+      }
     }
 
     if (accountStatusFilter) {
