@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { Product, Category, HsnRecord } from "@/types";
 import { htmlToPlainText } from "./htmlConverter";
 import { HEADERS, GUIDELINES, COL_WIDTHS } from "./excelTypes";
@@ -113,7 +113,8 @@ export async function exportToExcel(
   hsns: HsnRecord[],
   onlyTemplate: boolean = false
 ): Promise<Blob> {
-  const workbook = new ExcelJS.Workbook();
+  const ExcelJSModule = (await import("exceljs")).default;
+  const workbook = new ExcelJSModule.Workbook();
   workbook.creator = "FlexSell Wholesale";
   workbook.created = new Date();
 

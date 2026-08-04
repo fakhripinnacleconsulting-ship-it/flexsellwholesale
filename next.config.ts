@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "flexsellwholesale.com" },
       { protocol: "https", hostname: "placehold.co" },
       { protocol: "https", hostname: "assets.mixkit.co" },
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+      { protocol: "https", hostname: "*.googleusercontent.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "cdn.shopify.com" },
+      { protocol: "https", hostname: "m.media-amazon.com" },
+      { protocol: "https", hostname: "*.media-amazon.com" },
+      { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },
+      { protocol: "https", hostname: "*.ssl-images-amazon.com" },
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },
     ],
@@ -16,9 +25,16 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     staleTimes: {
-      dynamic: 0,
+      dynamic: 30,
       static: 180,
     },
+    optimizePackageImports: [
+      "lucide-react",
+      "recharts",
+      "@sentry/nextjs",
+      "framer-motion",
+      "embla-carousel-react",
+    ],
   },
   async headers() {
     return [
@@ -26,7 +42,7 @@ const nextConfig: NextConfig = {
       {
         source: "/api/(products|categories|collections|search|cms|reviews|health)(.*)",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=0, s-maxage=60, stale-while-revalidate=120" },
+          { key: "Cache-Control", value: "public, max-age=0, s-maxage=300, stale-while-revalidate=600" },
         ],
       },
       // Auth, admin, and state-changing API routes — never cache

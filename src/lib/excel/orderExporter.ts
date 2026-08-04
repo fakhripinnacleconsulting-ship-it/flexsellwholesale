@@ -1,7 +1,7 @@
-import ExcelJS from "exceljs";
 import { Order } from "@/stores/orderStore";
 
 export async function exportOrdersToExcel(orders: Order[]) {
+  const ExcelJS = (await import("exceljs")).default;
   const workbook = new ExcelJS.Workbook();
   const ws = workbook.addWorksheet("Orders");
 

@@ -60,8 +60,8 @@ export async function PUT(request: Request) {
       resp.shiprocket.password = resp.shiprocket.password ? "••••••••" : "";
     }
 
-    const { revalidatePath } = await import("next/cache");
-    revalidatePath("/", "layout");
+    const { revalidateStorefront } = await import("@/lib/revalidate");
+    revalidateStorefront();
 
     return NextResponse.json(resp);
   } catch (error: any) {

@@ -2,31 +2,49 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 export function revalidateStorefront() {
   try {
-    revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/catalog");
   } catch (err) {
     console.error("revalidateStorefront error:", err);
   }
 }
 
-export function revalidateProducts() {
+export function revalidateProducts(productIdOrSlug?: string) {
   try {
-    revalidatePath("/", "layout");
+    revalidateTag("products", "max" as any);
+    revalidatePath("/");
+    revalidatePath("/products");
+    revalidatePath("/catalog");
+    if (productIdOrSlug) {
+      revalidatePath(`/products/${productIdOrSlug}`);
+    }
   } catch (err) {
     console.error("revalidateProducts error:", err);
   }
 }
 
-export function revalidateCategories() {
+export function revalidateCategories(categoryIdOrSlug?: string) {
   try {
-    revalidatePath("/", "layout");
+    revalidateTag("categories", "max" as any);
+    revalidatePath("/");
+    revalidatePath("/categories");
+    revalidatePath("/catalog");
+    if (categoryIdOrSlug) {
+      revalidatePath(`/categories/${categoryIdOrSlug}`);
+    }
   } catch (err) {
     console.error("revalidateCategories error:", err);
   }
 }
 
-export function revalidateCollections() {
+export function revalidateCollections(collectionIdOrSlug?: string) {
   try {
-    revalidatePath("/", "layout");
+    revalidateTag("collections", "max" as any);
+    revalidatePath("/");
+    revalidatePath("/collections");
+    if (collectionIdOrSlug) {
+      revalidatePath(`/collections/${collectionIdOrSlug}`);
+    }
   } catch (err) {
     console.error("revalidateCollections error:", err);
   }
@@ -34,12 +52,12 @@ export function revalidateCollections() {
 
 export function revalidateCms() {
   try {
-    // Bust the DATA cache (MongoDB query results) via tags
     revalidateTag("cms-policies", "max" as any);
     revalidateTag("cms-content", "max" as any);
-
-    // Bust the PAGE cache (pre-rendered HTML) via paths
-    revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/policies");
+    revalidatePath("/about");
+    revalidatePath("/contact");
   } catch (err) {
     console.error("revalidateCms error:", err);
   }
@@ -47,8 +65,11 @@ export function revalidateCms() {
 
 export function revalidateAdminDashboard() {
   try {
-    revalidatePath("/", "layout");
+    revalidatePath("/admin");
+    revalidatePath("/admin/orders");
+    revalidatePath("/admin/dashboard");
   } catch (err) {
     console.error("revalidateAdminDashboard error:", err);
   }
 }
+
