@@ -1,5 +1,8 @@
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import Manager from "@/models/Manager";
+import dbConnect from "@/lib/dbConnect";
+import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 
 export interface AuthenticatedRequestState {
   userId: string;
@@ -53,7 +56,13 @@ export async function requireAdminOrManagerAuth(permission?: string): Promise<{
 
     if (payload.role === "manager") {
       if (permission) {
-        const perms = (payload as any).permissions || [];
+        await dbConnect();
+        const managerDoc = await Manager.findById(payload.userId).lean();
+        if (!managerDoc || managerDoc.status !== "active") {
+          return { error: NextResponse.json({ message: "Forbidden: Account inactive or not found" }, { status: 403 }) };
+        }
+        
+        const perms = managerDoc.permissions || [];
         const rootPermission = permission.split(":")[0];
         
         // Allow access if they have the specific 'module:action' permission
@@ -64,6 +73,18 @@ export async function requireAdminOrManagerAuth(permission?: string): Promise<{
       } else {
         return { payload };
       }
+    }
+
+    // Dispatch Security Alert for Unauthorized Access Attempt
+    if (payload.role === "manager") {
+      dispatchEventServer({
+        eventType: "SECURITY_ALERT",
+        category: "security",
+        actor: { role: "manager", id: payload.userId, name: payload.email },
+        recipient: { role: "admin" },
+        entity: { type: "permission", id: permission || "unknown" },
+        data: { attemptedPermission: permission }
+      });
     }
 
     return { error: NextResponse.json({ message: "Forbidden: Insufficient permissions" }, { status: 403 }) };

@@ -4,7 +4,17 @@ import { AdminCollectionsManager } from "@/components/admin/AdminCollectionsMana
 
 export const dynamic = "force-dynamic";
 
-export default async function ManagerCollectionsPage() {
+import { PermissionGuard } from "@/components/managers/PermissionGuard";
+
+export default function ProtectedManagerCollectionsPage(props: any) {
+  return (
+    <PermissionGuard requiredPermissions={["catalog_collections"]}>
+      <ManagerCollectionsPage {...props} />
+    </PermissionGuard>
+  );
+}
+
+async function ManagerCollectionsPage() {
   const collections = await collectionService.getCollections();
 
   return (

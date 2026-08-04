@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 import Product from "@/models/Product";
 import Customer from "@/models/Customer";
+import Manager from "@/models/Manager";
 import InvoiceModel from "@/models/Invoice";
 import CmsContent from "@/models/CmsContent";
 import Coupon from "@/models/Coupon";
@@ -89,9 +90,14 @@ export async function GET(request: Request) {
       });
     } else if (payload.role === "manager") {
       // Enforce granular RBAC for managers
-      const perms = (payload as any).permissions || [];
-      const hasPerm = (p: string) => perms.includes(p) || perms.includes(`${p}:read`) || perms.includes(`${p}:update`) || perms.includes(`${p}:create`) || perms.includes(`${p}:delete`);
+      let perms = (payload as any).permissions || [];
+      const manager = await Manager.findById(payload.userId).lean();
+      if (manager) {
+        perms = manager.permissions || [];
+      }
       
+      const hasPerm = (p: string) => perms.includes(p) || perms.includes(`${p}:read`) || perms.includes(`${p}:update`) || perms.includes(`${p}:create`) || perms.includes(`${p}:delete`);
+
       const hasB2C = hasPerm("orders_b2c");
       const hasB2B = hasPerm("orders_b2b");
       const hasDrop = hasPerm("orders_dropshipping");
@@ -106,12 +112,12 @@ export async function GET(request: Request) {
       if (hasDrop) allowedTypes.push("Dropshipping");
 
       if (allowedTypes.length < 3) {
-         andConditions.push({
-           $or: [
-             { orderType: { $in: allowedTypes.filter(Boolean) } },
-             ...(allowedTypes.includes(null) ? [{ orderType: { $exists: false } }, { orderType: null }] : [])
-           ]
-         });
+        andConditions.push({
+          $or: [
+            { orderType: { $in: allowedTypes.filter(Boolean) } },
+            ...(allowedTypes.includes(null) ? [{ orderType: { $exists: false } }, { orderType: null }] : [])
+          ]
+        });
       }
     }
 
@@ -125,12 +131,12 @@ export async function GET(request: Request) {
 
     if (orderType && orderType !== "ALL" && orderType !== "all") {
       if (orderType === "B2B") {
-        andConditions.push({ 
+        andConditions.push({
           $or: [
-            { orderType: "B2B" }, 
+            { orderType: "B2B" },
             { orderType: { $exists: false } },
             { orderType: null }
-          ] 
+          ]
         });
       } else if (orderType === "Dropshipping") {
         andConditions.push({ orderType: "Dropshipping" });
@@ -144,8 +150,8 @@ export async function GET(request: Request) {
         andConditions.push({
           $or: [
             { origin: "self" },
-            { 
-              origin: { $exists: false }, 
+            {
+              origin: { $exists: false },
               $or: [
                 { quoteId: { $exists: true, $nin: [null, ""] } },
                 { salesperson: { $exists: true, $nin: [null, ""] } }
@@ -225,7 +231,7 @@ export async function POST(request: Request) {
 
     await dbConnect();
     const body = await request.json();
-    
+
     // If quoteId is provided, populate items, amount, and shippingAddress from the quote to
     // satisfy Zod and build the order.
     if (body.quoteId) {
@@ -417,8 +423,8 @@ export async function POST(request: Request) {
             throw new Error(`Color variant "${selectedColor}" not found for product "${dbProduct.title}"`);
           }
 
-          const sv = cv.subVariants?.find((s: any) => 
-            (!selectedSize || s.size?.toLowerCase() === selectedSize.toLowerCase()) && 
+          const sv = cv.subVariants?.find((s: any) =>
+            (!selectedSize || s.size?.toLowerCase() === selectedSize.toLowerCase()) &&
             (!selectedWeight || s.weight?.toLowerCase() === selectedWeight.toLowerCase())
           );
           if (!sv) {
@@ -517,9 +523,8 @@ export async function POST(request: Request) {
         month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
       });
 
-      const customerName = `${shippingAddress.firstName} ${shippingAddress.lastName}${
-        shippingAddress.company ? ` (${shippingAddress.company})` : ""
-      }`;
+      const customerName = `${shippingAddress.firstName} ${shippingAddress.lastName}${shippingAddress.company ? ` (${shippingAddress.company})` : ""
+        }`;
 
       const sellerInfo = await getSellerInfo();
       const sellerState = resolveSellerState(sellerInfo.address);

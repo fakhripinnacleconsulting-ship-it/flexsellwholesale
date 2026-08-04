@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Product, Category } from "@/types";
+import { usePermissions } from "@/hooks/usePermissions";
 import { ProductFormProvider, useProductForm } from "./ProductFormContext";
 import { BasicInfoCard } from "./BasicInfoCard";
 import { TaxComplianceCard } from "./TaxComplianceCard";
@@ -25,6 +26,8 @@ function ProductFormInner() {
   const { existingProduct, handleSave, isSaving } = useProductForm();
   const pathname = usePathname();
   const basePath = pathname.startsWith("/manager") ? "/manager/catalog" : "/admin";
+  const { hasPermission } = usePermissions();
+  const canSave = existingProduct ? hasPermission("catalog_products", "update") : hasPermission("catalog_products", "create");
 
   return (
     <div className="space-y-6 pb-12">
@@ -60,9 +63,15 @@ function ProductFormInner() {
               Cancel
             </Button>
           </Link>
-          <Button type="submit" size="lg" className="w-full sm:w-auto h-10 text-sm font-bold cursor-pointer" disabled={isSaving}>
-            {isSaving ? "Saving..." : existingProduct ? "Save Product Details" : "Publish Product"}
-          </Button>
+          {existingProduct ? (
+            <Button type="submit" size="lg" className="w-full sm:w-auto h-10 text-sm font-bold cursor-pointer" disabled={isSaving || !canSave}>
+              {isSaving ? "Saving..." : "Save Product Details"}
+            </Button>
+          ) : (
+            <Button type="submit" size="lg" className="w-full sm:w-auto h-10 text-sm font-bold cursor-pointer" disabled={isSaving || !canSave}>
+              {isSaving ? "Publishing..." : "Publish Product"}
+            </Button>
+          )}
         </div>
 
         {/* Spacer to prevent the fixed bar from covering the last card content */}

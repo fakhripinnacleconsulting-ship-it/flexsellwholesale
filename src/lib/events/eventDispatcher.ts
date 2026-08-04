@@ -7,14 +7,14 @@ export interface SystemEventPayload {
   actor: {
     id: string;
     name: string;
-    role: "customer" | "admin" | "system";
+    role: "customer" | "admin" | "system" | "manager";
   };
   recipient: {
     customerId?: string;
     email?: string;
     emailList?: string[];
     name?: string;
-    role: "customer" | "admin" | "both";
+    role: "customer" | "admin" | "manager" | "both";
   };
   entity: {
     type: string;

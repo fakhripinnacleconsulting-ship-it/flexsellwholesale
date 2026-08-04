@@ -3,6 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import { requireAuth, requireAdminOrManagerAuth } from "@/lib/authGuard";
+import Manager from "@/models/Manager";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
@@ -29,7 +30,25 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
     }
 
     // Verify ownership
-    if (payload.role !== "admin") {
+    if (payload.role === "manager") {
+      let perms = (payload as any).permissions || [];
+      const managerUser = await Manager.findById(payload.userId).lean();
+      if (managerUser) {
+        perms = managerUser.permissions || [];
+      }
+      const hasPerm = (p: string) => perms.includes(p) || perms.includes(`${p}:read`) || perms.includes(`${p}:update`) || perms.includes(`${p}:create`) || perms.includes(`${p}:delete`);
+      
+      const orderType = (order as any).orderType;
+      let allowed = false;
+      if (orderType === "B2C" && hasPerm("orders_b2c")) allowed = true;
+      if (orderType === "B2B" && hasPerm("orders_b2b")) allowed = true;
+      if (!orderType && hasPerm("orders_b2b")) allowed = true; // Legacy B2B
+      if (orderType === "Dropshipping" && hasPerm("orders_dropshipping")) allowed = true;
+      
+      if (!allowed) {
+        return NextResponse.json({ message: "Forbidden: You don't have access to this order." }, { status: 403 });
+      }
+    } else if (payload.role !== "admin") {
       const isOwner =
         (order as any).customerId === payload.userId ||
         (order as any).shippingAddress?.email?.toLowerCase() === payload.email.toLowerCase();
@@ -60,7 +79,7 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
     }
 
     const body = await request.json();
-    
+
     // Validate request body
     const validatedData = orderSchema.partial().parse(body);
     const { items, amount, shippingAddress, status } = validatedData;
@@ -78,8 +97,8 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
           const cv = dbProduct.colorVariants?.find((c: any) => c.color.toLowerCase() === color.toLowerCase());
           if (!cv) continue;
 
-          const sv = cv.subVariants?.find((s: any) => 
-            (!size || s.size.toLowerCase() === size.toLowerCase()) && 
+          const sv = cv.subVariants?.find((s: any) =>
+            (!size || s.size.toLowerCase() === size.toLowerCase()) &&
             (!weight || s.weight.toLowerCase() === weight.toLowerCase())
           );
           if (!sv) continue;
@@ -125,8 +144,8 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
           const cv = dbProduct.colorVariants?.find((c: any) => c.color.toLowerCase() === color.toLowerCase());
           if (!cv) continue;
 
-          const sv = cv.subVariants?.find((s: any) => 
-            (!size || s.size.toLowerCase() === size.toLowerCase()) && 
+          const sv = cv.subVariants?.find((s: any) =>
+            (!size || s.size.toLowerCase() === size.toLowerCase()) &&
             (!weight || s.weight.toLowerCase() === weight.toLowerCase())
           );
           if (!sv) continue;
@@ -169,9 +188,8 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
     if (amount !== undefined) order.amount = amount;
     if (shippingAddress) {
       order.shippingAddress = shippingAddress as any;
-      order.customerName = `${shippingAddress.firstName} ${shippingAddress.lastName}${
-        shippingAddress.company ? ` (${shippingAddress.company})` : ""
-      }`;
+      order.customerName = `${shippingAddress.firstName} ${shippingAddress.lastName}${shippingAddress.company ? ` (${shippingAddress.company})` : ""
+        }`;
     }
     if (status !== undefined) order.status = status;
 
@@ -227,8 +245,8 @@ export async function DELETE(request: NextRequest, { params }: RouteProps) {
         const cv = dbProduct.colorVariants?.find((c: any) => c.color.toLowerCase() === color.toLowerCase());
         if (!cv) continue;
 
-        const sv = cv.subVariants?.find((s: any) => 
-          (!size || s.size.toLowerCase() === size.toLowerCase()) && 
+        const sv = cv.subVariants?.find((s: any) =>
+          (!size || s.size.toLowerCase() === size.toLowerCase()) &&
           (!weight || s.weight.toLowerCase() === weight.toLowerCase())
         );
         if (!sv) continue;

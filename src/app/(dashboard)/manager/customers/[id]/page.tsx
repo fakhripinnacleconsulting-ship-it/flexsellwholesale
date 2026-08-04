@@ -18,7 +18,17 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default function AdminCustomerDetailPage({ params }: PageProps) {
+import { PermissionGuard } from "@/components/managers/PermissionGuard";
+
+export default function ProtectedAdminCustomerDetailPage(props: any) {
+  return (
+    <PermissionGuard requiredPermissions={["customers_b2c","customers_b2b","customers_dropshipping"]}>
+      <AdminCustomerDetailPage {...props} />
+    </PermissionGuard>
+  );
+}
+
+function AdminCustomerDetailPage({ params }: PageProps) {
   const { addToast } = useToastStore();
   const confirmAction = useConfirmStore((state) => state.confirm);
   const resolvedParams = React.use(params);

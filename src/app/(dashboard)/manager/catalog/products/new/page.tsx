@@ -3,7 +3,17 @@ import { productService } from "@/services/productService";
 import { categoryService } from "@/services/categoryService";
 import { AdminProductForm } from "@/components/admin/product-form";
 
-export default async function AdminNewProductPage() {
+import { PermissionGuard } from "@/components/managers/PermissionGuard";
+
+export default function ProtectedAdminNewProductPage(props: any) {
+  return (
+    <PermissionGuard requiredPermissions={["catalog_products:create"]}>
+      <AdminNewProductPage {...props} />
+    </PermissionGuard>
+  );
+}
+
+async function AdminNewProductPage() {
   const products = await productService.getProducts();
   const categories = await categoryService.getCategories();
   return <AdminProductForm initialProducts={products} initialCategories={categories} />;

@@ -4,6 +4,7 @@ import InvoiceModel from "@/models/Invoice";
 import Customer from "@/models/Customer";
 import Order from "@/models/Order";
 import CmsContent from "@/models/CmsContent";
+import Manager from "@/models/Manager";
 import { requireAuth } from "@/lib/authGuard";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
@@ -127,7 +128,12 @@ export async function GET(request: Request) {
     const query: any = {};
     
     if (payload.role === "manager") {
-      const perms = (payload as any).permissions || [];
+      let perms = (payload as any).permissions || [];
+      const managerUser = await Manager.findById(payload.userId).lean();
+      if (managerUser) {
+        perms = managerUser.permissions || [];
+      }
+      
       const hasInvoices = perms.includes("invoices_invoice");
       const hasQuotes = perms.includes("invoices_quote");
       const hasReceipts = perms.includes("invoices_receipt");

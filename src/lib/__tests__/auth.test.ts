@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { signToken, verifyToken, setTokenCookie, removeTokenCookie, getTokenFromCookie } from "../auth";
-import { requireAuth } from "../authGuard";
+import { requireAuth, requireAdminOrManagerAuth } from "../authGuard";
 import { generateCsrfToken, validateCsrf } from "../csrf";
 
 // Mock next/headers
@@ -14,6 +14,28 @@ vi.mock("next/headers", () => {
     }),
   };
 });
+
+// Mock mongoose Manager model
+const mockManagerFindById = vi.fn();
+vi.mock("@/models/Manager", () => {
+  return {
+    default: {
+      findById: () => ({
+        lean: mockManagerFindById
+      })
+    }
+  };
+});
+
+// Mock dbConnect
+vi.mock("@/lib/dbConnect", () => ({
+  default: vi.fn().mockResolvedValue(true)
+}));
+
+// Mock eventDispatcherServer
+vi.mock("@/lib/events/eventDispatcherServer", () => ({
+  dispatchEventServer: vi.fn()
+}));
 
 describe("Authentication Utilities", () => {
   beforeEach(() => {
@@ -116,6 +138,55 @@ describe("Authentication Guard (requireAuth)", () => {
     expect(result.error?.status).toBe(403);
   });
 });
+
+describe("Authentication Guard (requireAdminOrManagerAuth)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should return payload if role is admin", async () => {
+    const payload = { userId: "FSW-ADMIN", email: "admin@example.com", role: "admin" };
+    const token = signToken(payload);
+    mockGet.mockReturnValue({ value: token });
+
+    const result = await requireAdminOrManagerAuth("orders_b2b");
+    expect(result.error).toBeUndefined();
+    expect(result.payload).toBeDefined();
+  });
+
+  it("should return 403 and dispatch SECURITY_ALERT if manager lacks permission", async () => {
+    const payload = { userId: "MGR-123", email: "mgr@example.com", role: "manager" };
+    const token = signToken(payload);
+    mockGet.mockReturnValue({ value: token });
+    mockManagerFindById.mockResolvedValue({ status: "active", permissions: ["products_read"] });
+
+    const result = await requireAdminOrManagerAuth("orders_b2b");
+    
+    expect(result.payload).toBeUndefined();
+    expect(result.error).toBeDefined();
+    expect(result.error?.status).toBe(403);
+    
+    const { dispatchEventServer } = await import("@/lib/events/eventDispatcherServer");
+    expect(dispatchEventServer).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: "SECURITY_ALERT",
+      actor: expect.objectContaining({ role: "manager", id: "MGR-123" }),
+      data: { attemptedPermission: "orders_b2b" }
+    }));
+  });
+
+  it("should return payload if manager has exact permission", async () => {
+    const payload = { userId: "MGR-123", email: "mgr@example.com", role: "manager" };
+    const token = signToken(payload);
+    mockGet.mockReturnValue({ value: token });
+    mockManagerFindById.mockResolvedValue({ status: "active", permissions: ["orders_b2b:write"] });
+
+    const result = await requireAdminOrManagerAuth("orders_b2b:write");
+    
+    expect(result.error).toBeUndefined();
+    expect(result.payload).toBeDefined();
+  });
+});
+
 
 describe("CSRF Protection", () => {
   it("should generate a CSRF token", () => {

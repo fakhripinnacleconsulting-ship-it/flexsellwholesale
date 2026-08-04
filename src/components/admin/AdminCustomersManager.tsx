@@ -64,6 +64,22 @@ export function AdminCustomersManager({ initialType = "B2B" }: { initialType?: "
   const pathname = usePathname();
   const basePath = pathname?.startsWith("/manager") ? "/manager" : "/admin";
 
+  const canB2C = hasPermission("customers_b2c");
+  const canB2B = hasPermission("customers_b2b");
+  const canDropshipping = hasPermission("customers_dropshipping") || hasPermission("customers_dropship");
+  
+  const allowedCustomerTypes = [
+    { value: "", label: "All Types" },
+    ...(canB2C ? [{ value: "B2C", label: "B2C" }] : []),
+    ...(canB2B ? [{ value: "B2B", label: "B2B" }] : []),
+    ...(canDropshipping ? [{ value: "Dropshipping", label: "Dropshipping" }] : [])
+  ];
+
+  const [customerTypeFilter, setCustomerTypeFilter] = React.useState<"B2B" | "B2C" | "Dropshipping" | "B2B_Pending" | "">(() => {
+    if (allowedCustomerTypes.some(t => t.value === "")) return "";
+    return allowedCustomerTypes.length > 0 ? (allowedCustomerTypes[0].value as any) : "";
+  });
+
   const [activeTab, setActiveTab] = React.useState<"B2B" | "B2C" | "Dropshipping" | "B2B_Pending">(initialType);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -71,7 +87,6 @@ export function AdminCustomersManager({ initialType = "B2B" }: { initialType?: "
   // Filter states
   const [searchTerm, setSearchTerm] = React.useState("");
   const [kycStatusFilter, setKycStatusFilter] = React.useState("");
-  const [customerTypeFilter, setCustomerTypeFilter] = React.useState<string>(initialType || "");
   const [accountStatusFilter, setAccountStatusFilter] = React.useState("");
   const [dateJoinedFrom, setDateJoinedFrom] = React.useState("");
   const [dateJoinedTo, setDateJoinedTo] = React.useState("");
@@ -104,10 +119,14 @@ export function AdminCustomersManager({ initialType = "B2B" }: { initialType?: "
     }
   }, [addToast]);
 
+  const canReadOrders = hasPermission("orders_b2b") || hasPermission("orders_b2c") || hasPermission("orders_dropshipping") || hasPermission("orders_dropship");
+
   React.useEffect(() => {
     fetchCustomers();
-    initializeOrders();
-  }, [fetchCustomers, initializeOrders]);
+    if (canReadOrders) {
+      initializeOrders();
+    }
+  }, [fetchCustomers, initializeOrders, canReadOrders]);
 
   const handleOpenAddModal = () => {
     setEditingCustomer(null);
@@ -319,10 +338,9 @@ export function AdminCustomersManager({ initialType = "B2B" }: { initialType?: "
               onChange={(e) => setCustomerTypeFilter(e.target.value as "B2B" | "B2C" | "Dropshipping" | "B2B_Pending" | "")}
               className="bg-background text-foreground text-xs font-semibold px-2.5 py-1.5 border rounded-md cursor-pointer h-9"
             >
-              <option value="">All Types</option>
-              <option value="B2C">B2C</option>
-              <option value="B2B">B2B</option>
-              <option value="Dropshipping">Dropshipping</option>
+              {allowedCustomerTypes.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
 
             <select

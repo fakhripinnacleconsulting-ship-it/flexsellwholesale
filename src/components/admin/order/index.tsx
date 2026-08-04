@@ -29,7 +29,23 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
 
-  const [activeOrderTab, setActiveOrderTab] = React.useState<"ALL" | "B2B" | "Dropshipping" | "B2C">(initialTab);
+  const canB2B = hasPermission("orders_b2b");
+  const canB2C = hasPermission("orders_b2c");
+  const canDropshipping = hasPermission("orders_dropshipping") || hasPermission("orders_dropship");
+  const canAny = canB2B || canB2C || canDropshipping;
+
+  const allowedTabs = [
+    ...(canAny ? [{ key: "ALL", label: "All Orders", icon: "📦" }] : []),
+    ...(canB2B ? [{ key: "B2B", label: "Wholesale (B2B)", icon: "🏢" }] : []),
+    ...(canDropshipping ? [{ key: "Dropshipping", label: "Dropshipping", icon: "🚚" }] : []),
+    ...(canB2C ? [{ key: "B2C", label: "Retail (B2C)", icon: "🛒" }] : []),
+  ];
+
+  const [activeOrderTab, setActiveOrderTab] = React.useState<"ALL" | "B2B" | "Dropshipping" | "B2C">(() => {
+    if (allowedTabs.some(t => t.key === initialTab)) return initialTab as any;
+    if (allowedTabs.length > 0) return allowedTabs[0].key as any;
+    return "ALL";
+  });
   const [originFilter, setOriginFilter] = React.useState<"" | "self" | "website">("");
 
   React.useEffect(() => {
@@ -305,12 +321,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
 
       {/* Category Tab Selector */}
       <div className="flex items-center gap-2 border-b pb-2 overflow-x-auto scrollbar-none">
-        {[
-          { key: "ALL", label: "All Orders", icon: "📦" },
-          { key: "B2B", label: "Wholesale (B2B)", icon: "🏢" },
-          { key: "Dropshipping", label: "Dropshipping", icon: "🚚" },
-          { key: "B2C", label: "Retail (B2C)", icon: "🛒" },
-        ].map((tab) => {
+        {allowedTabs.map((tab) => {
           const isSelected = activeOrderTab === tab.key;
           return (
             <button

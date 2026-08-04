@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { validateCustomerKycRequirements } from "@/lib/kycValidationHelper";
 import { escapeRegex } from "@/lib/utils";
+import Manager from "@/models/Manager";
 
 // GET: Fetch all customers (restricted to admins)
 export async function GET(request: Request) {
@@ -34,7 +35,12 @@ export async function GET(request: Request) {
     }
     
     if (payload.role === "manager") {
-      const perms = (payload as any).permissions || [];
+      let perms = (payload as any).permissions || [];
+      const managerUser = await Manager.findById(payload.userId).lean();
+      if (managerUser) {
+        perms = managerUser.permissions || [];
+      }
+      
       const hasInvoiceOrOrderPerms = perms.some((p: string) => p.startsWith("invoices_") || p.startsWith("orders_"));
       
       const hasB2C = perms.includes("customers_b2c") || perms.some((p: string) => p.startsWith("customers_b2c:")) || hasInvoiceOrOrderPerms;

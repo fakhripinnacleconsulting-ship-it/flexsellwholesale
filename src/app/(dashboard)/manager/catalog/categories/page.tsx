@@ -4,7 +4,17 @@ import { AdminCategoriesManager } from "@/components/admin/AdminCategoriesManage
 
 export const dynamic = "force-dynamic";
 
-export default async function ManagerCategoriesPage() {
+import { PermissionGuard } from "@/components/managers/PermissionGuard";
+
+export default function ProtectedManagerCategoriesPage(props: any) {
+  return (
+    <PermissionGuard requiredPermissions={["catalog_categories"]}>
+      <ManagerCategoriesPage {...props} />
+    </PermissionGuard>
+  );
+}
+
+async function ManagerCategoriesPage() {
   const categories = await categoryService.getCategories();
   return <AdminCategoriesManager initialCategories={categories} />;
 }
