@@ -43,8 +43,8 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
   const [itemQty, setItemQty] = React.useState(1);
   const [itemPrice, setItemPrice] = React.useState(0);
 
-  const [paymentMethod, setPaymentMethod] = React.useState("Bank Transfer");
-  const [paymentStatus, setPaymentStatus] = React.useState("Paid");
+  const [paymentMethod, setPaymentMethod] = React.useState("COD");
+  const [paymentStatus, setPaymentStatus] = React.useState("Pending");
   const [transactionId, setTransactionId] = React.useState("");
   const [invoiceNotes, setInvoiceNotes] = React.useState("");
   const [salesperson, setSalesperson] = React.useState("");
@@ -268,6 +268,8 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
       setNewCustAddress("");
       setNewCustCity("");
       setNewCustPinCode("");
+      setPaymentMethod("COD");
+      setPaymentStatus("Pending");
       setTransactionId("");
       setInvoiceNotes("");
       setSalesperson("");

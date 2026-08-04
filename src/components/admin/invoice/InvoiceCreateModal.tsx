@@ -811,33 +811,32 @@ export function InvoiceCreateModal({
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md cursor-pointer font-semibold"
                     >
+                      <option value="COD">Cash on Delivery (COD)</option>
                       <option value="Bank Transfer">Bank Transfer</option>
                       <option value="Razorpay">Online (Razorpay)</option>
                       <option value="UPI">UPI</option>
-                      <option value="COD">Cash on Delivery (COD)</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Payment Status</label>
                     <select
-                      value={formDocType === "invoice" ? "Paid" : paymentStatus}
-                      disabled={formDocType === "invoice"}
+                      value={paymentStatus}
                       onChange={(e) => setPaymentStatus(e.target.value)}
-                      className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md disabled:opacity-75 font-semibold"
+                      className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md cursor-pointer font-semibold"
                     >
-                      <option value="Paid">Paid (Completed)</option>
                       <option value="Pending">Pending (COD/Transfer)</option>
+                      <option value="Paid">Paid (Completed)</option>
                       <option value="Failed">Failed (Log Failure)</option>
                     </select>
                   </div>
-                  {(formDocType === "invoice" || paymentStatus === "Paid") && (
+                  {paymentStatus === "Paid" && (
                     <div className="col-span-1 sm:col-span-2">
                       <label className="text-xs font-semibold text-muted-foreground block mb-1">Transaction Ref / Reference ID *</label>
                       <Input
                         value={transactionId}
                         onChange={(e) => setTransactionId(e.target.value)}
                         placeholder="e.g. pay_N1oH5mC17842"
-                        required
+                        required={paymentStatus === "Paid"}
                         className="text-sm font-mono"
                       />
                     </div>

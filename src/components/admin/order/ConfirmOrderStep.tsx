@@ -22,7 +22,7 @@ interface ConfirmOrderStepProps {
 export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrderStepProps) {
   const [salesperson, setSalesperson] = React.useState(quote.salesperson || "");
   const [paymentOption, setPaymentOption] = React.useState<"now" | "later">("now");
-  const [paymentMethod, setPaymentMethod] = React.useState<"Bank Transfer" | "Razorpay" | "UPI" | "COD">("Bank Transfer");
+  const [paymentMethod, setPaymentMethod] = React.useState<"Bank Transfer" | "Razorpay" | "UPI" | "COD">("COD");
   const [transactionId, setTransactionId] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -320,10 +320,10 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
                 onChange={(e) => setPaymentMethod(e.target.value as any)}
                 className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md"
               >
+                <option value="COD">Cash on Delivery (COD)</option>
                 <option value="Bank Transfer">Bank Transfer</option>
                 <option value="UPI">UPI</option>
                 <option value="Razorpay">Online (Razorpay)</option>
-                <option value="COD">Cash on Delivery (COD)</option>
               </select>
             </div>
             <div>
