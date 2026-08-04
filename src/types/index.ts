@@ -376,7 +376,7 @@ export interface Coupon extends BaseDocument {
 
 export interface Notification extends BaseDocument {
   customerId: string;
-  recipientRole?: "customer" | "admin";
+  recipientRole?: "customer" | "admin" | "manager";
   title: string;
   message: string;
   type: "info" | "order" | "success" | "warning" | "security";
