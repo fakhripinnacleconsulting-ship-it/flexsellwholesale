@@ -298,7 +298,8 @@ export async function POST(request: Request) {
       notes,
       newCustomer,
       salesperson,
-      status
+      status,
+      dropshipDetails,
     } = body;
 
     if (payload.role === "manager") {
@@ -416,11 +417,48 @@ export async function POST(request: Request) {
       status: status || defaultStatus,
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,
+      dropshipDetails,
     } as any);
 
-    // If linked to an order, update the order with the invoice ID
-    if (orderId) {
-      await Order.findByIdAndUpdate(orderId, { invoiceId });
+    let linkedOrderId = orderId;
+
+    // If it's a receipt created directly, auto-create the order
+    if (type === "receipt" && !linkedOrderId) {
+      linkedOrderId = await generateNextId("order");
+      const orderDate = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      await Order.create({
+        _id: linkedOrderId,
+        date: orderDate,
+        customerId: resolvedCustomerId || undefined,
+        customerName: resolvedCustomerName,
+        orderType: resolvedCustomerType as "B2B" | "B2C" | "Dropshipping",
+        items: items,
+        itemsCount: items.length,
+        amount: amount,
+        shippingAddress: shippingAddress,
+        paymentMethod: paymentMethod || "Bank Transfer",
+        paymentStatus: paymentStatus || "Paid",
+        status: "Processing",
+        statusClass: "bg-blue-100 text-blue-700",
+        invoiceId: invoiceId,
+        salesperson: salesperson,
+        dropshipDetails,
+        history: [{
+          status: "Processing",
+          description: "Order created directly from Admin Receipt generator.",
+          timestamp: new Date().toISOString()
+        }]
+      });
+      
+      // Link back to the invoice
+      await InvoiceModel.findByIdAndUpdate(invoiceId, { orderId: linkedOrderId });
+    } else if (linkedOrderId) {
+      // If linked to an existing order, update the order with the invoice ID
+      await Order.findByIdAndUpdate(linkedOrderId, { invoiceId });
     }
 
     return NextResponse.json(newInvoice, { status: 201 });

@@ -190,7 +190,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-bold text-foreground leading-none">{manager.name}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Staff Manager</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{(manager as any).assignedRole || "Staff Manager"}</p>
             </div>
             <Avatar initials={manager.name.substring(0, 2).toUpperCase()} size="sm" className="bg-primary text-primary-foreground h-8 w-8" />
           </div>

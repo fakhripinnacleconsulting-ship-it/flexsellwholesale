@@ -15,6 +15,7 @@ export interface Manager {
   _id: string;
   name: string;
   email: string;
+  assignedRole?: string;
   permissions: string[];
   status: "active" | "suspended";
   lastLogin?: string;
@@ -104,6 +105,7 @@ export default function AdminManagersPage() {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [assignedRole, setAssignedRole] = React.useState("Staff Manager");
   const [status, setStatus] = React.useState<"active" | "suspended">("active");
   const [selectedPermissions, setSelectedPermissions] = React.useState<string[]>([]);
 
@@ -128,6 +130,7 @@ export default function AdminManagersPage() {
     setName("");
     setEmail("");
     setPassword("");
+    setAssignedRole("Staff Manager");
     setStatus("active");
     setSelectedPermissions([]);
   };
@@ -142,6 +145,7 @@ export default function AdminManagersPage() {
     setName(mgr.name);
     setEmail(mgr.email);
     setPassword("");
+    setAssignedRole(mgr.assignedRole || "Staff Manager");
     setStatus(mgr.status || "active");
     setSelectedPermissions(mgr.permissions || []);
     setIsModalOpen(true);
@@ -165,6 +169,7 @@ export default function AdminManagersPage() {
         name,
         email: email.toLowerCase().trim(),
         password: password || undefined,
+        assignedRole,
         status,
         permissions: selectedPermissions
       };
@@ -391,12 +396,17 @@ export default function AdminManagersPage() {
                   <Input placeholder="Account Password" value={password} onChange={(e) => setPassword(e.target.value)} required={!editingManager} type="password" />
                 </div>
                 <div className="space-y-1.5">
+                  <label className="font-bold text-muted-foreground">Assigned Role</label>
+                  <Input placeholder="e.g. Staff Manager" value={assignedRole} onChange={(e) => setAssignedRole(e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
                   <label className="font-bold text-muted-foreground">Account Status</label>
                   <select value={status} onChange={(e) => setStatus(e.target.value as any)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                     <option value="active">Active</option>
                     <option value="suspended">Suspended</option>
                   </select>
                 </div>
+
               </div>
 
               <div className="border-t pt-4 space-y-4">
