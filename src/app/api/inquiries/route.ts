@@ -91,10 +91,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    // Public endpoint that emails the admin on every submission — rate-limit per IP so it
-    // cannot be used to flood the support inbox.
+    await dbConnect();
+    const body = await request.json();
+
+    const { firstName, lastName, email, subject, message } = body;
+    if (!firstName || !lastName || !email || !subject || !message) {
+      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    }
+
+    // Public endpoint rate-limit per IP / Email
     const forwardedFor = request.headers.get("x-forwarded-for");
-    const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : "unknown";
+    const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : email.trim().toLowerCase();
     try {
       await rateLimit(ip, "general");
     } catch {
@@ -102,14 +109,6 @@ export async function POST(request: Request) {
         { message: "Too many submissions. Please try again in a minute." },
         { status: 429 }
       );
-    }
-
-    await dbConnect();
-    const body = await request.json();
-
-    const { firstName, lastName, email, subject, message } = body;
-    if (!firstName || !lastName || !email || !subject || !message) {
-      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
     const newInquiry = await Inquiry.create({
@@ -161,6 +160,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: "Inquiry submitted successfully", inquiry: newInquiry }, { status: 201 });
   } catch (error: unknown) {
+    console.error("[INQUIRY POST ERROR]", error);
     return NextResponse.json({ message: (error as any).message || "Failed to submit inquiry" }, { status: 500 });
   }
 }

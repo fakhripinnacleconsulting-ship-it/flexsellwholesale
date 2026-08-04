@@ -641,6 +641,33 @@ export const emailService = {
     return this.sendEmail({ to: manager.email, subject: "Welcome to FlexSell Wholesale - Manager Account Details", html: bodyHtml, category: "security" });
   },
 
+  // 2.3 Super Admin Account Credentials Email
+  async sendAdminWelcomeEmail(admin: any, rawPassword?: string): Promise<boolean> {
+    const loginUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "") + "/login";
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #10b981; margin: 0;">Admin Account Created</h2>
+          <p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 12px;">FlexSell Wholesale Control Center</p>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello <strong>${admin.name}</strong>,</p>
+          <p>An administrator has granted you <strong>Administrator Privileges</strong> on FlexSell Wholesale.</p>
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; margin: 20px 0;">
+            <p style="margin: 0 0 8px 0;"><strong>Admin Login URL:</strong> <a href="${loginUrl}" style="color: #0ea5e9; font-weight: bold;">${loginUrl}</a></p>
+            <p style="margin: 0 0 8px 0;"><strong>Email Address:</strong> ${admin.email}</p>
+            ${rawPassword ? `<p style="margin: 0;"><strong>Login Password:</strong> <span style="font-family: monospace; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">${rawPassword}</span></p>` : ""}
+          </div>
+          <p style="font-size: 13px; color: #64748b;">For security reasons, please log in and change your password after your first sign-in.</p>
+        </div>
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
+          FlexSell Wholesale © 2026. All rights reserved.
+        </div>
+      </div>
+    `;
+    return this.sendEmail({ to: admin.email, subject: "Welcome to FlexSell Wholesale - Admin Credentials", html: bodyHtml, category: "security" });
+  },
+
   // 2.2 Manager Security Alert
   async sendAdminSecurityAlert(managerName: string, attemptedAction: string, route?: string): Promise<boolean> {
     const bodyHtml = `

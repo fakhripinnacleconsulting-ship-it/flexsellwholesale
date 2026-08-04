@@ -9,6 +9,7 @@ import { useToastStore } from "@/stores/toastStore";
 import { DEFAULT_ID_FORMATS, IdFormatConfig, formatIdPreview } from "@/lib/idGenerator";
 import { Search, Hash, RefreshCw, Save, Layers, CreditCard, FileText, Users, ShoppingBag, FolderTree, Tags, MessageSquare, MessageSquarePlus, Percent, HelpCircle, Trash2, Plus } from "lucide-react";
 import { CompanyInformationTab, CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
+import { AdminManagementTab } from "@/components/admin/settings/AdminManagementTab";
 import { apiClient } from "@/lib/apiClient";
 
 export default function AdminSettingsPage() {
@@ -72,7 +73,7 @@ export default function AdminSettingsPage() {
   });
 
   // Navigation tab state
-  const [activeTab, setActiveTab] = React.useState<"general" | "id" | "footer">("general");
+  const [activeTab, setActiveTab] = React.useState<"general" | "id" | "footer" | "admins">("general");
 
   // ID Formats Data Table state
   const [idFormatsList, setIdFormatsList] = React.useState<IdFormatConfig[]>(DEFAULT_ID_FORMATS);
@@ -82,13 +83,13 @@ export default function AdminSettingsPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
-      if (tabParam === "id" || tabParam === "general" || tabParam === "footer") {
+      if (tabParam === "id" || tabParam === "general" || tabParam === "footer" || tabParam === "admins") {
         setActiveTab(tabParam as any);
       }
     }
   }, []);
 
-  const handleTabSelect = (tab: "general" | "id" | "footer") => {
+  const handleTabSelect = (tab: "general" | "id" | "footer" | "admins") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -257,6 +258,14 @@ export default function AdminSettingsPage() {
             }`}
         >
           Footer Configuration
+        </button>
+
+        <button
+          onClick={() => handleTabSelect("admins")}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "admins" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+        >
+          Admin Management
         </button>
       </div>
 
@@ -507,6 +516,8 @@ export default function AdminSettingsPage() {
             </CardContent>
           </Card>
         </div>
+      ) : activeTab === "admins" ? (
+        <AdminManagementTab />
       ) : null}
     </div>
   );
