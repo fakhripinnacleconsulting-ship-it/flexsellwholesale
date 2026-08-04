@@ -248,6 +248,29 @@ export function OrderDetailPanel({
               GST: {order.shippingAddress.gstin}
             </p>
           )}
+
+          {/* Dropship Details if they exist */}
+          {(order as any).dropshipDetails && Object.keys((order as any).dropshipDetails).length > 0 && (
+            <div className="mt-4 pt-3 border-t border-dashed">
+              <h5 className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 text-primary">
+                Amazon Drop-Ship To (End Customer):
+              </h5>
+              <p className="font-bold text-sm">{(order as any).dropshipDetails.customerName}</p>
+              <p className="text-muted-foreground mt-0.5">{(order as any).dropshipDetails.address}</p>
+              <p className="text-muted-foreground">
+                {(order as any).dropshipDetails.city}, {(order as any).dropshipDetails.state} - {(order as any).dropshipDetails.pinCode}
+              </p>
+              {(order as any).dropshipDetails.phone && (
+                <p className="text-muted-foreground mt-0.5">Phone: {(order as any).dropshipDetails.phone}</p>
+              )}
+              {(order as any).dropshipDetails.amazonOrderId && (
+                <p className="text-muted-foreground mt-1 text-xs">Amazon Order ID: <span className="font-mono font-bold text-foreground">{(order as any).dropshipDetails.amazonOrderId}</span></p>
+              )}
+              {(order as any).dropshipDetails.amazonInvoiceId && (
+                <p className="text-muted-foreground text-xs">Amazon Invoice ID: <span className="font-mono font-bold text-foreground">{(order as any).dropshipDetails.amazonInvoiceId}</span></p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Timeline History */}

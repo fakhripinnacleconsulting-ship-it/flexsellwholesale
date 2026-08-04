@@ -3,11 +3,14 @@ import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
 import Customer from "@/models/Customer";
 import Order from "@/models/Order";
+import Product from "@/models/Product";
 import CmsContent from "@/models/CmsContent";
 import Manager from "@/models/Manager";
 import { requireAuth } from "@/lib/authGuard";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
+import { resolveVariantKeys } from "@/lib/variantMatcher";
+import { revalidateProducts } from "@/lib/revalidate";
 import { escapeRegex } from "@/lib/utils";
 import bcrypt from "bcryptjs";
 
@@ -298,14 +301,42 @@ export async function POST(request: Request) {
       notes,
       newCustomer,
       salesperson,
-      status
+      status,
+      dropshipDetails,
+      isOrder,
     } = body;
 
     if (payload.role === "manager") {
-      const perms = (payload as any).permissions || [];
-      if (type === "invoice" && !perms.includes("invoices_invoice")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-      if (type === "quote" && !perms.includes("invoices_quote")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-      if (type === "receipt" && !perms.includes("invoices_receipt")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      let perms = (payload as any).permissions || [];
+      
+      // Fetch latest permissions from DB to avoid stale JWT issues
+      const { default: Manager } = await import("@/models/Manager");
+      const managerDoc = await Manager.findById(payload.userId).lean() as any;
+      if (managerDoc && managerDoc.permissions) {
+        perms = managerDoc.permissions;
+      }
+      
+      const hasPerm = (module: string, action: string = "create") => perms.includes(module) || perms.includes(`${module}:${action}`);
+
+      if (isOrder) {
+        // Resolve target order permission based on customerType parameter (which drives orderType)
+        let targetPerm = "orders_b2b";
+        if (body.customerType === "Dropshipping") targetPerm = "orders_dropshipping";
+        else if (body.customerType === "B2C") targetPerm = "orders_b2c";
+        
+        // Fallback mapping for legacy dropship permission name
+        if (targetPerm === "orders_dropshipping" && hasPerm("orders_dropship")) {
+           targetPerm = "orders_dropship";
+        }
+        
+        if (!hasPerm(targetPerm)) {
+          return NextResponse.json({ message: `Forbidden: Missing ${targetPerm} permission` }, { status: 403 });
+        }
+      } else {
+        if (type === "invoice" && !hasPerm("invoices_invoice")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        if (type === "quote" && !hasPerm("invoices_quote")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        if (type === "receipt" && !hasPerm("invoices_receipt")) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
     }
 
     // Handle new customer auto-creation
@@ -416,11 +447,102 @@ export async function POST(request: Request) {
       status: status || defaultStatus,
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,
+      dropshipDetails,
     } as any);
 
-    // If linked to an order, update the order with the invoice ID
-    if (orderId) {
-      await Order.findByIdAndUpdate(orderId, { invoiceId });
+    let linkedOrderId = orderId;
+
+    // If it's a receipt created directly, auto-create the order
+    if (type === "receipt" && !linkedOrderId) {
+      linkedOrderId = await generateNextId("order");
+      const orderDate = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      await Order.create({
+        _id: linkedOrderId,
+        date: orderDate,
+        customerId: resolvedCustomerId || undefined,
+        customerName: resolvedCustomerName,
+        orderType: resolvedCustomerType as "B2B" | "B2C" | "Dropshipping",
+        items: items,
+        itemsCount: items.length,
+        amount: amount,
+        shippingAddress: shippingAddress,
+        paymentMethod: paymentMethod || "Bank Transfer",
+        paymentStatus: paymentStatus || "Paid",
+        status: "Processing",
+        statusClass: "bg-blue-100 text-blue-700",
+        invoiceId: invoiceId,
+        salesperson: salesperson,
+        dropshipDetails,
+        history: [{
+          status: "Processing",
+          description: "Order created directly from Admin Receipt generator.",
+          timestamp: new Date().toISOString()
+        }]
+      });
+      
+      // Link back to the invoice
+      await InvoiceModel.findByIdAndUpdate(invoiceId, { orderId: linkedOrderId });
+    } else if (linkedOrderId) {
+      // If linked to an existing order, update the order with the invoice ID
+      await Order.findByIdAndUpdate(linkedOrderId, { invoiceId });
+    }
+
+    // Deduct stock for ordered items when an Admin creates a Receipt or Invoice (not a quote)
+    if (type !== "quote" && Array.isArray(items)) {
+      for (const item of items) {
+        try {
+          const pId = item.product?._id || item.productId || item.product || item.id;
+          if (!pId) continue;
+          const dbProduct = await Product.findById(pId);
+          if (!dbProduct) continue;
+
+          const selectedVariants = item.selectedVariants || item.variants || {};
+          const { color: selectedColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(selectedVariants);
+
+          const cv = dbProduct.colorVariants?.find(
+            (c: any) => c.color?.toLowerCase() === (selectedColor || "").toLowerCase()
+          ) || dbProduct.colorVariants?.[0];
+          if (!cv) continue;
+
+          const sv = cv.subVariants?.find((s: any) =>
+            (!selectedSize || s.size?.toLowerCase() === selectedSize.toLowerCase()) &&
+            (!selectedWeight || s.weight?.toLowerCase() === selectedWeight.toLowerCase())
+          ) || cv.subVariants?.[0];
+          if (!sv) continue;
+
+          const qty = Number(item.quantity || item.qty || 1);
+          if (qty <= 0) continue;
+
+          await Product.updateOne(
+            {
+              _id: dbProduct._id,
+              "colorVariants.color": cv.color,
+              "colorVariants.subVariants": {
+                $elemMatch: { size: sv.size, weight: sv.weight }
+              }
+            },
+            {
+              $inc: {
+                "colorVariants.$[cv].subVariants.$[sv].stock": -qty,
+                totalStock: -qty
+              }
+            },
+            {
+              arrayFilters: [
+                { "cv.color": cv.color },
+                { "sv.size": sv.size, "sv.weight": sv.weight }
+              ]
+            }
+          );
+        } catch (err) {
+          console.error("Failed to deduct stock during admin document creation:", err);
+        }
+      }
+      revalidateProducts();
     }
 
     return NextResponse.json(newInvoice, { status: 201 });

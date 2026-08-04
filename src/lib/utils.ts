@@ -77,6 +77,19 @@ export function sanitizeImgUrl(
     return trimmed;
   }
 
+  // Unwrap nested Next.js _next/image proxy URLs stored in DB
+  if (trimmed.includes("_next/image") && trimmed.includes("url=")) {
+    try {
+      const parsed = new URL(trimmed.startsWith("http") ? trimmed : `https://dummy.com${trimmed.startsWith("/") ? "" : "/"}${trimmed}`);
+      const target = parsed.searchParams.get("url");
+      if (target) {
+        return sanitizeImgUrl(decodeURIComponent(target), fallback);
+      }
+    } catch {
+      // ignore parse error, continue
+    }
+  }
+
   let formatted = trimmed;
   if (formatted.startsWith("//")) {
     formatted = `https:${formatted}`;

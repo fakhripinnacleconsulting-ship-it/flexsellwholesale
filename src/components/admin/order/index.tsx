@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/Button";
-import { Plus, Info, X } from "lucide-react";
+import { Plus, Info, X, Download } from "lucide-react";
 import { useOrderStore, Order, ShipmentDetails } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
@@ -14,6 +14,9 @@ import { CreateOrderModal } from "./CreateOrderModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
+import { exportOrdersToExcel } from "@/lib/excel/orderExporter";
+import { useInvoiceForm } from "@/hooks/useInvoiceForm";
+import { InvoiceCreateModal } from "@/components/admin/invoice/InvoiceCreateModal";
 
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -22,6 +25,18 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   const { addToast } = useToastStore();
   const confirm = useConfirmStore((state) => state.confirm);
   const { hasPermission } = usePermissions();
+
+  const invoiceForm = useInvoiceForm({
+    onSuccess: () => {
+      // Re-fetch orders after successful creation
+      initializeOrders({
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        orderType: activeOrderTab === "ALL" ? undefined : activeOrderTab,
+        origin: originFilter || undefined,
+      });
+    }
+  });
 
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
@@ -247,22 +262,37 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-black text-foreground">B2B/B2C Orders Manager</h1>
+          <h1 className="text-2xl font-black text-foreground">
+            {activeOrderTab === "ALL" ? "All Orders Manager" : `${activeOrderTab} Orders Manager`}
+          </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Manage dispatch statuses, track logistical fulfillment, and convert approved price quotes.
           </p>
         </div>
-        {(hasPermission("orders_b2b", "create") || hasPermission("orders_b2c", "create") || hasPermission("orders_dropship", "create")) && (
+        <div className="flex items-center gap-2">
+          {(hasPermission("orders_b2b", "create") || hasPermission("orders_b2c", "create") || hasPermission("orders_dropshipping", "create") || hasPermission("orders_dropship", "create")) && (
+            <>
+              <Button
+                onClick={() => {
+                  invoiceForm.setFormDocType("receipt");
+                  invoiceForm.setIsOrderCreationMode(true);
+                  invoiceForm.setFormCustomerType(activeOrderTab === "ALL" ? "B2B" : activeOrderTab);
+                  invoiceForm.setIsCreateModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+              >
+                <Plus className="h-4 w-4" /> Create Order
+              </Button>
+            </>
+          )}
           <Button
-            onClick={() => {
-              setInitialQuoteId(null);
-              setIsCreateOrderModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 font-bold text-xs bg-primary text-primary-foreground cursor-pointer"
+            onClick={() => exportOrdersToExcel(orders)}
+            variant="outline"
+            className="flex items-center gap-1.5 font-bold text-xs cursor-pointer border-green-600/30 text-green-700 hover:bg-green-50"
           >
-            <Plus className="h-4 w-4" /> Convert Quote
+            <Download className="h-4 w-4" /> Export Orders
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Short Analytics */}
@@ -366,6 +396,13 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
         }}
         onConfirmOrder={handleConfirmOrder}
         initialQuoteId={initialQuoteId}
+      />
+
+      <InvoiceCreateModal
+        {...invoiceForm}
+        isOpen={invoiceForm.isCreateModalOpen}
+        onClose={() => invoiceForm.setIsCreateModalOpen(false)}
+        onSaveInvoice={invoiceForm.handleSaveInvoice}
       />
 
       {/* ─── DISPATCH PAYMENT / MODAL ─── */}

@@ -4,7 +4,7 @@ import { Notification as NotificationType } from "@/types";
 const NotificationSchema = new Schema<NotificationType & Document>(
   {
     customerId: { type: String, required: true, index: true },
-    recipientRole: { type: String, enum: ["customer", "admin"], default: "customer", index: true },
+    recipientRole: { type: String, enum: ["customer", "admin", "manager"], default: "customer", index: true },
     title: { type: String, required: true },
     message: { type: String, required: true },
     type: { type: String, enum: ["info", "order", "success", "warning", "security"], default: "info" },

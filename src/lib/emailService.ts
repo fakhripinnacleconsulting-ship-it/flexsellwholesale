@@ -201,6 +201,21 @@ export function buildValidPdfBuffer(data: any, typeLabel: string): Buffer {
   streamCommands += `BT /F1 11 Tf 1 0 0 1 330 ${currentY - 14} Tm 0.02 0.37 0.27 rg (GRAND TOTAL AMOUNT:) Tj ET\n`;
   streamCommands += `BT /F1 12 Tf 1 0 0 1 475 ${currentY - 14} Tm 0.02 0.37 0.27 rg (Rs. ${amount.toLocaleString("en-IN")}) Tj ET\n`;
 
+  // 5b. Dropshipping Details (if any)
+  if (data.dropshipDetails && data.dropshipDetails.amazonOrderId) {
+    const ds = data.dropshipDetails;
+    const amazonText = (ds.amazonInvoiceId ? `${ds.amazonOrderId} (Inv: ${ds.amazonInvoiceId})` : ds.amazonOrderId).replace(/[()\\]/g, "");
+    const dsCustName = (ds.customerName || "").replace(/[()\\]/g, "").substring(0, 30);
+    const dsAddress = `${ds.address || ""}, ${ds.city || ""}, ${ds.state || ""} - ${ds.pinCode || ""}`.replace(/[()\\]/g, "").substring(0, 60);
+    
+    currentY -= 50;
+    streamCommands += `q 0.99 0.95 0.90 rg 40 ${currentY - 30} 532 45 re f Q\n`;
+    streamCommands += `q 0.90 0.60 0.10 RG 1 w 40 ${currentY - 30} 532 45 re S Q\n`;
+    streamCommands += `BT /F1 9 Tf 1 0 0 1 50 ${currentY} Tm 0.6 0.3 0 rg (DROPSHIP FULFILLMENT: AMAZON ORDER) Tj ET\n`;
+    streamCommands += `BT /F1 9 Tf 1 0 0 1 50 ${currentY - 12} Tm 0.2 0.2 0.2 rg (Amazon Order ID: ${amazonText}) Tj ET\n`;
+    streamCommands += `BT /F2 8 Tf 1 0 0 1 50 ${currentY - 24} Tm 0.3 0.3 0.3 rg (Customer: ${dsCustName} | Ship To: ${dsAddress}) Tj ET\n`;
+  }
+
   // 6. System Instruction Footer
   const footerY = 80;
   streamCommands += `q 0.95 0.96 0.98 rg 40 ${footerY} 532 45 re f Q\n`;
@@ -509,9 +524,9 @@ export const emailService = {
               tls: {
                 rejectUnauthorized: false
               },
-              connectionTimeout: 8000,
-              greetingTimeout: 8000,
-              socketTimeout: 8000,
+              connectionTimeout: 4000,
+              greetingTimeout: 4000,
+              socketTimeout: 4000,
             }
       );
 

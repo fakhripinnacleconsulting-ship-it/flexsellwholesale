@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { Product, Category, HsnRecord, ColorVariant } from "@/types";
 import { plainTextToHtml } from "./htmlConverter";
 import { ExcelValidationError } from "./excelTypes";
@@ -17,7 +17,8 @@ export async function parseAndValidateExcel(
     combinationsCount: number;
   };
 }> {
-  const workbook = new ExcelJS.Workbook();
+  const ExcelJSModule = (await import("exceljs")).default;
+  const workbook = new ExcelJSModule.Workbook();
   const buffer = Buffer.isBuffer(fileData) ? fileData : Buffer.from(fileData);
   await workbook.xlsx.load(buffer as any);
 

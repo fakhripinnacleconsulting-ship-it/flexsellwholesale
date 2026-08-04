@@ -31,7 +31,7 @@ export default function ManagerDashboardOverview() {
             </div>
             <div className="flex flex-col gap-1 mt-4">
               <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Assigned Role</p>
-              <p className="font-semibold text-primary">Staff Manager</p>
+              <p className="font-semibold text-primary">{(manager as any).assignedRole || "Staff Manager"}</p>
             </div>
           </CardContent>
         </Card>

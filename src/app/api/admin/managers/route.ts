@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const payload = verifyToken(token);
     if (!payload || payload.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
-    const { name, email, password, permissions, status } = await request.json();
+    const { name, email, password, permissions, status, assignedRole } = await request.json();
 
     if (!name || !email || !password) {
       return NextResponse.json({ message: "Name, email, and password are required" }, { status: 400 });
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
+      assignedRole: assignedRole || "Staff Manager",
       permissions: permissions || [],
       status: status || "active"
     });
@@ -77,7 +78,7 @@ export async function PUT(request: Request) {
     const payload = verifyToken(token);
     if (!payload || payload.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
-    const { _id, name, email, password, permissions, status } = await request.json();
+    const { _id, name, email, password, permissions, status, assignedRole } = await request.json();
 
     if (!_id) return NextResponse.json({ message: "Manager ID required" }, { status: 400 });
 
@@ -91,6 +92,7 @@ export async function PUT(request: Request) {
     }
 
     if (name) manager.name = name;
+    if (assignedRole) manager.assignedRole = assignedRole;
     if (permissions) manager.permissions = permissions;
     if (status) manager.status = status;
     

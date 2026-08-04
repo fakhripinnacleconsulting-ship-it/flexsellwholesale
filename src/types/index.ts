@@ -190,6 +190,15 @@ export interface Order extends BaseDocument {
   };
   items: CartItem[];
   shipmentDetails?: ShipmentDetails;
+  dropshipDetails?: {
+    amazonOrderId?: string;
+    amazonInvoiceId?: string;
+    customerName?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    pinCode?: string;
+  };
   history: HistoryEvent[];
   paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD" | "NEFT/RTGS" | "Cheque" | "Cash" | string;
   paymentStatus?: "Pending" | "Paid" | "Failed";
@@ -262,6 +271,15 @@ export interface Invoice extends BaseDocument {
   items: CartItem[];
   amount: number;
   taxDetails: TaxBreakdown;
+  dropshipDetails?: {
+    amazonOrderId?: string;
+    amazonInvoiceId?: string;
+    customerName?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    pinCode?: string;
+  };
   shippingAddress: Order["shippingAddress"];
   paymentMethod?: string;
   paymentStatus?: string;
@@ -376,7 +394,7 @@ export interface Coupon extends BaseDocument {
 
 export interface Notification extends BaseDocument {
   customerId: string;
-  recipientRole?: "customer" | "admin";
+  recipientRole?: "customer" | "admin" | "manager";
   title: string;
   message: string;
   type: "info" | "order" | "success" | "warning" | "security";

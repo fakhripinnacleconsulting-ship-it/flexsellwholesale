@@ -18,6 +18,7 @@ interface InvoiceCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   editInvoiceId: string | null;
+  isOrderCreationMode?: boolean;
   formDocType: "invoice" | "receipt" | "quote";
   setFormDocType: (type: "invoice" | "receipt" | "quote") => void;
   formCustomerType: "B2B" | "B2C" | "Dropshipping";
@@ -76,12 +77,17 @@ interface InvoiceCreateModalProps {
   onSaveInvoice: (e: React.FormEvent) => void;
   addToast: (msg: string, type: "success" | "error" | "info" | "warning") => void;
   shippingConfig?: any;
+  includeDropshipDetails?: boolean;
+  setIncludeDropshipDetails?: (val: boolean) => void;
+  dropshipDetails?: any;
+  setDropshipDetails?: (details: any) => void;
 }
 
 export function InvoiceCreateModal({
   isOpen,
   onClose,
   editInvoiceId,
+  isOrderCreationMode,
   formDocType,
   setFormDocType,
   formCustomerType,
@@ -140,6 +146,10 @@ export function InvoiceCreateModal({
   onSaveInvoice,
   addToast,
   shippingConfig,
+  includeDropshipDetails,
+  setIncludeDropshipDetails,
+  dropshipDetails,
+  setDropshipDetails,
 }: InvoiceCreateModalProps) {
   const calculatedShipping = React.useMemo(() => {
     if (!shippingConfig || !formItems || formItems.length === 0) return 0;
@@ -380,18 +390,21 @@ export function InvoiceCreateModal({
         <form onSubmit={onSaveInvoice} className="p-6 space-y-6">
           {/* Type and Mode Selectors */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-secondary/10 p-4 rounded-lg border border-border/80">
-            <div>
-              <label className="text-xs font-bold text-muted-foreground block mb-1">Document Type</label>
-              <select
-                value={formDocType}
-                onChange={(e) => setFormDocType(e.target.value as any)}
-                className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md font-bold cursor-pointer"
-              >
-                {canCreateInvoice && <option value="invoice">Tax Invoice</option>}
-                {canCreateReceipt && <option value="receipt">Payment Receipt</option>}
-                {canCreateQuote && <option value="quote">Price Quote</option>}
-              </select>
-            </div>
+            {!isOrderCreationMode && (
+              <div>
+                <label className="text-xs font-bold text-muted-foreground block mb-1">Document Type</label>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  value={formDocType}
+                  onChange={(e) => setFormDocType(e.target.value as any)}
+                  disabled={!!editInvoiceId}
+                >
+                  {canCreateInvoice && <option value="invoice">Invoice (B2B Tax Paid)</option>}
+                  {canCreateReceipt && <option value="receipt">Receipt (Direct Order / Paid)</option>}
+                  {canCreateQuote && <option value="quote">Price Quote (Proforma / Estimate)</option>}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-xs font-bold text-muted-foreground block mb-1">Client Ordering Mode (Customer Type)</label>
               <select
@@ -492,6 +505,93 @@ export function InvoiceCreateModal({
               </div>
             )}
           </div>
+
+          {/* Dropshipping Shipment Details */}
+          {formCustomerType === "Dropshipping" && (
+            <div className="bg-secondary/10 p-4 rounded-lg border border-border/80 space-y-4">
+              <div className="flex items-center justify-between border-b pb-1.5">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-primary">Shipment Details (Amazon Dropshipping)</h3>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={!!includeDropshipDetails}
+                    onChange={(e) => setIncludeDropshipDetails?.(e.target.checked)}
+                    className="cursor-pointer"
+                  />
+                  Add Amazon Shipment Details
+                </label>
+              </div>
+
+              {includeDropshipDetails && dropshipDetails && setDropshipDetails && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Order ID *</label>
+                    <Input
+                      value={dropshipDetails.amazonOrderId || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonOrderId: e.target.value })}
+                      placeholder="e.g. 171-1234567-8901234"
+                      required={includeDropshipDetails}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Invoice ID</label>
+                    <Input
+                      value={dropshipDetails.amazonInvoiceId || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonInvoiceId: e.target.value })}
+                      placeholder="e.g. IN-1234"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Customer Name *</label>
+                    <Input
+                      value={dropshipDetails.customerName || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, customerName: e.target.value })}
+                      required={includeDropshipDetails}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">City *</label>
+                    <Input
+                      value={dropshipDetails.city || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, city: e.target.value })}
+                      required={includeDropshipDetails}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">State *</label>
+                    <select
+                      value={dropshipDetails.state || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, state: e.target.value })}
+                      className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md"
+                      required={includeDropshipDetails}
+                    >
+                      <option value="">Select State</option>
+                      {INDIAN_STATES.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Pincode *</label>
+                    <Input
+                      value={dropshipDetails.pinCode || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, pinCode: e.target.value })}
+                      className="font-mono"
+                      required={includeDropshipDetails}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Full Shipping Address *</label>
+                    <Input
+                      value={dropshipDetails.address || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, address: e.target.value })}
+                      required={includeDropshipDetails}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Product Items Selection */}
           <div className="space-y-4">
@@ -711,33 +811,32 @@ export function InvoiceCreateModal({
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md cursor-pointer font-semibold"
                     >
+                      <option value="COD">Cash on Delivery (COD)</option>
                       <option value="Bank Transfer">Bank Transfer</option>
                       <option value="Razorpay">Online (Razorpay)</option>
                       <option value="UPI">UPI</option>
-                      <option value="COD">Cash on Delivery (COD)</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Payment Status</label>
                     <select
-                      value={formDocType === "invoice" ? "Paid" : paymentStatus}
-                      disabled={formDocType === "invoice"}
+                      value={paymentStatus}
                       onChange={(e) => setPaymentStatus(e.target.value)}
-                      className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md disabled:opacity-75 font-semibold"
+                      className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md cursor-pointer font-semibold"
                     >
-                      <option value="Paid">Paid (Completed)</option>
                       <option value="Pending">Pending (COD/Transfer)</option>
+                      <option value="Paid">Paid (Completed)</option>
                       <option value="Failed">Failed (Log Failure)</option>
                     </select>
                   </div>
-                  {(formDocType === "invoice" || paymentStatus === "Paid") && (
+                  {paymentStatus === "Paid" && (
                     <div className="col-span-1 sm:col-span-2">
                       <label className="text-xs font-semibold text-muted-foreground block mb-1">Transaction Ref / Reference ID *</label>
                       <Input
                         value={transactionId}
                         onChange={(e) => setTransactionId(e.target.value)}
                         placeholder="e.g. pay_N1oH5mC17842"
-                        required
+                        required={paymentStatus === "Paid"}
                         className="text-sm font-mono"
                       />
                     </div>
@@ -754,7 +853,7 @@ export function InvoiceCreateModal({
                 />
               </div>
               <div className="col-span-1 sm:col-span-2">
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Admin Notes (Will appear on print)</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Notes (Will appear on print)</label>
                 <textarea
                   value={invoiceNotes}
                   onChange={(e) => setInvoiceNotes(e.target.value)}

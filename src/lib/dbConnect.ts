@@ -13,7 +13,7 @@ async function dbConnect() {
     throw new Error("Please define the MONGODB_URI environment variable inside .env");
   }
 
-  if (cached.conn) {
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
   }
 
