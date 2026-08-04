@@ -3,11 +3,14 @@ import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
 import Customer from "@/models/Customer";
 import Order from "@/models/Order";
+import Product from "@/models/Product";
 import CmsContent from "@/models/CmsContent";
 import Manager from "@/models/Manager";
 import { requireAuth } from "@/lib/authGuard";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
+import { resolveVariantKeys } from "@/lib/variantMatcher";
+import { revalidateProducts } from "@/lib/revalidate";
 import { escapeRegex } from "@/lib/utils";
 import bcrypt from "bcryptjs";
 
@@ -486,6 +489,60 @@ export async function POST(request: Request) {
     } else if (linkedOrderId) {
       // If linked to an existing order, update the order with the invoice ID
       await Order.findByIdAndUpdate(linkedOrderId, { invoiceId });
+    }
+
+    // Deduct stock for ordered items when an Admin creates a Receipt or Invoice (not a quote)
+    if (type !== "quote" && Array.isArray(items)) {
+      for (const item of items) {
+        try {
+          const pId = item.product?._id || item.productId || item.product || item.id;
+          if (!pId) continue;
+          const dbProduct = await Product.findById(pId);
+          if (!dbProduct) continue;
+
+          const selectedVariants = item.selectedVariants || item.variants || {};
+          const { color: selectedColor, size: selectedSize, weight: selectedWeight } = resolveVariantKeys(selectedVariants);
+
+          const cv = dbProduct.colorVariants?.find(
+            (c: any) => c.color?.toLowerCase() === (selectedColor || "").toLowerCase()
+          ) || dbProduct.colorVariants?.[0];
+          if (!cv) continue;
+
+          const sv = cv.subVariants?.find((s: any) =>
+            (!selectedSize || s.size?.toLowerCase() === selectedSize.toLowerCase()) &&
+            (!selectedWeight || s.weight?.toLowerCase() === selectedWeight.toLowerCase())
+          ) || cv.subVariants?.[0];
+          if (!sv) continue;
+
+          const qty = Number(item.quantity || item.qty || 1);
+          if (qty <= 0) continue;
+
+          await Product.updateOne(
+            {
+              _id: dbProduct._id,
+              "colorVariants.color": cv.color,
+              "colorVariants.subVariants": {
+                $elemMatch: { size: sv.size, weight: sv.weight }
+              }
+            },
+            {
+              $inc: {
+                "colorVariants.$[cv].subVariants.$[sv].stock": -qty,
+                totalStock: -qty
+              }
+            },
+            {
+              arrayFilters: [
+                { "cv.color": cv.color },
+                { "sv.size": sv.size, "sv.weight": sv.weight }
+              ]
+            }
+          );
+        } catch (err) {
+          console.error("Failed to deduct stock during admin document creation:", err);
+        }
+      }
+      revalidateProducts();
     }
 
     return NextResponse.json(newInvoice, { status: 201 });
