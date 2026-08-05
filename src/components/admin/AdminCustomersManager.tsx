@@ -55,7 +55,7 @@ const INDIAN_STATES = [
   "Union Territory"
 ];
 
-export function AdminCustomersManager({ initialType = "B2B" }: { initialType?: "B2B" | "B2C" | "Dropshipping" | "B2B_Pending" }) {
+export function AdminCustomersManager({ initialType = "" }: { initialType?: "B2B" | "B2C" | "Dropshipping" | "B2B_Pending" | "" }) {
   const { addToast } = useToastStore();
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
   const confirmAction = useConfirmStore((state) => state.confirm);
@@ -84,7 +84,7 @@ export function AdminCustomersManager({ initialType = "B2B" }: { initialType?: "
     return allowedCustomerTypes.length > 0 ? (allowedCustomerTypes[0].value as any) : "";
   });
 
-  const [activeTab, setActiveTab] = React.useState<"B2B" | "B2C" | "Dropshipping" | "B2B_Pending">(initialType);
+  const [activeTab, setActiveTab] = React.useState<"B2B" | "B2C" | "Dropshipping" | "B2B_Pending" | "">(initialType);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
