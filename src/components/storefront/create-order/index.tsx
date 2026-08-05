@@ -8,12 +8,17 @@ import { Button } from "@/components/ui/Button";
 import { CheckCircle2, RefreshCw, Truck } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 
+import { useAuthStore } from "@/stores/authStore";
+import { ManagerAccessDeniedView } from "@/components/managers/ManagerAccessDeniedView";
+
 interface PublicCreateOrderViewProps {
   initialSalesperson?: string;
 }
 
 export function PublicCreateOrderView({ initialSalesperson }: PublicCreateOrderViewProps) {
   const [orderResult, setOrderResult] = useState<any>(null);
+  const { manager, customer } = useAuthStore();
+  const isAdmin = customer?.role === "admin";
 
   const invoiceForm = useInvoiceForm({
     isPublicMode: true,
@@ -42,6 +47,15 @@ export function PublicCreateOrderView({ initialSalesperson }: PublicCreateOrderV
     invoiceForm.setFormDocType("receipt");
     invoiceForm.setIsCreateModalOpen(true);
   };
+
+  // Client-side guard for logged-in managers lacking dropshipping order permission
+  if (manager) {
+    const perms: string[] = manager.permissions || [];
+    const hasDropPerm = perms.includes("orders_dropshipping") || perms.includes("orders_dropship") || perms.some(p => p.startsWith("orders_dropshipping:"));
+    if (!hasDropPerm) {
+      return <ManagerAccessDeniedView requiredPermission="orders_dropshipping" />;
+    }
+  }
 
   // Success state
   if (orderResult) {

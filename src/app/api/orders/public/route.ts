@@ -37,6 +37,32 @@ export async function POST(request: Request) {
     }
 
     await dbConnect();
+
+    // Require authentication (Admin or Manager with orders_dropshipping permission)
+    const { getTokenFromCookie, verifyToken } = await import("@/lib/auth");
+    const token = await getTokenFromCookie();
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized: Please log in to create orders" }, { status: 401 });
+    }
+
+    const payload = verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ message: "Unauthorized: Invalid or expired session token" }, { status: 401 });
+    }
+
+    if (payload.role === "manager") {
+      const { default: Manager } = await import("@/models/Manager");
+      const managerDoc = await Manager.findById(payload.userId).lean() as any;
+      const perms: string[] = managerDoc?.permissions || payload.permissions || [];
+      const hasDropPerm = perms.includes("orders_dropshipping") || perms.includes("orders_dropship") || perms.some(p => p.startsWith("orders_dropshipping:"));
+      if (!hasDropPerm) {
+        return NextResponse.json(
+          { message: "Forbidden: Your Manager account lacks orders_dropshipping permission" },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await request.json();
     const {
       customerId,
