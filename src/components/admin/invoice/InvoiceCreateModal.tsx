@@ -81,6 +81,7 @@ interface InvoiceCreateModalProps {
   setIncludeDropshipDetails?: (val: boolean) => void;
   dropshipDetails?: any;
   setDropshipDetails?: (details: any) => void;
+  isPublicMode?: boolean;
 }
 
 export function InvoiceCreateModal({
@@ -150,6 +151,7 @@ export function InvoiceCreateModal({
   setIncludeDropshipDetails,
   dropshipDetails,
   setDropshipDetails,
+  isPublicMode,
 }: InvoiceCreateModalProps) {
   const calculatedShipping = React.useMemo(() => {
     if (!shippingConfig || !formItems || formItems.length === 0) return 0;
@@ -178,9 +180,9 @@ export function InvoiceCreateModal({
   const productWrapperRef = React.useRef<HTMLDivElement>(null);
 
   const { hasPermission } = usePermissions();
-  const canCreateInvoice = hasPermission("invoices_invoice", "create") || hasPermission("invoices_invoice");
-  const canCreateQuote = hasPermission("invoices_quote", "create") || hasPermission("invoices_quote");
-  const canCreateReceipt = hasPermission("invoices_receipt", "create") || hasPermission("invoices_receipt");
+  const canCreateInvoice = isPublicMode || hasPermission("invoices_invoice", "create") || hasPermission("invoices_invoice");
+  const canCreateQuote = isPublicMode || hasPermission("invoices_quote", "create") || hasPermission("invoices_quote");
+  const canCreateReceipt = isPublicMode || hasPermission("invoices_receipt", "create") || hasPermission("invoices_receipt");
 
   // Ensure default formDocType is allowed (only when NOT creating an order directly)
   React.useEffect(() => {
@@ -373,27 +375,33 @@ export function InvoiceCreateModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-background border rounded-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative">
+    <div className={isPublicMode ? "max-w-5xl mx-auto px-4 py-6" : "fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"}>
+      <div className={`bg-background border rounded-xl max-w-5xl w-full ${isPublicMode ? '' : 'max-h-[90vh]'} overflow-y-auto shadow-2xl relative`}>
         <div className="p-6 border-b sticky top-0 bg-background z-10 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-foreground">
-              {isOrderCreationMode
+              {isPublicMode
+                ? "Create Dropshipping Order"
+                : isOrderCreationMode
                 ? (editInvoiceId ? "Edit Order" : "Create New Order")
                 : `${editInvoiceId ? "Edit" : "Generate New"} ${formDocType === "invoice" ? "Invoice" : formDocType === "receipt" ? "Receipt" : "Price Quote"}`
               }
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Input billing, product items, and payment details to build a sequential record.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {isPublicMode ? "Bulk order creation with Dropshipping tier pricing, GST & Amazon shipment support." : "Input billing, product items, and payment details to build a sequential record."}
+            </p>
           </div>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          {!isPublicMode && (
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         <form onSubmit={onSaveInvoice} className="p-6 space-y-6">
           {/* Type and Mode Selectors */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-secondary/10 p-4 rounded-lg border border-border/80">
-            {!isOrderCreationMode && (
+            {!isOrderCreationMode && !isPublicMode && (
               <div>
                 <label className="text-xs font-bold text-muted-foreground block mb-1">Document Type</label>
                 <select
@@ -413,10 +421,12 @@ export function InvoiceCreateModal({
               <select
                 value={formCustomerType}
                 onChange={(e) => {
+                  if (isPublicMode) return; // Locked in public mode
                   setFormCustomerType(e.target.value as any);
                   setSelectedCustomerId("");
                 }}
-                className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md font-bold cursor-pointer"
+                disabled={isPublicMode}
+                className={`bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md font-bold ${isPublicMode ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
               >
                 <option value="B2C">B2C (Retail)</option>
                 <option value="B2B">B2B (Wholesale Bulk)</option>

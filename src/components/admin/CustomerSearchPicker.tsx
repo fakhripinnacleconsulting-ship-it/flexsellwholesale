@@ -63,7 +63,7 @@ export default function CustomerSearchPicker({
   const searchCustomers = async (query: string) => {
     setLoading(true);
     try {
-      const res = await customerService.getCustomers({ search: query, limit: 10, customerType });
+      let res = await customerService.getCustomers({ search: query, limit: 10, customerType });
       if (res && Array.isArray(res)) {
         setCustomers(res);
       } else if (res && Array.isArray(res.customers)) {
@@ -72,8 +72,21 @@ export default function CustomerSearchPicker({
         setCustomers([]);
       }
     } catch (err) {
-      console.error("Failed to query customers:", err);
-      setCustomers([]);
+      // Fallback to public API (for unauthenticated public /create-order page)
+      try {
+        const params = new URLSearchParams({ public: "true" });
+        if (query) params.set("search", query);
+        if (customerType) params.set("customerType", customerType);
+        const publicRes = await fetch(`/api/customers?${params.toString()}`).then(r => r.ok ? r.json() : null);
+        if (publicRes && Array.isArray(publicRes)) {
+          setCustomers(publicRes);
+        } else {
+          setCustomers([]);
+        }
+      } catch (fallbackErr) {
+        console.error("Failed to query customers:", fallbackErr);
+        setCustomers([]);
+      }
     } finally {
       setLoading(false);
     }

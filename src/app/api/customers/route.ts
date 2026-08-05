@@ -8,10 +8,34 @@ import { validateCustomerKycRequirements } from "@/lib/kycValidationHelper";
 import { escapeRegex } from "@/lib/utils";
 import Manager from "@/models/Manager";
 
-// GET: Fetch all customers (restricted to admins)
+// GET: Fetch all customers (restricted to admins, with public mode for Dropshipping search)
 export async function GET(request: Request) {
   try {
     await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const isPublic = searchParams.get("public") === "true";
+
+    // Public mode: unauthenticated search for Dropshipping customers only
+    if (isPublic) {
+      const search = searchParams.get("search") || searchParams.get("q");
+      const dropQuery: any = { role: { $ne: "admin" }, customerTypes: "Dropshipping" };
+      if (search) {
+        const regex = new RegExp(escapeRegex(search), "i");
+        dropQuery.$or = [
+          { name: regex },
+          { email: regex },
+          { phone: regex },
+          { company: regex },
+          { _id: regex },
+        ];
+      }
+      const publicCustomers = await Customer.find(dropQuery)
+        .select("_id name company email phone gstin address city state pinCode")
+        .limit(10)
+        .lean();
+      return NextResponse.json(publicCustomers);
+    }
+
     const token = await getTokenFromCookie();
     if (!token) {
       return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
@@ -22,7 +46,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
     const page = searchParams.get("page");
     const limit = searchParams.get("limit");
     const search = searchParams.get("search") || searchParams.get("q");

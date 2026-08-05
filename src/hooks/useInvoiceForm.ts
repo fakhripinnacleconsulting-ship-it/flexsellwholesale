@@ -6,9 +6,12 @@ import { shippingService } from "@/services/shippingService";
 import { useInvoiceStore } from "@/stores/invoiceStore";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 
 interface UseInvoiceFormOptions {
-  onSuccess?: () => void;
+  onSuccess?: (res?: any) => void;
+  isPublicMode?: boolean;
+  apiEndpoint?: string;
 }
 
 export function useInvoiceForm(options?: UseInvoiceFormOptions) {
@@ -81,13 +84,22 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
   }, [selectedCustomerId, customerMode, customers]);
 
   React.useEffect(() => {
-    if (isCreateModalOpen) {
+    const shouldLoad = isCreateModalOpen || options?.isPublicMode;
+    if (shouldLoad) {
       initializeProducts();
-      customerService.getCustomers()
-        .then(setCustomers)
-        .catch(err => console.error("Failed to load customers:", err));
+      if (options?.isPublicMode) {
+        // Public mode: use unauthenticated customer endpoint
+        fetch("/api/customers?public=true&customerType=Dropshipping")
+          .then(r => r.ok ? r.json() : [])
+          .then((data: any) => setCustomers(Array.isArray(data) ? data : []))
+          .catch(err => console.error("Failed to load public customers:", err));
+      } else {
+        customerService.getCustomers()
+          .then(setCustomers)
+          .catch(err => console.error("Failed to load customers:", err));
+      }
     }
-  }, [isCreateModalOpen, initializeProducts]);
+  }, [isCreateModalOpen, initializeProducts, options?.isPublicMode]);
 
   const handleSaveInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,6 +259,34 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
         customerType: formCustomerType,
         dropshipDetails: (formCustomerType === "Dropshipping" && includeDropshipDetails) ? dropshipDetails : undefined
       };
+
+      if (options?.isPublicMode && options?.apiEndpoint) {
+        // Public mode: POST to public endpoint via apiClient
+        const res = await apiClient.post(options.apiEndpoint, payloadData);
+        addToast("Dropshipping order created successfully!", "success");
+        if (options?.onSuccess) {
+          options.onSuccess(res);
+        }
+        setFormItems([]);
+        setSelectedCustomerId("");
+        setNewCustName("");
+        setNewCustEmail("");
+        setNewCustPhone("");
+        setNewCustCompany("");
+        setNewCustGstin("");
+        setNewCustAddress("");
+        setNewCustCity("");
+        setNewCustPinCode("");
+        setPaymentMethod("COD");
+        setPaymentStatus("Pending");
+        setTransactionId("");
+        setInvoiceNotes("");
+        setSalesperson("");
+        setDropshipDetails({});
+        setIncludeDropshipDetails(true);
+        setIsSubmitting(false);
+        return; // Skip admin-only post-save logic below
+      }
 
       if (editInvoiceId) {
         await updateInvoice(editInvoiceId, payloadData as any);
