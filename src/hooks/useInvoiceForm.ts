@@ -229,17 +229,19 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
 
       const formGrandTotal = itemsSubtotal + computedShippingCharge;
 
+      const effectiveDocType = isOrderCreationMode ? "receipt" : formDocType;
+
       const payloadData = {
-        type: formDocType,
+        type: effectiveDocType,
         isOrder: isOrderCreationMode,
         ...customerPayload,
         items: formItems,
         amount: formGrandTotal,
         shippingCharge: computedShippingCharge,
         taxDetails: formTaxBreakdown,
-        paymentMethod: formDocType === "quote" ? undefined : paymentMethod,
-        paymentStatus: formDocType === "quote" ? "Pending" : (formDocType === "invoice" ? "Paid" : paymentStatus),
-        transactionId: (formDocType === "quote" || (formDocType === "receipt" && paymentStatus !== "Paid")) ? undefined : transactionId || undefined,
+        paymentMethod: effectiveDocType === "quote" ? undefined : paymentMethod,
+        paymentStatus: effectiveDocType === "quote" ? "Pending" : (effectiveDocType === "invoice" ? "Paid" : paymentStatus),
+        transactionId: (effectiveDocType === "quote" || (effectiveDocType === "receipt" && paymentStatus !== "Paid")) ? undefined : transactionId || undefined,
         notes: invoiceNotes || undefined,
         salesperson: salesperson || undefined,
         customerType: formCustomerType,
@@ -251,7 +253,7 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
         addToast("Document updated successfully!", "success");
       } else {
         await createInvoice(payloadData as any);
-        const docLabel = formDocType === "invoice" ? "Invoice" : formDocType === "receipt" ? "Receipt" : "Price Quote";
+        const docLabel = isOrderCreationMode ? "Order" : (effectiveDocType === "invoice" ? "Invoice" : effectiveDocType === "receipt" ? "Receipt" : "Price Quote");
         addToast(`${docLabel} generated successfully!`, "success");
       }
       setIsCreateModalOpen(false);

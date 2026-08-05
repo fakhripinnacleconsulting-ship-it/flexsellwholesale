@@ -452,8 +452,8 @@ export async function POST(request: Request) {
 
     let linkedOrderId = orderId;
 
-    // If it's a receipt created directly, auto-create the order
-    if (type === "receipt" && !linkedOrderId) {
+    // If it's a receipt or order created directly, auto-create the order
+    if ((type === "receipt" || isOrder) && !linkedOrderId) {
       linkedOrderId = await generateNextId("order");
       const orderDate = new Date().toLocaleDateString("en-US", {
         year: "numeric",

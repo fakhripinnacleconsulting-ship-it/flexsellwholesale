@@ -90,6 +90,34 @@ const PERMISSION_GROUPS = [
   }
 ];
 
+const ALL_MODULE_IDS = PERMISSION_GROUPS.flatMap(g => g.permissions.map(p => p.id));
+const TOTAL_MODULES = ALL_MODULE_IDS.length;
+
+function getPermissionSummary(perms: string[] = []) {
+  if (!perms || perms.length === 0) {
+    return { count: 0, total: TOTAL_MODULES, isFull: false, text: "No Access Granted" };
+  }
+
+  const accessibleModules = ALL_MODULE_IDS.filter(modId =>
+    perms.includes(modId) || perms.some(p => p.startsWith(`${modId}:`))
+  );
+
+  const fullAccessModules = ALL_MODULE_IDS.filter(modId =>
+    perms.includes(modId) || ["create", "read", "update", "delete"].every(a => perms.includes(`${modId}:${a}`))
+  );
+
+  if (fullAccessModules.length === TOTAL_MODULES) {
+    return { count: TOTAL_MODULES, total: TOTAL_MODULES, isFull: true, text: "Full Access (All Modules)" };
+  }
+
+  return {
+    count: accessibleModules.length,
+    total: TOTAL_MODULES,
+    isFull: false,
+    text: `${accessibleModules.length} of ${TOTAL_MODULES} Modules`
+  };
+}
+
 export default function AdminManagersPage() {
   const { addToast } = useToastStore();
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
@@ -212,30 +240,44 @@ export default function AdminManagersPage() {
   const togglePermission = (permId: string, action?: "create" | "read" | "update" | "delete") => {
     const permString = action ? `${permId}:${action}` : permId;
     setSelectedPermissions(prev => {
-      // If turning off a specific CRUD, but they have the root perm, we must expand the root perm into the other 3 CRUDs and remove the root perm.
+      let next: string[];
       if (prev.includes(permString)) {
-        return prev.filter(p => p !== permString);
+        next = prev.filter(p => p !== permString);
       } else if (action && prev.includes(permId)) {
-        // They have the root perm, and we are unchecking ONE action. We need to convert the root perm to the remaining 3 actions.
         const allActions = ["create", "read", "update", "delete"];
         const remainingActions = allActions.filter(a => a !== action).map(a => `${permId}:${a}`);
-        return [...prev.filter(p => p !== permId), ...remainingActions];
+        next = [...prev.filter(p => p !== permId), ...remainingActions];
       } else {
-        return [...prev, permString];
+        next = [...prev, permString];
       }
+
+      // Auto-collapse: if all 4 CRUD actions exist for permId, normalize to root permId
+      const allActions = ["create", "read", "update", "delete"].map(a => `${permId}:${a}`);
+      if (allActions.every(a => next.includes(a))) {
+        next = [...next.filter(p => !allActions.includes(p)), permId];
+      }
+
+      return next;
     });
   };
 
   const toggleAllModuleCrud = (permId: string, checked: boolean) => {
     setSelectedPermissions(prev => {
-      const allActions = ["create", "read", "update", "delete"].map(a => `${permId}:${a}`);
       const filtered = prev.filter(p => p !== permId && !p.startsWith(`${permId}:`));
       if (checked) {
-        return [...filtered, permId]; // Use root perm for all
+        return [...filtered, permId];
       } else {
         return filtered;
       }
     });
+  };
+
+  const handleSelectAllPermissions = () => {
+    setSelectedPermissions([...ALL_MODULE_IDS]);
+  };
+
+  const handleDeselectAllPermissions = () => {
+    setSelectedPermissions([]);
   };
 
   const hasPermission = (permId: string, action: "create" | "read" | "update" | "delete") => {
@@ -251,7 +293,7 @@ export default function AdminManagersPage() {
     if (!searchTerm) return managers;
     const term = searchTerm.toLowerCase();
     return managers.filter(m =>
-      m.name.toLowerCase().includes(term) || m.email.toLowerCase().includes(term)
+      m.name.toLowerCase().includes(term) || m.email.toLowerCase().includes(term) || (m.assignedRole && m.assignedRole.toLowerCase().includes(term))
     );
   }, [managers, searchTerm]);
 
@@ -335,17 +377,35 @@ export default function AdminManagersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${mgr.status === "active" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          mgr.status === "active"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                             : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          }`}>
+                        }`}>
                           {mgr.status.toUpperCase()}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
-                          <Shield className="h-3.5 w-3.5 text-primary" />
-                          {mgr.permissions?.length || 0} Permissions Granted
-                        </p>
+                        {(() => {
+                          const summary = getPermissionSummary(mgr.permissions);
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold w-fit ${
+                                summary.isFull
+                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                                  : summary.count > 0
+                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800"
+                                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border border-gray-300 dark:border-gray-700"
+                              }`}>
+                                <Shield className="h-3.5 w-3.5 shrink-0" />
+                                {summary.text}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground font-medium pl-1">
+                                Role: {mgr.assignedRole || "Staff Manager"}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-center text-xs text-muted-foreground">
                         {mgr.lastLogin ? new Date(mgr.lastLogin).toLocaleString() : "Never"}
@@ -410,7 +470,28 @@ export default function AdminManagersPage() {
               </div>
 
               <div className="border-t pt-4 space-y-4">
-                <h4 className="text-sm font-bold flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Permissions Matrix</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary" /> Permissions Matrix
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllPermissions}
+                      className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-muted-foreground text-xs">•</span>
+                    <button
+                      type="button"
+                      onClick={handleDeselectAllPermissions}
+                      className="text-[11px] font-bold text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
                 <div className="overflow-x-auto border rounded bg-secondary/5">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-secondary/10 text-xs uppercase font-bold text-muted-foreground">

@@ -182,9 +182,9 @@ export function InvoiceCreateModal({
   const canCreateQuote = hasPermission("invoices_quote", "create") || hasPermission("invoices_quote");
   const canCreateReceipt = hasPermission("invoices_receipt", "create") || hasPermission("invoices_receipt");
 
-  // Ensure default formDocType is allowed
+  // Ensure default formDocType is allowed (only when NOT creating an order directly)
   React.useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isOrderCreationMode) {
       if (formDocType === "invoice" && !canCreateInvoice) {
         if (canCreateQuote) setFormDocType("quote");
         else if (canCreateReceipt) setFormDocType("receipt");
@@ -198,7 +198,7 @@ export function InvoiceCreateModal({
         else if (canCreateQuote) setFormDocType("quote");
       }
     }
-  }, [isOpen, formDocType, canCreateInvoice, canCreateQuote, canCreateReceipt, setFormDocType]);
+  }, [isOpen, formDocType, isOrderCreationMode, canCreateInvoice, canCreateQuote, canCreateReceipt, setFormDocType]);
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (productWrapperRef.current && !productWrapperRef.current.contains(event.target as Node)) {
@@ -378,7 +378,10 @@ export function InvoiceCreateModal({
         <div className="p-6 border-b sticky top-0 bg-background z-10 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-foreground">
-              {editInvoiceId ? "Edit" : "Generate New"} {formDocType === "invoice" ? "Invoice" : formDocType === "receipt" ? "Receipt" : "Price Quote"}
+              {isOrderCreationMode
+                ? (editInvoiceId ? "Edit Order" : "Create New Order")
+                : `${editInvoiceId ? "Edit" : "Generate New"} ${formDocType === "invoice" ? "Invoice" : formDocType === "receipt" ? "Receipt" : "Price Quote"}`
+              }
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">Input billing, product items, and payment details to build a sequential record.</p>
           </div>
