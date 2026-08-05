@@ -48,15 +48,6 @@ export function PublicCreateOrderView({ initialSalesperson }: PublicCreateOrderV
     invoiceForm.setIsCreateModalOpen(true);
   };
 
-  // Client-side guard for logged-in managers lacking dropshipping order permission
-  if (manager) {
-    const perms: string[] = manager.permissions || [];
-    const hasDropPerm = perms.includes("orders_dropshipping") || perms.includes("orders_dropship") || perms.some(p => p.startsWith("orders_dropshipping:"));
-    if (!hasDropPerm) {
-      return <ManagerAccessDeniedView requiredPermission="orders_dropshipping" />;
-    }
-  }
-
   // Success state
   if (orderResult) {
     return (
