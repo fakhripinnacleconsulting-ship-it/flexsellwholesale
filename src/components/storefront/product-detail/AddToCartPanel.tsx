@@ -97,7 +97,9 @@ export function AddToCartPanel() {
               <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatPrice(b2cPrice)}</span>
             </div>
             <div>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase block text-blue-600 dark:text-blue-400">Trade Price (B2B)</span>
+              <span className="text-[9px] font-bold uppercase block text-blue-600 dark:text-blue-400">
+                Trade Price (B2B) <span className="text-[8px] bg-blue-100 dark:bg-blue-900/40 px-1 py-0.2 rounded font-extrabold ml-0.5">MOQ: {b2bMoq} pcs</span>
+              </span>
               <span className="font-bold text-blue-600 dark:text-blue-400">
                 {b2bPrice > 0 ? formatPrice(b2bPrice) : "N/A"}
               </span>
@@ -153,9 +155,9 @@ export function AddToCartPanel() {
               <Badge variant="destructive">Out of Stock</Badge>
             )}
 
-            {activeTier === "B2B" && (
-              <span className="text-muted-foreground font-semibold">• Minimum Order: {b2bMoq} units</span>
-            )}
+            <Badge variant="outline" className="border-amber-500/60 text-amber-800 dark:text-amber-300 font-extrabold bg-amber-50/50 dark:bg-amber-950/20">
+              • MOQ: {b2bMoq} pcs
+            </Badge>
 
             {visibility.showDimensions && activeVariant?.dimensions && (
               <span className="text-muted-foreground font-semibold">• Box Size: {activeVariant.dimensions}</span>

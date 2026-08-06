@@ -220,6 +220,11 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
         >
           {/* Overlay Badges */}
           <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 pointer-events-none">
+            {moq > 1 && (
+              <span className="bg-amber-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md shadow uppercase tracking-wider">
+                MOQ: {moq} PCS
+              </span>
+            )}
             {discount > 0 && (
               <span className="bg-destructive text-destructive-foreground text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow uppercase tracking-wider">
                 {discount}% OFF

@@ -125,6 +125,10 @@ export function ProductInfoTabs() {
               <span className="text-muted-foreground font-medium">SKU Ref:</span>
               <span className="font-bold font-mono">{activeSubVariant?.sku || "FS-VAR-001"}</span>
             </div>
+            <div className="grid grid-cols-2 gap-2 p-3 bg-secondary/15 rounded-lg border">
+              <span className="text-muted-foreground font-medium">Minimum Order Quantity (MOQ):</span>
+              <span className="font-bold text-amber-600 dark:text-amber-400">{activeSubVariant?.b2bMoq || 1} pcs</span>
+            </div>
             {activeSubVariant?.size && (
               <div className="grid grid-cols-2 gap-2 p-3 bg-secondary/15 rounded-lg border">
                 <span className="text-muted-foreground font-medium">Dimensions / Size:</span>
