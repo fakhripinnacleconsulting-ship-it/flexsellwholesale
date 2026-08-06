@@ -224,10 +224,14 @@ export function InvoiceDocument({
 
   if (isShippingLabel) {
     const isCod = shipmentDetails?.dispatchType === "COD" || order.paymentMethod === "COD";
-    const trackingCode = shipmentDetails?.awbNumber || documentNumber || order._id;
-    const carrierTitle = shipmentDetails?.carrierName || "FLEXSELL IN-HOUSE TRANSPORT DISPATCH";
+    const trackingCode =
+      shipmentDetails?.awbNumber ||
+      order.shipmentDetails?.trackingId ||
+      order.shipmentDetails?.shiprocket?.awbCode ||
+      (documentNumber && documentNumber !== order._id ? documentNumber : `AWB-${order._id}`);
+    const carrierTitle = shipmentDetails?.carrierName || order.shipmentDetails?.carrierName || "FLEXSELL IN-HOUSE TRANSPORT DISPATCH";
     const totalWeightGrams = itemsList.reduce((acc: number, item: any) => {
-      const wg = item.weightGrams || 250;
+      const wg = item.weightGrams || item.weight || 250;
       return acc + wg * (item.quantity || 1);
     }, 0);
     const totalWeightKg = (totalWeightGrams / 1000).toFixed(2);
@@ -314,12 +318,13 @@ export function InvoiceDocument({
                   </p>
                   <p className="font-semibold text-xs leading-snug text-gray-900 mt-1">
                     {(order as any).dropshipDetails.address}
+                    {(order as any).dropshipDetails.addressLine2 ? `, ${(order as any).dropshipDetails.addressLine2}` : ""}
                   </p>
                   <p className="font-black text-xs uppercase text-black mt-1">
                     {(order as any).dropshipDetails.city}, {(order as any).dropshipDetails.state} - {(order as any).dropshipDetails.pinCode}
                   </p>
                   <p className="font-mono font-black text-xs pt-1 text-black">
-                    Ph: {(order as any).dropshipDetails.phone}
+                    Ph: {(order as any).dropshipDetails.mobileNumber || (order as any).dropshipDetails.phone}
                   </p>
                   {(order as any).dropshipDetails.amazonOrderId && (
                     <p className="font-mono font-bold text-[10px] text-gray-800 mt-1">
@@ -383,8 +388,12 @@ export function InvoiceDocument({
               <p className="font-black text-xs uppercase text-black mt-1">
                 {sellerInfo.legalName || sellerInfo.storeName || "FLEXSELL WHOLESALE SOURCING PVT LTD"}
               </p>
-              <p className="text-[11px] leading-snug text-gray-900">{sellerInfo.address}</p>
+              {sellerInfo.legalName && sellerInfo.storeName && sellerInfo.legalName !== sellerInfo.storeName && (
+                <p className="text-[10px] font-bold text-gray-700 uppercase">({sellerInfo.storeName})</p>
+              )}
+              <p className="text-[11px] leading-snug text-gray-900 mt-0.5">{sellerInfo.address}</p>
               <p className="font-mono font-black text-xs text-black mt-1">Ph: {sellerInfo.phone}</p>
+              {sellerInfo.email && <p className="font-mono text-[10px] text-gray-800">Email: {sellerInfo.email}</p>}
               {sellerInfo.gstin && <p className="font-mono text-[10px] text-gray-800">GSTIN: {sellerInfo.gstin}</p>}
             </div>
           </div>

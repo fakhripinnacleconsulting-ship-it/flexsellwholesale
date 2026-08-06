@@ -7,27 +7,33 @@ import { Order, SellerInfo } from "@/types";
 import { X, Printer } from "lucide-react";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 
+import { buildSellerInfo } from "@/lib/buildSellerInfo";
+
 export interface ShippingLabelDocumentProps {
   order: Order;
   sellerInfo?: SellerInfo;
   onClose?: () => void;
 }
 
-export function ShippingLabelDocument({ order, sellerInfo, onClose }: ShippingLabelDocumentProps) {
+export function ShippingLabelDocument({ order, sellerInfo: propSellerInfo, onClose }: ShippingLabelDocumentProps) {
   const [mounted, setMounted] = React.useState(false);
+  const [cmsSellerInfo, setCmsSellerInfo] = React.useState<SellerInfo | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
-  }, []);
+    if (!propSellerInfo) {
+      fetch("/api/cms")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((cmsData) => {
+          if (cmsData) {
+            setCmsSellerInfo(buildSellerInfo(cmsData));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [propSellerInfo]);
 
-  const seller = sellerInfo || {
-    storeName: "FlexSell Wholesale",
-    legalName: "FlexSell Wholesale Sourcing Pvt Ltd",
-    address: "Plot No. 12, GIDC Industrial Estate, Sachin, Bhopal, Gujarat - 394230",
-    email: "support@flexsellwholesale.com",
-    phone: "+91 261 2409000",
-    gstin: "24AAACF1001M1Z5",
-  };
+  const seller = propSellerInfo || cmsSellerInfo || buildSellerInfo(null);
 
   const shipment = order.shipmentDetails || {
     type: "self",
