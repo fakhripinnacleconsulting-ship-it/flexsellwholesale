@@ -40,7 +40,15 @@ export const useInvoiceStore = create<InvoiceStoreState>()((set) => ({
           isLoading: false,
         });
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.status === 401 || err?.message === "Not authenticated") {
+        set({ invoices: [], isLoading: false, error: null });
+        if (typeof window !== "undefined") {
+          const loginPath = window.location.pathname.startsWith("/manager") ? "/manager/login" : "/login";
+          window.location.href = loginPath;
+        }
+        return;
+      }
       set({
         error: handleApiError(err, "Failed to load invoices"),
         isLoading: false,

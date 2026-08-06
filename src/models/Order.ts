@@ -109,6 +109,12 @@ const OrderSchema = new Schema<OrderType & Document>(
     shippingCharge: { type: Number, default: 0 },
     orderType: { type: String, enum: ["B2B", "B2C", "Dropshipping"], default: "B2C", required: true },
     origin: { type: String, enum: ["self", "website"], default: "website", required: true },
+    createdBy: {
+      name: { type: String },
+      role: { type: String, enum: ["Admin", "Manager", "Customer", "System"], default: "System" },
+      email: { type: String },
+      userId: { type: String },
+    },
   },
   { timestamps: true }
 );
@@ -119,6 +125,8 @@ OrderSchema.index({ date: -1 });
 OrderSchema.index({ quoteId: 1 }, { unique: true, sparse: true });
 OrderSchema.index({ orderType: 1 });
 OrderSchema.index({ origin: 1 });
+OrderSchema.index({ "createdBy.userId": 1 });
+OrderSchema.index({ "createdBy.role": 1 });
 
 if (mongoose.models.Order) {
   mongoose.deleteModel("Order");

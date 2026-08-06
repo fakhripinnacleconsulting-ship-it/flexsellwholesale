@@ -32,9 +32,11 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
     // Verify ownership
     if (payload.role === "manager") {
       let perms = (payload as any).permissions || [];
-      const managerUser = await Manager.findById(payload.userId).lean();
-      if (managerUser) {
-        perms = managerUser.permissions || [];
+      if (payload.userId && /^[0-9a-fA-F]{24}$/.test(payload.userId)) {
+        const managerUser = await Manager.findById(payload.userId).lean();
+        if (managerUser) {
+          perms = managerUser.permissions || [];
+        }
       }
       const hasPerm = (p: string) => perms.includes(p) || perms.includes(`${p}:read`) || perms.includes(`${p}:update`) || perms.includes(`${p}:create`) || perms.includes(`${p}:delete`);
       

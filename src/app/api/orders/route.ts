@@ -23,6 +23,7 @@ import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 import { rateLimit } from "@/lib/rateLimit";
 import { runInTransaction } from "@/lib/transactionHelper";
 import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
+import { escapeRegex } from "@/lib/utils";
 import {
   computeOrderTaxDetails,
   computeExpectedOrderTotal,
@@ -30,6 +31,64 @@ import {
   isOrderTotalAcceptable,
   resolveSellerState,
 } from "@/lib/orderTotals";
+
+async function resolveOrderCreatedBy(doc: any) {
+  if (!doc) return doc;
+  if (doc.createdBy && doc.createdBy.role && doc.createdBy.name) {
+    return doc;
+  }
+
+  const gen = (doc.generatedBy || "").trim();
+  let resolvedCreatedBy: any = null;
+
+  if (gen) {
+    const genLower = gen.toLowerCase();
+    if (genLower === "system" || genLower === "website-public") {
+      resolvedCreatedBy = { role: "System", name: "System" };
+    } else {
+      // Query Customer model (Admins and Customers)
+      const custDoc = await Customer.findOne({
+        $or: [
+          { _id: gen },
+          { email: genLower },
+          { name: new RegExp(`^${escapeRegex(gen)}$`, "i") }
+        ]
+      }).lean() as any;
+
+      if (custDoc) {
+        resolvedCreatedBy = {
+          role: custDoc.role === "admin" ? "Admin" : "Customer",
+          name: custDoc.name,
+          email: custDoc.email,
+          userId: custDoc._id,
+        };
+      } else {
+        // Query Manager model
+        const mgrDoc = await Manager.findOne({
+          $or: [
+            { _id: gen },
+            { email: genLower },
+            { name: new RegExp(`^${escapeRegex(gen)}$`, "i") }
+          ]
+        }).lean() as any;
+
+        if (mgrDoc) {
+          resolvedCreatedBy = {
+            role: "Manager",
+            name: mgrDoc.name,
+            email: mgrDoc.email,
+            userId: mgrDoc._id,
+          };
+        }
+      }
+    }
+  }
+
+  return {
+    ...doc,
+    createdBy: resolvedCreatedBy || doc.createdBy || undefined,
+  };
+}
 
 /**
  * Allocates the next invoice/receipt number for the current year.
@@ -128,6 +187,24 @@ export async function GET(request: Request) {
     const endDate = searchParams.get("endDate");
     const orderType = searchParams.get("orderType");
     const origin = searchParams.get("origin");
+    const createdByFilter = searchParams.get("createdBy");
+
+    if (createdByFilter && createdByFilter !== "all") {
+      if (createdByFilter === "me") {
+        andConditions.push({ "createdBy.userId": payload.userId });
+      } else if (createdByFilter.startsWith("role:")) {
+        andConditions.push({ "createdBy.role": createdByFilter.replace("role:", "") });
+      } else {
+        const regex = new RegExp(escapeRegex(createdByFilter), "i");
+        andConditions.push({
+          $or: [
+            { "createdBy.userId": createdByFilter },
+            { "createdBy.role": createdByFilter },
+            { "createdBy.name": regex }
+          ]
+        });
+      }
+    }
 
     if (orderType && orderType !== "ALL" && orderType !== "all") {
       if (orderType === "B2B") {
@@ -195,10 +272,12 @@ export async function GET(request: Request) {
       const limitNum = parseInt(limit, 10) || 20;
       const skip = (pageNum - 1) * limitNum;
 
-      const [orders, total] = await Promise.all([
+      const [rawOrders, total] = await Promise.all([
         Order.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
         Order.countDocuments(query)
       ]);
+
+      const orders = await Promise.all(rawOrders.map((doc) => resolveOrderCreatedBy(doc)));
 
       return NextResponse.json({
         orders,
@@ -208,7 +287,8 @@ export async function GET(request: Request) {
       });
     }
 
-    const orders = await Order.find(query).sort({ createdAt: -1 }).limit(100).lean();
+    const rawOrders = await Order.find(query).sort({ createdAt: -1 }).limit(100).lean();
+    const orders = await Promise.all(rawOrders.map((doc) => resolveOrderCreatedBy(doc)));
     return NextResponse.json(orders);
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to fetch orders" }, { status: 500 });
@@ -596,6 +676,58 @@ export async function POST(request: Request) {
       const isSelf = isStaff || !!quoteId;
       const origin = isSelf ? "self" : "website";
 
+      let resolvedCreatedBy: any = { role: "System", name: "System" };
+      if (payload.role === "admin") {
+        let adminName = "Admin";
+        if (payload.userId) {
+          const adminDoc = await Customer.findById(payload.userId).lean() as any;
+          if (adminDoc?.name) adminName = adminDoc.name;
+        }
+        if (adminName === "Admin" && payload.email) {
+          const adminDoc = await Customer.findOne({ email: payload.email.toLowerCase() }).lean() as any;
+          if (adminDoc?.name) adminName = adminDoc.name;
+          else adminName = payload.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+        }
+        resolvedCreatedBy = {
+          role: "Admin",
+          name: adminName,
+          email: payload.email,
+          userId: payload.userId,
+        };
+      } else if (payload.role === "manager") {
+        let managerName = "Manager";
+        if (payload.userId) {
+          const managerDoc = await Manager.findById(payload.userId).lean() as any;
+          if (managerDoc?.name) managerName = managerDoc.name;
+        }
+        if (managerName === "Manager" && payload.email) {
+          const managerDoc = await Manager.findOne({ email: payload.email.toLowerCase() }).lean() as any;
+          if (managerDoc?.name) managerName = managerDoc.name;
+          else managerName = payload.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+        }
+        resolvedCreatedBy = {
+          role: "Manager",
+          name: managerName,
+          email: payload.email,
+          userId: payload.userId,
+        };
+      } else if (payload.role === "customer" || !isStaff) {
+        let custName = customerName || `${shippingAddress.firstName} ${shippingAddress.lastName}`;
+        if ((!custName || custName === "Customer") && payload.userId) {
+          const custDoc = await Customer.findById(payload.userId).lean() as any;
+          if (custDoc?.name) custName = custDoc.name;
+        }
+        if (custName.includes("@")) {
+          custName = custName.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+        }
+        resolvedCreatedBy = {
+          role: "Customer",
+          name: custName || "Customer",
+          email: shippingAddress.email?.toLowerCase() || payload.email,
+          userId: payload.userId,
+        };
+      }
+
       let createdOrder: any = null;
       let createdDoc: any = null;
 
@@ -623,6 +755,7 @@ export async function POST(request: Request) {
           invoiceId,
           orderType,
           origin,
+          createdBy: resolvedCreatedBy,
           history: [
             {
               status: "Placed",
@@ -665,6 +798,7 @@ export async function POST(request: Request) {
           sellerInfo,
           generatedAt,
           generatedBy: isStaff ? payload.userId : "system",
+          createdBy: resolvedCreatedBy,
           status: defaultDocStatus,
           salesperson,
           couponCode,

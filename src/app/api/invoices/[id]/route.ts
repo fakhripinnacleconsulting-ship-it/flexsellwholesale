@@ -59,9 +59,11 @@ export async function PUT(
 
     if (payload.role === "manager") {
       let perms = (payload as any).permissions || [];
-      const managerDoc = await Manager.findById(payload.userId).lean() as any;
-      if (managerDoc && managerDoc.permissions) {
-        perms = managerDoc.permissions;
+      if (payload.userId && /^[0-9a-fA-F]{24}$/.test(payload.userId)) {
+        const managerDoc = await Manager.findById(payload.userId).lean() as any;
+        if (managerDoc && managerDoc.permissions) {
+          perms = managerDoc.permissions;
+        }
       }
       const permKey = `invoices_${existingDoc.type}`;
       const hasPerm = perms.includes(permKey) || perms.includes(`${permKey}:update`) || perms.some((p: string) => p.startsWith(`${permKey}:`));
@@ -221,9 +223,11 @@ export async function DELETE(
 
     if (payload.role === "manager") {
       let perms = (payload as any).permissions || [];
-      const managerDoc = await Manager.findById(payload.userId).lean() as any;
-      if (managerDoc && managerDoc.permissions) {
-        perms = managerDoc.permissions;
+      if (payload.userId && /^[0-9a-fA-F]{24}$/.test(payload.userId)) {
+        const managerDoc = await Manager.findById(payload.userId).lean() as any;
+        if (managerDoc && managerDoc.permissions) {
+          perms = managerDoc.permissions;
+        }
       }
       const permKey = `invoices_${invoice.type}`;
       const hasPerm = perms.includes(permKey) || perms.includes(`${permKey}:delete`) || perms.some((p: string) => p.startsWith(`${permKey}:`));

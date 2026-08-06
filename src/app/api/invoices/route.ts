@@ -27,6 +27,67 @@ async function getSellerInfo() {
   };
 }
 
+async function resolveDocCreatedBy(doc: any) {
+  if (!doc) return doc;
+  if (doc.createdBy && doc.createdBy.role && doc.createdBy.name) {
+    return doc;
+  }
+
+  const gen = (doc.generatedBy || "").trim();
+  let resolvedCreatedBy: any = null;
+
+  if (gen) {
+    const genLower = gen.toLowerCase();
+    if (genLower === "system" || genLower === "website-public") {
+      resolvedCreatedBy = { role: "System", name: "System" };
+    } else {
+      // Query Customer model (Admins and Customers)
+      const custDoc = await Customer.findOne({
+        $or: [
+          { _id: gen },
+          { email: genLower },
+          { name: new RegExp(`^${escapeRegex(gen)}$`, "i") }
+        ]
+      }).lean() as any;
+
+      if (custDoc) {
+        resolvedCreatedBy = {
+          role: custDoc.role === "admin" ? "Admin" : "Customer",
+          name: custDoc.name,
+          email: custDoc.email,
+          userId: custDoc._id,
+        };
+      } else {
+        // Query Manager model safely (only include _id in $or if gen is a valid 24-char ObjectId)
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(gen);
+        const mgrOr: any[] = [
+          { email: genLower },
+          { name: new RegExp(`^${escapeRegex(gen)}$`, "i") }
+        ];
+        if (isObjectId) {
+          mgrOr.push({ _id: gen });
+        }
+
+        const mgrDoc = await Manager.findOne({ $or: mgrOr }).lean() as any;
+
+        if (mgrDoc) {
+          resolvedCreatedBy = {
+            role: "Manager",
+            name: mgrDoc.name,
+            email: mgrDoc.email,
+            userId: mgrDoc._id,
+          };
+        }
+      }
+    }
+  }
+
+  return {
+    ...doc,
+    createdBy: resolvedCreatedBy || doc.createdBy || undefined,
+  };
+}
+
 async function generateInvoiceId(type: "invoice" | "receipt" | "quote"): Promise<string> {
   return generateNextId(type);
 }
@@ -127,14 +188,33 @@ export async function GET(request: Request) {
     const limit = searchParams.get("limit");
     const showArchived = searchParams.get("showArchived") === "true";
     const customerType = searchParams.get("customerType");
+    const createdByFilter = searchParams.get("createdBy");
 
     const query: any = {};
+
+    if (createdByFilter && createdByFilter !== "all") {
+      if (createdByFilter === "me") {
+        query["createdBy.userId"] = payload.userId;
+      } else if (createdByFilter.startsWith("role:")) {
+        query["createdBy.role"] = createdByFilter.replace("role:", "");
+      } else {
+        const regex = new RegExp(escapeRegex(createdByFilter), "i");
+        query.$or = [
+          { "createdBy.userId": createdByFilter },
+          { "createdBy.role": createdByFilter },
+          { "createdBy.name": regex },
+          { generatedBy: regex }
+        ];
+      }
+    }
     
     if (payload.role === "manager") {
       let perms = (payload as any).permissions || [];
-      const managerUser = await Manager.findById(payload.userId).lean();
-      if (managerUser) {
-        perms = managerUser.permissions || [];
+      if (payload.userId && /^[0-9a-fA-F]{24}$/.test(payload.userId)) {
+        const managerUser = await Manager.findById(payload.userId).lean();
+        if (managerUser) {
+          perms = managerUser.permissions || [];
+        }
       }
       
       const hasPerm = (p: string) =>
@@ -250,10 +330,12 @@ export async function GET(request: Request) {
       const limitNum = parseInt(limit, 10) || 20;
       const skip = (pageNum - 1) * limitNum;
 
-      const [invoices, total] = await Promise.all([
+      const [rawInvoices, total] = await Promise.all([
         InvoiceModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
         InvoiceModel.countDocuments(query),
       ]);
+
+      const invoices = await Promise.all(rawInvoices.map((doc) => resolveDocCreatedBy(doc)));
 
       return NextResponse.json({
         invoices,
@@ -263,7 +345,8 @@ export async function GET(request: Request) {
       });
     }
 
-    const invoices = await InvoiceModel.find(query).sort({ createdAt: -1 }).lean();
+    const rawInvoices = await InvoiceModel.find(query).sort({ createdAt: -1 }).lean();
+    const invoices = await Promise.all(rawInvoices.map((doc) => resolveDocCreatedBy(doc)));
     return NextResponse.json(invoices);
   } catch (error: any) {
     return NextResponse.json(
@@ -423,6 +506,58 @@ export async function POST(request: Request) {
       resolvedCustomerType = "B2B";
     }
 
+    let resolvedCreatedBy: any = { role: "System", name: "System" };
+    if (payload.role === "admin") {
+      let adminName = "Admin";
+      if (payload.userId) {
+        const adminDoc = await Customer.findById(payload.userId).lean() as any;
+        if (adminDoc?.name) adminName = adminDoc.name;
+      }
+      if (adminName === "Admin" && payload.email) {
+        const adminDoc = await Customer.findOne({ email: payload.email.toLowerCase() }).lean() as any;
+        if (adminDoc?.name) adminName = adminDoc.name;
+        else adminName = payload.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      resolvedCreatedBy = {
+        role: "Admin",
+        name: adminName,
+        email: payload.email,
+        userId: payload.userId,
+      };
+    } else if (payload.role === "manager") {
+      let managerName = "Manager";
+      if (payload.userId && /^[0-9a-fA-F]{24}$/.test(payload.userId)) {
+        const managerDoc = await Manager.findById(payload.userId).lean() as any;
+        if (managerDoc?.name) managerName = managerDoc.name;
+      }
+      if (managerName === "Manager" && payload.email) {
+        const managerDoc = await Manager.findOne({ email: payload.email.toLowerCase() }).lean() as any;
+        if (managerDoc?.name) managerName = managerDoc.name;
+        else managerName = payload.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      resolvedCreatedBy = {
+        role: "Manager",
+        name: managerName,
+        email: payload.email,
+        userId: payload.userId,
+      };
+    } else if (payload.role === "customer") {
+      let custName = resolvedCustomerName || customerName || "Customer";
+      if (custName === "Customer" && payload.userId) {
+        const custDoc = await Customer.findById(payload.userId).lean() as any;
+        if (custDoc?.name) custName = custDoc.name;
+      }
+      if (custName.includes("@")) {
+        custName = custName.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      resolvedCreatedBy = {
+        role: "Customer",
+        name: custName,
+        email: payload.email,
+        userId: payload.userId,
+      };
+    }
+
     const newInvoice = await InvoiceModel.create({
       _id: invoiceId,
       type,
@@ -449,6 +584,7 @@ export async function POST(request: Request) {
       notes,
       generatedAt,
       generatedBy: isStaff ? payload.email : "system",
+      createdBy: resolvedCreatedBy,
       status: status || defaultStatus,
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,
@@ -490,6 +626,8 @@ export async function POST(request: Request) {
         invoiceId: invoiceId,
         salesperson: salesperson,
         dropshipDetails,
+        createdBy: resolvedCreatedBy,
+        origin: isStaff ? "self" : "website",
         history: [{
           status: "Processing",
           description: "Order created directly from Admin Receipt generator.",

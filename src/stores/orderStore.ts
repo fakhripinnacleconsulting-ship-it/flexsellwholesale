@@ -1,22 +1,15 @@
 import { create } from "zustand";
 import { Order, ShipmentDetails, CartItem } from "@/types";
-import { orderService } from "@/services/orderService";
+import { orderService, OrderListParams } from "@/services/orderService";
 import { handleApiError } from "@/lib/apiClient";
 
-export type { Order, ShipmentDetails };
+export type { Order, ShipmentDetails, OrderListParams };
 
 interface OrderStoreState {
   orders: Order[];
   isLoading: boolean;
   error: string | null;
-  initializeOrders: (params?: { 
-    page?: number; 
-    limit?: number; 
-    startDate?: string; 
-    endDate?: string;
-    orderType?: string;
-    origin?: string;
-  }) => Promise<void>;
+  initializeOrders: (params?: OrderListParams) => Promise<void>;
   createOrder: (
     items: CartItem[], 
     amount: number, 

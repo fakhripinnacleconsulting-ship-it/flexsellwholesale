@@ -9,7 +9,9 @@ import { Search, Eye, FileText } from "lucide-react";
 import { Order } from "@/stores/orderStore";
 import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { formatPrice } from "@/lib/utils";
+import { CreatedByBadge } from "@/components/common/CreatedByBadge";
 import { ShippingLabelDocument } from "@/components/documents/ShippingLabelDocument";
+import { useAuthStore } from "@/stores/authStore";
 
 interface OrdersListTableProps {
   orders: Order[];
@@ -45,12 +47,14 @@ export function OrdersListTable({
   const [selectedLabelOrder, setSelectedLabelOrder] = React.useState<Order | null>(null);
   const ITEMS_PER_PAGE = 10;
 
+  const { manager } = useAuthStore();
   const [statusFilter, setStatusFilter] = React.useState<string>("");
   const [paymentStatusFilter, setPaymentStatusFilter] = React.useState<string>("");
+  const [createdByFilter, setCreatedByFilter] = React.useState<string>(basePath === "/manager" ? "me" : "all");
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, originFilter, statusFilter, paymentStatusFilter]);
+  }, [searchTerm, startDate, endDate, originFilter, statusFilter, paymentStatusFilter, createdByFilter]);
 
   const filteredOrders = React.useMemo(() => {
     let result = orders;
@@ -59,6 +63,28 @@ export function OrdersListTable({
     }
     if (paymentStatusFilter) {
       result = result.filter(o => o.paymentStatus === paymentStatusFilter);
+    }
+    if (createdByFilter && createdByFilter !== "all") {
+      if (createdByFilter === "me") {
+        result = result.filter(o => {
+          if (o.createdBy?.userId) {
+            return o.createdBy.userId === manager?._id || o.createdBy.email === manager?.email;
+          }
+          if (o.createdBy?.name) {
+            return manager?.name && o.createdBy.name.toLowerCase() === manager.name.toLowerCase();
+          }
+          if ((o as any).generatedBy) {
+            const handle = manager?.email ? manager.email.split("@")[0].toLowerCase() : "";
+            const mgrName = manager?.name ? manager.name.toLowerCase() : "";
+            const gen = String((o as any).generatedBy).toLowerCase();
+            return (handle && gen.includes(handle)) || (mgrName && gen.includes(mgrName));
+          }
+          return false;
+        });
+      } else if (createdByFilter.startsWith("role:")) {
+        const targetRole = createdByFilter.replace("role:", "");
+        result = result.filter(o => o.createdBy?.role === targetRole);
+      }
     }
 
     const term = searchTerm.toLowerCase().trim();
@@ -70,7 +96,7 @@ export function OrdersListTable({
       );
     }
     return result;
-  }, [orders, searchTerm, statusFilter, paymentStatusFilter]);
+  }, [orders, searchTerm, statusFilter, paymentStatusFilter, createdByFilter]);
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
 
@@ -99,6 +125,20 @@ export function OrdersListTable({
           />
         </div>
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          <select
+            value={createdByFilter}
+            onChange={(e) => setCreatedByFilter(e.target.value)}
+            className="bg-background text-foreground text-xs font-semibold px-2.5 py-1.5 border rounded-md cursor-pointer h-9"
+            title="Filter by Created By"
+          >
+            <option value="all">Created By: All</option>
+            <option value="me">Created By: Me</option>
+            <option value="role:Admin">Created By: Admin</option>
+            <option value="role:Manager">Created By: Manager</option>
+            <option value="role:Customer">Created By: Customer</option>
+            <option value="role:System">Created By: System</option>
+          </select>
+
           <select
             value={originFilter}
             onChange={(e) => setOriginFilter(e.target.value as any)}
@@ -150,7 +190,7 @@ export function OrdersListTable({
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
-          {(startDate || endDate || originFilter || statusFilter || paymentStatusFilter) && (
+          {(startDate || endDate || originFilter || statusFilter || paymentStatusFilter || (createdByFilter !== (basePath === "/manager" ? "me" : "all"))) && (
             <Button
               variant="ghost"
               size="sm"
@@ -161,6 +201,7 @@ export function OrdersListTable({
                 setOriginFilter("");
                 setStatusFilter("");
                 setPaymentStatusFilter("");
+                setCreatedByFilter(basePath === "/manager" ? "me" : "all");
               }}
             >
               Clear
@@ -183,6 +224,7 @@ export function OrdersListTable({
                 <th className="px-6 py-4 font-semibold tracking-wide">Order ID & Origin</th>
                 <th className="px-6 py-4 font-semibold tracking-wide">Date</th>
                 <th className="px-6 py-4 font-semibold tracking-wide">Customer</th>
+                <th className="px-6 py-4 font-semibold tracking-wide">Created By</th>
                 <th className="px-6 py-4 font-semibold tracking-wide">Total Amount</th>
                 <th className="px-6 py-4 font-semibold tracking-wide">Fulfillment Status</th>
                 <th className="px-6 py-4 font-semibold tracking-wide text-right">Actions</th>
@@ -191,7 +233,7 @@ export function OrdersListTable({
             <tbody className="divide-y divide-border">
               {paginatedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground italic">
+                  <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground italic">
                     No order records found.
                   </td>
                 </tr>
@@ -235,6 +277,14 @@ export function OrdersListTable({
                     <td className="px-6 py-4 text-xs text-muted-foreground">{order.date}</td>
                     <td className="px-6 py-4 font-semibold text-foreground max-w-[200px] truncate" title={order.customerName}>
                       {truncateString(order.customerName, 40)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <CreatedByBadge
+                        createdBy={order.createdBy}
+                        customerName={order.customerName}
+                        origin={order.origin}
+                        docType="order"
+                      />
                     </td>
                     <td className="px-6 py-4 font-bold text-foreground">
                       {formatPrice(order.amount)}

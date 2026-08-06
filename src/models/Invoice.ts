@@ -89,6 +89,12 @@ const InvoiceSchema = new Schema<InvoiceType & Document>(
     notes: { type: String },
     generatedAt: { type: String, required: true },
     generatedBy: { type: String, required: true, default: "system" },
+    createdBy: {
+      name: { type: String },
+      role: { type: String, enum: ["Admin", "Manager", "Customer", "System"], default: "System" },
+      email: { type: String },
+      userId: { type: String },
+    },
     salesperson: { type: String },
     isArchived: { type: Boolean, default: false },
     status: {
@@ -132,6 +138,8 @@ InvoiceSchema.index({ status: 1 });
 InvoiceSchema.index({ isArchived: 1 });
 InvoiceSchema.index({ createdAt: -1 });
 InvoiceSchema.index({ customerType: 1 });
+InvoiceSchema.index({ "createdBy.userId": 1 });
+InvoiceSchema.index({ "createdBy.role": 1 });
 
 if (mongoose.models.Invoice) {
   mongoose.deleteModel("Invoice");

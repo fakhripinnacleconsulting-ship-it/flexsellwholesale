@@ -168,6 +168,13 @@ export interface ShipmentDetails {
   shiprocket?: ShiprocketOrderDetails;
 }
 
+export interface CreatedByInfo {
+  name: string;
+  role: "Admin" | "Manager" | "Customer" | "System";
+  email?: string;
+  userId?: string;
+}
+
 export interface Order extends BaseDocument {
   date: string;
   customerId?: string;
@@ -223,6 +230,7 @@ export interface Order extends BaseDocument {
   shippingCharge?: number;
   orderType?: "B2B" | "B2C" | "Dropshipping";
   origin?: "self" | "website";
+  createdBy?: CreatedByInfo;
 }
 
 export interface HsnSlab {
@@ -304,6 +312,7 @@ export interface Invoice extends BaseDocument {
   notes?: string;
   generatedAt: string;
   generatedBy: string;
+  createdBy?: CreatedByInfo;
   salesperson?: string;
   isArchived?: boolean;
   status:

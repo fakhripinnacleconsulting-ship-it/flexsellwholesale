@@ -91,15 +91,18 @@ function saveLocalOrders(orders: Order[]) {
   localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
 }
 
+export interface OrderListParams {
+  page?: number;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
+  orderType?: string;
+  origin?: string;
+  createdBy?: string;
+}
+
 export const orderService = {
-  async getOrders(params?: {
-    page?: number;
-    limit?: number;
-    startDate?: string;
-    endDate?: string;
-    orderType?: string;
-    origin?: string;
-  }): Promise<unknown> {
+  async getOrders(params?: OrderListParams): Promise<unknown> {
     if (isMockMode) {
       let list = getLocalOrders();
       if (params?.startDate) {
@@ -138,6 +141,7 @@ export const orderService = {
     if (params?.endDate) queryParams.push(`endDate=${params.endDate}`);
     if (params?.orderType) queryParams.push(`orderType=${params.orderType}`);
     if (params?.origin) queryParams.push(`origin=${params.origin}`);
+    if (params?.createdBy) queryParams.push(`createdBy=${encodeURIComponent(params.createdBy)}`);
 
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;

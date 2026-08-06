@@ -31,7 +31,7 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
   const { products, initializeProducts } = useProductStore();
   const { addToast } = useToastStore();
   const confirmAction = useConfirmStore((state) => state.confirm);
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isManagerRoute } = usePermissions();
 
   const [activeTab, setActiveTab] = React.useState<"invoice" | "receipt" | "quote" | "company_info">(initialTab);
   const [activeSubTab, setActiveSubTab] = React.useState<"B2B" | "B2C" | "Dropshipping">("B2B");
@@ -41,6 +41,7 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
   const [endDate, setEndDate] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
   const [salesperson, setSalesperson] = React.useState("");
+  const [createdByFilter, setCreatedByFilter] = React.useState<string>(isManagerRoute ? "me" : "all");
 
   // Company Settings State
   const [companyInfo, setCompanyInfo] = React.useState<CompanyInfoData>({
@@ -119,9 +120,10 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
       search: searchTerm || undefined,
       page: currentPage,
       limit: 10,
-      customerType: activeTab === "quote" ? undefined : activeSubTab
+      customerType: activeTab === "quote" ? undefined : activeSubTab,
+      createdBy: createdByFilter !== "all" ? createdByFilter : undefined
     });
-  }, [activeTab, statusFilter, startDate, endDate, searchTerm, currentPage, activeSubTab, initializeInvoices]);
+  }, [activeTab, statusFilter, startDate, endDate, searchTerm, currentPage, activeSubTab, createdByFilter, initializeInvoices]);
 
   React.useEffect(() => {
     loadData();
@@ -344,6 +346,8 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
             setStartDate={setStartDate}
             endDate={endDate}
             setEndDate={setEndDate}
+            createdByFilter={createdByFilter}
+            setCreatedByFilter={setCreatedByFilter}
           />
 
           <InvoiceTable

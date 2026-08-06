@@ -14,6 +14,8 @@ interface InvoiceTableFiltersProps {
   setStartDate: (val: string) => void;
   endDate: string;
   setEndDate: (val: string) => void;
+  createdByFilter?: string;
+  setCreatedByFilter?: (val: string) => void;
 }
 
 export function InvoiceTableFilters({
@@ -26,6 +28,8 @@ export function InvoiceTableFilters({
   setStartDate,
   endDate,
   setEndDate,
+  createdByFilter = "all",
+  setCreatedByFilter,
 }: InvoiceTableFiltersProps) {
   return (
     <div className="flex flex-col sm:flex-row gap-4 items-center justify-between p-4 border-b">
@@ -42,6 +46,22 @@ export function InvoiceTableFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+        {setCreatedByFilter && (
+          <select
+            value={createdByFilter}
+            onChange={(e) => setCreatedByFilter(e.target.value)}
+            className="bg-background text-foreground text-xs font-semibold px-3 py-2 border rounded-md cursor-pointer"
+            title="Filter by Created By"
+          >
+            <option value="all">Created By: All</option>
+            <option value="me">Created By: Me</option>
+            <option value="role:Admin">Created By: Admin</option>
+            <option value="role:Manager">Created By: Manager</option>
+            <option value="role:Customer">Created By: Customer</option>
+            <option value="role:System">Created By: System</option>
+          </select>
+        )}
+
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}

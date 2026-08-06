@@ -13,6 +13,7 @@ export interface InvoiceListParams {
   page?: number;
   limit?: number;
   customerType?: string;
+  createdBy?: string;
 }
 
 const INVOICES_STORAGE_KEY = "flexsell-invoices-storage";
@@ -267,6 +268,7 @@ export const invoiceService = {
     if (params?.page) queryParams.push(`page=${params.page}`);
     if (params?.limit) queryParams.push(`limit=${params.limit}`);
     if (params?.customerType) queryParams.push(`customerType=${params.customerType}`);
+    if (params?.createdBy) queryParams.push(`createdBy=${encodeURIComponent(params.createdBy)}`);
 
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;

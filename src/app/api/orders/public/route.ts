@@ -140,6 +140,59 @@ export async function POST(request: Request) {
       day: "numeric",
     });
 
+    let resolvedCreatedBy: any = { role: "System", name: "System" };
+    if (payload.role === "admin") {
+      let adminName = "Admin";
+      if (payload.userId) {
+        const adminDoc = await Customer.findById(payload.userId).lean() as any;
+        if (adminDoc?.name) adminName = adminDoc.name;
+      }
+      if (adminName === "Admin" && payload.email) {
+        const adminDoc = await Customer.findOne({ email: payload.email.toLowerCase() }).lean() as any;
+        if (adminDoc?.name) adminName = adminDoc.name;
+        else adminName = payload.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      resolvedCreatedBy = {
+        role: "Admin",
+        name: adminName,
+        email: payload.email,
+        userId: payload.userId,
+      };
+    } else if (payload.role === "manager") {
+      const { default: Manager } = await import("@/models/Manager");
+      let managerName = "Manager";
+      if (payload.userId) {
+        const managerDoc = await Manager.findById(payload.userId).lean() as any;
+        if (managerDoc?.name) managerName = managerDoc.name;
+      }
+      if (managerName === "Manager" && payload.email) {
+        const managerDoc = await Manager.findOne({ email: payload.email.toLowerCase() }).lean() as any;
+        if (managerDoc?.name) managerName = managerDoc.name;
+        else managerName = payload.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      resolvedCreatedBy = {
+        role: "Manager",
+        name: managerName,
+        email: payload.email,
+        userId: payload.userId,
+      };
+    } else if (payload.role === "customer") {
+      let custName = resolvedCustomerName || customerName || "Customer";
+      if (custName === "Customer" && payload.userId) {
+        const custDoc = await Customer.findById(payload.userId).lean() as any;
+        if (custDoc?.name) custName = custDoc.name;
+      }
+      if (custName.includes("@")) {
+        custName = custName.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      resolvedCreatedBy = {
+        role: "Customer",
+        name: custName || "Customer",
+        email: payload.email,
+        userId: payload.userId,
+      };
+    }
+
     // Create Receipt Invoice
     await InvoiceModel.create({
       _id: invoiceId,
@@ -168,6 +221,7 @@ export async function POST(request: Request) {
       notes,
       generatedAt,
       generatedBy: "website-public",
+      createdBy: resolvedCreatedBy,
       status: paymentStatus === "Paid" ? "paid" : "pending",
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,
@@ -201,6 +255,7 @@ export async function POST(request: Request) {
       invoiceId,
       salesperson: salesperson || undefined,
       dropshipDetails,
+      createdBy: resolvedCreatedBy,
       history: [{
         status: "Processing",
         description: "Dropshipping order created via Public Portal.",

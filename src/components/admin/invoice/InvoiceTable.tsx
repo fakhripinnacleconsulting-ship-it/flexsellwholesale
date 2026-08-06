@@ -8,6 +8,8 @@ import { Invoice } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 
+import { CreatedByBadge } from "@/components/common/CreatedByBadge";
+
 interface InvoiceTableProps {
   invoices: Invoice[];
   isLoading: boolean;
@@ -59,6 +61,7 @@ export function InvoiceTable({
               <tr>
                 <th className="p-4">Document ID</th>
                 <th className="p-4">Customer Name</th>
+                <th className="p-4">Created By</th>
                 <th className="p-4 text-right">Grand Total</th>
                 <th className="p-4 text-center">Status</th>
                 <th className="p-4">Generated Date</th>
@@ -68,7 +71,7 @@ export function InvoiceTable({
             <tbody className="divide-y divide-border">
               {invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
                     No documents found matching the search criteria.
                   </td>
                 </tr>
@@ -86,6 +89,14 @@ export function InvoiceTable({
                     <td className="p-4">
                       <p className="font-semibold text-foreground">{inv.customerName}</p>
                       <p className="text-[10px] text-muted-foreground">{inv.customerEmail}</p>
+                    </td>
+                    <td className="p-4">
+                      <CreatedByBadge
+                        createdBy={inv.createdBy}
+                        generatedBy={inv.generatedBy}
+                        customerName={inv.customerName}
+                        docType={inv.type}
+                      />
                     </td>
                     <td className="p-4 text-right font-bold text-foreground font-mono">
                       {formatPrice(inv.amount)}
