@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
 import Order from "@/models/Order";
+import Manager from "@/models/Manager";
 import { requireAuth } from "@/lib/authGuard";
 
 export async function GET(
@@ -44,7 +45,7 @@ export async function PUT(
     if (auth.error) return auth.error;
     const payload = auth.payload!;
 
-    if (payload.role !== "admin") {
+    if (payload.role !== "admin" && payload.role !== "manager") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
@@ -54,6 +55,19 @@ export async function PUT(
     const existingDoc = await InvoiceModel.findById(id) as any;
     if (!existingDoc) {
       return NextResponse.json({ message: "Document not found" }, { status: 404 });
+    }
+
+    if (payload.role === "manager") {
+      let perms = (payload as any).permissions || [];
+      const managerDoc = await Manager.findById(payload.userId).lean() as any;
+      if (managerDoc && managerDoc.permissions) {
+        perms = managerDoc.permissions;
+      }
+      const permKey = `invoices_${existingDoc.type}`;
+      const hasPerm = perms.includes(permKey) || perms.includes(`${permKey}:update`) || perms.some((p: string) => p.startsWith(`${permKey}:`));
+      if (!hasPerm) {
+        return NextResponse.json({ message: "Forbidden: Insufficient permissions to update document" }, { status: 403 });
+      }
     }
 
     const body = await request.json();
@@ -193,7 +207,7 @@ export async function DELETE(
     if (auth.error) return auth.error;
     const payload = auth.payload!;
 
-    if (payload.role !== "admin") {
+    if (payload.role !== "admin" && payload.role !== "manager") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
@@ -203,6 +217,19 @@ export async function DELETE(
     const invoice = await InvoiceModel.findById(id).lean() as any;
     if (!invoice) {
       return NextResponse.json({ message: "Document not found" }, { status: 404 });
+    }
+
+    if (payload.role === "manager") {
+      let perms = (payload as any).permissions || [];
+      const managerDoc = await Manager.findById(payload.userId).lean() as any;
+      if (managerDoc && managerDoc.permissions) {
+        perms = managerDoc.permissions;
+      }
+      const permKey = `invoices_${invoice.type}`;
+      const hasPerm = perms.includes(permKey) || perms.includes(`${permKey}:delete`) || perms.some((p: string) => p.startsWith(`${permKey}:`));
+      if (!hasPerm) {
+        return NextResponse.json({ message: "Forbidden: Insufficient permissions to delete document" }, { status: 403 });
+      }
     }
 
     // 1. INVOICES CANNOT BE DELETED

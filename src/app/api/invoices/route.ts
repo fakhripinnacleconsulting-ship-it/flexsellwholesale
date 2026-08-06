@@ -137,9 +137,12 @@ export async function GET(request: Request) {
         perms = managerUser.permissions || [];
       }
       
-      const hasInvoices = perms.includes("invoices_invoice");
-      const hasQuotes = perms.includes("invoices_quote");
-      const hasReceipts = perms.includes("invoices_receipt");
+      const hasPerm = (p: string) =>
+        perms.includes(p) || perms.some((perm: string) => perm.startsWith(`${p}:`));
+
+      const hasInvoices = hasPerm("invoices_invoice");
+      const hasQuotes = hasPerm("invoices_quote");
+      const hasReceipts = hasPerm("invoices_receipt");
       
       if (!hasInvoices && !hasQuotes && !hasReceipts) {
         return NextResponse.json({ message: "Forbidden: No document access" }, { status: 403 });
