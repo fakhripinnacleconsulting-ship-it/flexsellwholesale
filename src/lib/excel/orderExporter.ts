@@ -99,20 +99,41 @@ export async function exportOrdersToExcel(orders: Order[]) {
 
     const productDimensions = items
       .map((i: any) => {
-        const dim = i.dimensions || i.product?.dimensions || i.selectedVariants?.dimensions;
+        const dim = i.dimensions || i.boxSize || i.product?.dimensions || i.product?.boxSize || i.selectedVariants?.dimensions || i.product?.colorVariants?.[0]?.dimensions;
         if (typeof dim === "object" && dim !== null) {
           return `${dim.length || 0}x${dim.width || dim.breadth || 0}x${dim.height || 0} cm`;
         }
-        return dim || "N/A";
+        if (typeof dim === "string" && dim.trim()) return dim;
+        const subSize = i.size || i.selectedVariants?.size || i.product?.colorVariants?.[0]?.subVariants?.[0]?.size;
+        return subSize || "N/A";
       })
       .join("; ");
 
     const productWeight = items
       .map((i: any) => {
-        const w = i.weight || i.selectedVariants?.weight || i.product?.weight || i.product?.subVariants?.[0]?.weight;
-        return w ? `${w}g` : "N/A";
+        const w = i.weight || i.selectedVariants?.weight || i.product?.weight || i.product?.colorVariants?.[0]?.subVariants?.[0]?.weight;
+        return w ? (typeof w === "number" ? `${w}g` : w) : "N/A";
       })
       .join("; ");
+
+    const dropship = (order as any).dropshipDetails || {};
+
+    const getAbsoluteUrl = (url?: string) => {
+      if (!url) return "";
+      if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
+      const baseUrl = typeof window !== "undefined"
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
+      return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+    };
+
+    const taxInvoiceUrl = getAbsoluteUrl(dropship.amazonTaxInvoice);
+    const packingSlipUrl = getAbsoluteUrl(dropship.amazonPackingSlip);
+
+    const formatLinkCell = (url?: string) => {
+      if (!url) return "";
+      return { formula: `HYPERLINK("${url}", "View Document")`, value: url };
+    };
 
     const productType = items
       .map((i: any) => {
@@ -140,7 +161,6 @@ export async function exportOrdersToExcel(orders: Order[]) {
       )
       .join(" | ");
 
-    const dropship = (order as any).dropshipDetails || {};
     const originStr = (order as any).origin || "website";
     const taxDetails = (order as any).taxDetails;
 
@@ -186,8 +206,8 @@ export async function exportOrdersToExcel(orders: Order[]) {
       dropshipCity: dropship.city || "",
       dropshipState: dropship.state || "",
       dropshipPincode: dropship.pinCode || "",
-      amazonTaxInvoice: dropship.amazonTaxInvoice || "",
-      amazonPackingSlip: dropship.amazonPackingSlip || "",
+      amazonTaxInvoice: formatLinkCell(taxInvoiceUrl),
+      amazonPackingSlip: formatLinkCell(packingSlipUrl),
 
       totalItemsCount: `${items.length} items (${totalItemsCount} pcs)`,
       productTitlesAndVariants,

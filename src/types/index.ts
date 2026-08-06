@@ -164,6 +164,7 @@ export interface ShipmentDetails {
   deliveredAt?: string;
   estimatedDelivery?: string;
   notes?: string;
+  uploadShippingLabel?: string;
   shiprocket?: ShiprocketOrderDetails;
 }
 

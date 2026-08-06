@@ -29,6 +29,7 @@ const ShipmentDetailsSchema = new Schema({
   deliveredAt: { type: String },
   estimatedDelivery: { type: String },
   notes: { type: String },
+  uploadShippingLabel: { type: String },
   shiprocket: { type: ShiprocketOrderSchema },
 });
 

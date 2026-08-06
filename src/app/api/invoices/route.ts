@@ -340,6 +340,7 @@ export async function POST(request: Request) {
     }
 
     // Handle new customer auto-creation
+    let resolvedCustomerType = body.customerType || (newCustomer?.customerTypes?.[0]) || "B2C";
     let resolvedCustomerId = customerId;
     let resolvedCustomerName = customerName;
     let resolvedCustomerEmail = customerEmail;
@@ -380,7 +381,9 @@ export async function POST(request: Request) {
           phone: newCustomer.phone || "",
           gstin: newCustomer.gstin || "",
           initials,
-          customerTypes: newCustomer.customerTypes || ["B2C"],
+          customerTypes: newCustomer.customerTypes || [resolvedCustomerType || "B2C"],
+          kycStatus: (newCustomer.customerTypes?.includes("B2B") || resolvedCustomerType === "B2B") ? "Pending" : "Verified",
+          isVerified: (newCustomer.customerTypes?.includes("B2B") || resolvedCustomerType === "B2B") ? false : true,
         });
 
         resolvedCustomerId = newCustId;
@@ -406,7 +409,6 @@ export async function POST(request: Request) {
     }
 
     // Resolve customerType
-    let resolvedCustomerType = "B2C";
     if (body.customerType) {
       resolvedCustomerType = body.customerType;
     } else if (resolvedCustomerId && resolvedCustomerId !== "legacy-sync") {

@@ -74,6 +74,38 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
     }
   }, [shipType, orderId]);
 
+  const [uploadShippingLabel, setUploadShippingLabel] = React.useState("");
+  const [isUploadingLabel, setIsUploadingLabel] = React.useState(false);
+
+  const handleLabelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingLabel(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const headers: Record<string, string> = {};
+      if (typeof document !== "undefined") {
+        const matches = document.cookie.match(/csrf_token=([^;]+)/);
+        if (matches && matches[1]) {
+          headers["X-CSRF-Token"] = matches[1];
+        }
+      }
+      const res = await fetch("/api/customers/upload-document", {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to upload shipping label");
+      if (data.url) setUploadShippingLabel(data.url);
+    } catch (err: any) {
+      alert(err.message || "Failed to upload shipping label");
+    } finally {
+      setIsUploadingLabel(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSrError(null);
@@ -113,6 +145,7 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
       estimatedDelivery: estDelivery.trim() || undefined,
       shippedAt: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
       notes: dispatchNotes.trim() || undefined,
+      uploadShippingLabel: shipType === "third-party" ? uploadShippingLabel || undefined : undefined,
     };
 
     setIsSubmitting(true);
@@ -258,6 +291,29 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
                 type="url"
                 className="text-sm font-mono"
               />
+            </div>
+          )}
+
+          {shipType === "third-party" && (
+            <div className="p-3 bg-secondary/15 border border-border rounded-lg space-y-2">
+              <label className="text-xs font-bold text-foreground block">
+                Upload Third-Party Shipping Label (Image / PDF)
+              </label>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={handleLabelUpload}
+                disabled={isUploadingLabel}
+                className="text-xs block w-full text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
+              />
+              {isUploadingLabel && (
+                <p className="text-[10px] text-primary animate-pulse">Uploading shipping label document...</p>
+              )}
+              {uploadShippingLabel && !isUploadingLabel && (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                  ✓ Shipping Label Uploaded
+                </p>
+              )}
             </div>
           )}
 

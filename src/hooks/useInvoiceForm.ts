@@ -180,6 +180,19 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
       }
     }
 
+    if (formCustomerType === "B2B") {
+      for (const item of formItems) {
+        const moq = item.b2bMoq || (item as any).product?.b2bMoq || (item as any).moq || 1;
+        if (moq > 1 && item.quantity < moq) {
+          addToast(
+            `Minimum Order Quantity (MOQ) not satisfied for "${item.productTitle || 'item'}". Minimum required: ${moq} pcs.`,
+            "warning"
+          );
+          return;
+        }
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const isIntrastate = (newCustState || INDIAN_STATES[0]).toLowerCase() === "madhya pradesh";

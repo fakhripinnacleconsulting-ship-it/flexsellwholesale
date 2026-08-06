@@ -273,6 +273,34 @@ export function InvoiceCreateModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [products, selectedProductId, setProductSearch]);
 
+  React.useEffect(() => {
+    if (formCustomerType === "B2B" || formCustomerType === "Dropshipping") {
+      if (customerMode !== "existing") {
+        setCustomerMode("existing");
+      }
+    }
+  }, [formCustomerType, customerMode, setCustomerMode]);
+
+  React.useEffect(() => {
+    if (!formItems || formItems.length === 0) return;
+    const updated = formItems.map((item) => {
+      const p = item.product || products.find(prod => prod._id === item.productId);
+      const colorVar = p?.colorVariants?.find((c: any) => c.color === item.color) || p?.colorVariants?.[0];
+      const subVar = colorVar?.subVariants?.find((sv: any) =>
+        (!item.size || sv.size === item.size) &&
+        (!item.weight || sv.weight === item.weight)
+      ) || colorVar?.subVariants?.[0];
+
+      const targetSubVar = subVar || item;
+      const newTierPrice = resolvePrice(targetSubVar, formCustomerType, item.quantity);
+      return {
+        ...item,
+        pricePerUnit: newTierPrice > 0 ? newTierPrice : item.pricePerUnit,
+      };
+    });
+    setFormItems(updated);
+  }, [formCustomerType]);
+
   const filteredProductsForSelect = React.useMemo(() => {
     const q = productSearch.toLowerCase().trim();
     if (!q) return products;
@@ -296,6 +324,22 @@ export function InvoiceCreateModal({
   const currentProduct = React.useMemo(() => {
     return products.find(p => p._id === selectedProductId) || null;
   }, [products, selectedProductId]);
+
+  React.useEffect(() => {
+    if (currentProduct) {
+      const cv = currentProduct.colorVariants?.[0];
+      const sv = cv?.subVariants?.[0];
+      const moq = sv?.b2bMoq || (currentProduct as any).b2bMoq || 1;
+      const targetQty = formCustomerType === "B2B" && moq > 1 ? moq : 1;
+      setItemQty(targetQty);
+      if (sv) {
+        const autoPrice = resolvePrice(sv, formCustomerType, targetQty);
+        setItemPrice(autoPrice);
+      }
+    } else {
+      setItemPrice(0);
+    }
+  }, [selectedProductId, formCustomerType]);
 
   const availableColors = React.useMemo(() => {
     if (!currentProduct?.colorVariants) return [];
@@ -327,7 +371,9 @@ export function InvoiceCreateModal({
       (!selectedWeight || sv.weight === selectedWeight)
     ) || colorVar?.subVariants?.[0];
 
-    const finalPrice = itemPrice > 0 ? itemPrice : resolvePrice(subVar, formCustomerType);
+    const effectiveQty = itemQty > 0 ? itemQty : (subVar?.b2bMoq || 1);
+    const resolvedTierPrice = resolvePrice(subVar, formCustomerType, effectiveQty);
+    const finalPrice = itemPrice > 0 ? itemPrice : resolvedTierPrice;
 
     const itemWeightStr = selectedWeight || subVar?.weight || "500g";
     const { parseWeightToGrams } = require("@/lib/shippingHelper");
@@ -345,15 +391,16 @@ export function InvoiceCreateModal({
       gstRate: currentProduct.gstRate || 18,
       mrp: subVar?.mrp || finalPrice,
       b2cPrice: subVar?.b2cPrice || finalPrice,
-      b2bPrice: subVar?.b2bPrice || finalPrice,
+      b2bPrice: subVar?.b2bPrice || resolvedTierPrice,
       dropshippingPrice: subVar?.dropshippingPrice || finalPrice,
+      b2bMoq: subVar?.b2bMoq || (currentProduct as any).b2bMoq || (currentProduct as any).moq || 1,
       sku: subVar?.sku || currentProduct._id,
       selectedVariants: {
         color: selectedColor || colorVar?.color || "Default",
         size: selectedSize || subVar?.size || "Standard",
         weight: itemWeightStr
       },
-      quantity: itemQty,
+      quantity: effectiveQty,
       pricePerUnit: finalPrice
     };
 
@@ -439,8 +486,8 @@ export function InvoiceCreateModal({
               {isPublicMode
                 ? "Create Dropshipping Order"
                 : isOrderCreationMode
-                ? (editInvoiceId ? "Edit Order" : "Create New Order")
-                : `${editInvoiceId ? "Edit" : "Generate New"} ${formDocType === "invoice" ? "Invoice" : formDocType === "receipt" ? "Receipt" : "Price Quote"}`
+                  ? (editInvoiceId ? "Edit Order" : "Create New Order")
+                  : `${editInvoiceId ? "Edit" : "Generate New"} ${formDocType === "invoice" ? "Invoice" : formDocType === "receipt" ? "Receipt" : "Price Quote"}`
               }
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -494,26 +541,33 @@ export function InvoiceCreateModal({
           {/* Customer selection */}
           <div className="space-y-4">
             <h3 className="font-bold text-xs uppercase tracking-wider text-primary border-b pb-1.5">1. {formCustomerType} Client Details</h3>
-            <div className="flex border-b border-border/60 max-w-xs">
-              <button
-                type="button"
-                onClick={() => setCustomerMode("existing")}
-                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${customerMode === "existing" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
-                  }`}
-              >
-                Registered Client
-              </button>
-              <button
-                type="button"
-                onClick={() => setCustomerMode("new")}
-                className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${customerMode === "new" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
-                  }`}
-              >
-                New Client (Auto-Create)
-              </button>
-            </div>
 
-            {customerMode === "existing" ? (
+            {formCustomerType === "B2C" ? (
+              <div className="flex border-b border-border/60 max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => setCustomerMode("existing")}
+                  className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${customerMode === "existing" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
+                    }`}
+                >
+                  Registered Client
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomerMode("new")}
+                  className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 cursor-pointer ${customerMode === "new" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground"
+                    }`}
+                >
+                  New Client (Auto-Create)
+                </button>
+              </div>
+            ) : (
+              <div className="p-2.5 bg-primary/5 border border-primary/20 rounded-lg text-xs font-semibold text-primary flex items-center justify-between">
+                <span>🔒 Only verified registered {formCustomerType} buyers can be selected </span>
+              </div>
+            )}
+
+            {(customerMode === "existing" || formCustomerType !== "B2C") ? (
               <div className="max-w-md">
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Select Buyer</label>
                 <CustomerSearchPicker
@@ -539,11 +593,20 @@ export function InvoiceCreateModal({
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Company / Business Name</label>
-                  <Input value={newCustCompany} onChange={(e) => setNewCustCompany(e.target.value)} placeholder="e.g. Sharma Retail Pvt Ltd" />
+                  <Input
+                    value={newCustCompany}
+                    onChange={(e) => setNewCustCompany(e.target.value)}
+                    placeholder="e.g. Sharma Retail Pvt Ltd"
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">GSTIN Number</label>
-                  <Input value={newCustGstin} onChange={(e) => setNewCustGstin(e.target.value.toUpperCase())} placeholder="e.g. 23AAACD1234D1Z0" className="font-mono uppercase" />
+                  <Input
+                    value={newCustGstin}
+                    onChange={(e) => setNewCustGstin(e.target.value.toUpperCase())}
+                    placeholder="e.g. 23AAACD1234D1Z0"
+                    className="font-mono uppercase"
+                  />
                 </div>
                 <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="md:col-span-2">
@@ -952,7 +1015,21 @@ export function InvoiceCreateModal({
                       type="number"
                       min="1"
                       value={itemQty}
-                      onChange={(e) => setItemQty(parseInt(e.target.value, 10) || 1)}
+                      onChange={(e) => {
+                        const newQ = parseInt(e.target.value, 10) || 1;
+                        setItemQty(newQ);
+                        if (currentProduct) {
+                          const colorVar = currentProduct.colorVariants?.find(c => c.color === selectedColor) || currentProduct.colorVariants?.[0];
+                          const subVar = colorVar?.subVariants?.find(sv =>
+                            (!selectedSize || sv.size === selectedSize) &&
+                            (!selectedWeight || sv.weight === selectedWeight)
+                          ) || colorVar?.subVariants?.[0];
+                          if (subVar) {
+                            const newP = resolvePrice(subVar, formCustomerType, newQ);
+                            setItemPrice(newP);
+                          }
+                        }
+                      }}
                       className="text-sm font-semibold"
                     />
                   </div>
@@ -987,36 +1064,131 @@ export function InvoiceCreateModal({
                       </td>
                     </tr>
                   ) : (
-                    formItems.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="p-3">
-                          <div className="font-bold text-foreground" title={item.productTitle}>
-                            {item.productTitle.length > 50 ? `${item.productTitle.substring(0, 50)}...` : item.productTitle}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground font-mono">
-                            <div>Varient: {item.color || "N/A"} • Size: {item.size || "N/A"}</div>
-                            <div>SKU: {item.sku || "N/A"}</div>
-                          </div>
-                        </td>
-                        <td className="p-3 font-mono text-[11px]">
-                          {item.hsnCode} ({item.gstRate}%)
-                        </td>
-                        <td className="p-3 text-right font-bold">{item.quantity}</td>
-                        <td className="p-3 text-right font-mono">{formatPrice(item.pricePerUnit)}</td>
-                        <td className="p-3 text-right font-black">{formatPrice(item.pricePerUnit * item.quantity)}</td>
-                        <td className="p-3 text-right">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveItem(idx)}
-                            className="h-7 w-7 p-0 text-red-600 cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
+                    formItems.map((item, idx) => {
+                      const itemMoq = item.b2bMoq || (item as any).moq || (item as any).product?.b2bMoq || 1;
+                      const isMoqSatisfied = item.quantity >= itemMoq;
+
+                      return (
+                        <tr key={idx}>
+                          <td className="p-3">
+                            <div className="font-bold text-foreground flex items-center flex-wrap gap-1" title={item.productTitle}>
+                              <span>{item.productTitle.length > 45 ? `${item.productTitle.substring(0, 45)}...` : item.productTitle}</span>
+                              {formCustomerType === "B2B" && itemMoq > 1 && (
+                                <span className={`px-1.5 py-0.5 text-[9px] font-extrabold rounded border shrink-0 ${isMoqSatisfied
+                                  ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200 border-emerald-300"
+                                  : "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200 border-amber-300"
+                                  }`}>
+                                  MOQ: {itemMoq} pcs
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground font-mono">
+                              <div>Varient: {item.color || "N/A"} • Size: {item.size || "N/A"}</div>
+                              <div>SKU: {item.sku || "N/A"}</div>
+                            </div>
+                          </td>
+                          <td className="p-3 font-mono text-[11px]">
+                            {item.hsnCode} ({item.gstRate}%)
+                          </td>
+                          <td className="p-3 text-right font-bold">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQ = Math.max(1, item.quantity - 1);
+                                  setFormItems(prev => {
+                                    const updated = [...prev];
+                                    const p = item.product || products.find(prod => prod._id === item.productId);
+                                    const colorVar = p?.colorVariants?.find((c: any) => c.color === item.color) || p?.colorVariants?.[0];
+                                    const subVar = colorVar?.subVariants?.find((sv: any) =>
+                                      (!item.size || sv.size === item.size) &&
+                                      (!item.weight || sv.weight === item.weight)
+                                    ) || colorVar?.subVariants?.[0];
+                                    const targetSubVar = subVar || item;
+                                    const newP = resolvePrice(targetSubVar, formCustomerType, newQ);
+                                    updated[idx] = { ...item, quantity: newQ, pricePerUnit: newP > 0 ? newP : item.pricePerUnit };
+                                    return updated;
+                                  });
+                                }}
+                                className="h-6 w-6 rounded border border-border bg-secondary/20 hover:bg-secondary text-xs font-bold flex items-center justify-center cursor-pointer"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const newQ = parseInt(e.target.value, 10) || 1;
+                                  setFormItems(prev => {
+                                    const updated = [...prev];
+                                    const p = item.product || products.find(prod => prod._id === item.productId);
+                                    const colorVar = p?.colorVariants?.find((c: any) => c.color === item.color) || p?.colorVariants?.[0];
+                                    const subVar = colorVar?.subVariants?.find((sv: any) =>
+                                      (!item.size || sv.size === item.size) &&
+                                      (!item.weight || sv.weight === item.weight)
+                                    ) || colorVar?.subVariants?.[0];
+                                    const targetSubVar = subVar || item;
+                                    const newP = resolvePrice(targetSubVar, formCustomerType, newQ);
+                                    updated[idx] = { ...item, quantity: newQ, pricePerUnit: newP > 0 ? newP : item.pricePerUnit };
+                                    return updated;
+                                  });
+                                }}
+                                className="w-12 h-6 text-center font-bold border border-border rounded text-xs bg-background"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQ = item.quantity + 1;
+                                  setFormItems(prev => {
+                                    const updated = [...prev];
+                                    const p = item.product || products.find(prod => prod._id === item.productId);
+                                    const colorVar = p?.colorVariants?.find((c: any) => c.color === item.color) || p?.colorVariants?.[0];
+                                    const subVar = colorVar?.subVariants?.find((sv: any) =>
+                                      (!item.size || sv.size === item.size) &&
+                                      (!item.weight || sv.weight === item.weight)
+                                    ) || colorVar?.subVariants?.[0];
+                                    const targetSubVar = subVar || item;
+                                    const newP = resolvePrice(targetSubVar, formCustomerType, newQ);
+                                    updated[idx] = { ...item, quantity: newQ, pricePerUnit: newP > 0 ? newP : item.pricePerUnit };
+                                    return updated;
+                                  });
+                                }}
+                                className="h-6 w-6 rounded border border-border bg-secondary/20 hover:bg-secondary text-xs font-bold flex items-center justify-center cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-3 text-right font-mono">
+                            <div>{formatPrice(item.pricePerUnit)}</div>
+                            {formCustomerType === "B2B" && itemMoq > 1 && (
+                              !isMoqSatisfied ? (
+                                <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 block font-sans">
+                                  (MOQ Not Met - Retail Rate)
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 block font-sans">
+                                  (B2B Rate)
+                                </span>
+                              )
+                            )}
+                          </td>
+                          <td className="p-3 text-right font-black">{formatPrice(item.pricePerUnit * item.quantity)}</td>
+                          <td className="p-3 text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(idx)}
+                              className="h-7 w-7 p-0 text-red-600 cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

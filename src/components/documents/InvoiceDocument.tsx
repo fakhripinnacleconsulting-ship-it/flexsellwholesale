@@ -241,6 +241,8 @@ export function InvoiceDocument({
       ? new Date(order.date).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase()
       : new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase();
 
+    const uploadedLabelUrl = order.shipmentDetails?.uploadShippingLabel || (shipmentDetails as any)?.uploadShippingLabel;
+
     return (
       <div className="invoice-document shipping-label-printable bg-white text-black max-w-2xl mx-auto print:w-full print:max-w-none print:m-0 print:p-0 print:overflow-visible print:bg-white select-text">
         {showActions && (
@@ -251,6 +253,29 @@ export function InvoiceDocument({
             >
               Print Shipping Label
             </button>
+          </div>
+        )}
+
+        {uploadedLabelUrl && (
+          <div className="mb-4 p-4 border-2 border-dashed border-emerald-600 bg-emerald-50/30 rounded-lg text-center space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-emerald-800 uppercase tracking-wider border-b border-emerald-200 pb-2">
+              <span>Third-Party Courier Partner Label</span>
+              <a
+                href={uploadedLabelUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-emerald-700 underline text-[11px]"
+              >
+                Open Original Document ↗
+              </a>
+            </div>
+            <div className="flex justify-center p-2 bg-white rounded border border-gray-300">
+              <img
+                src={uploadedLabelUrl}
+                alt="Third-Party Courier Shipping Label"
+                className="max-h-[500px] w-auto max-w-full object-contain rounded"
+              />
+            </div>
           </div>
         )}
 
