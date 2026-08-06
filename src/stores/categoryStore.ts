@@ -33,10 +33,10 @@ export const useCategoryStore = create<CategoryStoreState>()((set, get) => ({
       const data = await categoryService.getCategories();
       set({ categories: data, isLoading: false });
     } catch (err) {
-      set({ 
-        categories: initial || [], 
-        error: handleApiError(err, "Failed to load categories"), 
-        isLoading: false 
+      set({
+        categories: initial || [],
+        error: handleApiError(err, "Failed to load categories"),
+        isLoading: false
       });
     }
   },

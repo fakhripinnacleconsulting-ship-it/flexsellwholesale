@@ -64,15 +64,23 @@ async function request<T>(
     let data: unknown;
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
-      data = await response.json();
+      try {
+        data = await response.json();
+      } catch {
+        data = await response.text();
+      }
     } else {
       data = await response.text();
     }
 
     if (!response.ok) {
-      const errorData = data as Record<string, any> | null;
+      const errorData = typeof data === "object" && data !== null ? (data as Record<string, any>) : null;
+      const fallbackMsg = typeof data === "string" && data.trim().startsWith("<")
+        ? `API route endpoint error (${response.status} ${response.statusText})`
+        : `HTTP error! Status: ${response.status}`;
+
       throw new ApiError(
-        errorData?.message || `HTTP error! Status: ${response.status}`,
+        errorData?.message || fallbackMsg,
         response.status,
         data
       );

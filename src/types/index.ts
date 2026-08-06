@@ -193,12 +193,20 @@ export interface Order extends BaseDocument {
   dropshipDetails?: {
     amazonOrderId?: string;
     amazonInvoiceId?: string;
+    amazonInvoiceDate?: string;
     customerName?: string;
     address?: string;
+    addressLine2?: string;
     city?: string;
     state?: string;
     pinCode?: string;
+    mobileNumber?: string;
+    email?: string;
+    deliveryDate?: string;
+    amazonTaxInvoice?: string;
+    amazonPackingSlip?: string;
   };
+  taxDetails?: TaxBreakdown;
   history: HistoryEvent[];
   paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD" | "NEFT/RTGS" | "Cheque" | "Cash" | string;
   paymentStatus?: "Pending" | "Paid" | "Failed";
@@ -274,11 +282,18 @@ export interface Invoice extends BaseDocument {
   dropshipDetails?: {
     amazonOrderId?: string;
     amazonInvoiceId?: string;
+    amazonInvoiceDate?: string;
     customerName?: string;
     address?: string;
+    addressLine2?: string;
     city?: string;
     state?: string;
     pinCode?: string;
+    mobileNumber?: string;
+    email?: string;
+    deliveryDate?: string;
+    amazonTaxInvoice?: string;
+    amazonPackingSlip?: string;
   };
   shippingAddress: Order["shippingAddress"];
   paymentMethod?: string;

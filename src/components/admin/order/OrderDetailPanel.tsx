@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Truck, CheckCircle, Clock, X, Printer } from "lucide-react";
+import { Truck, CheckCircle, Clock, X, Printer, FileText, ExternalLink } from "lucide-react";
 import { Order } from "@/stores/orderStore";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
@@ -251,23 +251,73 @@ export function OrderDetailPanel({
 
           {/* Dropship Details if they exist */}
           {(order as any).dropshipDetails && Object.keys((order as any).dropshipDetails).length > 0 && (
-            <div className="mt-4 pt-3 border-t border-dashed">
+            <div className="mt-4 pt-3 border-t border-dashed space-y-1 text-xs">
               <h5 className="font-semibold text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5 text-primary">
                 Amazon Drop-Ship To (End Customer):
               </h5>
-              <p className="font-bold text-sm">{(order as any).dropshipDetails.customerName}</p>
+              <p className="font-bold text-sm text-foreground">{(order as any).dropshipDetails.customerName}</p>
               <p className="text-muted-foreground mt-0.5">{(order as any).dropshipDetails.address}</p>
+              {(order as any).dropshipDetails.addressLine2 && (
+                <p className="text-muted-foreground">{(order as any).dropshipDetails.addressLine2}</p>
+              )}
               <p className="text-muted-foreground">
                 {(order as any).dropshipDetails.city}, {(order as any).dropshipDetails.state} - {(order as any).dropshipDetails.pinCode}
               </p>
-              {(order as any).dropshipDetails.phone && (
-                <p className="text-muted-foreground mt-0.5">Phone: {(order as any).dropshipDetails.phone}</p>
+              {((order as any).dropshipDetails.mobileNumber || (order as any).dropshipDetails.phone) && (
+                <p className="text-muted-foreground">
+                  Mobile: <span className="font-semibold text-foreground font-mono">{(order as any).dropshipDetails.mobileNumber || (order as any).dropshipDetails.phone}</span>
+                </p>
+              )}
+              {(order as any).dropshipDetails.email && (
+                <p className="text-muted-foreground">
+                  Email: <span className="font-semibold text-foreground">{(order as any).dropshipDetails.email}</span>
+                </p>
+              )}
+              {(order as any).dropshipDetails.deliveryDate && (
+                <p className="text-muted-foreground">
+                  Delivery Date: <span className="font-semibold text-foreground font-mono">{(order as any).dropshipDetails.deliveryDate}</span>
+                </p>
               )}
               {(order as any).dropshipDetails.amazonOrderId && (
-                <p className="text-muted-foreground mt-1 text-xs">Amazon Order ID: <span className="font-mono font-bold text-foreground">{(order as any).dropshipDetails.amazonOrderId}</span></p>
+                <p className="text-muted-foreground mt-1">
+                  Amazon Order ID: <span className="font-mono font-bold text-foreground">{(order as any).dropshipDetails.amazonOrderId}</span>
+                </p>
               )}
               {(order as any).dropshipDetails.amazonInvoiceId && (
-                <p className="text-muted-foreground text-xs">Amazon Invoice ID: <span className="font-mono font-bold text-foreground">{(order as any).dropshipDetails.amazonInvoiceId}</span></p>
+                <p className="text-muted-foreground">
+                  Amazon Invoice Number: <span className="font-mono font-bold text-foreground">{(order as any).dropshipDetails.amazonInvoiceId}</span>
+                </p>
+              )}
+              {(order as any).dropshipDetails.amazonInvoiceDate && (
+                <p className="text-muted-foreground">
+                  Amazon Invoice Date: <span className="font-mono font-semibold text-foreground">{(order as any).dropshipDetails.amazonInvoiceDate}</span>
+                </p>
+              )}
+
+              {/* Uploaded Document Links */}
+              {((order as any).dropshipDetails.amazonTaxInvoice || (order as any).dropshipDetails.amazonPackingSlip) && (
+                <div className="pt-2 mt-2 border-t border-border/40 flex flex-wrap gap-3">
+                  {(order as any).dropshipDetails.amazonTaxInvoice && (
+                    <a
+                      href={(order as any).dropshipDetails.amazonTaxInvoice}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline text-[11px] font-bold flex items-center gap-1 bg-primary/10 px-2 py-1 rounded"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Tax Invoice <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                  {(order as any).dropshipDetails.amazonPackingSlip && (
+                    <a
+                      href={(order as any).dropshipDetails.amazonPackingSlip}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline text-[11px] font-bold flex items-center gap-1 bg-primary/10 px-2 py-1 rounded"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Packaging Slip <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
               )}
             </div>
           )}

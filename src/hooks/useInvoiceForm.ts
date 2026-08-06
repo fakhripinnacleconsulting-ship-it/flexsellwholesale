@@ -173,6 +173,13 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
       };
     }
 
+    if (formCustomerType === "Dropshipping" && includeDropshipDetails) {
+      if (!dropshipDetails?.amazonOrderId || !dropshipDetails?.amazonInvoiceId) {
+        addToast("Please fill in Amazon Order ID and Amazon Invoice Number.", "warning");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const isIntrastate = (newCustState || INDIAN_STATES[0]).toLowerCase() === "madhya pradesh";

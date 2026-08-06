@@ -4,7 +4,7 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { X, Plus, Trash2, Loader2, QrCode } from "lucide-react";
+import { X, Plus, Trash2, Loader2, QrCode, Upload, FileText, ExternalLink, Check } from "lucide-react";
 import { Customer, Product, TaxBreakdown } from "@/types";
 import { INDIAN_STATES } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
@@ -178,6 +178,62 @@ export function InvoiceCreateModal({
   const [isInvoiceScannerOpen, setIsInvoiceScannerOpen] = React.useState(false);
   const [isProductDropdownOpen, setIsProductDropdownOpen] = React.useState(false);
   const productWrapperRef = React.useRef<HTMLDivElement>(null);
+
+  const [isUploadingTaxInvoice, setIsUploadingTaxInvoice] = React.useState(false);
+  const [isUploadingPackingSlip, setIsUploadingPackingSlip] = React.useState(false);
+
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    fieldKey: "amazonTaxInvoice" | "amazonPackingSlip"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isTax = fieldKey === "amazonTaxInvoice";
+    if (isTax) setIsUploadingTaxInvoice(true);
+    else setIsUploadingPackingSlip(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const headers: Record<string, string> = {};
+      if (typeof document !== "undefined") {
+        const matches = document.cookie.match(/csrf_token=([^;]+)/);
+        if (matches && matches[1]) {
+          headers["X-CSRF-Token"] = matches[1];
+        }
+      }
+
+      const res = await fetch("/api/customers/upload-document", {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to upload document");
+      }
+
+      if (data.url && setDropshipDetails && dropshipDetails) {
+        setDropshipDetails({
+          ...dropshipDetails,
+          [fieldKey]: data.url,
+        });
+        addToast(
+          `${isTax ? "Amazon Tax Invoice" : "Amazon Packaging Slip"} uploaded successfully!`,
+          "success"
+        );
+      }
+    } catch (err: any) {
+      addToast(err.message || "Upload failed. Please try again.", "error");
+    } finally {
+      if (isTax) setIsUploadingTaxInvoice(false);
+      else setIsUploadingPackingSlip(false);
+      e.target.value = "";
+    }
+  };
 
   const { hasPermission } = usePermissions();
   const canCreateInvoice = isPublicMode || hasPermission("invoices_invoice", "create") || hasPermission("invoices_invoice");
@@ -536,7 +592,7 @@ export function InvoiceCreateModal({
               </div>
 
               {includeDropshipDetails && dropshipDetails && setDropshipDetails && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Order ID *</label>
                     <Input
@@ -547,11 +603,20 @@ export function InvoiceCreateModal({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Invoice ID</label>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Invoice number *</label>
                     <Input
                       value={dropshipDetails.amazonInvoiceId || ""}
                       onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonInvoiceId: e.target.value })}
                       placeholder="e.g. IN-1234"
+                      required={includeDropshipDetails}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Invoice Date</label>
+                    <Input
+                      type="date"
+                      value={dropshipDetails.amazonInvoiceDate || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonInvoiceDate: e.target.value })}
                     />
                   </div>
                   <div>
@@ -560,6 +625,33 @@ export function InvoiceCreateModal({
                       value={dropshipDetails.customerName || ""}
                       onChange={(e) => setDropshipDetails({ ...dropshipDetails, customerName: e.target.value })}
                       required={includeDropshipDetails}
+                      placeholder="Full Name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Mobile Number</label>
+                    <Input
+                      type="tel"
+                      value={dropshipDetails.mobileNumber || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, mobileNumber: e.target.value })}
+                      placeholder="e.g. +91 98765 43210"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Email ID</label>
+                    <Input
+                      type="email"
+                      value={dropshipDetails.email || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, email: e.target.value })}
+                      placeholder="customer@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Delivery Date</label>
+                    <Input
+                      type="date"
+                      value={dropshipDetails.deliveryDate || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, deliveryDate: e.target.value })}
                     />
                   </div>
                   <div>
@@ -568,6 +660,7 @@ export function InvoiceCreateModal({
                       value={dropshipDetails.city || ""}
                       onChange={(e) => setDropshipDetails({ ...dropshipDetails, city: e.target.value })}
                       required={includeDropshipDetails}
+                      placeholder="City"
                     />
                   </div>
                   <div>
@@ -591,15 +684,134 @@ export function InvoiceCreateModal({
                       onChange={(e) => setDropshipDetails({ ...dropshipDetails, pinCode: e.target.value })}
                       className="font-mono"
                       required={includeDropshipDetails}
+                      placeholder="452001"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Full Shipping Address *</label>
+                  <div className="sm:col-span-2 md:col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Full Shipping Address (Line 1) *</label>
                     <Input
                       value={dropshipDetails.address || ""}
                       onChange={(e) => setDropshipDetails({ ...dropshipDetails, address: e.target.value })}
                       required={includeDropshipDetails}
+                      placeholder="House/Flat No, Street, Landmark"
                     />
+                  </div>
+                  <div className="sm:col-span-2 md:col-span-1">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Address Line 2 (Optional)</label>
+                    <Input
+                      value={dropshipDetails.addressLine2 || ""}
+                      onChange={(e) => setDropshipDetails({ ...dropshipDetails, addressLine2: e.target.value })}
+                      placeholder="Apartment, Suite, Area (Optional)"
+                    />
+                  </div>
+
+                  {/* File Uploads Row */}
+                  <div className="sm:col-span-2 md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border/60 pt-3 mt-1">
+                    {/* Tax Invoice File Upload */}
+                    <div className="bg-background p-3 rounded-lg border border-border space-y-2">
+                      <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                        <span>Upload Amazon Tax Invoice</span>
+                        {dropshipDetails.amazonTaxInvoice && (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Uploaded
+                          </span>
+                        )}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className="flex-1 cursor-pointer bg-secondary/20 hover:bg-secondary/40 text-foreground border border-dashed border-border px-3 py-2 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-colors">
+                          {isUploadingTaxInvoice ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 text-primary" />
+                              <span>{dropshipDetails.amazonTaxInvoice ? "Replace Tax Invoice" : "Choose Tax Invoice File"}</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept=".pdf,image/*"
+                            disabled={isUploadingTaxInvoice}
+                            onChange={(e) => handleFileUpload(e, "amazonTaxInvoice")}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                      {dropshipDetails.amazonTaxInvoice && (
+                        <div className="flex items-center justify-between text-xs pt-1">
+                          <a
+                            href={dropshipDetails.amazonTaxInvoice}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1 truncate max-w-[200px]"
+                          >
+                            <FileText className="h-3.5 w-3.5 shrink-0" /> View Tax Invoice <ExternalLink className="h-3 w-3" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => setDropshipDetails({ ...dropshipDetails, amazonTaxInvoice: undefined })}
+                            className="text-[10px] text-red-600 hover:underline font-semibold"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Packaging Slip File Upload */}
+                    <div className="bg-background p-3 rounded-lg border border-border space-y-2">
+                      <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                        <span>Upload Amazon Packaging Slip</span>
+                        {dropshipDetails.amazonPackingSlip && (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Uploaded
+                          </span>
+                        )}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className="flex-1 cursor-pointer bg-secondary/20 hover:bg-secondary/40 text-foreground border border-dashed border-border px-3 py-2 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-colors">
+                          {isUploadingPackingSlip ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 text-primary" />
+                              <span>{dropshipDetails.amazonPackingSlip ? "Replace Packaging Slip" : "Choose Packaging Slip File"}</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept=".pdf,image/*"
+                            disabled={isUploadingPackingSlip}
+                            onChange={(e) => handleFileUpload(e, "amazonPackingSlip")}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                      {dropshipDetails.amazonPackingSlip && (
+                        <div className="flex items-center justify-between text-xs pt-1">
+                          <a
+                            href={dropshipDetails.amazonPackingSlip}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1 truncate max-w-[200px]"
+                          >
+                            <FileText className="h-3.5 w-3.5 shrink-0" /> View Packaging Slip <ExternalLink className="h-3 w-3" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => setDropshipDetails({ ...dropshipDetails, amazonPackingSlip: undefined })}
+                            className="text-[10px] text-red-600 hover:underline font-semibold"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

@@ -37,19 +37,40 @@ export async function GET(request: Request) {
     }
 
     const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
+    const payload = token ? verifyToken(token) : null;
 
-    const payload = verifyToken(token);
+    // Allow Dropshipping customer search for order creation mode or unauthenticated / customer role
+    const requestedCustomerType = searchParams.get("customerType");
     if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
+      if (isPublic || requestedCustomerType === "Dropshipping") {
+        const search = searchParams.get("search") || searchParams.get("q");
+        const dropQuery: any = { role: { $ne: "admin" }, customerTypes: "Dropshipping" };
+        if (search) {
+          const regex = new RegExp(escapeRegex(search), "i");
+          dropQuery.$or = [
+            { name: regex },
+            { email: regex },
+            { phone: regex },
+            { company: regex },
+            { _id: regex },
+          ];
+        }
+        const publicCustomers = await Customer.find(dropQuery)
+          .select("_id name company email phone gstin address city state pinCode")
+          .limit(10)
+          .lean();
+        return NextResponse.json(publicCustomers);
+      }
+
+      if (!payload) {
+        return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+      }
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const page = searchParams.get("page");
     const limit = searchParams.get("limit");
     const search = searchParams.get("search") || searchParams.get("q");
-    const requestedCustomerType = searchParams.get("customerType");
 
     const query: any = { role: { $ne: "admin" } };
     
