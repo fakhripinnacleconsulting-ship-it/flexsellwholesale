@@ -1,6 +1,8 @@
 const BASE_URL = typeof window !== "undefined"
   ? "/api"
-  : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api");
+  : (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.startsWith("http")
+      ? process.env.NEXT_PUBLIC_API_URL
+      : `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api`);
 
 
 export const isMockMode = typeof window !== "undefined" && 
@@ -39,8 +41,25 @@ async function request<T>(
   if (typeof window !== "undefined" && typeof document !== "undefined") {
     const method = options.method?.toUpperCase() || "GET";
     if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-      const matches = document.cookie.match(/csrf_token=([^;]+)/);
-      const csrfToken = matches ? matches[1] : null;
+      let matches = document.cookie.match(/csrf_token=([^;]+)/);
+      let csrfToken = matches ? matches[1] : null;
+
+      if (!csrfToken && path !== "/csrf") {
+        try {
+          const csrfRes = await fetch(`${BASE_URL}/csrf`, { method: "GET" });
+          if (csrfRes.ok) {
+            const csrfData = await csrfRes.json();
+            csrfToken = csrfData?.csrfToken || null;
+          }
+        } catch {
+          // Fallback to checking document.cookie again
+        }
+        if (!csrfToken) {
+          matches = document.cookie.match(/csrf_token=([^;]+)/);
+          csrfToken = matches ? matches[1] : null;
+        }
+      }
+
       if (csrfToken) {
         headers.set("X-CSRF-Token", csrfToken);
       }

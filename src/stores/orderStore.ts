@@ -25,6 +25,7 @@ interface OrderStoreState {
   ) => Promise<string>;
   updateOrderStatus: (id: string, status: Order["status"], paymentDetails?: any) => Promise<void>;
   shipOrder: (id: string, shipmentDetails: ShipmentDetails) => Promise<void>;
+  cancelOrder: (id: string) => Promise<void>;
 }
 
 export const useOrderStore = create<OrderStoreState>()((set) => ({
@@ -92,6 +93,23 @@ export const useOrderStore = create<OrderStoreState>()((set) => ({
     } catch (err) {
       set({
         error: handleApiError(err, "Failed to ship order"),
+        isLoading: false
+      });
+      throw err;
+    }
+  },
+
+  cancelOrder: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedOrder = await orderService.cancelOrder(id);
+      set((state) => ({
+        orders: state.orders.map((o) => (o._id === id ? updatedOrder : o)),
+        isLoading: false
+      }));
+    } catch (err) {
+      set({
+        error: handleApiError(err, "Failed to cancel order"),
         isLoading: false
       });
       throw err;

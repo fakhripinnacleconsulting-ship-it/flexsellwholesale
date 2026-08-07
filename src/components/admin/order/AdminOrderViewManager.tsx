@@ -18,6 +18,8 @@ import { FulfillmentForm } from "@/components/admin/order/FulfillmentForm";
 import { ShipmentDetails } from "@/stores/orderStore";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
+import { apiClient } from "@/lib/apiClient";
+import { shiprocketService } from "@/services/shiprocketService";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -174,32 +176,23 @@ export function AdminOrderViewManager({ params }: PageProps) {
     try {
       const newAmount = editedItems.reduce((sum, item) => sum + (item.pricePerUnit * item.quantity), 0);
 
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: editedItems,
-          amount: newAmount,
-          shippingAddress: {
-            firstName,
-            lastName,
-            email: order?.shippingAddress.email,
-            company,
-            address,
-            apartment,
-            city,
-            state,
-            pinCode,
-            phone,
-            gstin
-          }
-        })
+      await apiClient.put(`/orders/${orderId}`, {
+        items: editedItems,
+        amount: newAmount,
+        shippingAddress: {
+          firstName,
+          lastName,
+          email: order?.shippingAddress.email,
+          company,
+          address,
+          apartment,
+          city,
+          state,
+          pinCode,
+          phone,
+          gstin
+        }
       });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to update order details");
-      }
 
       addToast("Order details updated successfully!", "success");
       setIsEditModalOpen(false);
@@ -214,13 +207,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
   const handleCancelOrder = async () => {
     if (!confirm("Are you sure you want to cancel and delete this order permanently? This restores all item stock back to inventory.")) return;
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "DELETE"
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to cancel order");
-      }
+      await apiClient.delete(`/orders/${orderId}`);
       addToast("Order cancelled and deleted successfully!", "success");
       router.push(`${basePath}/orders`);
     } catch (err: unknown) {
@@ -323,18 +310,9 @@ export function AdminOrderViewManager({ params }: PageProps) {
                   onClick={async () => {
                     if (!confirm("Are you sure you want to cancel this Shiprocket booking?")) return;
                     try {
-                      const res = await fetch("/api/shiprocket/cancel", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ orderId })
-                      });
-                      if (res.ok) {
-                        addToast("Shiprocket order cancelled successfully", "success");
-                        initializeOrders();
-                      } else {
-                        const d = await res.json();
-                        addToast(d.message || "Failed to cancel Shiprocket order", "error");
-                      }
+                      await shiprocketService.cancelShiprocketOrder(orderId);
+                      addToast("Shiprocket order cancelled successfully", "success");
+                      initializeOrders();
                     } catch (err: any) {
                       addToast(err.message || "Cancel failed", "error");
                     }
@@ -392,17 +370,12 @@ export function AdminOrderViewManager({ params }: PageProps) {
             className="bg-destructive text-destructive-foreground font-bold text-xs shrink-0"
             onClick={async () => {
               try {
-                const res = await fetch("/api/shiprocket/fulfill", {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ orderId })
-                });
-                const d = await res.json();
-                if (d.success) {
+                const res: any = await shiprocketService.retryFulfillment(orderId);
+                if (res.success) {
                   addToast("Fulfillment step retried successfully!", "success");
                   initializeOrders();
                 } else {
-                  addToast(d.error || "Retry failed", "error");
+                  addToast(res.error || "Retry failed", "error");
                 }
               } catch (err: any) {
                 addToast(err.message || "Retry failed", "error");

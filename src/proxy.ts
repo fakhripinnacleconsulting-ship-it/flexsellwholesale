@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { validateCsrf } from "@/lib/csrf";
+import { validateCsrf, generateCsrfToken } from "@/lib/csrf";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -29,6 +29,7 @@ export async function proxy(request: NextRequest) {
   // HMAC/token signature instead.
   const isExcludedCsrf =
     CSRF_EXEMPT_AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`)) ||
+    pathname.startsWith("/api/csrf") ||
     pathname.startsWith("/api/system-diagnostics") ||
     pathname.startsWith("/api/shiprocket/webhook") ||
     pathname.startsWith("/api/razorpay/webhook") ||
@@ -94,7 +95,6 @@ export async function proxy(request: NextRequest) {
 
   const response = NextResponse.next();
   if (!request.cookies.get("csrf_token")) {
-    const { generateCsrfToken } = await import("@/lib/csrf");
     response.cookies.set("csrf_token", generateCsrfToken(), {
       httpOnly: false,
       sameSite: "lax",
