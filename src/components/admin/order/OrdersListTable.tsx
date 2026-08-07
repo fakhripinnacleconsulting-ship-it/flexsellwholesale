@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -42,17 +42,37 @@ export function OrdersListTable({
 }: OrdersListTableProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const basePath = pathname.startsWith("/manager") ? "/manager" : "/admin";
-  const [currentPage, setCurrentPage] = React.useState(1);
+  const [currentPage, setCurrentPage] = React.useState(Number(searchParams.get("page")) || 1);
   const [selectedLabelOrder, setSelectedLabelOrder] = React.useState<Order | null>(null);
   const ITEMS_PER_PAGE = 10;
 
   const { manager } = useAuthStore();
-  const [statusFilter, setStatusFilter] = React.useState<string>("");
-  const [paymentStatusFilter, setPaymentStatusFilter] = React.useState<string>("");
-  const [createdByFilter, setCreatedByFilter] = React.useState<string>(basePath === "/manager" ? "me" : "all");
+  const [statusFilter, setStatusFilter] = React.useState<string>(searchParams.get("status") || "");
+  const [paymentStatusFilter, setPaymentStatusFilter] = React.useState<string>(searchParams.get("paymentStatus") || "");
+  const [createdByFilter, setCreatedByFilter] = React.useState<string>(searchParams.get("createdBy") || (basePath === "/manager" ? "me" : "all"));
 
+  // Sync internal table filters to URL query string
   React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (statusFilter) params.set("status", statusFilter); else params.delete("status");
+    if (paymentStatusFilter) params.set("paymentStatus", paymentStatusFilter); else params.delete("paymentStatus");
+    if (createdByFilter && createdByFilter !== (basePath === "/manager" ? "me" : "all")) params.set("createdBy", createdByFilter); else params.delete("createdBy");
+    if (currentPage > 1) params.set("page", String(currentPage)); else params.delete("page");
+
+    const query = params.toString();
+    const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+    window.history.replaceState(null, "", newUrl);
+  }, [statusFilter, paymentStatusFilter, createdByFilter, currentPage, basePath]);
+
+  const isInitialMount = React.useRef(true);
+  React.useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     setCurrentPage(1);
   }, [searchTerm, startDate, endDate, originFilter, statusFilter, paymentStatusFilter, createdByFilter]);
 

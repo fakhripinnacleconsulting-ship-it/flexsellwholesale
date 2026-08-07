@@ -18,9 +18,11 @@ import { exportOrdersToExcel } from "@/lib/excel/orderExporter";
 import { useInvoiceForm } from "@/hooks/useInvoiceForm";
 import { InvoiceCreateModal } from "@/components/admin/invoice/InvoiceCreateModal";
 
+import { useSearchParams } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
 
 export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" | "B2B" | "Dropshipping" | "B2C" }) {
+  const searchParams = useSearchParams();
   const { orders, initializeOrders, updateOrderStatus, shipOrder } = useOrderStore();
   const { addToast } = useToastStore();
   const confirm = useConfirmStore((state) => state.confirm);
@@ -38,11 +40,11 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     }
   });
 
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [searchTerm, setSearchTerm] = React.useState(searchParams.get("search") || "");
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
 
-  const [startDate, setStartDate] = React.useState("");
-  const [endDate, setEndDate] = React.useState("");
+  const [startDate, setStartDate] = React.useState(searchParams.get("startDate") || "");
+  const [endDate, setEndDate] = React.useState(searchParams.get("endDate") || "");
 
   const canB2B = hasPermission("orders_b2b");
   const canB2C = hasPermission("orders_b2c");
@@ -57,11 +59,28 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   ];
 
   const [activeOrderTab, setActiveOrderTab] = React.useState<"ALL" | "B2B" | "Dropshipping" | "B2C">(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl && allowedTabs.some(t => t.key === tabFromUrl)) return tabFromUrl as any;
     if (allowedTabs.some(t => t.key === initialTab)) return initialTab as any;
     if (allowedTabs.length > 0) return allowedTabs[0].key as any;
     return "ALL";
   });
-  const [originFilter, setOriginFilter] = React.useState<"" | "self" | "website">("");
+  const [originFilter, setOriginFilter] = React.useState<"" | "self" | "website">((searchParams.get("origin") as any) || "");
+
+  // Sync active filters to URL search parameters
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (searchTerm.trim()) params.set("search", searchTerm.trim()); else params.delete("search");
+    if (startDate) params.set("startDate", startDate); else params.delete("startDate");
+    if (endDate) params.set("endDate", endDate); else params.delete("endDate");
+    if (originFilter) params.set("origin", originFilter); else params.delete("origin");
+    if (activeOrderTab && activeOrderTab !== "ALL") params.set("tab", activeOrderTab); else params.delete("tab");
+
+    const query = params.toString();
+    const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+    window.history.replaceState(null, "", newUrl);
+  }, [searchTerm, startDate, endDate, originFilter, activeOrderTab]);
 
   React.useEffect(() => {
     initializeOrders({

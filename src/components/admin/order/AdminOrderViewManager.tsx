@@ -247,11 +247,20 @@ export function AdminOrderViewManager({ params }: PageProps) {
     <div className="space-y-6 container mx-auto px-4 py-8 text-foreground max-w-5xl">
       {/* Back & Print Bar (Hidden during printing) */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden border-b pb-4">
-        <Link href="/admin/orders">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Orders List
-          </Button>
-        </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground cursor-pointer"
+          onClick={() => {
+            if (window.history.length > 1) {
+              router.back();
+            } else {
+              router.push(`${basePath}/orders`);
+            }
+          }}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Orders List
+        </Button>
         <div className="flex flex-wrap gap-2 items-center">
           {/* Order Actions */}
           {(order.status === "Placed" || order.status === "Pending") && (hasPermission("orders_b2b", "update") || hasPermission("orders_b2c", "update") || hasPermission("orders_dropship", "update")) && (

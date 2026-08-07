@@ -127,11 +127,20 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4 print:hidden">
         <div>
           <div className="flex items-center gap-2">
-            <Link href="/client/orders">
-              <Button variant="ghost" size="sm" className="p-0 h-8 w-8">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-0 h-8 w-8 cursor-pointer"
+              onClick={() => {
+                if (window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push("/client/orders");
+                }
+              }}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <h1 className="text-2xl font-bold tracking-tight">Order #{order._id}</h1>
             <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase ${
               order.status === "Delivered" ? "bg-green-100 text-green-800" :

@@ -24,12 +24,28 @@ export function ClientOrdersView() {
 
   const { orders, initializeOrders } = useOrderStore();
   const { addToast } = useToastStore();
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("");
-  const [startDate, setStartDate] = React.useState("");
-  const [endDate, setEndDate] = React.useState("");
+  const [searchTerm, setSearchTerm] = React.useState(searchParams.get("search") || "");
+  const [statusFilter, setStatusFilter] = React.useState(searchParams.get("status") || "");
+  const [startDate, setStartDate] = React.useState(searchParams.get("startDate") || "");
+  const [endDate, setEndDate] = React.useState(searchParams.get("endDate") || "");
+  const [currentPage, setCurrentPage] = React.useState(Number(searchParams.get("page")) || 1);
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
   const [reorderingId, setReorderingId] = React.useState<string | null>(null);
+
+  // Sync active filters to URL search parameters
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (searchTerm.trim()) params.set("search", searchTerm.trim()); else params.delete("search");
+    if (statusFilter) params.set("status", statusFilter); else params.delete("status");
+    if (startDate) params.set("startDate", startDate); else params.delete("startDate");
+    if (endDate) params.set("endDate", endDate); else params.delete("endDate");
+    if (currentPage > 1) params.set("page", String(currentPage)); else params.delete("page");
+
+    const query = params.toString();
+    const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+    window.history.replaceState(null, "", newUrl);
+  }, [searchTerm, statusFilter, startDate, endDate, currentPage]);
 
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
 
@@ -113,12 +129,16 @@ export function ClientOrdersView() {
     return viewFiltered;
   }, [orders, searchTerm, activeView, statusFilter, startDate, endDate]);
 
-  const [currentPage, setCurrentPage] = React.useState(1);
   const ITEMS_PER_PAGE = 5;
 
+  const isInitialMount = React.useRef(true);
   React.useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, statusFilter, startDate, endDate]);
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
 
