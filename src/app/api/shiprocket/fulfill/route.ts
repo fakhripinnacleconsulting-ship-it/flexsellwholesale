@@ -267,22 +267,19 @@ export async function POST(request: NextRequest) {
 // PUT handler to retry failed fulfillment step [UPDATED-5]
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+    const payload = auth.payload!;
+
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
-
     const { orderId, courierId } = await request.json();
     const order: any = await Order.findById(orderId);
     if (!order || !order.shipmentDetails?.shiprocket) {
       return NextResponse.json({ message: "Order or Shiprocket data not found" }, { status: 404 });
     }
+
+    const access = await verifyManagerOrderAccess(payload, order);
+    if (access.error) return access.error;
 
     const sr = order.shipmentDetails.shiprocket;
     const failedAt = sr.failedAt;

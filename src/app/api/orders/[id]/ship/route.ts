@@ -62,7 +62,7 @@ export async function PUT(
       dispatchEventServer({
         eventType: "ORDER_SHIPPED",
         category: "shipments",
-        actor: { id: payload.userId, name: payload.role === "admin" ? "Admin" : (payload.email || "Staff"), role: payload.role },
+        actor: { id: payload.userId, name: payload.role === "admin" ? "Admin" : (payload.email || "Staff"), role: (payload.role as "admin" | "manager" | "customer" | "system") || "manager" },
         recipient: { customerId: targetCustomerId, email: customerEmail, name: customerName, role: "both" },
         entity: { type: "order", id: order._id },
         data: {
