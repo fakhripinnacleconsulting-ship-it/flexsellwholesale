@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
-import { requireAuth, requireAdminOrManagerAuth } from "@/lib/authGuard";
+import { requireAuth, requireAdminOrManagerAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import Manager from "@/models/Manager";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
@@ -79,6 +79,9 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
     if (!order) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
+
+    const access = await verifyManagerOrderAccess(auth.payload!, order);
+    if (access.error) return access.error;
 
     const body = await request.json();
 
@@ -235,6 +238,9 @@ export async function DELETE(request: NextRequest, { params }: RouteProps) {
     if (!order) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
+
+    const access = await verifyManagerOrderAccess(auth.payload!, order);
+    if (access.error) return access.error;
 
     // Restore all items stock upon cancellation/deletion atomically
     for (const oldItem of order.items) {

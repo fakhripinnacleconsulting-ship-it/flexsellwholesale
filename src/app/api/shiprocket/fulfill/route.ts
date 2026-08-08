@@ -3,24 +3,18 @@ import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Customer from "@/models/Customer";
-import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import { shiprocketClient } from "@/lib/shiprocketClient";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+    const payload = auth.payload!;
+
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
-
     const { orderId, courierId } = await request.json();
     if (!orderId) {
       return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
@@ -30,6 +24,9 @@ export async function POST(request: NextRequest) {
     if (!order) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
+
+    const access = await verifyManagerOrderAccess(payload, order);
+    if (access.error) return access.error;
 
     // Step 0: Pre-flight validation for numeric weight and dimensions
     const creds = await shiprocketClient.getCredentials();

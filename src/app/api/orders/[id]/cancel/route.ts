@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
-import { requireAuth } from "@/lib/authGuard";
+import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { ORDER_STATUS_CLASSES, CUSTOMER_CANCELLABLE_STATUSES } from "@/lib/constants";
 import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
@@ -30,7 +30,10 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
-    if (payload.role !== "admin") {
+    if (payload.role === "manager") {
+      const access = await verifyManagerOrderAccess(payload, order);
+      if (access.error) return access.error;
+    } else if (payload.role !== "admin") {
       const isOwner = order.customerId === payload.userId || order.shippingAddress?.email?.toLowerCase() === payload.email.toLowerCase();
       if (!isOwner) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });

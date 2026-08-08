@@ -92,3 +92,62 @@ export async function requireAdminOrManagerAuth(permission?: string): Promise<{
     return { error: NextResponse.json({ message: "Auth validation error" }, { status: 401 }) };
   }
 }
+
+export async function verifyManagerOrderAccess(
+  payload: AuthenticatedRequestState,
+  order: { orderType?: string; [key: string]: unknown } | null | undefined
+): Promise<{ allowed: boolean; error?: NextResponse }> {
+  if (payload.role === "admin") {
+    return { allowed: true };
+  }
+
+  if (payload.role === "manager") {
+    await dbConnect();
+    const managerDoc = await Manager.findById(payload.userId).lean();
+    if (!managerDoc || managerDoc.status !== "active") {
+      return {
+        allowed: false,
+        error: NextResponse.json(
+          { message: "Forbidden: Manager account suspended or inactive" },
+          { status: 403 }
+        )
+      };
+    }
+
+    const perms: string[] = managerDoc.permissions || [];
+    const hasPerm = (p: string) =>
+      perms.includes(p) ||
+      perms.includes(`${p}:read`) ||
+      perms.includes(`${p}:update`) ||
+      perms.includes(`${p}:create`) ||
+      perms.includes(`${p}:delete`) ||
+      perms.includes("ops_shipping") ||
+      perms.includes("orders");
+
+    const orderType = order?.orderType;
+    let allowed = false;
+    if (orderType === "B2C" && hasPerm("orders_b2c")) allowed = true;
+    if (orderType === "B2B" && hasPerm("orders_b2b")) allowed = true;
+    if (!orderType && hasPerm("orders_b2b")) allowed = true; // Legacy B2B default
+    if (orderType === "Dropshipping" && hasPerm("orders_dropshipping")) allowed = true;
+    if (hasPerm("ops_shipping") || hasPerm("orders")) allowed = true;
+
+    if (!allowed) {
+      return {
+        allowed: false,
+        error: NextResponse.json(
+          { message: "Forbidden: You don't have access to this order type." },
+          { status: 403 }
+        )
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  return {
+    allowed: false,
+    error: NextResponse.json({ message: "Forbidden" }, { status: 403 })
+  };
+}
+

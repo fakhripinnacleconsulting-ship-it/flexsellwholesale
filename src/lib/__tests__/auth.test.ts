@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { signToken, verifyToken, setTokenCookie, removeTokenCookie, getTokenFromCookie } from "../auth";
-import { requireAuth, requireAdminOrManagerAuth } from "../authGuard";
+import { requireAuth, requireAdminOrManagerAuth, verifyManagerOrderAccess } from "../authGuard";
 import { generateCsrfToken, validateCsrf } from "../csrf";
 
 // Mock next/headers
@@ -184,6 +184,45 @@ describe("Authentication Guard (requireAdminOrManagerAuth)", () => {
     
     expect(result.error).toBeUndefined();
     expect(result.payload).toBeDefined();
+  });
+
+  describe("verifyManagerOrderAccess", () => {
+    it("should allow admin role unconditionally", async () => {
+      const payload = { userId: "ADMIN-1", email: "admin@example.com", role: "admin" };
+      const result = await verifyManagerOrderAccess(payload, { orderType: "B2B" });
+      expect(result.allowed).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it("should allow manager with matching orderType permission (e.g. orders_b2b)", async () => {
+      const payload = { userId: "MGR-1", email: "mgr@example.com", role: "manager" };
+      mockManagerFindById.mockResolvedValue({ status: "active", permissions: ["orders_b2b"] });
+      const result = await verifyManagerOrderAccess(payload, { orderType: "B2B" });
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should allow manager with ops_shipping permission for any order", async () => {
+      const payload = { userId: "MGR-1", email: "mgr@example.com", role: "manager" };
+      mockManagerFindById.mockResolvedValue({ status: "active", permissions: ["ops_shipping"] });
+      const result = await verifyManagerOrderAccess(payload, { orderType: "B2C" });
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should reject manager lacking matching order permission", async () => {
+      const payload = { userId: "MGR-1", email: "mgr@example.com", role: "manager" };
+      mockManagerFindById.mockResolvedValue({ status: "active", permissions: ["catalog_products"] });
+      const result = await verifyManagerOrderAccess(payload, { orderType: "B2C" });
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it("should reject inactive manager", async () => {
+      const payload = { userId: "MGR-1", email: "mgr@example.com", role: "manager" };
+      mockManagerFindById.mockResolvedValue({ status: "suspended", permissions: ["orders_b2b"] });
+      const result = await verifyManagerOrderAccess(payload, { orderType: "B2B" });
+      expect(result.allowed).toBe(false);
+      expect(result.error).toBeDefined();
+    });
   });
 });
 

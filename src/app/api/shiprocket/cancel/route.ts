@@ -1,28 +1,25 @@
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
-import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import { shiprocketClient } from "@/lib/shiprocketClient";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+    const payload = auth.payload!;
+
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
-
     const { orderId } = await request.json();
     const order: any = await Order.findById(orderId);
     if (!order) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
+
+    const access = await verifyManagerOrderAccess(payload, order);
+    if (access.error) return access.error;
 
     const sr = order.shipmentDetails?.shiprocket;
     if (!sr || !sr.orderId) {
