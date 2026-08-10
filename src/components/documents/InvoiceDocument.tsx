@@ -361,6 +361,11 @@ export function InvoiceDocument({
                       Amazon Invoice: {(order as any).dropshipDetails.amazonInvoiceId}
                     </p>
                   )}
+                  {(order as any).dropshipDetails.amazonInvoiceDate && (
+                    <p className="font-mono font-bold text-[10px] text-gray-800">
+                      Amazon Invoice Date: {(order as any).dropshipDetails.amazonInvoiceDate}
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
@@ -642,12 +647,17 @@ export function InvoiceDocument({
                 <p className="text-gray-600">
                   {(order as any).dropshipDetails.city}, {(order as any).dropshipDetails.state} - {(order as any).dropshipDetails.pinCode}
                 </p>
-                {(order as any).dropshipDetails.phone && <p className="text-gray-500 mt-1">Phone: {(order as any).dropshipDetails.phone}</p>}
+                {((order as any).dropshipDetails.mobileNumber || (order as any).dropshipDetails.phone) && (
+                  <p className="text-gray-500 mt-1">Phone: {(order as any).dropshipDetails.mobileNumber || (order as any).dropshipDetails.phone}</p>
+                )}
                 {(order as any).dropshipDetails.amazonOrderId && (
                   <p className="font-mono text-gray-700 mt-1.5">Amazon Order: <span className="font-bold">{(order as any).dropshipDetails.amazonOrderId}</span></p>
                 )}
                 {(order as any).dropshipDetails.amazonInvoiceId && (
                   <p className="font-mono text-gray-700">Amazon Invoice: <span className="font-bold">{(order as any).dropshipDetails.amazonInvoiceId}</span></p>
+                )}
+                {(order as any).dropshipDetails.amazonInvoiceDate && (
+                  <p className="font-mono text-gray-700">Amazon Invoice Date: <span className="font-bold">{(order as any).dropshipDetails.amazonInvoiceDate}</span></p>
                 )}
               </div>
             )}

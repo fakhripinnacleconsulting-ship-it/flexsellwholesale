@@ -59,6 +59,7 @@ export function InvoicePreviewModal({
     customerType: (activeInvoice as any).customerType,
     priceTier: (activeInvoice as any).priceTier || (activeInvoice as any).customerType,
     shippingAddress: activeInvoice.shippingAddress,
+    dropshipDetails: (activeInvoice as any).dropshipDetails,
     items: activeInvoice.items,
     history: [],
     paymentMethod: activeInvoice.paymentMethod as any,
