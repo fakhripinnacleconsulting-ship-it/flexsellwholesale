@@ -8,8 +8,11 @@ import { Input } from "@/components/ui/Input";
 import { Avatar } from "@/components/ui/Avatar";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
-import { Plus, Edit2, Trash2, Shield, Search, Link as LinkIcon } from "lucide-react";
+import { Plus, Edit2, Trash2, Shield, Search, Link as LinkIcon, X } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
+import { ManagerAnalyticsHeader } from "@/components/admin/managers/ManagerAnalyticsHeader";
+import { useOrderStore } from "@/stores/orderStore";
+import { useInvoiceStore } from "@/stores/invoiceStore";
 
 export interface Manager {
   _id: string;
@@ -122,9 +125,12 @@ export default function AdminManagersPage() {
   const { addToast } = useToastStore();
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
   const confirmAction = useConfirmStore((state) => state.confirm);
+  const { orders, initializeOrders } = useOrderStore();
+  const { invoices, initializeInvoices } = useInvoiceStore();
   const [managers, setManagers] = React.useState<Manager[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [activeFilter, setActiveFilter] = React.useState<"all" | "active" | "full_access" | "recent">("all");
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isFormSubmitting, setIsFormSubmitting] = React.useState(false);
@@ -151,7 +157,9 @@ export default function AdminManagersPage() {
 
   React.useEffect(() => {
     fetchManagers();
-  }, []);
+    initializeOrders();
+    initializeInvoices();
+  }, [initializeOrders, initializeInvoices]);
 
   const resetForm = () => {
     setEditingManager(null);
@@ -290,12 +298,32 @@ export default function AdminManagersPage() {
   };
 
   const filteredManagers = React.useMemo(() => {
-    if (!searchTerm) return managers;
-    const term = searchTerm.toLowerCase();
-    return managers.filter(m =>
-      m.name.toLowerCase().includes(term) || m.email.toLowerCase().includes(term) || (m.assignedRole && m.assignedRole.toLowerCase().includes(term))
-    );
-  }, [managers, searchTerm]);
+    let result = managers;
+
+    if (activeFilter === "active") {
+      result = result.filter((m) => {
+        if (m.status !== "active" || !m.lastLogin) return false;
+        if (!m.lastLogout) return true;
+        return new Date(m.lastLogin).getTime() > new Date(m.lastLogout).getTime();
+      });
+    } else if (activeFilter === "full_access") {
+      result = result.filter(m => getPermissionSummary(m.permissions).isFull);
+    } else if (activeFilter === "recent") {
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      result = result.filter(m => m.lastLogin && new Date(m.lastLogin).getTime() >= sevenDaysAgo);
+    }
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(m =>
+        m.name.toLowerCase().includes(term) ||
+        m.email.toLowerCase().includes(term) ||
+        (m.assignedRole && m.assignedRole.toLowerCase().includes(term))
+      );
+    }
+
+    return result;
+  }, [managers, searchTerm, activeFilter]);
 
   return (
     <div className="space-y-6 text-foreground container mx-auto px-4 py-8 max-w-6xl">
@@ -321,11 +349,39 @@ export default function AdminManagersPage() {
         </div>
       </div>
 
+      <ManagerAnalyticsHeader
+        managers={managers}
+        orders={orders}
+        invoices={invoices}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        getPermissionSummary={getPermissionSummary}
+      />
+
       <Card className="border border-border">
         <CardHeader className="border-b pb-4 flex flex-col gap-4 bg-card rounded-t-xl">
-          <div>
-            <CardTitle className="text-lg font-bold">Manager Accounts</CardTitle>
-            <CardDescription>Accounts that have access to the dedicated /manager portal.</CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg font-bold">Manager Accounts</CardTitle>
+              <CardDescription>Accounts that have access to the dedicated /manager portal.</CardDescription>
+            </div>
+            {activeFilter !== "all" && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-medium">Filtered by:</span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20 flex items-center gap-1.5">
+                  {activeFilter === "active" && "Active Staff Only"}
+                  {activeFilter === "full_access" && "Full Access Admins Only"}
+                  {activeFilter === "recent" && "Active Last 7 Days"}
+                  <button
+                    onClick={() => setActiveFilter("all")}
+                    className="hover:text-foreground cursor-pointer"
+                    title="Clear filter"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              </div>
+            )}
           </div>
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
