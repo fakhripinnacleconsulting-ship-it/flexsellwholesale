@@ -14,6 +14,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { Avatar } from "@/components/ui/Avatar";
 import { Drawer } from "@/components/ui/Drawer";
 
+import { ManagerAutoLogoutGuard } from "./ManagerAutoLogoutGuard";
+
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
@@ -157,7 +159,9 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   );
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <>
+      <ManagerAutoLogoutGuard />
+      <div className="min-h-screen flex bg-background">
       {/* Desktop Sidebar */}
       <aside className={`bg-card border-r hidden md:flex flex-col sticky top-0 h-screen transition-all duration-300 relative z-20 ${isSidebarOpen ? "w-64" : "w-16"}`}>
         <SidebarContent isCollapsed={!isSidebarOpen} />
@@ -202,5 +206,6 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
         </main>
       </div>
     </div>
+  </>
   );
 }

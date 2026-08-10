@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Users, UserCheck, Trophy, Briefcase } from "lucide-react";
 import { Manager } from "@/app/(dashboard)/admin/managers/page";
 import { Order } from "@/types";
+import { isManagerMatch } from "@/lib/managerAttribution";
 
 interface ManagerAnalyticsHeaderProps {
   managers: Manager[];
@@ -34,40 +35,35 @@ export function ManagerAnalyticsHeader({
     }).length;
   }, [managers]);
 
-  // Calculate Top 3 Managers by Orders + Quotes count
+  // Calculate Top 3 Managers by Orders + Quotes count using unified Manager Attribution Engine
   const managerPerformance = React.useMemo(() => {
-    const countsMap: Record<string, { name: string; count: number }> = {};
+    const countsMap: Record<string, { id: string; name: string; count: number }> = {};
 
-    // Initialize all managers with 0 count
+    // Initialize all registered managers with 0 count
     managers.forEach((m) => {
-      countsMap[m.name.toLowerCase()] = { name: m.name, count: 0 };
+      countsMap[m._id] = { id: m._id, name: m.name, count: 0 };
     });
 
-    // Tally Orders by salesperson or createdBy
-    orders.forEach((o: any) => {
-      const sp = o.salesperson || o.createdBy?.name || o.customerName;
-      if (sp && typeof sp === "string") {
-        const key = sp.toLowerCase().trim();
+    const addDocAttribution = (doc: any) => {
+      const identifier = doc.createdBy || doc.salesperson || doc.salespersonEmail || doc.managerEmail;
+      if (!identifier) return;
+
+      const matchedMgr = managers.find((m) => isManagerMatch(m, identifier));
+      if (matchedMgr) {
+        countsMap[matchedMgr._id].count += 1;
+      } else {
+        const rawName = typeof identifier === "string" ? identifier : identifier.name || "Unknown Staff";
+        const key = `raw_${rawName.toLowerCase()}`;
         if (countsMap[key]) {
           countsMap[key].count += 1;
         } else {
-          countsMap[key] = { name: sp, count: 1 };
+          countsMap[key] = { id: key, name: rawName, count: 1 };
         }
       }
-    });
+    };
 
-    // Tally Invoices/Quotes by salesperson or createdBy
-    invoices.forEach((inv: any) => {
-      const sp = inv.salesperson || inv.createdBy?.name;
-      if (sp && typeof sp === "string") {
-        const key = sp.toLowerCase().trim();
-        if (countsMap[key]) {
-          countsMap[key].count += 1;
-        } else {
-          countsMap[key] = { name: sp, count: 1 };
-        }
-      }
-    });
+    orders.forEach(addDocAttribution);
+    invoices.forEach(addDocAttribution);
 
     const sortedList = Object.values(countsMap).sort((a, b) => b.count - a.count);
     return sortedList.slice(0, 3);

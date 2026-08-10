@@ -30,9 +30,9 @@ vi.mock("../../dbConnect", () => ({
   default: vi.fn().mockResolvedValue(true)
 }));
 
-vi.mock("../pushServiceServer", () => ({
-  default: {
-    sendPushNotification: vi.fn()
+vi.mock("../../push/pushServiceServer", () => ({
+  pushServiceServer: {
+    sendPushNotification: vi.fn().mockResolvedValue(true)
   }
 }));
 

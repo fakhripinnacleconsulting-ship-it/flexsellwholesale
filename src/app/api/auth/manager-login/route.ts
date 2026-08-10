@@ -43,25 +43,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
-    // Update last login
-    await Manager.updateOne({ _id: manager._id }, { $set: { lastLogin: new Date() } });
+    // Generate 6-digit 2FA OTP
+    const crypto = require("crypto");
+    const OtpVerification = require("@/models/OtpVerification").default;
+    const { emailService } = require("@/lib/emailService");
 
-    // Sign token (including permissions)
-    const token = signToken({
-      userId: manager._id,
-      email: manager.email,
-      role: "manager",
-      permissions: manager.permissions,
-    } as any);
+    const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = crypto.createHash("sha256").update(rawOtp).digest("hex");
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    await setTokenCookie(token);
+    await OtpVerification.findOneAndUpdate(
+      { email: trimmedIdentifier },
+      {
+        email: trimmedIdentifier,
+        otpHash,
+        expiresAt,
+        resendAfter: new Date(Date.now() + 30 * 1000),
+        attempts: 0,
+      },
+      { upsert: true, new: true }
+    );
 
-    const managerObj = manager.toObject();
-    delete managerObj.password;
+    const isDev = process.env.NODE_ENV !== "production";
+    const targetEmail = isDev ? "kuldeepmaurya4296@gmail.com" : "info@flexsellwholesale.com";
+
+    await emailService.sendStaffOtpEmail(manager.email, rawOtp, manager.name, "Staff Manager");
 
     return NextResponse.json({
-      message: "Manager logged in successfully",
-      manager: managerObj,
+      requiresOtp: true,
+      email: manager.email,
+      targetEmail,
+      devOtp: isDev ? rawOtp : undefined,
+      message: `2FA Security Code sent to ${targetEmail}`
     });
   } catch (error: unknown) {
     if (error instanceof ZodError) {

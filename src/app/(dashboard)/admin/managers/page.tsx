@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/Input";
 import { Avatar } from "@/components/ui/Avatar";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
-import { Plus, Edit2, Trash2, Shield, Search, Link as LinkIcon, X } from "lucide-react";
+import { Plus, Edit2, Trash2, Shield, Search, Link as LinkIcon, X, Eye, Download } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
 import { ManagerAnalyticsHeader } from "@/components/admin/managers/ManagerAnalyticsHeader";
 import { useOrderStore } from "@/stores/orderStore";
@@ -122,6 +123,7 @@ function getPermissionSummary(perms: string[] = []) {
 }
 
 export default function AdminManagersPage() {
+  const router = useRouter();
   const { addToast } = useToastStore();
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
   const confirmAction = useConfirmStore((state) => state.confirm);
@@ -336,6 +338,16 @@ export default function AdminManagersPage() {
           <Button
             variant="outline"
             onClick={() => {
+              window.open("/api/admin/managers/kpi-report?format=csv", "_blank");
+              addToast("Downloading Team KPI CSV Report...", "info");
+            }}
+            className="w-full sm:w-auto font-bold flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            <Download className="h-4 w-4" /> Export Team KPI Report
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
               navigator.clipboard.writeText(window.location.origin + "/manager/login");
               addToast("Manager login URL copied to clipboard!", "success");
             }}
@@ -424,11 +436,15 @@ export default function AdminManagersPage() {
                   </tr>
                 ) : (
                   filteredManagers.map((mgr) => (
-                    <tr key={mgr._id} className="hover:bg-secondary/15 transition-colors">
+                    <tr
+                      key={mgr._id}
+                      onClick={() => router.push(`/admin/managers/${mgr._id}`)}
+                      className="hover:bg-secondary/20 transition-colors cursor-pointer"
+                    >
                       <td className="px-6 py-4 flex items-center gap-3">
                         <Avatar initials={mgr.name.substring(0, 2).toUpperCase()} className="bg-primary text-primary-foreground border shrink-0" />
                         <div className="min-w-0">
-                          <p className="font-bold text-foreground truncate">{mgr.name}</p>
+                          <p className="font-bold text-foreground truncate hover:text-primary transition-colors">{mgr.name}</p>
                           <p className="text-xs text-muted-foreground truncate mt-0.5">{mgr.email}</p>
                         </div>
                       </td>
@@ -469,8 +485,11 @@ export default function AdminManagersPage() {
                       <td className="px-6 py-4 text-center text-xs text-muted-foreground">
                         {mgr.lastLogout ? new Date(mgr.lastLogout).toLocaleString() : "Never"}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
+                          <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0" title="View Manager Profile" onClick={() => router.push(`/admin/managers/${mgr._id}`)}>
+                            <Eye className="h-3.5 w-3.5 text-primary" />
+                          </Button>
                           <Button variant="outline" size="sm" className="font-semibold h-8 w-8 p-0" title="Edit Manager" onClick={() => handleOpenEditModal(mgr)}>
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>

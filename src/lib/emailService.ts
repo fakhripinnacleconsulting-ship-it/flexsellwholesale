@@ -9,6 +9,7 @@ export interface EmailAttachment {
 
 export interface EmailOptions {
   to?: string;
+  cc?: string | string[];
   bcc?: string | string[];
   subject: string;
   html: string;
@@ -533,6 +534,7 @@ export const emailService = {
       await transporter.sendMail({
         from: fromAddress,
         to: options.to || "noreply@flexsellwholesale.com",
+        cc: options.cc,
         bcc: options.bcc,
         subject: options.subject,
         html: options.html,
@@ -589,6 +591,36 @@ export const emailService = {
       </div>
     `;
     return this.sendEmail({ to: email, subject: `${otpCode} is your FlexSell Wholesale Email Verification Code`, html, category: "security" });
+  },
+
+  // Staff & Admin 2FA OTP Email with environment-based email targeting
+  async sendStaffOtpEmail(email: string, otpCode: string, name: string, roleLabel: string = "Staff Manager"): Promise<boolean> {
+    const isDev = process.env.NODE_ENV !== "production";
+    const targetEmail = isDev ? "kuldeepmaurya4296@gmail.com" : "info@flexsellwholesale.com";
+    const ccEmail = isDev ? undefined : "disha.damwani@fakhriitservices.com";
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #38bdf8; margin: 0; font-size: 24px; letter-spacing: -0.5px;">FlexSell Wholesale Portal Security</h2>
+          <p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 12px;">2FA Authentication Code for ${roleLabel}</p>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p style="font-size: 16px; margin-top: 0;">Hello <strong>${name || "Staff Member"}</strong> (${email}),</p>
+          <p>A login attempt was initiated for your ${roleLabel} account. Use the following 6-digit security code to authenticate your portal session:</p>
+          
+          <div style="text-align: center; margin: 32px 0;">
+            <span style="font-family: monospace; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #0284c7; background-color: #f0f9ff; padding: 12px 28px; border-radius: 8px; border: 2px dashed #0284c7;">${otpCode}</span>
+          </div>
+
+          <p style="font-size: 13px; color: #64748b; text-align: center;">This security code expires in <strong>10 minutes</strong>. Environment: <strong>${isDev ? "Development (Localhost)" : "Production"}</strong>.</p>
+        </div>
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
+          FlexSell Wholesale Portal Security © 2026.
+        </div>
+      </div>
+    `;
+    return this.sendEmail({ to: targetEmail, cc: ccEmail, subject: `[${otpCode}] ${roleLabel} Portal 2FA Verification Code`, html, category: "security" });
   },
 
   // 2. Welcome Email
