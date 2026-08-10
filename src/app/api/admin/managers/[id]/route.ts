@@ -17,11 +17,16 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     if (!token) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
 
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (!payload) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
 
     const managerDoc = await Manager.findById(managerId);
     if (!managerDoc) {
       return NextResponse.json({ message: "Manager not found" }, { status: 404 });
+    }
+
+    const isSelf = payload.role === "manager" && (payload.userId === managerId || payload.email === managerDoc.email);
+    if (payload.role !== "admin" && !isSelf) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     // 1. Automatic DB Cleanup: Purge loginHistory entries older than 60 days
