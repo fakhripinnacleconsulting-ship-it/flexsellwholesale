@@ -32,7 +32,7 @@ export async function setTokenCookie(token: string) {
   cookieStore.set("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 1 * 24 * 60 * 60, // 1 day
     path: "/",
   });
@@ -42,7 +42,7 @@ export async function setTokenCookie(token: string) {
   cookieStore.set("csrf_token", generateCsrfToken(), {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 1 * 24 * 60 * 60,
     path: "/",
   });
@@ -53,14 +53,14 @@ export async function removeTokenCookie() {
   cookieStore.set("token", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 0,
     path: "/",
   });
   cookieStore.set("csrf_token", "", {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 0,
     path: "/",
   });

