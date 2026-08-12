@@ -25,38 +25,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-const INDIAN_STATES = [
-  "Madhya Pradesh",
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Delhi",
-  "Union Territory"
-];
+import { INDIAN_STATES } from "@/lib/constants";
 
 import { usePathname } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";

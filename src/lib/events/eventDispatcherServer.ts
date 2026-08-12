@@ -17,12 +17,19 @@ export function dispatchEventServer(payload: SystemEventPayload): void {
 
   console.log(`[EVENT DISPATCHED (Background)] Type: ${fullPayload.eventType}`);
 
-  // Schedule background execution
-  after(async () => {
-    try {
-      await handleSystemEvent(fullPayload);
-    } catch (err) {
+  try {
+    // Schedule background execution via Next.js after()
+    after(async () => {
+      try {
+        await handleSystemEvent(fullPayload);
+      } catch (err) {
+        console.error(`[Event Dispatch Error] Failed to process ${fullPayload.eventType}:`, err);
+      }
+    });
+  } catch (_err) {
+    // Fallback for non-request contexts (e.g., unit tests or scripts)
+    handleSystemEvent(fullPayload).catch((err) => {
       console.error(`[Event Dispatch Error] Failed to process ${fullPayload.eventType}:`, err);
-    }
-  });
+    });
+  }
 }

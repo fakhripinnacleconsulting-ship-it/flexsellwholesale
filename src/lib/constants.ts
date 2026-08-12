@@ -11,25 +11,33 @@ export const ORDER_STATUS_CLASSES: Record<string, string> = {
 };
 
 export const INDIAN_STATES = [
-  "Madhya Pradesh",
+  "Andaman and Nicobar Islands",
   "Andhra Pradesh",
   "Arunachal Pradesh",
   "Assam",
   "Bihar",
+  "Chandigarh",
   "Chhattisgarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
   "Goa",
   "Gujarat",
   "Haryana",
   "Himachal Pradesh",
+  "Jammu and Kashmir",
   "Jharkhand",
   "Karnataka",
   "Kerala",
+  "Ladakh",
+  "Lakshadweep",
+  "Madhya Pradesh",
   "Maharashtra",
   "Manipur",
   "Meghalaya",
   "Mizoram",
   "Nagaland",
   "Odisha",
+  "Puducherry",
   "Punjab",
   "Rajasthan",
   "Sikkim",
@@ -38,9 +46,7 @@ export const INDIAN_STATES = [
   "Tripura",
   "Uttar Pradesh",
   "Uttarakhand",
-  "West Bengal",
-  "Delhi",
-  "Union Territory"
+  "West Bengal"
 ];
 
 export const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
