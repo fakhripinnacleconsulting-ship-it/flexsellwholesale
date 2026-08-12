@@ -21,8 +21,7 @@ const FeaturedCollections = nextDynamic(() => import("@/components/storefront/Fe
 const TrendingProducts = nextDynamic(() => import("@/components/storefront/TrendingProducts").then(m => m.TrendingProducts));
 
 import { constructMetadata } from "@/lib/seo";
-// export const revalidate = 3600; 
-export const dynamic = 'force-static';
+export const revalidate = 3600; // ISR revalidation every 1 hour
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
