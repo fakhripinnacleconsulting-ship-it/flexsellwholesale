@@ -75,27 +75,28 @@ export async function POST(req: Request) {
       logoutReason: "manual"
     });
 
-    await Manager.updateOne(
+    const updatedManager = await Manager.findOneAndUpdate(
       { _id: manager._id },
       {
         $set: {
           lastLogin: now,
           loginHistory: existingHistory
         }
-      }
+      },
+      { new: true }
     );
 
     // 3. Issue Session Token
     const token = signToken({
-      userId: manager._id,
-      email: manager.email,
+      userId: updatedManager._id,
+      email: updatedManager.email,
       role: "manager",
-      permissions: manager.permissions,
+      permissions: updatedManager.permissions,
     } as any);
 
     await setTokenCookie(token);
 
-    const managerObj = manager.toObject();
+    const managerObj = updatedManager.toObject();
     delete managerObj.password;
 
     return NextResponse.json({

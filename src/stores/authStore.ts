@@ -118,13 +118,18 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         set({ isLoading: true });
+        const isManagerSession = !!useAuthStore.getState().manager;
         try {
           await apiClient.post("/auth/logout");
         } catch (err) {
           console.error("Logout API failed", err);
         } finally {
           set({ customer: null, manager: null, isLoading: false });
-          window.location.href = "/login";
+          if (isManagerSession) {
+            window.location.href = "/manager/login";
+          } else {
+            window.location.href = "/login";
+          }
         }
       },
 

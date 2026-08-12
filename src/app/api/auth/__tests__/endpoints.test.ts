@@ -297,7 +297,8 @@ describe("Authentication API Routes", () => {
 
   describe("POST /api/auth/logout", () => {
     it("should clear the cookies on logout", async () => {
-      const response = await logoutPOST();
+      const request = new Request("http://localhost/api/auth/logout", { method: "POST" });
+      const response = await logoutPOST(request);
       expect(response.status).toBe(200);
 
       const body = await response.json();

@@ -5,36 +5,34 @@ import { useAuthStore } from "../../stores/authStore";
 import { useToastStore } from "../../stores/toastStore";
 import { useRouter } from "next/navigation";
 
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000; // 5 hours 30 minutes in ms
+
 /**
  * Gets the current hour (0-23) in Indian Standard Time (IST / Asia/Kolkata)
  */
 function getISTHour(now = new Date()): number {
-  const hourStr = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    hour: "numeric",
-    hour12: false,
-  }).format(now);
-  const hour = parseInt(hourStr, 10);
-  return hour === 24 ? 0 : hour;
+  const istDate = new Date(now.getTime() + IST_OFFSET_MS);
+  return istDate.getUTCHours();
 }
 
 /**
  * Calculates the exact millisecond timestamp corresponding to 10:00 PM IST for the active cutoff cycle.
  */
 function getIST10pmCutoffTimestamp(now = new Date()): number {
-  const istNowFormatted = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-  const istDate = new Date(istNowFormatted);
+  const istDate = new Date(now.getTime() + IST_OFFSET_MS);
+  const hour = istDate.getUTCHours();
 
-  const hour = istDate.getHours();
-  // If current IST time is between 12:00 AM and 04:59 AM, 10:00 PM cutoff was yesterday
+  let year = istDate.getUTCFullYear();
+  let month = istDate.getUTCMonth();
+  let day = istDate.getUTCDate();
+
+  // If current IST time is between 12:00 AM and 04:59 AM, 10:00 PM cutoff was yesterday IST
   if (hour < 5) {
-    istDate.setDate(istDate.getDate() - 1);
+    day -= 1;
   }
 
-  istDate.setHours(22, 0, 0, 0);
-
-  const diffMs = istDate.getTime() - istNowFormatted.getTime();
-  return now.getTime() + diffMs;
+  // 10:00 PM IST is 22:00:00.000 in IST. Subtract IST_OFFSET_MS to get UTC epoch timestamp.
+  return Date.UTC(year, month, day, 22, 0, 0, 0) - IST_OFFSET_MS;
 }
 
 export function ManagerAutoLogoutGuard() {
