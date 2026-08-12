@@ -675,11 +675,12 @@ export function InvoiceCreateModal({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Invoice Date</label>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amazon Invoice Date *</label>
                     <Input
                       type="date"
                       value={dropshipDetails.amazonInvoiceDate || ""}
                       onChange={(e) => setDropshipDetails({ ...dropshipDetails, amazonInvoiceDate: e.target.value })}
+                      required={includeDropshipDetails}
                     />
                   </div>
                   <div>
@@ -692,12 +693,13 @@ export function InvoiceCreateModal({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Mobile Number</label>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Mobile Number *</label>
                     <Input
                       type="tel"
                       value={dropshipDetails.mobileNumber || ""}
                       onChange={(e) => setDropshipDetails({ ...dropshipDetails, mobileNumber: e.target.value })}
                       placeholder="e.g. +91 98765 43210"
+                      required={includeDropshipDetails}
                     />
                   </div>
                   <div>
@@ -710,11 +712,12 @@ export function InvoiceCreateModal({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Delivery Date</label>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Delivery Date *</label>
                     <Input
                       type="date"
                       value={dropshipDetails.deliveryDate || ""}
                       onChange={(e) => setDropshipDetails({ ...dropshipDetails, deliveryDate: e.target.value })}
+                      required={includeDropshipDetails}
                     />
                   </div>
                   <div>
@@ -773,7 +776,7 @@ export function InvoiceCreateModal({
                     {/* Tax Invoice File Upload */}
                     <div className="bg-background p-3 rounded-lg border border-border space-y-2">
                       <label className="text-xs font-bold text-foreground flex items-center justify-between">
-                        <span>Upload Amazon Tax Invoice</span>
+                        <span>Upload Amazon Tax Invoice *</span>
                         {dropshipDetails.amazonTaxInvoice && (
                           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                             <Check className="h-3 w-3" /> Uploaded
@@ -826,7 +829,7 @@ export function InvoiceCreateModal({
                     {/* Packaging Slip File Upload */}
                     <div className="bg-background p-3 rounded-lg border border-border space-y-2">
                       <label className="text-xs font-bold text-foreground flex items-center justify-between">
-                        <span>Upload Amazon Packaging Slip</span>
+                        <span>Upload Amazon Packaging Slip *</span>
                         {dropshipDetails.amazonPackingSlip && (
                           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                             <Check className="h-3 w-3" /> Uploaded

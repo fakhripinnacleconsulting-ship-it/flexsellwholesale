@@ -174,8 +174,21 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
     }
 
     if (formCustomerType === "Dropshipping" && includeDropshipDetails) {
-      if (!dropshipDetails?.amazonOrderId || !dropshipDetails?.amazonInvoiceId) {
-        addToast("Please fill in Amazon Order ID and Amazon Invoice Number.", "warning");
+      if (
+        !dropshipDetails?.amazonOrderId ||
+        !dropshipDetails?.amazonInvoiceId ||
+        !dropshipDetails?.amazonInvoiceDate ||
+        !dropshipDetails?.customerName ||
+        !dropshipDetails?.mobileNumber ||
+        !dropshipDetails?.deliveryDate ||
+        !dropshipDetails?.city ||
+        !dropshipDetails?.state ||
+        !dropshipDetails?.pinCode ||
+        !dropshipDetails?.address ||
+        !dropshipDetails?.amazonTaxInvoice ||
+        !dropshipDetails?.amazonPackingSlip
+      ) {
+        addToast("Please fill in all required Amazon Shipment Details, including document uploads.", "warning");
         return;
       }
     }
