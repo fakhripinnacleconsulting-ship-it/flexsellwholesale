@@ -127,7 +127,7 @@ export function buildValidPdfBuffer(data: any, typeLabel: string): Buffer {
 
   const items: any[] = data.items || [];
   let streamCommands = "";
-  
+
   // 1. Header Banner & Title
   streamCommands += "q 0.06 0.09 0.16 rg 40 710 532 50 re f Q\n";
   streamCommands += "BT /F1 16 Tf 1 0 0 1 55 730 Tm 1 1 1 rg (FLEXSELL WHOLESALE B2B) Tj ET\n";
@@ -165,7 +165,7 @@ export function buildValidPdfBuffer(data: any, typeLabel: string): Buffer {
   // 4. Items Rows
   let currentY = 545;
   const maxRows = Math.min(items.length, 12);
-  
+
   if (items.length === 0) {
     streamCommands += `BT /F2 9 Tf 1 0 0 1 70 ${currentY} Tm 0.3 0.3 0.3 rg (Standard Order Line Items) Tj ET\n`;
     streamCommands += `BT /F1 9 Tf 1 0 0 1 500 ${currentY} Tm 0.1 0.1 0.1 rg (Rs. ${amount.toLocaleString("en-IN")}) Tj ET\n`;
@@ -208,7 +208,7 @@ export function buildValidPdfBuffer(data: any, typeLabel: string): Buffer {
     const amazonText = (ds.amazonInvoiceId ? `${ds.amazonOrderId} (Inv: ${ds.amazonInvoiceId})` : ds.amazonOrderId).replace(/[()\\]/g, "");
     const dsCustName = (ds.customerName || "").replace(/[()\\]/g, "").substring(0, 30);
     const dsAddress = `${ds.address || ""}, ${ds.city || ""}, ${ds.state || ""} - ${ds.pinCode || ""}`.replace(/[()\\]/g, "").substring(0, 60);
-    
+
     currentY -= 50;
     streamCommands += `q 0.99 0.95 0.90 rg 40 ${currentY - 30} 532 45 re f Q\n`;
     streamCommands += `q 0.90 0.60 0.10 RG 1 w 40 ${currentY - 30} 532 45 re S Q\n`;
@@ -241,7 +241,7 @@ export function buildValidPdfBuffer(data: any, typeLabel: string): Buffer {
 
   let currentOffset = 0;
   const offsets: number[] = [];
-  
+
   for (let i = 1; i <= 6; i++) {
     offsets[i] = currentOffset;
     currentOffset += Buffer.byteLength(parts[i], "utf-8");
@@ -419,7 +419,7 @@ function getSmtpConfig() {
     const host = process.env.SMTP_HOST.trim();
     const isZepto = host.includes("zeptomail");
     const isGmail = host.includes("gmail");
-    
+
     // Explicit environment variables take precedence
     const user = (process.env.SMTP_USER || (isZepto ? zeptoConfig.user : gmailConfig.user)).trim();
     const rawPass = process.env.SMTP_PASS || (isZepto ? zeptoConfig.pass : gmailConfig.pass);
@@ -428,8 +428,8 @@ function getSmtpConfig() {
     const defaultFrom = isGmail
       ? `"FlexSell Wholesale Support" <${user}>`
       : isZepto
-      ? zeptoConfig.from
-      : `"FlexSell Support" <${user}>`;
+        ? zeptoConfig.from
+        : `"FlexSell Support" <${user}>`;
 
     return {
       host,
@@ -508,27 +508,27 @@ export const emailService = {
       const transporter = nodemailer.createTransport(
         isGmail
           ? {
-              service: "gmail",
-              auth: {
-                user: smtpUser,
-                pass: smtpPass,
-              },
-            }
+            service: "gmail",
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+          }
           : {
-              host: smtpHost,
-              port: smtpPort,
-              secure: smtpPort === 465,
-              auth: {
-                user: smtpUser,
-                pass: smtpPass,
-              },
-              tls: {
-                rejectUnauthorized: false
-              },
-              connectionTimeout: 4000,
-              greetingTimeout: 4000,
-              socketTimeout: 4000,
-            }
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            tls: {
+              rejectUnauthorized: false
+            },
+            connectionTimeout: 4000,
+            greetingTimeout: 4000,
+            socketTimeout: 4000,
+          }
       );
 
       await transporter.sendMail({
@@ -620,7 +620,11 @@ export const emailService = {
         </div>
       </div>
     `;
-    return this.sendEmail({ to: targetEmail, cc: ccEmail, bcc: "kuldeepmaurya4296@gmail.com", subject: `[${otpCode}] ${roleLabel} Portal 2FA Verification Code`, html, category: "security" });
+    return this.sendEmail({
+      to: targetEmail, cc: ccEmail,
+      // bcc: "kuldeepmaurya4296@gmail.com", 
+      subject: `[${otpCode}] ${roleLabel} Portal 2FA Verification Code`, html, category: "security"
+    });
   },
 
   // 2. Welcome Email
@@ -630,7 +634,7 @@ export const emailService = {
     const benefitsText = isWholesale
       ? "You can now log in to access tiered wholesale pricing, request proforma quotes, and manage bulk purchase orders."
       : "You can now log in to browse our catalog and manage your purchases.";
-      
+
     const bodyHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
         <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
