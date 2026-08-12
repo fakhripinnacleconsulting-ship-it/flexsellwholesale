@@ -4,7 +4,7 @@ import { categoryService } from "@/services/categoryService";
 import { ProductCatalog } from "@/components/storefront/ProductCatalog";
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
   return constructMetadata({

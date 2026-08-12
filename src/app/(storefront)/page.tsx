@@ -22,7 +22,7 @@ const TrendingProducts = dynamic(() => import("@/components/storefront/TrendingP
 
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 60; // ISR revalidation every 60s
+export const revalidate = 3600; // ISR revalidation every 60s
 
 export async function generateMetadata(): Promise<Metadata> {
   try {

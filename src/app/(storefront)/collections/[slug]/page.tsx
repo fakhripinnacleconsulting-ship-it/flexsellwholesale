@@ -10,7 +10,7 @@ import { Layers, AlertCircle, ShoppingBag } from "lucide-react";
 
 import { constructMetadata, generateCollectionSchema, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const revalidate = 60; // ISR revalidation every 60s
+export const revalidate = 3600; // ISR revalidation every 60s
 
 function stripHtml(html: string): string {
   if (!html) return "";

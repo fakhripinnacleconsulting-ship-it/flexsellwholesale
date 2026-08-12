@@ -8,7 +8,7 @@ import { productService } from "@/services/productService";
 import type { Metadata } from "next";
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
   return constructMetadata({

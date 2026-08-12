@@ -6,7 +6,7 @@ import CmsContent from "@/models/CmsContent";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 interface StaticPage {
   id: string;

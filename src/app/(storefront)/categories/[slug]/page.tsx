@@ -4,7 +4,7 @@ import { categoryService } from "@/services/categoryService";
 import { CategoryCatalog } from "@/components/storefront/CategoryCatalog";
 import { constructMetadata, generateCategorySchema, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
