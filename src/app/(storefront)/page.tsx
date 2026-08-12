@@ -11,18 +11,18 @@ import CmsContent from "@/models/CmsContent";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
 import { TrustBar } from "@/components/storefront/TrustBar";
-import dynamic from "next/dynamic";
-const WholesaleBusinessSection = dynamic(() => import("@/components/storefront/WholesaleBusinessSection").then(m => m.WholesaleBusinessSection));
-const DropshippingBusinessSection = dynamic(() => import("@/components/storefront/DropshippingBusinessSection").then(m => m.DropshippingBusinessSection));
-const TestimonialsSection = dynamic(() => import("@/components/storefront/TestimonialsSection").then(m => m.TestimonialsSection));
-const BrandPartnersBar = dynamic(() => import("@/components/storefront/BrandPartnersBar").then(m => m.BrandPartnersBar));
-const RecentlyViewed = dynamic(() => import("@/components/storefront/RecentlyViewed").then(m => m.RecentlyViewed));
-const FeaturedCollections = dynamic(() => import("@/components/storefront/FeaturedCollections").then(m => m.FeaturedCollections));
-const TrendingProducts = dynamic(() => import("@/components/storefront/TrendingProducts").then(m => m.TrendingProducts));
+import nextDynamic from "next/dynamic";
+const WholesaleBusinessSection = nextDynamic(() => import("@/components/storefront/WholesaleBusinessSection").then(m => m.WholesaleBusinessSection));
+const DropshippingBusinessSection = nextDynamic(() => import("@/components/storefront/DropshippingBusinessSection").then(m => m.DropshippingBusinessSection));
+const TestimonialsSection = nextDynamic(() => import("@/components/storefront/TestimonialsSection").then(m => m.TestimonialsSection));
+const BrandPartnersBar = nextDynamic(() => import("@/components/storefront/BrandPartnersBar").then(m => m.BrandPartnersBar));
+const RecentlyViewed = nextDynamic(() => import("@/components/storefront/RecentlyViewed").then(m => m.RecentlyViewed));
+const FeaturedCollections = nextDynamic(() => import("@/components/storefront/FeaturedCollections").then(m => m.FeaturedCollections));
+const TrendingProducts = nextDynamic(() => import("@/components/storefront/TrendingProducts").then(m => m.TrendingProducts));
 
 import { constructMetadata } from "@/lib/seo";
-
-export const revalidate = 3600; // ISR revalidation every 60s
+// export const revalidate = 3600; 
+export const dynamic = 'force-static';
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
