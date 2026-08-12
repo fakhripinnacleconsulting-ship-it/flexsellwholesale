@@ -121,8 +121,8 @@ export function Header({ categories, collections = [] }: HeaderProps) {
 
           {/* Desktop-only Account, Wishlist & Cart Icons */}
           <div className="hidden md:flex items-center gap-2">
-            <Link href={customer ? (customer.role === "admin" ? "/admin" : "/client/profile") : "/login"} aria-label={customer ? "My Account" : "Sign In"}>
-              <Button variant="ghost" size="icon" className="cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title={customer ? "My Account" : "Sign In"} aria-label={customer ? "My Account" : "Sign In"}>
+            <Link href={(isMounted && customer) ? (customer.role === "admin" ? "/admin" : "/client/profile") : "/login"} aria-label={(isMounted && customer) ? "My Account" : "Sign In"}>
+              <Button variant="ghost" size="icon" className="cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title={(isMounted && customer) ? "My Account" : "Sign In"} aria-label={(isMounted && customer) ? "My Account" : "Sign In"}>
                 <User className="h-4.5 w-4.5 text-foreground" />
               </Button>
             </Link>
@@ -233,8 +233,8 @@ export function Header({ categories, collections = [] }: HeaderProps) {
           </nav>
 
           <div className="mt-auto pt-4 border-t">
-            <Link href={customer ? "/client/profile" : "/login"} onClick={() => setIsMobileMenuOpen(false)}>
-              <Button className="w-full font-bold text-xs h-9" variant="outline">{customer ? "My Account Dashboard" : "Sign In / Register"}</Button>
+            <Link href={(isMounted && customer) ? "/client/profile" : "/login"} onClick={() => setIsMobileMenuOpen(false)}>
+              <Button className="w-full font-bold text-xs h-9" variant="outline">{(isMounted && customer) ? "My Account Dashboard" : "Sign In / Register"}</Button>
             </Link>
           </div>
         </div>
