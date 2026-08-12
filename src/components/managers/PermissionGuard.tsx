@@ -16,7 +16,13 @@ export function PermissionGuard({ children, requiredPermissions }: PermissionGua
   const { hasPermission, isManagerRoute } = usePermissions();
   const { manager, isLoading } = useAuthStore();
 
-  if (isLoading) {
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted || isLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

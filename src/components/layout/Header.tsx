@@ -143,7 +143,7 @@ export function Header({ categories, collections = [] }: HeaderProps) {
               </Button>
             </Link>
 
-            {!isDropshipperOnly && (
+            {!(isMounted && isDropshipperOnly) && (
               <Link href="/cart" aria-label="Shopping Cart">
                 <Button variant="ghost" size="icon" className="relative cursor-pointer h-9 w-9 p-0 flex items-center justify-center" title="Cart" aria-label="Shopping Cart">
                   <ShoppingCart className="h-4.5 w-4.5 text-foreground" />

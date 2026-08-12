@@ -32,9 +32,14 @@ import {
 
 export default function ManagerDashboardOverview() {
   const { manager } = useAuthStore();
+  const [isMounted, setIsMounted] = React.useState(false);
   const { invoices, initializeInvoices } = useInvoiceStore();
   const { orders, initializeOrders } = useOrderStore();
   const [managerDetail, setManagerDetail] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   React.useEffect(() => {
     // Initialize quotes/invoices and orders with "me" filter
@@ -48,7 +53,7 @@ export default function ManagerDashboardOverview() {
     }
   }, [initializeInvoices, initializeOrders, manager?._id]);
 
-  if (!manager) {
+  if (!isMounted || !manager) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         Loading manager session...

@@ -27,7 +27,7 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
   const { addItem } = useCartStore();
   const { toggleWishlist, isInWishlist } = useWishlistStore();
   const { addToast } = useToastStore();
-  const customer = useAuthStore((state: any) => state.customer);
+  const rawCustomer = useAuthStore((state: any) => state.customer);
 
   const [isMounted, setIsMounted] = React.useState(false);
   const [currentImgIndex, setCurrentImgIndex] = React.useState(0);
@@ -41,6 +41,7 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
     setIsMounted(true);
   }, []);
 
+  const customer = isMounted ? rawCustomer : null;
   const favorited = isMounted ? isInWishlist(product._id) : false;
   const defaultVariant = product.colorVariants?.[0];
   const defaultSub = defaultVariant?.subVariants?.[0];
