@@ -79,7 +79,7 @@ export function Header({ categories, collections = [] }: HeaderProps) {
           {/* Greeting text if logged in */}
           {isMounted && customer && (
             <span className="hidden lg:inline-block text-xs font-bold text-muted-foreground">
-              Hi, <span className="text-primary">{customer.name.split(" ")[0]}</span>
+              Hi, <span className="text-primary">{customer.name?.split(" ")[0] || "User"}</span>
             </span>
           )}
 
