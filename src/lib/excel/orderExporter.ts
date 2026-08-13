@@ -132,7 +132,7 @@ export async function exportOrdersToExcel(orders: Order[]) {
 
     const formatLinkCell = (url?: string) => {
       if (!url) return "";
-      return { text: "View Document", hyperlink: url };
+      return { text: url, hyperlink: url };
     };
 
     const productType = items
