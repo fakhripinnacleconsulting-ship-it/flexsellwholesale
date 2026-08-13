@@ -26,6 +26,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   const [videoError, setVideoError] = React.useState(false);
   const [aspectRatios, setAspectRatios] = React.useState<Record<string, number>>({});
   const [isMobile, setIsMobile] = React.useState(false);
+  const [isMounted, setIsMounted] = React.useState(false);
 
   // Monitor window resize to accurately track mobile vs desktop viewports
   React.useEffect(() => {
@@ -33,6 +34,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       setIsMobile(window.innerWidth < 640);
     };
     checkMobile();
+    setIsMounted(true);
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
@@ -234,7 +236,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
             x: { type: "spring", stiffness: 300, damping: 30 },
             opacity: { duration: 0.3 }
           }}
-          drag={slides.length > 1 ? "x" : false}
+          drag={isMounted && slides.length > 1 ? "x" : false}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.2}
           onDragEnd={(_, { offset, velocity }) => {
