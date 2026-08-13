@@ -25,6 +25,13 @@ async function dbConnect() {
       socketTimeoutMS: 5000,
       maxPoolSize: 10,
       family: 4, // Force IPv4 to prevent IPv6 DNS resolution timeouts
+      // Mongoose defaults autoIndex to true, which issues a createIndex for every index
+      // on all 18 models on every cold start. On serverless that is recurring CPU and
+      // connection overhead for indexes that already exist.
+      //
+      // NOTE: indexes must therefore be created out-of-band in production. Kept on in
+      // development so local schema changes still build their indexes automatically.
+      autoIndex: process.env.NODE_ENV !== "production",
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongooseInstance) => {

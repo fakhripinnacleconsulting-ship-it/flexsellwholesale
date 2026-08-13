@@ -21,6 +21,25 @@ const fetchCollectionBySlug = cache(async (slug: string): Promise<Collection> =>
   return apiClient.get<Collection>(`/collections/slug/${slug}`);
 });
 
+/**
+ * Deduplicated per render pass — StorefrontLayout and the homepage both need collections,
+ * so without this every homepage render ran the same query twice.
+ */
+const fetchCollectionsFromDb = cache(async (): Promise<Collection[]> => {
+  // Load-bearing for the bundler — see the matching note in categoryService.
+  if (typeof window !== "undefined") return [];
+  try {
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    await dbConnect();
+    const CollectionModel = (await import("@/models/Collection")).default;
+    const collections = await CollectionModel.find({}).sort({ order: 1 }).lean();
+    return JSON.parse(JSON.stringify(collections));
+  } catch (err) {
+    console.error("collectionService.getCollections server notice:", (err as any)?.message || err);
+    return [];
+  }
+});
+
 const STORAGE_KEY = "flexsell-collections-storage";
 
 // Helper to get local mock data
@@ -142,16 +161,7 @@ function evaluateSmartRulesInClient(product: Product, rules: CollectionRules | n
 export const collectionService = {
   async getCollections(): Promise<Collection[]> {
     if (typeof window === "undefined") {
-      try {
-        const dbConnect = (await import("@/lib/dbConnect")).default;
-        await dbConnect();
-        const CollectionModel = (await import("@/models/Collection")).default;
-        const collections = await CollectionModel.find({}).sort({ order: 1 }).lean();
-        return JSON.parse(JSON.stringify(collections));
-      } catch (err) {
-        console.error("collectionService.getCollections server notice:", (err as any)?.message || err);
-        return [];
-      }
+      return fetchCollectionsFromDb();
     }
 
     if (isMockMode) {

@@ -4,7 +4,7 @@ import { CollectionCard } from "@/components/storefront/CollectionCard";
 import { Layers } from "lucide-react";
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 3600; // ISR revalidation every 60s
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
 export async function generateMetadata(): Promise<Metadata> {
   return constructMetadata({

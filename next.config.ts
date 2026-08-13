@@ -20,6 +20,33 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },
     ],
+    // Bounded transformation budget. Inert while `unoptimized: true`, but in place so
+    // enabling optimisation is a one-line change with a known ceiling rather than an
+    // open-ended bill: transformations are billed per unique (source, size, quality)
+    // combination and then cached for minimumCacheTTL. 4 device sizes x 2 image sizes at
+    // a single quality caps it at ~6 variants per source image, charged once a year.
+    deviceSizes: [640, 828, 1080, 1920],
+    imageSizes: [128, 256],
+    qualities: [75],
+    minimumCacheTTL: 31536000,
+    formats: ["image/webp"],
+
+    // ⚠️ DO NOT flip this to `false` until the production image-host audit is done.
+    //
+    // `remotePatterns` above still contains `{ hostname: "**" }` for http and https, so
+    // the current list is NOT evidence of which hosts are actually in use — anything
+    // omitted from a tightened list starts returning 400 for every image from it.
+    //
+    // Before enabling optimisation:
+    //   1. Enumerate real hosts from production Mongo — products.colorVariants.images,
+    //      categories.image, collections.image/bannerImage, and the CmsContent blobs
+    //      (hero_banners, brand_partners, testimonials_*, blogs).
+    //   2. Replace remotePatterns with that explicit list (drop both "**" entries).
+    //   3. Set dangerouslyAllowSVG: false — with a wildcard host it makes /_next/image
+    //      a public open proxy and an SVG XSS vector.
+    //   4. Deploy, then watch Vercel logs + Sentry for image 400s for 24h.
+    //
+    // Until then this stays true: larger payloads, but zero broken images.
     unoptimized: true,
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

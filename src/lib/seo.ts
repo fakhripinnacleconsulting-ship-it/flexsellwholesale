@@ -1,7 +1,18 @@
 import type { Metadata } from "next";
 import { Product } from "@/types";
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.com";
+/**
+ * Canonical site origin.
+ *
+ * Normalised defensively: a misconfigured env var (http scheme, or a trailing slash)
+ * would otherwise leak into every canonical, og:url, hreflang, JSON-LD @id and sitemap
+ * entry as e.g. "http://flexsellwholesale.com//products" — which splits link equity and
+ * costs an http->https redirect on every crawler hit.
+ */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.com")
+  .trim()
+  .replace(/\/+$/, "")
+  .replace(/^http:\/\//i, "https://");
 export const DOMAIN_ALT = "https://flexsellwholesale.com";
 export const BRAND_NAME = "FlexSell Wholesale";
 export const BRAND_SHORT = "FlexSell";

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useAuthStore } from "../../stores/authStore";
 import { useToastStore } from "../../stores/toastStore";
 import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/apiClient";
 
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000; // 5 hours 30 minutes in ms
 
@@ -65,7 +66,11 @@ export function ManagerAutoLogoutGuard() {
         }
 
         // Session was started before 10:00 PM IST cutoff -> enforce end-of-day logout
-        fetch("/api/auth/logout?reason=auto_10pm", { method: "POST" })
+        // apiClient attaches the X-CSRF-Token header the proxy requires on POST;
+        // a raw fetch() was rejected with 403, so the server-side session was never
+        // actually torn down even though the UI logged the user out.
+        apiClient.post("/auth/logout?reason=auto_10pm")
+          .catch(() => { /* local logout below is the source of truth for the UI */ })
           .finally(() => {
             logout();
             addToast("Automated end-of-day logout enforced at 10:00 PM (IST). Please log in again tomorrow.", "warning");

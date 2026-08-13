@@ -71,9 +71,13 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-        <meta httpEquiv="Pragma" content="no-cache" />
-        <meta httpEquiv="Expires" content="0" />
+        {/*
+          No <meta http-equiv="Cache-Control"> here on purpose.
+          Shared caches ignore it, but browsers honour it for back/forward navigation —
+          it was forcing a full network round-trip on every back button press, and it
+          contradicted the CDN caching configured in next.config.ts. HTTP caching is
+          controlled by response headers, which is the only place it actually works.
+        */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 
 interface Inquiry {
   _id: string;
@@ -80,12 +81,9 @@ export function AdminInquiriesManager({ initialCategory = "all" }: { initialCate
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
       setIsSaving(true);
-      const res = await fetch("/api/inquiries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status })
-      });
-      if (!res.ok) throw new Error("Failed to update status");
+      // Routed through apiClient so this carries X-CSRF-Token: PATCH is now covered
+      // by the proxy's CSRF check (it was previously, incorrectly, exempt).
+      await apiClient.patch("/inquiries", { id, status });
       addToast(`Inquiry status updated to '${status}'`, "success");
       setInquiries(prev => prev.map(inq => inq._id === id ? { ...inq, status: status as any } : inq));
     } catch (err: unknown) {
@@ -99,12 +97,9 @@ export function AdminInquiriesManager({ initialCategory = "all" }: { initialCate
     try {
       setIsSaving(true);
       const notes = editNotes[id] ?? "";
-      const res = await fetch("/api/inquiries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, adminNotes: notes })
-      });
-      if (!res.ok) throw new Error("Failed to save admin notes");
+      // Routed through apiClient so this carries X-CSRF-Token: PATCH is now covered
+      // by the proxy's CSRF check (it was previously, incorrectly, exempt).
+      await apiClient.patch("/inquiries", { id, adminNotes: notes });
       addToast("Admin notes saved successfully", "success");
       setInquiries(prev => prev.map(inq => inq._id === id ? { ...inq, adminNotes: notes } : inq));
     } catch (err: unknown) {

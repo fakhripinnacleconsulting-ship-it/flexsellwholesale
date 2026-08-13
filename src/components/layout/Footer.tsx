@@ -8,6 +8,7 @@ import { useCategoryStore } from "@/stores/categoryStore";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 
 
 interface FooterProps {
@@ -67,15 +68,9 @@ export function Footer({ data }: FooterProps) {
     }
     setIsSubscribing(true);
     try {
-      const res = await fetch("/api/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newsletterEmail.trim() }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Failed to subscribe");
-      }
+      // Must go through apiClient so the X-CSRF-Token header is attached — a raw
+      // fetch() was rejected by the proxy with 403 before reaching the route.
+      await apiClient.post("/newsletter", { email: newsletterEmail.trim() });
       addToast("Subscribed to FlexSell B2B Wholesale deal alerts!", "success");
       setNewsletterEmail("");
     } catch (err: unknown) {

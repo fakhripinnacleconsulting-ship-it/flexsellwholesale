@@ -121,7 +121,12 @@ const fetchNewArrivals = cache(async (): Promise<Product[]> => {
 });
 
 export const productService = {
-  async getProducts(options?: { limit?: number }): Promise<Product[]> {
+  /**
+   * @param options.listView Request the trimmed listing payload (drops aPlusContent,
+   *   seo* and barcode images). Storefront catalog/search pages should pass this;
+   *   admin screens that edit the full document must not.
+   */
+  async getProducts(options?: { limit?: number; listView?: boolean }): Promise<Product[]> {
     if (typeof window === "undefined") {
       try {
         const dbConnect = (await import("@/lib/dbConnect")).default;
@@ -132,15 +137,21 @@ export const productService = {
           query = query.limit(options.limit);
         }
         const products = await query.lean();
+        // Kept as a JSON round-trip on purpose: it flattens Dates at arbitrary nesting
+        // depth for the RSC boundary. A hand-rolled serialiser would be cheaper but
+        // would miss nested cases and fail hard at the boundary.
         return JSON.parse(JSON.stringify(products));
       } catch (err) {
         console.error("productService.getProducts server notice:", (err as any)?.message || err);
         return [];
       }
     }
-    
-    const url = options?.limit ? `/products?limit=${options.limit}` : "/products";
-    return apiClient.get<Product[]>(url);
+
+    const params = new URLSearchParams();
+    if (options?.limit) params.set("limit", String(options.limit));
+    if (options?.listView) params.set("view", "list");
+    const qs = params.toString();
+    return apiClient.get<Product[]>(qs ? `/products?${qs}` : "/products");
   },
 
   async getProductById(id: string): Promise<Product> {

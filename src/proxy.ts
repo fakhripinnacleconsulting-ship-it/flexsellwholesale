@@ -10,7 +10,10 @@ export async function proxy(request: NextRequest) {
 
   // CSRF validation for state-changing API routes
   const isApiRoute = pathname.startsWith("/api");
-  const isStateChanging = ["POST", "PUT", "DELETE"].includes(request.method);
+  // PATCH must be here: it mutates state exactly like POST/PUT/DELETE. Omitting it
+  // left every PATCH route (e.g. /api/inquiries) reachable by a cross-site request
+  // with no CSRF token at all.
+  const isStateChanging = ["POST", "PUT", "PATCH", "DELETE"].includes(request.method);
   // Pre-session auth endpoints have no session to protect and are reached before a CSRF
   // cookie exists. Note this is deliberately a list of specific routes rather than the whole
   // /api/auth/ prefix: change-password acts on an established session, so blanket-excluding
@@ -94,7 +97,17 @@ export async function proxy(request: NextRequest) {
   }
 
   const response = NextResponse.next();
-  if (!request.cookies.get("csrf_token")) {
+
+  // Attaching Set-Cookie makes the response uncacheable at the Vercel CDN. On the public
+  // read-only API GETs that is self-defeating: next.config.ts gives them
+  // `s-maxage=300, stale-while-revalidate=600`, but every first-time visitor was busting
+  // that by being handed a csrf_token here — so the cache never applied to the traffic
+  // that needed it most.
+  //
+  // Safe to skip because apiClient fetches /api/csrf on demand before any state-changing
+  // request when the cookie is absent, and retries once if a token is rejected. Every
+  // other response (navigations, auth pages, mutating API calls) still seeds the cookie.
+  if (!request.cookies.get("csrf_token") && !isCacheablePublicApiGet(request.method, pathname)) {
     response.cookies.set("csrf_token", generateCsrfToken(), {
       httpOnly: false,
       sameSite: "lax",
@@ -103,6 +116,27 @@ export async function proxy(request: NextRequest) {
   }
 
   return response;
+}
+
+/**
+ * Mirrors the CDN-cacheable API prefixes configured in next.config.ts. Keep the two lists
+ * in sync: a path cached there but missing here silently loses its cache hit rate.
+ */
+const CACHEABLE_PUBLIC_API_PREFIXES = [
+  "/api/products",
+  "/api/categories",
+  "/api/collections",
+  "/api/search",
+  "/api/cms",
+  "/api/reviews",
+  "/api/health",
+];
+
+function isCacheablePublicApiGet(method: string, pathname: string): boolean {
+  if (method !== "GET" && method !== "HEAD") return false;
+  // /api/products/stock is explicitly no-store — it is the live source, never cached.
+  if (pathname.startsWith("/api/products/stock")) return false;
+  return CACHEABLE_PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 async function verifyJwtEdge(token: string) {

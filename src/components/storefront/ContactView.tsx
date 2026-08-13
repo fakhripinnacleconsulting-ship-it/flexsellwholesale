@@ -68,23 +68,17 @@ export function ContactView() {
 
     try {
       setIsSubmitting(true);
-      const res = await fetch("/api/inquiries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category,
-          firstName,
-          lastName,
-          email,
-          subject,
-          message
-        })
+      // Must go through apiClient: it attaches the X-CSRF-Token header that the
+      // proxy requires on state-changing requests. A raw fetch() here was rejected
+      // with 403 before it ever reached the route.
+      await apiClient.post("/inquiries", {
+        category,
+        firstName,
+        lastName,
+        email,
+        subject,
+        message
       });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || "Failed to submit inquiry");
-      }
 
       setIsSubmitted(true);
       addToast("Inquiry submitted successfully! Our support team will respond shortly.", "success");

@@ -13,6 +13,7 @@ import { useProductStore } from "@/stores/productStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useHsnStore } from "@/stores/hsnStore";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { generateDocumentTitle } from "@/lib/pdfPrintHelper";
 import { Product, Category, ColorVariant, SubVariant } from "@/types";
@@ -85,12 +86,9 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
   const handleGlobalHighlightPriceChange = async (tier: "B2C" | "B2B" | "Dropshipping") => {
     setGlobalHighlightPrice(tier);
     try {
-      const res = await fetch("/api/products/global-highlight-price", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ defaultPriceTier: tier })
-      });
-      if (!res.ok) throw new Error("Failed to update global highlight price");
+      // Must go through apiClient: it attaches the X-CSRF-Token header the proxy
+      // requires on PUT. A raw fetch() here was rejected with 403 before reaching the route.
+      await apiClient.put("/products/global-highlight-price", { defaultPriceTier: tier });
 
       addToast(`Successfully set global highlight price to ${tier} for all products!`, "success");
 

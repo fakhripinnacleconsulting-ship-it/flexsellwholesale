@@ -4,7 +4,18 @@ import { categoryService } from "@/services/categoryService";
 import { CategoryCatalog } from "@/components/storefront/CategoryCatalog";
 import { constructMetadata, generateCategorySchema, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const revalidate = 3600;
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
+
+/** Category count is small, so pre-build them all — every one is a warm-cache hit. */
+export async function generateStaticParams() {
+  try {
+    const categories = await categoryService.getCategories();
+    return categories.filter((c) => c.slug).map((c) => ({ slug: c.slug }));
+  } catch (err) {
+    console.error("generateStaticParams (categories) notice:", (err as any)?.message || err);
+    return [];
+  }
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

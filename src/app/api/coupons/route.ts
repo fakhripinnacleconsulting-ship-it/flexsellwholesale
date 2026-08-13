@@ -114,8 +114,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const { revalidatePath } = await import("next/cache");
-    revalidatePath("/", "layout");
+    // No storefront route renders coupon data server-side — coupons are validated
+    // live at checkout via /api/coupons/validate. The previous revalidatePath("/", "layout")
+    // purged every cached page under the root layout on each coupon creation, which
+    // translated into hundreds of ISR writes for content that had not changed.
 
     return NextResponse.json(newCoupon, { status: 201 });
   } catch (error: unknown) {

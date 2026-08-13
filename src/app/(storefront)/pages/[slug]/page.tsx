@@ -6,7 +6,7 @@ import CmsContent from "@/models/CmsContent";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 3600;
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
 interface StaticPage {
   id: string;

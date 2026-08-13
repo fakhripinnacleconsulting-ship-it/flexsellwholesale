@@ -21,7 +21,7 @@ import {
 import type { Metadata } from "next";
 import { constructMetadata, generateBlogArticleSchema, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const revalidate = 3600; // 5 min ISR caching for fast static rendering
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

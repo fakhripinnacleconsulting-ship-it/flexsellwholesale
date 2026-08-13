@@ -7,7 +7,7 @@ import Manager from "@/models/Manager";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
+import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
 
 interface RouteProps {
   params: Promise<{ id: string }>;
@@ -213,7 +213,7 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
 
     await order.save();
     revalidateAdminDashboard();
-    revalidateProducts();
+    revalidateProductStock();
 
     return NextResponse.json(order);
   } catch (error: unknown) {
@@ -312,7 +312,7 @@ export async function DELETE(request: NextRequest, { params }: RouteProps) {
 
     await Order.findByIdAndDelete(id);
     revalidateAdminDashboard();
-    revalidateProducts();
+    revalidateProductStock();
 
     return NextResponse.json({ message: "Order cancelled and deleted successfully" });
   } catch (error: unknown) {

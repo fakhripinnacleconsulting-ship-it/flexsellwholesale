@@ -22,7 +22,7 @@ import nodemailer from "nodemailer";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 import { rateLimit } from "@/lib/rateLimit";
 import { runInTransaction } from "@/lib/transactionHelper";
-import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
+import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
 import { escapeRegex } from "@/lib/utils";
 import {
   computeOrderTaxDetails,
@@ -944,7 +944,7 @@ export async function POST(request: Request) {
     }
 
     revalidateAdminDashboard();
-    revalidateProducts();
+    revalidateProductStock();
     return NextResponse.json(newOrder, { status: 201 });
   } catch (error: any) {
     console.error("Orders API POST error details:", error);

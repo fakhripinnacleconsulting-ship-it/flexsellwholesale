@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Customer } from "@/types";
-import { apiClient } from "@/lib/apiClient";
+import { apiClient, ApiError } from "@/lib/apiClient";
+import { hasSessionHint, clearSessionHint } from "@/lib/sessionHint";
+
+/** Shared promise so concurrent checkSession() callers issue one request, not N. */
+let inFlightSessionCheck: Promise<void> | null = null;
 
 interface AuthState {
   customer: Customer | null;
@@ -124,6 +128,9 @@ export const useAuthStore = create<AuthState>()(
         } catch (err) {
           console.error("Logout API failed", err);
         } finally {
+          // Clear the hint locally too: if the logout call failed, the server never got
+          // to clear it, and a stale hint would keep probing a dead session.
+          clearSessionHint();
           set({ customer: null, manager: null, isLoading: false });
           if (isManagerSession) {
             window.location.href = "/manager/login";
@@ -134,12 +141,26 @@ export const useAuthStore = create<AuthState>()(
       },
 
       checkSession: async () => {
+        // Guests have no session to look up. Without this guard every logged-out
+        // pageview cost two uncacheable origin calls (/customers/active -> 401, then
+        // /managers/active -> 401), which dominated function invocations.
+        //
+        // The hint is set/cleared server-side alongside the token (lib/auth.ts) and is
+        // shorter-lived than the JWT, so a desync resolves itself on the next load.
+        if (!hasSessionHint()) {
+          set({ customer: null, manager: null, isLoading: false });
+          return;
+        }
+
+        // Collapse concurrent callers (remounts, multiple components) onto one request.
+        if (inFlightSessionCheck) return inFlightSessionCheck;
+
+        const run = async () => {
         set({ isLoading: true });
         try {
-          // Check if it's a manager or customer by fetching a generic profile endpoint or active customer
-          // For now, since managers have a separate UI, we can check if they have a manager token
-          // Since /customers/active currently returns the customer or 401 if it's a manager
-          // we can catch it and try to fetch manager profile if it fails.
+          // /customers/active returns the customer, 401 when there is no valid session,
+          // or 403 ("Role mismatch") when the session belongs to a manager. Only the 403
+          // case is worth a follow-up call — a 401 means nobody is logged in.
           const data = await apiClient.get<Customer>("/customers/active");
           set({ customer: data, manager: null });
           if (data?.customerTypes?.length > 0) {
@@ -160,16 +181,28 @@ export const useAuthStore = create<AuthState>()(
             console.error("Failed to hydrate cart on session check", e);
           }
         } catch (err) {
-          // If customer fetch fails, it might be a manager. Let's try fetching manager active session
-          try {
-             const mgrData = await apiClient.get<any>("/managers/active");
-             set({ manager: mgrData, customer: null });
-          } catch (mgrErr) {
-             set({ customer: null, manager: null });
+          // Only a 403 ("Role mismatch") indicates a manager session worth resolving.
+          // A 401 means there is no session at all, so the second call would just be a
+          // guaranteed second 401 — that chain was doubling the cost of every guest view.
+          if (err instanceof ApiError && err.status === 403) {
+            try {
+              const mgrData = await apiClient.get<any>("/managers/active");
+              set({ manager: mgrData, customer: null });
+            } catch {
+              set({ customer: null, manager: null });
+            }
+          } else {
+            set({ customer: null, manager: null });
           }
         } finally {
           set({ isLoading: false });
         }
+        };
+
+        inFlightSessionCheck = run().finally(() => {
+          inFlightSessionCheck = null;
+        });
+        return inFlightSessionCheck;
       },
 
       clearError: () => set({ error: null }),

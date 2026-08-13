@@ -10,7 +10,7 @@ import { requireAuth } from "@/lib/authGuard";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { revalidateProducts } from "@/lib/revalidate";
+import { revalidateProductStock } from "@/lib/revalidate";
 import { escapeRegex } from "@/lib/utils";
 import bcrypt from "bcryptjs";
 
@@ -693,7 +693,7 @@ export async function POST(request: Request) {
           console.error("Failed to deduct stock during admin document creation:", err);
         }
       }
-      revalidateProducts();
+      revalidateProductStock();
     }
 
     return NextResponse.json(newInvoice, { status: 201 });

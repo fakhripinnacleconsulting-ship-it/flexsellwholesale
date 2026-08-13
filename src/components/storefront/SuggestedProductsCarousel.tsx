@@ -190,7 +190,7 @@ export function SuggestedProductsCarousel() {
               key={product._id}
               className="w-[240px] flex-shrink-0 border-border hover:border-primary/50 transition-all hover:shadow-md overflow-hidden bg-card flex flex-col justify-between group"
             >
-              <Link href={`/products/${product.slug}`} draggable={false} className="block flex-1">
+              <Link href={`/products/${product.slug}`} prefetch={false} draggable={false} className="block flex-1">
                 <div className="aspect-square relative bg-secondary overflow-hidden flex items-center justify-center">
                   {imgUrl ? (
                     <Image

@@ -10,7 +10,18 @@ import { Layers, AlertCircle, ShoppingBag } from "lucide-react";
 
 import { constructMetadata, generateCollectionSchema, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const revalidate = 3600; // ISR revalidation every 60s
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
+
+/** Collection count is small, so pre-build the active ones for a warm cache. */
+export async function generateStaticParams() {
+  try {
+    const collections = await collectionService.getCollections();
+    return collections.filter((c) => c.isActive && c.slug).map((c) => ({ slug: c.slug }));
+  } catch (err) {
+    console.error("generateStaticParams (collections) notice:", (err as any)?.message || err);
+    return [];
+  }
+}
 
 function stripHtml(html: string): string {
   if (!html) return "";

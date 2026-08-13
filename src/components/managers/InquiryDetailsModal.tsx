@@ -4,6 +4,7 @@ import * as React from "react";
 import { Mail, Phone, Building2, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 
 interface InquiryDetailsModalProps {
   isOpen: boolean;
@@ -30,12 +31,9 @@ export function InquiryDetailsModal({ isOpen, onClose, onSuccess, inquiry }: Inq
   const handleUpdateStatus = async (newStatus: string) => {
     try {
       setIsSaving(true);
-      const res = await fetch("/api/inquiries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: inquiry._id, status: newStatus })
-      });
-      if (!res.ok) throw new Error("Failed to update status");
+      // Routed through apiClient so this carries X-CSRF-Token: PATCH is now covered
+      // by the proxy's CSRF check (it was previously, incorrectly, exempt).
+      await apiClient.patch("/inquiries", { id: inquiry._id, status: newStatus });
       addToast(`Inquiry status updated to '${newStatus}'`, "success");
       setStatus(newStatus);
       onSuccess();
@@ -49,12 +47,8 @@ export function InquiryDetailsModal({ isOpen, onClose, onSuccess, inquiry }: Inq
   const handleSaveNotes = async () => {
     try {
       setIsSaving(true);
-      const res = await fetch("/api/inquiries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: inquiry._id, adminNotes })
-      });
-      if (!res.ok) throw new Error("Failed to save admin notes");
+      // Routed through apiClient so this carries X-CSRF-Token (see handleUpdateStatus).
+      await apiClient.patch("/inquiries", { id: inquiry._id, adminNotes });
       addToast("Admin notes saved successfully", "success");
       onSuccess();
     } catch (err: any) {

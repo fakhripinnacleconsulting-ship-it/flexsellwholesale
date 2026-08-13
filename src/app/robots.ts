@@ -1,7 +1,9 @@
 import { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/seo";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.com";
+  // Shared normalised origin — guarantees https and no trailing slash (see lib/seo.ts).
+  const baseUrl = SITE_URL;
 
   return {
     rules: [
@@ -15,7 +17,17 @@ export default function robots(): MetadataRoute.Robots {
           "/checkout/",
           "/cart/",
           "/reset-password/",
-          "/system-diagnostics/"
+          "/system-diagnostics/",
+          // Faceted filter permutations render the same products under near-infinite
+          // URLs. Crawling them burns crawl budget and Edge Requests for no index value.
+          "/search",
+          "/*?*categories=",
+          "/*?*subcategories=",
+          "/*?*minPrice=",
+          "/*?*maxPrice=",
+          "/*?*minDiscount=",
+          "/*?*inStock=",
+          "/*?*sort="
         ],
       },
       // Explicit Rules for AI Search Engines & Conversational Assistants

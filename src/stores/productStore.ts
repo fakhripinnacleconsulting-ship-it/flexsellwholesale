@@ -3,6 +3,36 @@ import { Product } from "@/types";
 import { productService } from "@/services/productService";
 import { handleApiError } from "@/lib/apiClient";
 
+/** Shared promise so two listing components mounting together issue one catalog fetch. */
+let inFlightCatalogLoad: Promise<void> | null = null;
+
+const CATALOG_CACHE_KEY = "flexsell-catalog-cache";
+/** Short enough that catalog edits surface quickly, long enough to cover a browse session. */
+const CATALOG_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function readCachedCatalog(): Product[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(CATALOG_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.products)) return null;
+    if (Date.now() - (parsed.at || 0) > CATALOG_CACHE_TTL_MS) return null;
+    return parsed.products as Product[];
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedCatalog(products: Product[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ at: Date.now(), products }));
+  } catch {
+    // Quota exceeded on a large catalog is fine — we just refetch next navigation.
+  }
+}
+
 interface ProductStoreState {
   products: Product[];
   isLoading: boolean;
@@ -33,18 +63,43 @@ export const useProductStore = create<ProductStoreState>()((set, get) => ({
 
   loadFullCatalog: async () => {
     if (get().isCatalogComplete) return;
-    try {
-      const data = await productService.getProducts();
-      // Never replace a fuller list with a shorter one (e.g. a request that raced a seed).
-      if (data.length >= get().products.length) {
-        set({ products: data, isCatalogComplete: true, error: null });
-      } else {
-        set({ isCatalogComplete: true });
-      }
-    } catch (err) {
-      // Non-fatal: the seeded slice stays usable, we just could not extend it.
-      console.warn("Background catalog load failed:", handleApiError(err, "Failed to load full catalog"));
+
+    // The store is not persisted, so without this every full page load of /products or
+    // /categories/[slug] re-fetched the entire catalog. Reuse it for the rest of the
+    // browsing session instead; a new tab or reload past the TTL fetches fresh.
+    const cached = readCachedCatalog();
+    if (cached && cached.length >= get().products.length) {
+      set({ products: cached, isCatalogComplete: true, error: null });
+      return;
     }
+
+    // Coalesce concurrent callers (e.g. two listing components mounting together).
+    if (inFlightCatalogLoad) {
+      await inFlightCatalogLoad;
+      return;
+    }
+
+    inFlightCatalogLoad = (async () => {
+      try {
+        // listView drops aPlusContent / seo* / barcode images — none of which any
+        // listing, filter or search-scoring path reads.
+        const data = await productService.getProducts({ listView: true });
+        // Never replace a fuller list with a shorter one (e.g. a request that raced a seed).
+        if (data.length >= get().products.length) {
+          set({ products: data, isCatalogComplete: true, error: null });
+          writeCachedCatalog(data);
+        } else {
+          set({ isCatalogComplete: true });
+        }
+      } catch (err) {
+        // Non-fatal: the seeded slice stays usable, we just could not extend it.
+        console.warn("Background catalog load failed:", handleApiError(err, "Failed to load full catalog"));
+      } finally {
+        inFlightCatalogLoad = null;
+      }
+    })();
+
+    await inFlightCatalogLoad;
   },
 
   initializeProducts: async (initial, force = false) => {

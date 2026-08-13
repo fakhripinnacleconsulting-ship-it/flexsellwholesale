@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Customer from "@/models/Customer";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { SESSION_HINT_COOKIE } from "@/lib/sessionHint";
 
 export async function GET() {
   try {
@@ -24,6 +25,8 @@ export async function GET() {
     if (!customer) {
       const response = NextResponse.json({ message: "Session expired or user deleted" }, { status: 401 });
       response.cookies.delete("token");
+      // Keep the client-side session hint in lockstep with the token.
+      response.cookies.delete(SESSION_HINT_COOKIE);
       return response;
     }
 
@@ -57,6 +60,8 @@ export async function PUT(request: Request) {
     if (!customer) {
       const response = NextResponse.json({ message: "Session expired or user deleted" }, { status: 401 });
       response.cookies.delete("token");
+      // Keep the client-side session hint in lockstep with the token.
+      response.cookies.delete(SESSION_HINT_COOKIE);
       return response;
     }
 

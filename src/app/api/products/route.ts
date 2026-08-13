@@ -11,6 +11,30 @@ import { searchService } from "@/services/searchService";
 /** Upper bound for the unfiltered catalog fetch — guards against OOM at scale. */
 const UNFILTERED_CATALOG_CAP = 2000;
 
+/**
+ * Fields dropped from the storefront listing payload (`?view=list`).
+ *
+ * Deliberately an EXCLUSION list, not an inclusion list: a missing field in an inclusion
+ * list fails silently at runtime in whichever component happens to read it. Excluding by
+ * name means anything not listed here keeps flowing through untouched.
+ *
+ * Each exclusion is verified unused on the listing path:
+ *  - aPlusContent      -> rendered only on the product detail page (full document)
+ *  - seo*              -> consumed by generateMetadata server-side, never by a card
+ *  - barcodeImage      -> admin barcode sheets only
+ *
+ * `description` is intentionally NOT excluded: SearchResults scores against it client-side,
+ * so dropping it would quietly change search ranking.
+ */
+const LIST_VIEW_EXCLUDED_FIELDS = [
+  "-aPlusContent",
+  "-seoTitle",
+  "-seoDescription",
+  "-seoKeywords",
+  "-barcodeImage",
+  "-colorVariants.subVariants.barcodeImage",
+].join(" ");
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
@@ -49,9 +73,19 @@ export async function GET(request: Request) {
     // client-side filtering and infinite scroll, so the cap has to comfortably exceed
     // the catalog size — past this point the tail is silently unreachable. Use the
     // paginated branch above (?page=&limit=) for anything that must scale further.
-    const products = await Product.find({})
-      .sort({ createdAt: -1 })
-      .limit(UNFILTERED_CATALOG_CAP);
+    //
+    // `.lean()` is the important part: without it Mongoose hydrates up to 2000 full
+    // documents (each with nested colorVariants/subVariants subdocument schemas), which
+    // was the single largest CPU consumer in the application. Admin screens that need
+    // the untouched document opt in with ?view=full.
+    const isListView = searchParams.get("view") === "list";
+
+    const catalogQuery = Product.find({}).sort({ createdAt: -1 }).limit(UNFILTERED_CATALOG_CAP);
+    if (isListView) {
+      catalogQuery.select(LIST_VIEW_EXCLUDED_FIELDS);
+    }
+
+    const products = await catalogQuery.lean();
     return NextResponse.json(products);
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to fetch products" }, { status: 500 });

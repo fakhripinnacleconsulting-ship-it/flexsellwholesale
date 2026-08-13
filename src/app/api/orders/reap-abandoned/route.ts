@@ -4,7 +4,7 @@ import Order from "@/models/Order";
 import Product from "@/models/Product";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
-import { revalidateProducts } from "@/lib/revalidate";
+import { revalidateProductStock } from "@/lib/revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +142,7 @@ async function sweepAbandonedOrders(request: Request) {
       cancelled++;
     }
 
-    if (cancelled > 0) revalidateProducts();
+    if (cancelled > 0) revalidateProductStock();
 
     return NextResponse.json({ message: "Abandoned order sweep complete", scanned: stale.length, cancelled });
   } catch (error: unknown) {

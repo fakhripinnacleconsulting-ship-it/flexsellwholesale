@@ -8,7 +8,7 @@ import { BlogPostItem } from "@/components/admin/cms/types";
 import type { Metadata } from "next";
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 3600; // 5 min ISR caching for fast static rendering
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
 export async function generateMetadata(): Promise<Metadata> {
   return constructMetadata({

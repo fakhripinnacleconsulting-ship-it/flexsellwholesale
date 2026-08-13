@@ -1,21 +1,38 @@
+import { cache } from "react";
 import { Category } from "@/types";
 import { apiClient, isMockMode } from "@/lib/apiClient";
 
 const CATEGORIES_STORAGE_KEY = "flexsell-categories-storage";
 
+/**
+ * Deduplicated per render pass.
+ *
+ * StorefrontLayout and the page it wraps both need categories, so without this every
+ * storefront render issued the same query twice. Matches the `cache()` treatment already
+ * applied to getProductBySlug / getTrendingProducts.
+ */
+const fetchCategoriesFromDb = cache(async (): Promise<Category[]> => {
+  // This guard is load-bearing for the bundler, not just for correctness: it lets the
+  // client build dead-code-eliminate the mongoose/dbConnect dynamic imports below.
+  // Without it webpack pulls mongodb into the browser bundle and the build fails on
+  // `Can't resolve 'tls'`. Same pattern as fetchTrendingProducts in productService.
+  if (typeof window !== "undefined") return [];
+  try {
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    await dbConnect();
+    const CategoryModel = (await import("@/models/Category")).default;
+    const categories = await CategoryModel.find({ isActive: true }).sort({ name: 1 }).lean();
+    return JSON.parse(JSON.stringify(categories));
+  } catch (err) {
+    console.error("categoryService.getCategories server notice:", (err as any)?.message || err);
+    return [];
+  }
+});
+
 export const categoryService = {
   async getCategories(): Promise<Category[]> {
     if (typeof window === "undefined") {
-      try {
-        const dbConnect = (await import("@/lib/dbConnect")).default;
-        await dbConnect();
-        const CategoryModel = (await import("@/models/Category")).default;
-        const categories = await CategoryModel.find({ isActive: true }).sort({ name: 1 }).lean();
-        return JSON.parse(JSON.stringify(categories));
-      } catch (err) {
-        console.error("categoryService.getCategories server notice:", (err as any)?.message || err);
-        return [];
-      }
+      return fetchCategoriesFromDb();
     }
 
     if (isMockMode) {

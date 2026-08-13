@@ -7,7 +7,7 @@ import Product from "@/models/Product";
 import CmsContent from "@/models/CmsContent";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
+import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
 import { rateLimit } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 
@@ -316,7 +316,7 @@ export async function POST(request: Request) {
           console.error("Failed to deduct stock during public order creation:", err);
         }
       }
-      revalidateProducts();
+      revalidateProductStock();
     }
 
     return NextResponse.json({

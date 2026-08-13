@@ -22,7 +22,10 @@ const getCachedPolicies = unstable_cache(
     }
   },
   ["cms-policies-data"],
-  { tags: ["cms-policies"], revalidate: 60 }
+  // Long window on purpose: revalidateTag('cms-policies') busts this instantly when an
+  // admin edits policy text, so the timer is only a safety net. At 60s it was writing to
+  // the data cache every minute, per region, for content that changes monthly.
+  { tags: ["cms-policies"], revalidate: 86400 }
 );
 
 export async function getPolicyData(key: PolicyKey) {

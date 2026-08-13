@@ -32,6 +32,16 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
   const [isMounted, setIsMounted] = React.useState(false);
   const [currentImgIndex, setCurrentImgIndex] = React.useState(0);
   const [isHovered, setIsHovered] = React.useState(false);
+  /**
+   * Carousel images beyond the first are only mounted once the user actually engages
+   * with the card (hover on desktop, touch on mobile) or navigates via the arrows/dots.
+   *
+   * A catalog grid renders 40+ cards; eagerly mounting every variant image meant
+   * downloading hundreds of images nobody scrolls to. The wrapper <div> for each slide
+   * always renders, so the translateX offsets, swipe maths, dots and auto-advance are
+   * all unchanged — only the <Image> inside is deferred.
+   */
+  const [hasCarouselEngaged, setHasCarouselEngaged] = React.useState(false);
 
   // Touch & Drag Swipe references
   const touchStartX = React.useRef<number | null>(null);
@@ -81,6 +91,7 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
   }, [allImages.length, isHovered]);
 
   const handleMouseEnter = () => {
+    setHasCarouselEngaged(true);
     setIsHovered(true);
     if (allImages.length > 1) {
       setCurrentImgIndex((prev) => (prev + 1) % allImages.length);
@@ -120,6 +131,16 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
     ? product.title
     : (product.title.length > 50 ? product.title.slice(0, 50).trim() + "..." : product.title);
 
+  /**
+   * Which carousel slides get a real <Image>.
+   *
+   * Always the first (it is the visible thumbnail and the LCP candidate). Once engaged,
+   * all of them. Also always the current index, so programmatic navigation — arrows, dots,
+   * auto-advance — can never land on an empty slide.
+   */
+  const shouldRenderSlide = (i: number) =>
+    i === 0 || hasCarouselEngaged || i === currentImgIndex;
+
   const handleCardClick = () => {
     router.push(`/products/${product.slug}`);
   };
@@ -127,17 +148,21 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
   const prevImage = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (allImages.length === 0) return;
+    // Explicit navigation counts as engagement, so the rest of the carousel warms up.
+    setHasCarouselEngaged(true);
     setCurrentImgIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
   };
 
   const nextImage = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (allImages.length === 0) return;
+    setHasCarouselEngaged(true);
     setCurrentImgIndex((prev) => (prev + 1) % allImages.length);
   };
 
   // Touch Swipe Handlers (Mobile & Tablet)
   const handleTouchStart = (e: React.TouchEvent) => {
+    setHasCarouselEngaged(true);
     touchStartX.current = e.touches[0].clientX;
   };
 
@@ -199,7 +224,10 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
         onMouseLeave={handleMouseLeave}
         className="flex flex-col sm:flex-row w-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 select-none rounded-xl overflow-hidden"
       >
-        <Link href={`/products/${product.slug}`} className="absolute inset-0 z-10">
+        {/* prefetch disabled: a catalog grid puts 40+ of these in the viewport at once,
+            and each prefetch pulls a full RSC payload — a cache miss on any of them also
+            costs an ISR write. Navigation stays instant via the router cache on click. */}
+        <Link href={`/products/${product.slug}`} prefetch={false} className="absolute inset-0 z-10">
           <span className="sr-only">View {product.title}</span>
         </Link>
         {/* Wishlist Button */}
@@ -255,14 +283,16 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
             >
               {allImages.map((imgSrc, i) => (
                 <div key={i} className="w-full h-full flex-shrink-0 relative">
-                  <Image
-                    src={imgSrc}
-                    alt={`${product.title} - Image ${i + 1}`}
-                    fill
-                    sizes="(max-width: 640px) 100vw, 208px"
-                    className="object-cover transition-transform duration-500 group-hover/card:scale-105"
-                    priority={i === 0}
-                  />
+                  {shouldRenderSlide(i) && (
+                    <Image
+                      src={imgSrc}
+                      alt={`${product.title} - Image ${i + 1}`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, 208px"
+                      className="object-cover transition-transform duration-500 group-hover/card:scale-105"
+                      priority={i === 0}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -386,7 +416,8 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
       onMouseLeave={handleMouseLeave}
       className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
     >
-      <Link href={`/products/${product.slug}`} className="absolute inset-0 z-10">
+      {/* prefetch disabled — see the list-layout link above for rationale. */}
+      <Link href={`/products/${product.slug}`} prefetch={false} className="absolute inset-0 z-10">
         <span className="sr-only">View {product.title}</span>
       </Link>
       {/* Fixed Floating Overlay Badges */}
@@ -437,14 +468,16 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
           >
             {allImages.map((imgSrc, i) => (
               <div key={i} className="w-full h-full flex-shrink-0 relative">
-                <Image
-                  src={imgSrc}
-                  alt={`${product.title} - Image ${i + 1}`}
-                  fill
-                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  className="object-cover transition-transform duration-500 group-hover/card:scale-105"
-                  priority={i === 0}
-                />
+                {shouldRenderSlide(i) && (
+                  <Image
+                    src={imgSrc}
+                    alt={`${product.title} - Image ${i + 1}`}
+                    fill
+                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className="object-cover transition-transform duration-500 group-hover/card:scale-105"
+                    priority={i === 0}
+                  />
+                )}
               </div>
             ))}
           </div>

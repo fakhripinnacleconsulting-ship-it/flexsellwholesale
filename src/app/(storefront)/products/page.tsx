@@ -4,7 +4,7 @@ import { categoryService } from "@/services/categoryService";
 import { ProductCatalog } from "@/components/storefront/ProductCatalog";
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 3600;
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
 export async function generateMetadata(): Promise<Metadata> {
   return constructMetadata({

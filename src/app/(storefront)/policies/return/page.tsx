@@ -4,7 +4,7 @@ import { PolicyLayout } from "@/components/storefront/PolicyLayout";
 import { getPolicyData } from "@/lib/getPolicyData";
 import { constructMetadata, generateBreadcrumbSchema } from "@/lib/seo";
 
-export const revalidate = 3600; // ISR revalidation every 60s
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
 export async function generateMetadata(): Promise<Metadata> {
   const policy = await getPolicyData("return");

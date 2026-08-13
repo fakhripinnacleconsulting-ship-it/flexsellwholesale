@@ -4,7 +4,7 @@ import Order from "@/models/Order";
 import Product from "@/models/Product";
 import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
+import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
 
 export async function POST(request: Request) {
   try {
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     }
 
     revalidateAdminDashboard();
-    revalidateProducts();
+    revalidateProductStock();
 
     return NextResponse.json({ success: true, message: "Pending order cancelled and stock restored" });
   } catch (error: any) {

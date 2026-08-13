@@ -8,7 +8,7 @@ import { productService } from "@/services/productService";
 import type { Metadata } from "next";
 import { constructMetadata } from "@/lib/seo";
 
-export const revalidate = 3600;
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
 export async function generateMetadata(): Promise<Metadata> {
   return constructMetadata({
@@ -21,12 +21,30 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function CategoriesPage() {
   const categories = await categoryService.getCategories();
-  const products = await productService.getProducts();
 
-  // Filter categories to only those containing at least 1 product
-  const activeCategories = categories.filter(category => {
-    return products.some(product => product.categoryId === category._id);
-  });
+  // Which categories actually contain products.
+  //
+  // This used to fetch the ENTIRE catalog (no limit, full documents) and then run
+  // products.some(...) per category — an O(categories x products) scan plus a huge
+  // read, to answer a question one grouped query answers directly.
+  let populatedCategoryIds = new Set<string>();
+  try {
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    const ProductModel = (await import("@/models/Product")).default;
+    await dbConnect();
+    // No isActive filter, deliberately: the previous implementation used
+    // productService.getProducts() which queries find({}) with no status filter. Adding
+    // one here would silently hide categories whose products are all inactive — a
+    // behaviour change, not an optimisation. Decide that separately if it is wanted.
+    const grouped = await ProductModel.aggregate<{ _id: string }>([
+      { $group: { _id: "$categoryId" } },
+    ]);
+    populatedCategoryIds = new Set(grouped.map((g) => g._id));
+  } catch (err) {
+    console.error("CategoriesPage product-count notice:", (err as any)?.message || err);
+  }
+
+  const activeCategories = categories.filter((category) => populatedCategoryIds.has(category._id));
 
   return (
     <div className="mx-auto max-w-8xl px-4 md:px-6 py-12 text-foreground w-full">
@@ -42,7 +60,7 @@ export default async function CategoriesPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
           {activeCategories.map((category) => (
-            <Link key={category._id} href={`/categories/${category.slug}`}>
+            <Link key={category._id} href={`/categories/${category.slug}`} prefetch={false}>
               <Card className="hover:border-primary/50 transition-all hover:shadow-md cursor-pointer text-center overflow-hidden h-full flex flex-col group bg-card border-border">
                 <div className="aspect-square relative bg-secondary overflow-hidden">
                   <Image

@@ -5,7 +5,32 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { constructMetadata, generateProductSchema, generateBreadcrumbSchema, generateOrganizationSchema } from "@/lib/seo";
 
-export const revalidate = 3600;
+export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
+
+/**
+ * Pre-build the most-visited product pages so crawler and user traffic lands on a warm
+ * cache instead of triggering an on-demand render (each of which is an ISR write).
+ *
+ * Bounded to the newest 100: the long tail still renders on demand because
+ * `dynamicParams` defaults to true.
+ */
+export async function generateStaticParams() {
+  try {
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    const ProductModel = (await import("@/models/Product")).default;
+    await dbConnect();
+    const products = await ProductModel.find({ isActive: true })
+      .select("slug")
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean<Array<{ slug: string }>>();
+    return products.map((p) => ({ slug: p.slug }));
+  } catch (err) {
+    // Never fail the build on a DB hiccup — fall back to fully on-demand generation.
+    console.error("generateStaticParams (products) notice:", (err as any)?.message || err);
+    return [];
+  }
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

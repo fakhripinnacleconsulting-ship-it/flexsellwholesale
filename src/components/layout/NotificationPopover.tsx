@@ -9,6 +9,9 @@ import { ApiError } from "@/lib/apiClient";
 import { Notification } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 
+/** Visible-tab poll interval. Push notifications cover anything urgent. */
+const NOTIFICATION_POLL_MS = 10 * 60 * 1000;
+
 interface NotificationPopoverProps {
   role?: "customer" | "admin";
   customerId?: string;
@@ -39,9 +42,26 @@ export function NotificationPopover({ role = "customer", customerId }: Notificat
 
   React.useEffect(() => {
     fetchNotifications();
-    // Poll notifications silently every 5 minutes (300000ms) to save serverless function costs
-    const interval = setInterval(fetchNotifications, 300000);
-    return () => clearInterval(interval);
+
+    // Poll only while the tab is actually visible. A backgrounded tab left open all day
+    // was costing an invocation every 5 minutes for notifications nobody was looking at.
+    // Anything genuinely time-critical arrives via web push, not this poll.
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      fetchNotifications();
+    }, NOTIFICATION_POLL_MS);
+
+    // Catch up immediately when the user returns to the tab, so the longer interval
+    // never shows them stale counts.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [fetchNotifications]);
 
   // Click outside and Escape key handler

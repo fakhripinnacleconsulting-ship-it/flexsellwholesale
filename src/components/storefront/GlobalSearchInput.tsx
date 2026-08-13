@@ -11,6 +11,11 @@ import { searchService, SuggestResult } from "@/services/searchService";
 import { motion, AnimatePresence } from "framer-motion";
 import { trackSearch } from "@/lib/gtm";
 
+/** Long enough to stop firing mid-word, short enough to still feel instant. */
+const SUGGEST_DEBOUNCE_MS = 350;
+/** Single characters match most of the catalog — not worth a request. */
+const MIN_SUGGEST_QUERY_LENGTH = 2;
+
 interface GlobalSearchInputProps {
   placeholder?: string;
   className?: string;
@@ -37,11 +42,26 @@ export function GlobalSearchInput({
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const debounceTimer = React.useRef<NodeJS.Timeout | null>(null);
+  /** Per-mount memo of query -> suggestions, so retyping never re-hits the origin. */
+  const suggestCache = React.useRef<Map<string, SuggestResult>>(new Map());
 
   // Debounced Auto-Suggest Fetching
   React.useEffect(() => {
-    if (!query.trim()) {
+    const trimmed = query.trim();
+
+    // A single character matches most of the catalog and is never a useful suggestion,
+    // so it is not worth a round-trip through the relevance scorer.
+    if (trimmed.length < MIN_SUGGEST_QUERY_LENGTH) {
       setSuggestions({ products: [], skus: [], categories: [] });
+      setLoading(false);
+      return;
+    }
+
+    // Serve repeats within the session from memory — users backspace and retype
+    // constantly, and each of those was previously a fresh origin request.
+    const cached = suggestCache.current.get(trimmed);
+    if (cached) {
+      setSuggestions(cached);
       setLoading(false);
       return;
     }
@@ -54,14 +74,15 @@ export function GlobalSearchInput({
 
     debounceTimer.current = setTimeout(async () => {
       try {
-        const res = await searchService.suggest(query, 5);
+        const res = await searchService.suggest(trimmed, 5);
+        suggestCache.current.set(trimmed, res);
         setSuggestions(res);
       } catch (err) {
         console.error("Auto-suggest error:", err);
       } finally {
         setLoading(false);
       }
-    }, 200);
+    }, SUGGEST_DEBOUNCE_MS);
 
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);

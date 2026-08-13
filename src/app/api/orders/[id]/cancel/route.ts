@@ -5,7 +5,7 @@ import Product from "@/models/Product";
 import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { ORDER_STATUS_CLASSES, CUSTOMER_CANCELLABLE_STATUSES } from "@/lib/constants";
-import { revalidateAdminDashboard, revalidateProducts } from "@/lib/revalidate";
+import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
 
 interface RouteProps {
   params: Promise<{ id: string }>;
@@ -130,7 +130,7 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
     }
 
     revalidateAdminDashboard();
-    revalidateProducts();
+    revalidateProductStock();
 
     return NextResponse.json(claimed);
   } catch (error: unknown) {

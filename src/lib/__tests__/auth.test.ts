@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { signToken, verifyToken, setTokenCookie, removeTokenCookie, getTokenFromCookie } from "../auth";
 import { requireAuth, requireAdminOrManagerAuth, verifyManagerOrderAccess } from "../authGuard";
 import { generateCsrfToken, validateCsrf } from "../csrf";
+import { SESSION_HINT_COOKIE } from "../sessionHint";
 
 // Mock next/headers
 const mockSet = vi.fn();
@@ -71,17 +72,40 @@ describe("Authentication Utilities", () => {
       const token = "dummy-token";
       await setTokenCookie(token);
 
-      expect(mockSet).toHaveBeenCalledTimes(2);
+      expect(mockSet).toHaveBeenCalledTimes(3);
       expect(mockSet).toHaveBeenNthCalledWith(1, "token", token, expect.any(Object));
       expect(mockSet).toHaveBeenNthCalledWith(2, "csrf_token", expect.any(String), expect.any(Object));
+      expect(mockSet).toHaveBeenNthCalledWith(3, SESSION_HINT_COOKIE, "1", expect.any(Object));
+    });
+
+    it("should give the session hint a shorter lifetime than the token", async () => {
+      // The hint must expire before the JWT so a client/server desync self-heals on the
+      // next page load instead of stranding a logged-in user in a logged-out UI.
+      await setTokenCookie("dummy-token");
+
+      const tokenOptions = mockSet.mock.calls[0][2];
+      const hintOptions = mockSet.mock.calls[2][2];
+      expect(hintOptions.maxAge).toBeLessThan(tokenOptions.maxAge);
+    });
+
+    it("should mark the session hint readable by client JS but never httpOnly-privileged", async () => {
+      await setTokenCookie("dummy-token");
+
+      const tokenOptions = mockSet.mock.calls[0][2];
+      const hintOptions = mockSet.mock.calls[2][2];
+      // The real session stays httpOnly; the hint is only a "should I even ask?" flag.
+      expect(tokenOptions.httpOnly).toBe(true);
+      expect(hintOptions.httpOnly).toBe(false);
     });
 
     it("should clear cookies on removeTokenCookie", async () => {
       await removeTokenCookie();
 
-      expect(mockSet).toHaveBeenCalledTimes(2);
+      expect(mockSet).toHaveBeenCalledTimes(3);
       expect(mockSet).toHaveBeenNthCalledWith(1, "token", "", expect.objectContaining({ maxAge: 0 }));
       expect(mockSet).toHaveBeenNthCalledWith(2, "csrf_token", "", expect.objectContaining({ maxAge: 0 }));
+      // The hint must be cleared in lockstep with the token — never left behind.
+      expect(mockSet).toHaveBeenNthCalledWith(3, SESSION_HINT_COOKIE, "", expect.objectContaining({ maxAge: 0 }));
     });
 
     it("should retrieve token from cookies", async () => {

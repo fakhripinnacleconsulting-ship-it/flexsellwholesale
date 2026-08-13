@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import { SESSION_HINT_COOKIE, SESSION_HINT_MAX_AGE_SECONDS } from "@/lib/sessionHint";
 
 const JWT_SECRET = process.env.JWT_SECRET || "default-flexsell-secret-key-change-in-production";
 const TOKEN_EXPIRY = "1d"; // 1 day
@@ -43,6 +44,17 @@ export async function setTokenCookie(token: string) {
     maxAge: 1 * 24 * 60 * 60,
     path: "/",
   });
+
+  // Client-readable session *hint*. Lets the browser skip the "am I logged in?" probe
+  // when there is obviously no session — see lib/sessionHint.ts. Never authorization.
+  // Deliberately shorter-lived than the token so any desync self-heals.
+  cookieStore.set(SESSION_HINT_COOKIE, "1", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: SESSION_HINT_MAX_AGE_SECONDS,
+    path: "/",
+  });
 }
 
 export async function removeTokenCookie() {
@@ -55,6 +67,14 @@ export async function removeTokenCookie() {
     path: "/",
   });
   cookieStore.set("csrf_token", "", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+  // Clear the session hint in lockstep with the token — they must never drift.
+  cookieStore.set(SESSION_HINT_COOKIE, "", {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

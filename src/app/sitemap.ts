@@ -2,9 +2,14 @@ import { MetadataRoute } from "next";
 import { productService } from "@/services/productService";
 import { categoryService } from "@/services/categoryService";
 import { collectionService } from "@/services/collectionService";
+import { SITE_URL } from "@/lib/seo";
+
+// Regenerate daily instead of on every crawler request.
+export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://flexsellwholesale.com";
+  // Shared normalised origin — guarantees https and no trailing slash (see lib/seo.ts).
+  const baseUrl = SITE_URL;
 
   // Static Core Landing Pages
   const staticRoutes = [
@@ -27,8 +32,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   try {
-    // Dynamic products routes
-    const products = await productService.getProducts();
+    // Dynamic products routes.
+    // Projected down to the two fields a sitemap entry needs — the full catalog
+    // documents (descriptions, A+ content, every variant) are pure waste here.
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    const ProductModel = (await import("@/models/Product")).default;
+    await dbConnect();
+    const products = await ProductModel.find({ isActive: true })
+      .select("slug updatedAt")
+      .lean<Array<{ slug: string; updatedAt?: Date }>>();
+
     const productRoutes = products.map((product) => ({
       url: `${baseUrl}/products/${product.slug}`,
       lastModified: product.updatedAt ? new Date(product.updatedAt) : new Date(),

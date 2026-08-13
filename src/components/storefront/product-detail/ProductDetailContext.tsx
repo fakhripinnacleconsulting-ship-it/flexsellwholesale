@@ -8,10 +8,25 @@ import { useCartStore } from "@/stores/cartStore";
 import { useToastStore } from "@/stores/toastStore";
 import { reviewService } from "@/services/reviewService";
 import { customerService } from "@/services/customerService";
+import { apiClient } from "@/lib/apiClient";
+
+/** Shape returned by /api/products/stock — stock only, nothing else. */
+interface LiveStockEntry {
+  _id: string;
+  totalStock: number;
+  isActive: boolean;
+  variants: Array<{ id?: string; sku?: string; stock: number; isActive: boolean }>;
+}
 
 interface ProductDetailContextProps {
   slug: string;
   product: Product | null;
+  /**
+   * False until the live stock lookup settles (success or failure). Purchase controls
+   * stay disabled while false so a buyer cannot act on a stale figure. On failure this
+   * flips true anyway — cached stock is better than a permanently dead button.
+   */
+  isStockResolved: boolean;
   toggleWishlist: (product: Product) => void;
   isInWishlist: (id: string) => boolean;
   isDescExpanded: boolean;
@@ -101,11 +116,65 @@ export function ProductDetailProvider({
     return list;
   }, [products, initialProducts, fetchedProduct, initialProduct]);
 
-  const product = React.useMemo(() => {
+  // The product as rendered from cache. Product HTML is cached with a long revalidate
+  // window, so its stock figures can be stale — `product` below overlays live stock on
+  // top of this once the on-demand lookup resolves.
+  const baseProduct = React.useMemo(() => {
     if (fetchedProduct && fetchedProduct.slug === slug) return fetchedProduct;
     if (initialProduct && initialProduct.slug === slug) return initialProduct;
     return activeProducts.find((p) => p.slug === slug) || null;
   }, [slug, fetchedProduct, initialProduct, activeProducts]);
+
+  // Live stock, fetched on demand so order activity never has to purge cached HTML.
+  const [liveStock, setLiveStock] = React.useState<LiveStockEntry | null>(null);
+  const [isStockResolved, setIsStockResolved] = React.useState(false);
+
+  React.useEffect(() => {
+    const productId = baseProduct?._id;
+    if (!productId) return;
+
+    let cancelled = false;
+    setIsStockResolved(false);
+
+    apiClient
+      .get<{ stock: LiveStockEntry[] }>(`/products/stock?ids=${encodeURIComponent(productId)}`)
+      .then((res) => {
+        if (cancelled) return;
+        const entry = res?.stock?.find((s) => s._id === productId) || null;
+        setLiveStock(entry);
+      })
+      .catch(() => {
+        // Non-fatal: fall back to the cached figures. /api/orders re-checks stock at
+        // order time, so this is a display concern, never the oversell guard.
+      })
+      .finally(() => {
+        if (!cancelled) setIsStockResolved(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [baseProduct?._id]);
+
+  const product = React.useMemo(() => {
+    if (!baseProduct) return null;
+    if (!liveStock || liveStock._id !== baseProduct._id) return baseProduct;
+
+    const byId = new Map((liveStock.variants || []).map((v) => [v.id, v]));
+    const bySku = new Map((liveStock.variants || []).filter((v) => v.sku).map((v) => [v.sku, v]));
+
+    return {
+      ...baseProduct,
+      totalStock: liveStock.totalStock,
+      colorVariants: baseProduct.colorVariants?.map((cv) => ({
+        ...cv,
+        subVariants: cv.subVariants?.map((sv) => {
+          const live = byId.get(sv.id) ?? (sv.sku ? bySku.get(sv.sku) : undefined);
+          return live ? { ...sv, stock: live.stock } : sv;
+        }),
+      })),
+    } as Product;
+  }, [baseProduct, liveStock]);
 
   // Load and update recently viewed products on client mount
   React.useEffect(() => {
@@ -351,6 +420,7 @@ export function ProductDetailProvider({
     <ProductDetailContext.Provider value={{
       slug,
       product,
+      isStockResolved,
       toggleWishlist,
       isInWishlist,
       isDescExpanded,

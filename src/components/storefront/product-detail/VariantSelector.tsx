@@ -28,7 +28,8 @@ export function VariantSelector() {
     activeSubVariant,
     uniqueSizes,
     uniqueWeights,
-    qtyInputRef
+    qtyInputRef,
+    isStockResolved
   } = useProductDetail();
 
   if (!product) return null;
@@ -305,10 +306,16 @@ export function VariantSelector() {
                   type="button"
                   className="flex-1 h-11 font-extrabold flex items-center justify-center gap-2 shadow-md cursor-pointer rounded-xl text-xs sm:text-sm"
                   onClick={handleAddToCart}
-                  disabled={(activeSubVariant?.stock || 0) <= 0}
+                  disabled={!isStockResolved || (activeSubVariant?.stock || 0) <= 0}
                 >
                   <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span>{(activeSubVariant?.stock || 0) <= 0 ? "Out of Stock" : "Add to Cart"}</span>
+                  <span>
+                    {!isStockResolved
+                      ? "Checking stock…"
+                      : (activeSubVariant?.stock || 0) <= 0
+                        ? "Out of Stock"
+                        : "Add to Cart"}
+                  </span>
                 </Button>
               </div>
 
@@ -341,10 +348,16 @@ export function VariantSelector() {
                   type="button"
                   className="flex-1 h-11 font-extrabold flex items-center justify-center gap-2 shadow-md cursor-pointer rounded-xl text-xs"
                   onClick={handleAddToCart}
-                  disabled={(activeSubVariant?.stock || 0) <= 0}
+                  disabled={!isStockResolved || (activeSubVariant?.stock || 0) <= 0}
                 >
                   <ShoppingCart className="h-4 w-4" />
-                  <span>{(activeSubVariant?.stock || 0) <= 0 ? "Out of Stock" : "Add to Cart"}</span>
+                  <span>
+                    {!isStockResolved
+                      ? "Checking stock…"
+                      : (activeSubVariant?.stock || 0) <= 0
+                        ? "Out of Stock"
+                        : "Add to Cart"}
+                  </span>
                 </Button>
               </div>
             </>

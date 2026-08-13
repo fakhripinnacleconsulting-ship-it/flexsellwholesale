@@ -4,6 +4,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToastStore } from "@/stores/toastStore";
+import { apiClient } from "@/lib/apiClient";
 import { pushService } from "@/lib/push/pushService";
 import { sendSystemOSNotification } from "@/lib/browserNotifications";
 import { Bell, BellOff, CheckCircle2, AlertTriangle, ShieldCheck, Truck, CreditCard, FileText, ShoppingBag, Lock, Send } from "lucide-react";
@@ -81,12 +82,9 @@ export function NotificationPreferencesCard({ userId = "current", role = "custom
     setCategories(updated);
 
     try {
-      const res = await fetch("/api/notifications/preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, categories: updated }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
+      // Must go through apiClient: it attaches the X-CSRF-Token header the proxy
+      // requires on POST. A raw fetch() here was rejected with 403.
+      await apiClient.post("/notifications/preferences", { userId, categories: updated });
       addToast("Notification category preference updated", "info");
     } catch (err) {
       console.error("Failed to save notification preferences:", err);
