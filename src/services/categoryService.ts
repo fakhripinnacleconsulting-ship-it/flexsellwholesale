@@ -5,7 +5,20 @@ const CATEGORIES_STORAGE_KEY = "flexsell-categories-storage";
 
 export const categoryService = {
   async getCategories(): Promise<Category[]> {
-    if (typeof window !== "undefined" && isMockMode) {
+    if (typeof window === "undefined") {
+      try {
+        const dbConnect = (await import("@/lib/dbConnect")).default;
+        await dbConnect();
+        const CategoryModel = (await import("@/models/Category")).default;
+        const categories = await CategoryModel.find({ isActive: true }).sort({ name: 1 }).lean();
+        return JSON.parse(JSON.stringify(categories));
+      } catch (err) {
+        console.error("categoryService.getCategories server notice:", (err as any)?.message || err);
+        return [];
+      }
+    }
+
+    if (isMockMode) {
       try {
         const raw = localStorage.getItem(CATEGORIES_STORAGE_KEY);
         if (raw) return JSON.parse(raw);
