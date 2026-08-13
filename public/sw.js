@@ -1,10 +1,9 @@
 // FlexSell Wholesale Progressive Web App (PWA) & Web Push Service Worker
 
-const CACHE_NAME = "flexsell-pwa-v4";
+const CACHE_NAME = "flexsell-pwa-v5";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE_ASSETS = [
-  "/",
   OFFLINE_URL,
   "/Favicon.png",
   "/Flexsell%20Logo.png",
