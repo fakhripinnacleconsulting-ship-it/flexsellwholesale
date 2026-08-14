@@ -57,7 +57,11 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
     const { videoWidth, videoHeight } = e.currentTarget;
     if (videoWidth && videoHeight) {
       const key = `${idx}-${isMobileVideo ? "mobile" : "desktop"}`;
-      setAspectRatios((prev) => ({ ...prev, [key]: videoWidth / videoHeight }));
+      const newRatio = videoWidth / videoHeight;
+      setAspectRatios((prev) => {
+        if (prev[key] === newRatio) return prev;
+        return { ...prev, [key]: newRatio };
+      });
     }
   };
 

@@ -154,10 +154,11 @@ export default async function HomePage() {
 
   const settings = cmsSettings?.value || {};
 
+  const safeArray = (val: any) => Array.isArray(val) ? val : [];
   const allTestimonials = [
-    ...(cmsTestimonialsWholesale?.value || []),
-    ...(cmsTestimonialsDropshipper?.value || []),
-    ...(cmsTestimonialsClient?.value || [])
+    ...safeArray(cmsTestimonialsWholesale?.value),
+    ...safeArray(cmsTestimonialsDropshipper?.value),
+    ...safeArray(cmsTestimonialsClient?.value)
   ];
   const hasActiveTestimonials = allTestimonials.some((t: any) => t.isActive !== false);
 
