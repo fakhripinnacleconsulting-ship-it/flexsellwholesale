@@ -483,7 +483,19 @@ export default function AdminCmsPage() {
           {(activeTab === "testimonials" || activeTab === "testimonials_wholesale") && <TestimonialsTab testimonials={testimonialsWholesale} onView={openViewModal} onEdit={openEditModal} onDelete={openDeleteModal} />}
           {activeTab === "testimonials_dropship" && <TestimonialsTab testimonials={testimonialsDropshipper} onView={openViewModal} onEdit={openEditModal} onDelete={openDeleteModal} />}
           {activeTab === "testimonials_client" && <TestimonialsTab testimonials={testimonialsClient} onView={openViewModal} onEdit={openEditModal} onDelete={openDeleteModal} />}
-          {activeTab === "partners" && <BrandPartnersTab brandPartners={brandPartners} onEdit={openEditModal} onDelete={openDeleteModal} />}
+          {activeTab === "partners" && (
+            <BrandPartnersTab
+              brandPartners={brandPartners}
+              isVisible={homepageSettings.showBrandPartners !== false}
+              onToggleVisibility={(visible) => {
+                const updated = { ...homepageSettings, showBrandPartners: visible };
+                setHomepageSettings(updated);
+                handleSaveCmsKey("homepage_settings", updated);
+              }}
+              onEdit={openEditModal}
+              onDelete={openDeleteModal}
+            />
+          )}
           {activeTab === "homepage_visibility" && <SectionVisibilityTab data={homepageSettings} setData={setHomepageSettings} isSaving={isSaving} onSave={handleSaveCmsKey} />}
           {activeTab === "homepage_seo" && <HomepageSeoTab data={homepageSeo} setData={setHomepageSeo} isSaving={isSaving} onSave={handleSaveCmsKey} onFileUpload={handleFileUpload} />}
           {activeTab === "blogs" && <BlogsTab blogs={blogs} onEdit={openEditModal} onDelete={openDeleteModal} />}

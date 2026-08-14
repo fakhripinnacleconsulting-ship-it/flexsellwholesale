@@ -418,6 +418,10 @@ export function CmsFormModal({
                 <Input value={formData.name || ""} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="text-xs" />
               </div>
               <div className="space-y-1">
+                <label className="font-bold text-primary">Website URL (Optional)</label>
+                <Input placeholder="https://partner-website.com" value={formData.websiteUrl || ""} onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })} className="text-xs" />
+              </div>
+              <div className="space-y-1">
                 <label className="font-bold">Logo URL / Upload *</label>
                 <div className="flex gap-2">
                   <Input value={formData.logoUrl || ""} onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })} className="text-xs" />

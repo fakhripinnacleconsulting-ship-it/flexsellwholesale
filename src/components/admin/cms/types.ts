@@ -51,6 +51,7 @@ export interface TestimonialItem {
 export interface BrandPartner {
   name: string;
   logoUrl: string;
+  websiteUrl?: string;
 }
 
 export interface FaqItem {
