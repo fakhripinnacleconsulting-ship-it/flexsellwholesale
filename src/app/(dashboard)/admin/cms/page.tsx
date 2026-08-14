@@ -475,7 +475,7 @@ export default function AdminCmsPage() {
             </div>
           )}
 
-          {activeTab === "hero" && <BannersTab banners={heroBanners} onView={openViewModal} onEdit={openEditModal} onDelete={openDeleteModal} />}
+          {activeTab === "hero" && <BannersTab banners={heroBanners} onView={openViewModal} onEdit={openEditModal} onDelete={openDeleteModal} onReorder={(newBanners) => { setHeroBanners(newBanners); handleSaveCmsKey("hero_banners", newBanners); }} />}
           {activeTab === "announcements" && <AnnouncementsTab announcements={announcements} onEdit={openEditModal} onDelete={openDeleteModal} />}
           {activeTab === "trust" && <TrustStatsTab trustStats={trustStats} onEdit={openEditModal} onDelete={openDeleteModal} />}
           {activeTab === "wholesale_biz" && <BusinessSectionTab data={wholesaleBiz} setData={setWholesaleBiz} sectionKey="wholesale_business_details" isSaving={isSaving} onSaveHeadings={handleSaveCmsKey} onEditCard={openEditModal} onDeleteCard={openDeleteModal} titleColorClass="text-emerald-600" />}

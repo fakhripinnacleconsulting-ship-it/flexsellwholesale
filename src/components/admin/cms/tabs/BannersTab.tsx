@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Eye, Edit3, Trash2, Video, Image as ImageIcon, Play } from "lucide-react";
+import { Eye, Edit3, Trash2, Video, Image as ImageIcon, Play, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Reorder } from "framer-motion";
 import { BannerSlide } from "../types";
 
 interface BannersTabProps {
@@ -10,21 +11,26 @@ interface BannersTabProps {
   onView: (banner: BannerSlide) => void;
   onEdit: (idx: number, banner: BannerSlide) => void;
   onDelete: (idx: number) => void;
+  onReorder?: (newBanners: BannerSlide[]) => void;
 }
 
-export function BannersTab({ banners, onView, onEdit, onDelete }: BannersTabProps) {
+export function BannersTab({ banners, onView, onEdit, onDelete, onReorder }: BannersTabProps) {
   return (
-    <div className="space-y-3">
+    <Reorder.Group axis="y" values={banners} onReorder={onReorder || (() => {})} className="space-y-3">
       {banners.map((banner, idx) => {
         const isVideo = banner.mediaType === "video" || !!banner.videoUrl;
         const thumbnail = isVideo ? (banner.posterUrl || banner.imageUrl) : banner.imageUrl;
 
         return (
-          <div
-            key={idx}
-            className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-xl bg-card hover:border-primary/30 transition-all gap-4 text-foreground"
+          <Reorder.Item
+            key={banner.imageUrl || banner.videoUrl || idx.toString()}
+            value={banner}
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-xl bg-card hover:border-primary/30 transition-all gap-4 text-foreground cursor-grab active:cursor-grabbing"
           >
             <div className="flex items-center gap-4">
+              <div className="text-muted-foreground/50 hover:text-foreground transition-colors">
+                <GripVertical className="h-5 w-5" />
+              </div>
               <div className="relative w-24 h-14 rounded overflow-hidden border bg-secondary shrink-0">
                 {thumbnail ? (
                   <img src={thumbnail} alt="Banner Preview" className="w-full h-full object-cover" />
@@ -71,9 +77,9 @@ export function BannersTab({ banners, onView, onEdit, onDelete }: BannersTabProp
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
-          </div>
+          </Reorder.Item>
         );
       })}
-    </div>
+    </Reorder.Group>
   );
 }

@@ -39,11 +39,17 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const handleImageLoad = (idx: number, isMobileImg: boolean, e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { naturalWidth, naturalHeight } = e.currentTarget;
+  const handleImageLoad = (idx: number, el: HTMLImageElement) => {
+    const { naturalWidth, naturalHeight } = el;
     if (naturalWidth && naturalHeight) {
-      const key = `${idx}-${isMobileImg ? "mobile" : "desktop"}`;
-      setAspectRatios((prev) => ({ ...prev, [key]: naturalWidth / naturalHeight }));
+      const isMob = typeof window !== "undefined" && window.innerWidth < 640;
+      const hasMobImg = isMob && !!slides[idx]?.mobileImageUrl;
+      const key = `${idx}-${hasMobImg ? "mobile" : "desktop"}`;
+      const newRatio = naturalWidth / naturalHeight;
+      setAspectRatios((prev) => {
+        if (prev[key] === newRatio) return prev;
+        return { ...prev, [key]: newRatio };
+      });
     }
   };
 
@@ -172,7 +178,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
 
   const hasMobileImg = isMobile && !!currentSlide?.mobileImageUrl;
   const activeKey = `${current}-${hasMobileImg ? "mobile" : "desktop"}`;
-  const naturalRatio = aspectRatios[activeKey] || aspectRatios[`${current}-desktop` ];
+  const naturalRatio = aspectRatios[activeKey];
   const fallbackRatio = isMobile ? (hasMobileImg ? 1.0 : 1.77) : 2.5;
   const activeRatio = naturalRatio || fallbackRatio;
 
@@ -314,7 +320,12 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                   src={dSrc} 
                   {...restDesktopProps}
                   fetchPriority={current === 0 ? "high" : "auto"}
-                  onLoad={(e) => handleImageLoad(current, isMobile, e as any)} 
+                  ref={(el) => {
+                    if (el && el.complete && el.naturalWidth) {
+                      handleImageLoad(current, el);
+                    }
+                  }}
+                  onLoad={(e) => handleImageLoad(current, e.currentTarget)} 
                 />
               </picture>
             </div>
