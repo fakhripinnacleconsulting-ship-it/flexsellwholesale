@@ -328,12 +328,16 @@ export function BannerSectionEditor({
                 // Same fixed box the storefront uses, so the preview shows the real crop
                 // rather than each image at its own natural shape.
                 fixedAspectRatio={ratios}
+                // The toggle only narrows a container; <picture> media queries still see
+                // the admin's desktop viewport. Without this, switching to Mobile kept
+                // showing the desktop upload and a mobile banner could not be checked.
+                forceViewport={previewViewport}
               />
             </div>
             <p className="text-[11px] text-muted-foreground text-center mt-3">
               {previewViewport === "mobile"
-                ? "Narrow preview. Banners without a mobile image fall back to the desktop image here, exactly as on the live site."
-                : "Desktop preview. Clicks are disabled while editing."}
+                ? "Showing the mobile upload where one exists; banners without it fall back to the desktop image, exactly as on the live site."
+                : "Showing the desktop upload. Clicks are disabled while editing."}
             </p>
           </div>
         </div>

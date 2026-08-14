@@ -42,6 +42,15 @@ interface HeroCarouselProps {
    * where letterboxing the whole image matters more than a stable height.
    */
   fixedAspectRatio?: { desktop: number; mobile: number };
+  /**
+   * Forces which upload is shown, ignoring the viewport.
+   *
+   * The CMS preview simulates a phone by narrowing a container, but `<picture>` media
+   * queries resolve against the *viewport*, not the container — so on an admin's desktop
+   * the "Mobile" toggle still rendered the desktop image and there was no way to check a
+   * mobile banner before publishing it.
+   */
+  forceViewport?: "desktop" | "mobile";
 }
 
 export function HeroCarousel({
@@ -51,6 +60,7 @@ export function HeroCarousel({
   autoplay = true,
   eager = true,
   fixedAspectRatio,
+  forceViewport,
 }: HeroCarouselProps) {
   const router = useRouter();
   const [current, setCurrent] = React.useState(0);
@@ -274,19 +284,22 @@ export function HeroCarousel({
   const isVideo = (currentSlide?.mediaType === "video" || !!currentSlide?.videoUrl) && !videoError;
   const fallbackImage = currentSlide?.posterUrl || currentSlide?.imageUrl || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1920&q=80";
 
-  const hasMobileImg = isMobile && !!currentSlide?.mobileImageUrl;
+  // `forceViewport` lets the CMS preview simulate a phone on a desktop screen; live
+  // rendering always follows the real viewport.
+  const treatAsMobile = forceViewport ? forceViewport === "mobile" : isMobile;
+  const hasMobileImg = treatAsMobile && !!currentSlide?.mobileImageUrl;
   const activeKey = `${current}-${hasMobileImg ? "mobile" : "desktop"}`;
   const naturalRatio = aspectRatios[activeKey];
   // An admin-supplied ratio lets the very first paint reserve the right box, instead of
   // measuring after load and animating aspect-ratio into place (a visible CLS hit).
   const authoredRatio = hasMobileImg ? currentSlide?.mobileAspectRatio : currentSlide?.aspectRatio;
-  const fallbackRatio = isMobile ? (hasMobileImg ? 1.0 : 1.77) : 2.5;
+  const fallbackRatio = treatAsMobile ? (hasMobileImg ? 1.0 : 1.77) : 2.5;
 
   // A section-level fixed ratio wins over everything: the whole point is that the box
   // never changes between slides, so per-slide measurements must not feed into it.
   const isFixed = !!fixedAspectRatio;
   const activeRatio = isFixed
-    ? (isMobile ? fixedAspectRatio!.mobile : fixedAspectRatio!.desktop)
+    ? (treatAsMobile ? fixedAspectRatio!.mobile : fixedAspectRatio!.desktop)
     : (authoredRatio || naturalRatio || fallbackRatio);
 
   // Fixed box => crop to fill. Free box => letterbox, since the container already matches
@@ -329,9 +342,11 @@ export function HeroCarousel({
   });
 
   // Generate mobile image props (fallback to desktop if none)
+  const mobileSrc = hasMobileSpecificImg ? currentSlide.mobileImageUrl! : fallbackImage;
+
   const { props: { srcSet: mobileSrcSet } } = getImageProps({
     ...commonImgProps,
-    src: hasMobileSpecificImg ? currentSlide.mobileImageUrl! : fallbackImage,
+    src: mobileSrc,
   });
 
   return (
@@ -440,13 +455,29 @@ export function HeroCarousel({
           ) : (
             /* IMAGE BANNER SLIDE (Native Picture Tag for Art Direction) */
             <div className="relative w-full h-full flex items-center justify-center overflow-hidden z-10">
+              {/*
+                Art direction between the mobile and desktop uploads.
+
+                The `?? raw URL` fallbacks are load-bearing, not defensive noise: with
+                `images.unoptimized` enabled (which this project sets), getImageProps
+                returns `srcSet: undefined`. A <source> without a srcset contributes
+                nothing, so BOTH sources were being skipped and every viewport fell
+                through to the <img> below — which carries the desktop image. That is why
+                a separately uploaded mobile banner never appeared on phones, and why the
+                wide desktop image looked wrong cropped into the mobile aspect box.
+              */}
               <picture className="relative w-full h-full block">
-                {hasMobileSpecificImg && (
-                  <source media="(max-width: 639px)" srcSet={mobileSrcSet} />
+                {/* When a viewport is forced (CMS preview), the media queries would still
+                    resolve against the real window, so the sources are omitted entirely
+                    and the chosen upload is put directly on the <img>. */}
+                {!forceViewport && hasMobileSpecificImg && (
+                  <source media="(max-width: 639px)" srcSet={mobileSrcSet ?? mobileSrc} />
                 )}
-                <source media="(min-width: 640px)" srcSet={desktopSrcSet} />
+                {!forceViewport && (
+                  <source media="(min-width: 640px)" srcSet={desktopSrcSet ?? fallbackImage} />
+                )}
                 <img
-                  src={dSrc}
+                  src={forceViewport && hasMobileImg ? mobileSrc : dSrc}
                   {...restDesktopProps}
                   fetchPriority={claimsPriority ? "high" : "auto"}
                   // Stable ref: an inline arrow is a new function every render, so React
