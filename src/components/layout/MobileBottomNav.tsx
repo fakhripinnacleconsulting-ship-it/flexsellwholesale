@@ -70,8 +70,8 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-3 left-3 right-3 z-50 select-none no-print print:hidden">
-      <nav className="bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl p-1.5 shadow-2xl flex items-center justify-around">
+    <div className="md:hidden fixed bottom-4 left-0 right-0 z-50 select-none no-print print:hidden flex justify-center px-4">
+      <nav className="bg-white/30 dark:bg-black/20 backdrop-blur-[32px] backdrop-saturate-[200%] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] rounded-full p-1.5 flex items-center justify-around w-full max-w-[340px] mx-auto relative">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.id === "account"
@@ -86,18 +86,18 @@ export function MobileBottomNav() {
                 key={item.id}
                 href={item.href}
                 prefetch={true}
-                className="flex flex-col items-center justify-center -mt-6 cursor-pointer relative z-10"
+                className="flex flex-col items-center justify-center cursor-pointer relative z-10 px-1"
               >
                 <div
-                  className={`p-3.5 rounded-full transition-all shadow-xl flex items-center justify-center ring-4 ring-card ${
+                  className={`p-2 rounded-full transition-all duration-300 flex items-center justify-center ${
                     isActive
-                      ? "bg-primary text-primary-foreground scale-110 shadow-primary/30"
-                      : "bg-primary text-primary-foreground hover:scale-105"
+                      ? "bg-primary text-primary-foreground scale-110 shadow-[0_4px_15px_rgba(0,0,0,0.2)] shadow-primary/40"
+                      : "bg-primary/90 text-primary-foreground hover:scale-105 shadow-sm"
                   }`}
                 >
-                  <Icon className="h-5.5 w-5.5" />
+                  <Icon className="h-5 w-5" />
                 </div>
-                <span className="text-[10px] tracking-tight mt-1 font-extrabold text-primary">
+                <span className={`text-[9px] tracking-tight mt-1 font-bold ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                   {item.label}
                 </span>
               </Link>
@@ -109,31 +109,31 @@ export function MobileBottomNav() {
               key={item.id}
               href={item.href}
               prefetch={true}
-              className={`flex flex-col items-center justify-center py-1.5 px-2.5 rounded-xl transition-all cursor-pointer relative min-w-[54px] ${
+              className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all duration-300 cursor-pointer relative min-w-[48px] group ${
                 isActive
-                  ? "text-primary font-extrabold"
+                  ? "text-primary font-bold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <div
-                className={`p-1.5 rounded-xl transition-all relative flex items-center justify-center ${
+                className={`p-1.5 rounded-2xl transition-all duration-300 relative flex items-center justify-center ${
                   isActive
-                    ? "bg-primary/10 text-primary scale-105"
-                    : "hover:bg-secondary/50"
+                    ? "bg-primary/10 text-primary scale-110"
+                    : "group-hover:bg-secondary/40 group-hover:scale-105"
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-[18px] w-[18px]" />
 
                 {/* Live Count Badge */}
                 {typeof item.badge === "number" && item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-emerald-600 text-white font-extrabold text-[10px] h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 bg-emerald-600 text-white font-extrabold text-[9px] h-3.5 min-w-3.5 px-1 rounded-full flex items-center justify-center shadow-sm">
                     {item.badge > 99 ? "99+" : item.badge}
                   </span>
                 )}
               </div>
 
               <span
-                className={`text-[10px] tracking-tight mt-0.5 ${
+                className={`text-[9px] tracking-tight mt-0.5 transition-all duration-300 ${
                   isActive ? "font-bold text-primary" : "font-medium"
                 }`}
               >
