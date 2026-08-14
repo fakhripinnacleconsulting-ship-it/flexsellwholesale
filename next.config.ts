@@ -99,7 +99,9 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://images.unsplash.com https://flexsellwholesale.com https://*.gstatic.com https://*.googleusercontent.com https://www.googletagmanager.com https://*.google-analytics.com https://ssl.google-analytics.com https://*.doubleclick.net https://www.facebook.com http://* https://*",
               "connect-src 'self' https://api.razorpay.com https://*.sentry.io https://*.upstash.io https://accounts.google.com https://oauth2.googleapis.com https://www.googletagmanager.com https://*.googletagmanager.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://tagassistant.google.com https://connect.facebook.net https://www.facebook.com",
-              "frame-src 'self' https://api.razorpay.com https://accounts.google.com https://www.googletagmanager.com https://tagassistant.google.com https://www.facebook.com https://connect.facebook.net",
+              // google.com/maps + maps.google.com: the homepage location section mounts a
+              // Maps embed on demand. Without these the iframe is blocked outright.
+              "frame-src 'self' https://api.razorpay.com https://accounts.google.com https://www.googletagmanager.com https://tagassistant.google.com https://www.facebook.com https://connect.facebook.net https://www.google.com https://maps.google.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

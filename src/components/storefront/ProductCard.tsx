@@ -20,9 +20,23 @@ interface ProductCardProps {
   product: Product;
   layout?: "grid" | "list";
   removeFromWishlistOnAdd?: boolean;
+  /**
+   * Whether this card is above the fold and may preload its image.
+   *
+   * Defaults to false. A catalog grid renders 40+ cards; marking every one `priority`
+   * (the previous behaviour) told the browser to preload 40 images at once, which
+   * competes with the real LCP element and slows the page down rather than speeding it up.
+   * Only the first row of a grid should opt in.
+   */
+  isAboveFold?: boolean;
 }
 
-export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd = false }: ProductCardProps) {
+export function ProductCard({
+  product,
+  layout = "grid",
+  removeFromWishlistOnAdd = false,
+  isAboveFold = false,
+}: ProductCardProps) {
   const router = useRouter();
   const { addItem } = useCartStore();
   const { toggleWishlist, isInWishlist } = useWishlistStore();
@@ -290,7 +304,7 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
                       fill
                       sizes="(max-width: 640px) 100vw, 208px"
                       className="object-cover transition-transform duration-500 group-hover/card:scale-105"
-                      priority={i === 0}
+                      priority={isAboveFold && i === 0}
                     />
                   )}
                 </div>
@@ -475,7 +489,7 @@ export function ProductCard({ product, layout = "grid", removeFromWishlistOnAdd 
                     fill
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     className="object-cover transition-transform duration-500 group-hover/card:scale-105"
-                    priority={i === 0}
+                    priority={isAboveFold && i === 0}
                   />
                 )}
               </div>

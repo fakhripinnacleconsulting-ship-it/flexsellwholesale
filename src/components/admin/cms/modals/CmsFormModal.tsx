@@ -158,6 +158,9 @@ export function CmsFormModal({
                         <input type="file" accept="image/*" className="hidden" onChange={(e) => onFileUpload(e, "mobileImageUrl")} />
                       </label>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Optional — leave empty and the desktop image is used on mobile too.
+                    </p>
                   </div>
                 </>
               )}
@@ -184,8 +187,26 @@ export function CmsFormModal({
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold">Alt Text (SEO)</label>
-                <Input value={formData.altText || ""} onChange={(e) => setFormData({ ...formData, altText: e.target.value })} className="text-xs" />
+                <label htmlFor="banner-alt-text" className="font-bold">
+                  Alt Text (SEO &amp; Accessibility) *
+                </label>
+                <Input
+                  id="banner-alt-text"
+                  value={formData.altText || ""}
+                  onChange={(e) => setFormData({ ...formData, altText: e.target.value })}
+                  placeholder="Describe what the image shows, e.g. 'Kitchen tools stacked in a warehouse'"
+                  className="text-xs"
+                  aria-invalid={!formData.altText?.trim()}
+                  aria-describedby="banner-alt-text-hint"
+                />
+                <p
+                  id="banner-alt-text-hint"
+                  className={`text-[11px] ${formData.altText?.trim() ? "text-muted-foreground" : "text-amber-600 dark:text-amber-400 font-semibold"}`}
+                >
+                  {formData.altText?.trim()
+                    ? "Read aloud by screen readers and indexed by search engines."
+                    : "Required — without it screen readers announce nothing and the image is invisible to search."}
+                </p>
               </div>
             </>
           )}

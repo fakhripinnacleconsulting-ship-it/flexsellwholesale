@@ -1,6 +1,12 @@
+import * as React from "react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { getEffectiveLayout, getRenderableSections } from "@/lib/homepageLayout";
+import type { BannerSection, BuiltinSectionKey } from "@/components/admin/cms/types";
+import { BannerSectionBlock } from "@/components/storefront/homepage/BannerSectionBlock";
+import { LocationSection } from "@/components/storefront/homepage/LocationSection";
+import { defaultBusinessSettings } from "@/lib/cmsHelper";
 import { categoryService } from "@/services/categoryService";
 import { productService } from "@/services/productService";
 import { collectionService } from "@/services/collectionService";
@@ -60,6 +66,10 @@ export default async function HomePage() {
   let cmsTestimonialsClient: any = null;
   let cmsBrandPartners: any = null;
   let cmsSettings: any = null;
+  let cmsLayout: any = null;
+  let cmsBannerSections: any = null;
+  let cmsLocation: any = null;
+  let cmsBusinessSettings: any = null;
 
   let categories: any[] = [];
   let products: any[] = [];
@@ -79,7 +89,13 @@ export default async function HomePage() {
       "testimonials_dropshipper",
       "testimonials_client",
       "brand_partners",
-      "homepage_settings"
+      "homepage_settings",
+      // Layout-driven homepage: order, custom banner sections, and the location block.
+      // Added to the existing $in batch so this stays one query, not three more.
+      "homepage_layout",
+      "banner_sections",
+      "location_section",
+      "businessSettings"
     ];
 
     // Fetch CMS content in a single query along with storefront data in parallel
@@ -110,6 +126,10 @@ export default async function HomePage() {
     cmsTestimonialsClient = cmsMap.get("testimonials_client");
     cmsBrandPartners = cmsMap.get("brand_partners");
     cmsSettings = cmsMap.get("homepage_settings");
+    cmsLayout = cmsMap.get("homepage_layout");
+    cmsBannerSections = cmsMap.get("banner_sections");
+    cmsLocation = cmsMap.get("location_section");
+    cmsBusinessSettings = cmsMap.get("businessSettings");
 
     categories = categoriesRes;
     trendingProducts = trendingRes;
@@ -162,16 +182,40 @@ export default async function HomePage() {
   ];
   const hasActiveTestimonials = allTestimonials.some((t: any) => t.isActive !== false);
 
-  return (
-    <div className="flex flex-col gap-10 md:gap-14 pb-16">
-      {/* High Performance Video & Image Hero Banner Carousel */}
-      {settings.showHeroBanners !== false && <HeroCarousel slides={heroBanners} />}
+  // Location-section fallbacks. Composed the same way the footer does it, so the two
+  // never disagree about the company address.
+  const businessSettings = { ...defaultBusinessSettings, ...(cmsBusinessSettings?.value || {}) };
+  const businessAddress = [
+    businessSettings.companyAddress,
+    businessSettings.city,
+    businessSettings.state,
+    businessSettings.pinCode ? `- ${businessSettings.pinCode}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .replace(", -", " -");
 
-      {/* Trust Stats Bar */}
-      {settings.showTrustBar !== false && <TrustBar stats={cmsTrustStats?.value} />}
+  // Section order and visibility now come from the CMS layout instead of this file.
+  // When no layout has been saved, getEffectiveLayout() derives one from the historical
+  // order plus the legacy homepage_settings booleans, so the page is unchanged.
+  const layout = getEffectiveLayout(cmsLayout?.value, settings);
+  const bannerSections: BannerSection[] = Array.isArray(cmsBannerSections?.value)
+    ? cmsBannerSections.value
+    : [];
+  const renderableSections = getRenderableSections(layout, bannerSections);
+  const bannerSectionById = new Map(bannerSections.map((s) => [s.id, s]));
 
-      {/* Categories Grid Section */}
-      {settings.showCategories !== false && topLevelCategories.length > 0 && (
+  /**
+   * Built-in section markup, keyed exactly as before. Content guards (empty arrays etc.)
+   * stay here; visibility is decided by the layout above.
+   */
+  const builtins: Record<BuiltinSectionKey, () => React.ReactNode> = {
+    hero: () => (heroBanners.length > 0 ? <HeroCarousel slides={heroBanners} headingLevel="h1" /> : null),
+
+    trustBar: () => <TrustBar stats={cmsTrustStats?.value} />,
+
+    categories: () =>
+      topLevelCategories.length > 0 ? (
         <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4">
           <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
             <div>
@@ -208,21 +252,17 @@ export default async function HomePage() {
             ))}
           </div>
         </section>
-      )}
+      ) : null,
 
-      {/* Featured Collections Section */}
-      {settings.showFeaturedCollections !== false && featuredCols.length > 0 && (
-        <FeaturedCollections
-          collections={collections}
-          productCounts={productCounts}
-        />
-      )}
+    featuredCollections: () =>
+      featuredCols.length > 0 ? (
+        <FeaturedCollections collections={collections} productCounts={productCounts} />
+      ) : null,
 
-      {/* Independent B2B Wholesale Business Section */}
-      {settings.showWholesaleBiz !== false && <WholesaleBusinessSection data={cmsWholesaleBiz?.value} />}
+    wholesaleBiz: () => <WholesaleBusinessSection data={cmsWholesaleBiz?.value} />,
 
-      {/* Trending Products Grid Section */}
-      {settings.showTrendingProducts !== false && trendingProducts && trendingProducts.length > 0 && (
+    trendingProducts: () =>
+      trendingProducts && trendingProducts.length > 0 ? (
         <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4">
           <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
             <div>
@@ -240,10 +280,10 @@ export default async function HomePage() {
 
           <TrendingProducts initialProducts={trendingProducts} />
         </section>
-      )}
+      ) : null,
 
-      {/* New Arrivals Section */}
-      {settings.showNewArrivals !== false && newArrivals.length > 0 && (
+    newArrivals: () =>
+      newArrivals.length > 0 ? (
         <section className="mx-auto max-w-8xl px-4 md:px-6 w-full py-2 sm:py-4 animate-in fade-in duration-700">
           <div className="flex justify-between items-end mb-6 sm:mb-8 border-b pb-4 border-border/60">
             <div>
@@ -260,28 +300,27 @@ export default async function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
-            {newArrivals.map((product) => (
-              <ProductCard key={product._id} product={product} layout="grid" />
+            {newArrivals.map((product, idx) => (
+              // Only the first row may preload. Marking all of them priority made the
+              // browser fetch every image at once, competing with the real LCP element.
+              <ProductCard key={product._id} product={product} layout="grid" isAboveFold={idx < 5} />
             ))}
           </div>
         </section>
-      )}
+      ) : null,
 
-      {/* Independent Dropshipping Business Section */}
-      {settings.showDropshipBiz !== false && <DropshippingBusinessSection data={cmsDropshipBiz?.value} />}
+    dropshipBiz: () => <DropshippingBusinessSection data={cmsDropshipBiz?.value} />,
 
-      {/* Brand Partners Marquee Bar */}
-      {settings.showBrandPartners !== false && cmsBrandPartners?.value && cmsBrandPartners.value.length > 0 && (
+    brandPartners: () =>
+      cmsBrandPartners?.value && cmsBrandPartners.value.length > 0 ? (
         <BrandPartnersBar partners={cmsBrandPartners.value} />
-      )}
+      ) : null,
 
-      {/* Recently Viewed / Recommended Carousel */}
-      {settings.showRecommendedProducts !== false && products && products.length > 0 && (
-        <RecentlyViewed initialProducts={products} />
-      )}
+    recommendedProducts: () =>
+      products && products.length > 0 ? <RecentlyViewed initialProducts={products} /> : null,
 
-      {/* Unified Single Frame Testimonials with 3-Tab Options */}
-      {settings.showTestimonials !== false && hasActiveTestimonials && (
+    testimonials: () =>
+      hasActiveTestimonials ? (
         <TestimonialsSection
           title="What Our Retailers & Partners Say"
           subtitle="Real reviews from shopkeepers, online sellers, and dropship partners across India."
@@ -289,7 +328,46 @@ export default async function HomePage() {
           dropshipTestimonials={cmsTestimonialsDropshipper?.value}
           clientTestimonials={cmsTestimonialsClient?.value}
         />
-      )}
+      ) : null,
+  };
+
+  // Only the first block that actually renders may claim LCP priority.
+  let firstRenderedIndex = -1;
+
+  return (
+    <div className="flex flex-col gap-10 md:gap-14 pb-16">
+      {renderableSections.map((section, idx) => {
+        let content: React.ReactNode = null;
+
+        if (section.kind === "builtin") {
+          content = builtins[section.key]?.() ?? null;
+        } else if (section.kind === "banner") {
+          const bannerSection = bannerSectionById.get(section.bannerSectionId);
+          if (bannerSection) {
+            if (firstRenderedIndex === -1) firstRenderedIndex = idx;
+            content = (
+              <BannerSectionBlock section={bannerSection} isFirstOnPage={firstRenderedIndex === idx} />
+            );
+          }
+        } else if (section.kind === "location") {
+          content = (
+            <LocationSection
+              data={cmsLocation?.value}
+              fallback={{
+                address: businessAddress,
+                phone: businessSettings.supportPhone,
+                email: businessSettings.supportEmail,
+                timings: businessSettings.timings,
+              }}
+            />
+          );
+        }
+
+        if (!content) return null;
+        if (firstRenderedIndex === -1) firstRenderedIndex = idx;
+
+        return <React.Fragment key={section.id}>{content}</React.Fragment>;
+      })}
     </div>
   );
 }

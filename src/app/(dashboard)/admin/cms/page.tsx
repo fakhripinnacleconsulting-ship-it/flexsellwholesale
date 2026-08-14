@@ -20,8 +20,18 @@ import {
   DropshipPageContent,
   HomepageHeadingsData,
   HomepageVisibilityData,
-  HomepageSeoData
+  HomepageSeoData,
+  HomepageLayout,
+  BannerSection,
+  BuiltinSectionKey,
+  LocationSectionData
 } from "@/components/admin/cms/types";
+import {
+  getEffectiveLayout,
+  layoutToVisibilitySettings,
+  setBuiltinVisibility,
+  validateLayout,
+} from "@/lib/homepageLayout";
 
 import { CmsHeader } from "@/components/admin/cms/CmsHeader";
 import { CmsTabsNav } from "@/components/admin/cms/CmsTabsNav";
@@ -38,8 +48,10 @@ import { DropshipPageTab } from "@/components/admin/cms/tabs/DropshipPageTab";
 import { FaqsTab } from "@/components/admin/cms/tabs/FaqsTab";
 import { PoliciesTab } from "@/components/admin/cms/tabs/PoliciesTab";
 import { FooterTab } from "@/components/admin/cms/tabs/FooterTab";
-import { SectionVisibilityTab } from "@/components/admin/cms/tabs/SectionVisibilityTab";
 import { HomepageSeoTab } from "@/components/admin/cms/tabs/HomepageSeoTab";
+import { HomepageLayoutTab } from "@/components/admin/cms/tabs/HomepageLayoutTab";
+import { BannerSectionEditor } from "@/components/admin/cms/tabs/BannerSectionEditor";
+import { LocationSectionTab } from "@/components/admin/cms/tabs/LocationSectionTab";
 
 import { CmsFormModal } from "@/components/admin/cms/modals/CmsFormModal";
 import { CmsViewModal } from "@/components/admin/cms/modals/CmsViewModal";
@@ -72,6 +84,15 @@ export default function AdminCmsPage() {
   const [homepageSettings, setHomepageSettings] = React.useState<HomepageVisibilityData>({});
   const [homepageSeo, setHomepageSeo] = React.useState<HomepageSeoData>({});
 
+  // Layout-driven homepage. `homepageLayout` is always a full layout — derived from the
+  // legacy visibility booleans when nothing has been saved yet — so the editor never has
+  // to special-case "no layout exists".
+  const [homepageLayout, setHomepageLayout] = React.useState<HomepageLayout>({ version: 1, sections: [] });
+  const [bannerSections, setBannerSections] = React.useState<BannerSection[]>([]);
+  const [locationSection, setLocationSection] = React.useState<LocationSectionData>({});
+  /** Non-null while drilled into one banner section's editor. */
+  const [editingBannerSectionId, setEditingBannerSectionId] = React.useState<string | null>(null);
+
   // Modals
   const [formModalOpen, setFormModalOpen] = React.useState(false);
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
@@ -90,6 +111,9 @@ export default function AdminCmsPage() {
       if (tabParam) {
         if (tabParam === "testimonials") {
           setActiveTab("testimonials_wholesale");
+        } else if (tabParam === "homepage_visibility") {
+          // Retired tab — see handleTabSelect.
+          setActiveTab("homepage_layout");
         } else {
           setActiveTab(tabParam);
         }
@@ -103,6 +127,10 @@ export default function AdminCmsPage() {
       targetTab = "hero";
     } else if (tab === "testimonials") {
       targetTab = "testimonials_wholesale";
+    } else if (tab === "homepage_visibility") {
+      // Retired: the Page Layout tab owns visibility now. Redirect rather than 404 into a
+      // blank panel, since ?tab=homepage_visibility may be bookmarked.
+      targetTab = "homepage_layout";
     }
     setActiveTab(targetTab);
 
@@ -134,6 +162,12 @@ export default function AdminCmsPage() {
       setFooter(data.footer || {});
       if (data.homepage_settings) setHomepageSettings(data.homepage_settings);
       if (data.homepage_seo) setHomepageSeo(data.homepage_seo);
+
+      // Same accessor the storefront uses, so the editor can never show a different
+      // order than the live page.
+      setHomepageLayout(getEffectiveLayout(data.homepage_layout, data.homepage_settings));
+      setBannerSections(Array.isArray(data.banner_sections) ? data.banner_sections : []);
+      setLocationSection(data.location_section || {});
     } catch (err: unknown) {
       addToast((err as any).message || "Failed to fetch CMS settings", "error");
     } finally {
@@ -156,6 +190,70 @@ export default function AdminCmsPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  /**
+   * Persists the layout and its banner sections together.
+   *
+   * These keys are one logical unit: a layout row pointing at a banner section that was
+   * not saved renders a gap on the live homepage. Validate first, write the sections
+   * before the layout that references them, and refetch once at the end.
+   *
+   * `homepage_settings` is written too — not as a second source of truth, but because
+   * getEffectiveLayout() falls back to those booleans for any store that has never saved
+   * a layout, and /api/cms merges defaults into them.
+   */
+  const persistLayout = async (layout: HomepageLayout, sections: BannerSection[]) => {
+    const problems = validateLayout(layout, sections);
+    if (problems.length > 0) {
+      addToast(problems[0], "error");
+      return false;
+    }
+
+    try {
+      setIsSaving(true);
+      await apiClient.post("/cms", { key: "banner_sections", value: sections });
+      await apiClient.post("/cms", { key: "homepage_layout", value: layout });
+      await apiClient.post("/cms", {
+        key: "homepage_settings",
+        value: layoutToVisibilitySettings(layout, homepageSettings),
+      });
+      await fetchCmsData();
+      return true;
+    } catch (err: unknown) {
+      addToast((err as any).message || "Failed to save homepage layout", "error");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveLayout = async () => {
+    const ok = await persistLayout(homepageLayout, bannerSections);
+    if (ok) addToast("Homepage layout saved successfully!", "success");
+  };
+
+  /**
+   * The single entry point for toggling a built-in section's visibility.
+   *
+   * Convenience toggles that live outside the Page Layout tab (e.g. the one on the Brand
+   * Partners tab) route through here. Writing `homepage_settings` directly from those
+   * places used to silently do nothing on the live site: once a layout exists it is what
+   * the storefront reads, so a flag flipped behind its back was simply ignored.
+   */
+  const handleToggleBuiltinVisibility = async (key: BuiltinSectionKey, visible: boolean) => {
+    const nextLayout = setBuiltinVisibility(homepageLayout, key, visible);
+    setHomepageLayout(nextLayout);
+    const ok = await persistLayout(nextLayout, bannerSections);
+    if (ok) addToast(`Section ${visible ? "shown on" : "hidden from"} the storefront.`, "success");
+  };
+
+  const editingBannerSection = editingBannerSectionId
+    ? bannerSections.find((s) => s.id === editingBannerSectionId) || null
+    : null;
+
+  const updateBannerSection = (updated: BannerSection) => {
+    setBannerSections((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   };
 
   const handleTriggerSeed = async () => {
@@ -206,6 +304,12 @@ export default function AdminCmsPage() {
 
   const openAddModal = () => {
     setEditingIndex(null);
+    // Banners inside a custom section use the same form as hero banners.
+    if (editingBannerSectionId) {
+      setFormData({ imageUrl: "", mobileImageUrl: "", redirectUrl: "/products", altText: "" });
+      setFormModalOpen(true);
+      return;
+    }
     if (activeTab === "hero") setFormData({ imageUrl: "", mobileImageUrl: "", redirectUrl: "/products", altText: "" });
     else if (activeTab === "announcements") setFormData({ text: "" });
     else if (activeTab === "trust") setFormData({ icon: "package", count: "1,000+", label: "New Stat" });
@@ -234,6 +338,17 @@ export default function AdminCmsPage() {
   };
 
   const saveModalForm = () => {
+    // Inside a banner section, the modal edits that section's banners rather than any of
+    // the top-level CMS keys. Handled first so the activeTab chain below never runs.
+    if (editingBannerSectionId && editingBannerSection) {
+      const banners = [...editingBannerSection.banners];
+      if (editingIndex === null) banners.push(formData);
+      else banners[editingIndex] = formData;
+      updateBannerSection({ ...editingBannerSection, banners });
+      setFormModalOpen(false);
+      return;
+    }
+
     if (activeTab === "hero") {
       const copy = [...heroBanners];
       if (editingIndex === null) copy.push(formData);
@@ -308,6 +423,17 @@ export default function AdminCmsPage() {
 
   const confirmDelete = () => {
     if (deleteIndex === null) return;
+
+    if (editingBannerSectionId && editingBannerSection) {
+      updateBannerSection({
+        ...editingBannerSection,
+        banners: editingBannerSection.banners.filter((_, i) => i !== deleteIndex),
+      });
+      setDeleteModalOpen(false);
+      setDeleteIndex(null);
+      return;
+    }
+
     if (activeTab === "hero") {
       const updated = heroBanners.filter((_, i) => i !== deleteIndex);
       setHeroBanners(updated);
@@ -380,7 +506,8 @@ export default function AdminCmsPage() {
     activeTab === "testimonials_dropship" ||
     activeTab === "testimonials_client" ||
     activeTab === "partners" ||
-    activeTab === "homepage_visibility" ||
+    activeTab === "homepage_layout" ||
+    activeTab === "homepage_location" ||
     activeTab === "homepage_seo";
 
   const isTestimonialSection =
@@ -397,6 +524,9 @@ export default function AdminCmsPage() {
       : "testimonials_wholesale";
 
   const homeSubTabs: { id: CmsTabType; label: string; icon: string }[] = [
+    // First: this is the entry point for the homepage now — order, custom banner
+    // sections and visibility all live here.
+    { id: "homepage_layout", label: "Page Layout & Banners", icon: "🧩" },
     { id: "hero", label: "Hero Banners", icon: "🖼️" },
     { id: "announcements", label: "Announcements", icon: "📢" },
     { id: "trust", label: "Trust Stats", icon: "📊" },
@@ -404,7 +534,7 @@ export default function AdminCmsPage() {
     { id: "dropship_biz", label: "Dropship Business", icon: "🚀" },
     { id: "testimonials_wholesale", label: "Customer Reviews", icon: "⭐" },
     { id: "partners", label: "Brand Partners", icon: "🤝" },
-    { id: "homepage_visibility", label: "Section Visibility", icon: "👁️" },
+    { id: "homepage_location", label: "Location & Map", icon: "📍" },
     { id: "homepage_seo", label: "Homepage SEO", icon: "🔍" },
   ];
 
@@ -433,7 +563,7 @@ export default function AdminCmsPage() {
                 </p>
               )}
             </div>
-            {activeTab !== "footer" && activeTab !== "policies" && activeTab !== "dropship_page" && activeTab !== "homepage_visibility" && activeTab !== "homepage_seo" && (
+            {activeTab !== "footer" && activeTab !== "policies" && activeTab !== "dropship_page" && activeTab !== "homepage_seo" && activeTab !== "homepage_layout" && activeTab !== "homepage_location" && (
               <Button type="button" onClick={openAddModal} className="font-bold text-xs gap-1.5 cursor-pointer">
                 <Plus className="h-4 w-4" /> Add New Entry
               </Button>
@@ -486,17 +616,42 @@ export default function AdminCmsPage() {
           {activeTab === "partners" && (
             <BrandPartnersTab
               brandPartners={brandPartners}
-              isVisible={homepageSettings.showBrandPartners !== false}
-              onToggleVisibility={(visible) => {
-                const updated = { ...homepageSettings, showBrandPartners: visible };
-                setHomepageSettings(updated);
-                handleSaveCmsKey("homepage_settings", updated);
-              }}
+              // Read from and written through the layout — the storefront reads the
+              // layout, so a boolean flipped independently of it would have no effect.
+              isVisible={
+                homepageLayout.sections.find(
+                  (s) => s.kind === "builtin" && s.key === "brandPartners"
+                )?.visible !== false
+              }
+              onToggleVisibility={(visible) => handleToggleBuiltinVisibility("brandPartners", visible)}
               onEdit={openEditModal}
               onDelete={openDeleteModal}
             />
           )}
-          {activeTab === "homepage_visibility" && <SectionVisibilityTab data={homepageSettings} setData={setHomepageSettings} isSaving={isSaving} onSave={handleSaveCmsKey} />}
+          {activeTab === "homepage_layout" && (
+            editingBannerSection ? (
+              <BannerSectionEditor
+                section={editingBannerSection}
+                onChange={updateBannerSection}
+                onBack={() => setEditingBannerSectionId(null)}
+                onAddBanner={openAddModal}
+                onViewBanner={openViewModal}
+                onEditBanner={openEditModal}
+                onDeleteBanner={openDeleteModal}
+              />
+            ) : (
+              <HomepageLayoutTab
+                layout={homepageLayout}
+                setLayout={setHomepageLayout}
+                bannerSections={bannerSections}
+                setBannerSections={setBannerSections}
+                isSaving={isSaving}
+                onSave={handleSaveLayout}
+                onManageBanners={setEditingBannerSectionId}
+              />
+            )
+          )}
+          {activeTab === "homepage_location" && <LocationSectionTab data={locationSection} setData={setLocationSection} isSaving={isSaving} onSave={handleSaveCmsKey} />}
           {activeTab === "homepage_seo" && <HomepageSeoTab data={homepageSeo} setData={setHomepageSeo} isSaving={isSaving} onSave={handleSaveCmsKey} onFileUpload={handleFileUpload} />}
           {activeTab === "blogs" && <BlogsTab blogs={blogs} onEdit={openEditModal} onDelete={openDeleteModal} />}
           {activeTab === "dropship_page" && <DropshipPageTab data={dropshipPage} setData={setDropshipPage} isSaving={isSaving} onSave={handleSaveCmsKey} />}
@@ -507,7 +662,8 @@ export default function AdminCmsPage() {
       </Card>
 
       {/* Modals */}
-      <CmsFormModal isOpen={formModalOpen} activeTab={activeTab} editingIndex={editingIndex} formData={formData} setFormData={setFormData} onClose={() => setFormModalOpen(false)} onSave={saveModalForm} onFileUpload={handleFileUpload} />
+      {/* Banners in a custom section reuse the hero banner form verbatim. */}
+      <CmsFormModal isOpen={formModalOpen} activeTab={editingBannerSectionId ? "hero" : activeTab} editingIndex={editingIndex} formData={formData} setFormData={setFormData} onClose={() => setFormModalOpen(false)} onSave={saveModalForm} onFileUpload={handleFileUpload} />
       <CmsViewModal isOpen={viewModalOpen} viewData={viewData} onClose={() => setViewModalOpen(false)} />
       <CmsDeleteModal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} />
       <CmsSeedModal isOpen={seedModalOpen} isSeeding={isSeeding} onClose={() => setSeedModalOpen(false)} onConfirm={handleTriggerSeed} />

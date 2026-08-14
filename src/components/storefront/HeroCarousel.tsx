@@ -3,18 +3,59 @@
 import * as React from "react";
 import Image, { getImageProps } from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Volume2, VolumeX, Pause, Play } from "lucide-react";
 import { m, LazyMotion, domAnimation, AnimatePresence } from "framer-motion";
 import { BannerSlide } from "@/components/admin/cms/types";
 
 interface HeroCarouselProps {
   slides: BannerSlide[];
+  /**
+   * Heading tag for a slide's overlay title.
+   *
+   * The hero is the page's <h1>. Every other banner section must drop to <h2> — multiple
+   * <h1>s on one page is an accessibility violation and an SEO smell, and becomes possible
+   * as soon as an admin adds a second banner section.
+   */
+  headingLevel?: "h1" | "h2" | "h3";
+  /**
+   * CMS preview mode: no navigation on click, no autoplay, no LCP priority.
+   * Editing a banner should never navigate the admin away from the editor.
+   */
+  previewMode?: boolean;
+  /** Carousel autoplay. Ignored in preview mode and under prefers-reduced-motion. */
+  autoplay?: boolean;
+  /**
+   * Whether this carousel may claim LCP priority. Only the first banner of the first
+   * section on the page should; everything else stays lazy.
+   */
+  eager?: boolean;
 }
 
-export function HeroCarousel({ slides }: HeroCarouselProps) {
+export function HeroCarousel({
+  slides,
+  headingLevel = "h1",
+  previewMode = false,
+  autoplay = true,
+  eager = true,
+}: HeroCarouselProps) {
   const router = useRouter();
   const [current, setCurrent] = React.useState(0);
   const [direction, setDirection] = React.useState(1);
+  /** User-controlled pause. WCAG 2.2.2 requires a way to stop auto-updating content. */
+  const [isPaused, setIsPaused] = React.useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false);
+
+  const HeadingTag = headingLevel;
+
+  React.useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  const autoplayEnabled = autoplay && !previewMode && !prefersReducedMotion && !isPaused;
 
   // Performance Controls: Video Element & Viewport Observers
   const sectionRef = React.useRef<HTMLElement>(null);
@@ -105,13 +146,14 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
 
   // Auto-slide Timer (Autoplay when visible in UI, pause on hover)
   React.useEffect(() => {
+    if (!autoplayEnabled) return;
     if (!slides || slides.length <= 1 || isHovered || !isIntersecting || !isTabVisible) return;
     const timer = setInterval(() => {
       setDirection(1);
       setCurrent((prev) => (prev + 1) % slides.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, [slides, isHovered, isIntersecting, isTabVisible]);
+  }, [slides, isHovered, isIntersecting, isTabVisible, autoplayEnabled]);
 
   // Viewport IntersectionObserver to pause video when off-screen
   React.useEffect(() => {
@@ -168,6 +210,9 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   };
 
   const handleBannerClick = (url: string) => {
+    // In the CMS preview the admin is editing this banner — navigating away would lose
+    // their work and is never what they meant by clicking it.
+    if (previewMode) return;
     if (!url) return;
     if (url.startsWith("http://") || url.startsWith("https://")) {
       window.location.href = url;
@@ -183,8 +228,11 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   const hasMobileImg = isMobile && !!currentSlide?.mobileImageUrl;
   const activeKey = `${current}-${hasMobileImg ? "mobile" : "desktop"}`;
   const naturalRatio = aspectRatios[activeKey];
+  // An admin-supplied ratio lets the very first paint reserve the right box, instead of
+  // measuring after load and animating aspect-ratio into place (a visible CLS hit).
+  const authoredRatio = hasMobileImg ? currentSlide?.mobileAspectRatio : currentSlide?.aspectRatio;
   const fallbackRatio = isMobile ? (hasMobileImg ? 1.0 : 1.77) : 2.5;
-  const activeRatio = naturalRatio || fallbackRatio;
+  const activeRatio = authoredRatio || naturalRatio || fallbackRatio;
 
   const variants = {
     enter: (dir: number) => ({
@@ -203,10 +251,14 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
 
   // Prepare Art Direction Image Props
   const hasMobileSpecificImg = !!currentSlide?.mobileImageUrl;
+  // Only an eager, non-preview carousel may claim LCP priority. A page with several
+  // banner sections must not preload the first image of every one of them.
+  const claimsPriority = eager && !previewMode && current === 0;
+
   const commonImgProps = {
     alt: currentSlide?.altText || "FlexSell Wholesale Banner",
     fill: true,
-    priority: current === 0,
+    priority: claimsPriority,
     sizes: "100vw",
     className: "object-contain w-full h-full",
   };
@@ -232,7 +284,15 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
         aspectRatio: activeRatio ? `${activeRatio}` : undefined
       }}
       className="relative w-full overflow-hidden group select-none bg-background flex items-center justify-center transition-[aspect-ratio] duration-500 ease-in-out"
+      aria-roledescription="carousel"
+      aria-label={slides.length > 1 ? `Promotional banners, ${slides.length} slides` : "Promotional banner"}
     >
+      {/* Announces slide changes to screen readers, which otherwise get no signal that
+          the visible content was swapped underneath them. */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {slides.length > 1 ? `Slide ${current + 1} of ${slides.length}: ${currentSlide?.altText || currentSlide?.overlayTitle || "Banner"}` : ""}
+      </div>
+
       <LazyMotion features={domAnimation}>
         <AnimatePresence initial={false} custom={direction}>
           <m.div
@@ -260,6 +320,8 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           }}
           onClick={() => handleBannerClick(currentSlide.redirectUrl || "/products")}
           className="absolute inset-0 w-full h-full cursor-pointer flex items-center justify-center"
+          aria-roledescription="slide"
+          aria-label={`Slide ${current + 1} of ${slides.length}`}
         >
           {/* VIDEO BANNER SLIDE */}
           {isVideo ? (
@@ -320,10 +382,10 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                   <source media="(max-width: 639px)" srcSet={mobileSrcSet} />
                 )}
                 <source media="(min-width: 640px)" srcSet={desktopSrcSet} />
-                <img 
-                  src={dSrc} 
+                <img
+                  src={dSrc}
                   {...restDesktopProps}
-                  fetchPriority={current === 0 ? "high" : "auto"}
+                  fetchPriority={claimsPriority ? "high" : "auto"}
                   ref={(el) => {
                     if (el && el.complete && el.naturalWidth) {
                       handleImageLoad(current, el);
@@ -337,12 +399,12 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
 
           {/* Dynamic Gradient & Glassmorphism Text Overlay */}
           {(currentSlide.overlayTitle || currentSlide.overlaySubtitle || currentSlide.ctaText) && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end sm:items-center p-4 sm:p-12 md:p-16 z-20 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent flex items-end sm:items-center p-4 sm:p-12 md:p-16 z-20 pointer-events-none">
               <div className="max-w-2xl space-y-2 sm:space-y-3 pointer-events-auto">
                 {currentSlide.overlayTitle && (
-                  <h1 className="text-lg sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-md leading-tight">
+                  <HeadingTag className="text-lg sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-md leading-tight">
                     {currentSlide.overlayTitle}
-                  </h1>
+                  </HeadingTag>
                 )}
                 {currentSlide.overlaySubtitle && (
                   <p className="text-[11px] sm:text-base md:text-lg text-white/90 font-medium line-clamp-2 drop-shadow">
@@ -370,6 +432,19 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       </AnimatePresence>
       </LazyMotion>
 
+      {/* Keyboard-reachable link to the current slide's destination.
+          The slide itself is a <div> (framer-motion drag target), which is not focusable
+          and cannot be actioned from the keyboard. This gives keyboard and screen-reader
+          users the same destination, and gives crawlers a real <a href>. */}
+      {!previewMode && currentSlide?.redirectUrl && (
+        <a
+          href={currentSlide.redirectUrl}
+          className="absolute left-4 bottom-4 z-40 px-3 py-1.5 rounded-lg bg-black/70 text-white text-xs font-bold border border-white/20 opacity-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white pointer-events-none focus-visible:pointer-events-auto"
+        >
+          Go to {currentSlide.overlayTitle || currentSlide.altText || "banner destination"}
+        </a>
+      )}
+
       {/* Nav Arrow Controls (Only when > 1 slide) */}
       {slides.length > 1 && (
         <>
@@ -379,7 +454,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               e.stopPropagation();
               prevSlide();
             }}
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 sm:p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 sm:p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
             aria-label="Previous Slide"
           >
             <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6" />
@@ -390,11 +465,27 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               e.stopPropagation();
               nextSlide();
             }}
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 sm:p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 sm:p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all z-30 cursor-pointer hover:scale-110 border border-white/20"
             aria-label="Next Slide"
           >
             <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6" />
           </button>
+
+          {/* Pause/play. WCAG 2.2.2: content that auto-updates for more than 5s must offer
+              a way to stop it. Hidden entirely when autoplay is already off. */}
+          {autoplay && !previewMode && !prefersReducedMotion && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPaused((p) => !p);
+              }}
+              className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-30 p-2 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/20 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all cursor-pointer"
+              aria-label={isPaused ? "Resume banner rotation" : "Pause banner rotation"}
+            >
+              {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+            </button>
+          )}
 
           {/* Bullet Indicators */}
           <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-30 bg-black/40 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/10">

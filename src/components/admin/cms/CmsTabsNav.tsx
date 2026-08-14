@@ -68,7 +68,10 @@ export function CmsTabsNav({ activeTab, onSelectTab }: CmsTabsNavProps) {
         activeTab === "testimonials_wholesale" ||
         activeTab === "testimonials_dropship" ||
         activeTab === "testimonials_client" ||
-        activeTab === "partners"
+        activeTab === "partners" ||
+        activeTab === "homepage_layout" ||
+        activeTab === "homepage_location" ||
+        activeTab === "homepage_seo"
       );
     }
     return activeTab === tabId;
