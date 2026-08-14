@@ -23,7 +23,10 @@ import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 import { rateLimit } from "@/lib/rateLimit";
 import { runInTransaction } from "@/lib/transactionHelper";
 import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
+import { actorLabel, buildHistoryEvent } from "@/lib/orderHistory";
+import type { HistoryActor } from "@/types";
 import { escapeRegex } from "@/lib/utils";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import {
   computeOrderTaxDetails,
   computeExpectedOrderTotal,
@@ -267,13 +270,19 @@ export async function GET(request: Request) {
 
     const query = andConditions.length > 0 ? { $and: andConditions } : {};
 
+    // Staff-only history fields are projected away **in the query** for customers, not
+    // filtered in a component. A component that forgets to redact would leak the name of
+    // the admin or manager who handled the order; a missing field cannot leak.
+    const isStaffViewer = payload.role === "admin" || payload.role === "manager";
+    const historyProjection = isStaffViewer ? "" : "-history.internalNote -history.actor";
+
     if (page && limit) {
       const pageNum = parseInt(page, 10) || 1;
       const limitNum = parseInt(limit, 10) || 20;
       const skip = (pageNum - 1) * limitNum;
 
       const [rawOrders, total] = await Promise.all([
-        Order.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
+        Order.find(query).select(historyProjection).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
         Order.countDocuments(query)
       ]);
 
@@ -287,7 +296,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const rawOrders = await Order.find(query).sort({ createdAt: -1 }).limit(100).lean();
+    const rawOrders = await Order.find(query).select(historyProjection).sort({ createdAt: -1 }).limit(100).lean();
     const orders = await Promise.all(rawOrders.map((doc) => resolveOrderCreatedBy(doc)));
     return NextResponse.json(orders);
   } catch (error: unknown) {
@@ -595,13 +604,9 @@ export async function POST(request: Request) {
         throw err;
       }
 
-      const orderDate = new Date().toLocaleDateString("en-US", {
-        month: "short", day: "2-digit", year: "numeric"
-      });
+      const orderDate = formatDateIST(new Date());
 
-      const orderTime = new Date().toLocaleString("en-US", {
-        month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
-      });
+      const orderTime = formatDateTimeIST(new Date());
 
       const customerName = `${shippingAddress.firstName} ${shippingAddress.lastName}${shippingAddress.company ? ` (${shippingAddress.company})` : ""
         }`;
@@ -728,6 +733,15 @@ export async function POST(request: Request) {
         };
       }
 
+      // `resolvedCreatedBy` already carries the session-derived { role, name, userId } —
+      // reuse it rather than re-deriving, so the order's creator and its first history
+      // entry can never disagree about who placed it.
+      const placedActor: HistoryActor = {
+        role: (resolvedCreatedBy?.role as HistoryActor["role"]) || "System",
+        name: resolvedCreatedBy?.name || "System",
+        userId: resolvedCreatedBy?.userId,
+      };
+
       let createdOrder: any = null;
       let createdDoc: any = null;
 
@@ -757,13 +771,14 @@ export async function POST(request: Request) {
           origin,
           createdBy: resolvedCreatedBy,
           history: [
-            {
+            buildHistoryEvent({
               status: "Placed",
-              timestamp: orderTime,
-              description: pStatus === "Paid"
-                ? `Wholesale order generated successfully. Payment recorded by admin (Txn ID: ${pTransactionId || "N/A"}).`
-                : "Wholesale order generated successfully. Payment pending verification."
-            }
+              actor: placedActor,
+              customerNote: "Order placed successfully.",
+              internalNote: pStatus === "Paid"
+                ? `Order created via ${origin} by ${actorLabel(placedActor)}. Payment recorded (Txn ID: ${pTransactionId || "N/A"}).`
+                : `Order created via ${origin} by ${actorLabel(placedActor)}. Payment pending verification.`,
+            })
           ]
         });
         await orderInstance.save({ session });
@@ -771,9 +786,7 @@ export async function POST(request: Request) {
 
         // Create Invoice / Receipt document — reuses the sellerInfo/taxDetails computed
         // above so the invoice can never disagree with the order it documents.
-        const generatedAt = new Date().toLocaleDateString("en-IN", {
-          day: "2-digit", month: "long", year: "numeric",
-        });
+        const generatedAt = formatDateIST(new Date());
 
         let defaultDocStatus = "paid";
         if (docType === "receipt") {

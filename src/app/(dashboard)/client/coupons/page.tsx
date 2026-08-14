@@ -7,6 +7,7 @@ import { useToastStore } from "@/stores/toastStore";
 import { Ticket, Copy, Check, Calendar, AlertCircle } from "lucide-react";
 import { Coupon } from "@/types";
 import { couponService } from "@/services/couponService";
+import { formatDateIST } from "@/lib/datetime";
 
 export default function ClientCouponsPage() {
   const { addToast } = useToastStore();
@@ -96,7 +97,7 @@ export default function ClientCouponsPage() {
 
                   <div className="flex items-center justify-between gap-2 border-t pt-2 mt-2">
                     <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5" /> Exp: {new Date(coupon.expiryDate).toLocaleDateString()}
+                      <Calendar className="h-3.5 w-3.5" /> Exp: {formatDateIST(new Date(coupon.expiryDate))}
                     </span>
                     <Button 
                       size="sm" 

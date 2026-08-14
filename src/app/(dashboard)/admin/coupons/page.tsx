@@ -1,4 +1,5 @@
 "use client";
+import { formatDateIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -284,7 +285,7 @@ export default function AdminCouponsPage() {
                         <td className="px-6 py-4 text-muted-foreground font-semibold flex items-center gap-1 mt-1.5 border-none">
                           <Calendar className="h-3.5 w-3.5" />
                           <span className={isExpired ? "text-red-500 font-bold" : ""}>
-                            {new Date(coupon.expiryDate).toLocaleDateString()} {isExpired && "(Expired)"}
+                            {formatDateIST(new Date(coupon.expiryDate))} {isExpired && "(Expired)"}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">

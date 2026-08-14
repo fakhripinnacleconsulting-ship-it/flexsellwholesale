@@ -1,3 +1,4 @@
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { Order, ShipmentDetails, CartItem, Invoice } from "@/types";
 import { apiClient, isMockMode } from "@/lib/apiClient";
 import { generateNextClientMockId } from "@/lib/idGenerator";
@@ -214,7 +215,7 @@ export const orderService = {
           email: "support@flexsellwholesale.com",
           phone: "+91 261 2409000"
         },
-        generatedAt: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+        generatedAt: formatDateIST(new Date()),
         generatedBy: "admin",
         status: docType === "invoice" ? "paid" : "pending",
         salesperson
@@ -242,7 +243,7 @@ export const orderService = {
 
       const newOrder: Order = {
         _id: id,
-        date: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+        date: formatDateIST(new Date()),
         amount,
         status: "Processing",
         statusClass: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-400",
@@ -262,7 +263,7 @@ export const orderService = {
         history: [
           {
             status: "Placed",
-            timestamp: new Date().toLocaleString("en-US"),
+            timestamp: formatDateTimeIST(new Date()),
             description: paymentDetails?.paymentStatus === "Paid"
               ? `Wholesale order generated successfully. Online Payment verified (Txn ID: ${paymentDetails.transactionId}).`
               : "Wholesale order generated successfully. Payment pending verification."
@@ -323,7 +324,7 @@ export const orderService = {
         history: [
           {
             status,
-            timestamp: new Date().toLocaleString("en-US"),
+            timestamp: formatDateTimeIST(new Date()),
             description: `Order status updated to ${status}.`
           },
           ...match.history
@@ -367,7 +368,7 @@ export const orderService = {
         history: [
           {
             status: "Shipped",
-            timestamp: new Date().toLocaleString("en-US"),
+            timestamp: formatDateTimeIST(new Date()),
             description: `Order dispatched via ${shipmentDetails.type === "self" ? "Self Shipment" : shipmentDetails.carrierName} with Tracking ID: ${shipmentDetails.trackingId}`
           },
           ...match.history
@@ -410,7 +411,7 @@ export const orderService = {
         history: [
           {
             status: "Cancelled",
-            timestamp: new Date().toLocaleString("en-US"),
+            timestamp: formatDateTimeIST(new Date()),
             description: `Order cancelled by user.`
           },
           ...match.history

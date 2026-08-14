@@ -1,3 +1,4 @@
+import { formatDateIST } from "@/lib/datetime";
 import * as React from "react";
 import Link from "next/link";
 import dbConnect from "@/lib/dbConnect";
@@ -143,7 +144,7 @@ export default async function BlogsPage({
                 {featuredBlog.publishedAt && (
                   <span className="text-muted-foreground flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
-                    {new Date(featuredBlog.publishedAt).toLocaleDateString()}
+                    {formatDateIST(new Date(featuredBlog.publishedAt))}
                   </span>
                 )}
               </div>
@@ -223,7 +224,7 @@ export default async function BlogsPage({
                     {blog.publishedAt && (
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {new Date(blog.publishedAt).toLocaleDateString()}
+                        {formatDateIST(new Date(blog.publishedAt))}
                       </span>
                     )}
                   </div>

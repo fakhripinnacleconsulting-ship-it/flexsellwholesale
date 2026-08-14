@@ -1,4 +1,5 @@
 "use client";
+import { formatDateIST } from "@/lib/datetime";
 
 import * as React from "react";
 import Link from "next/link";
@@ -148,7 +149,7 @@ export default function ClientReviewsPage() {
                         ))}
                       </div>
                       <span className="text-muted-foreground">•</span>
-                      <span className="text-muted-foreground">Reviewed on {new Date(rev.createdAt).toLocaleDateString()}</span>
+                      <span className="text-muted-foreground">Reviewed on {formatDateIST(new Date(rev.createdAt))}</span>
                     </div>
                   </div>
                   <div>{getStatusBadge(rev.status)}</div>

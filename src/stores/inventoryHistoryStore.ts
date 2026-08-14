@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { apiClient } from "@/lib/apiClient";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 export interface StockLog {
   _id: string;
@@ -44,7 +45,7 @@ export const useInventoryHistoryStore = create<InventoryHistoryState>()((set) =>
     try {
       const payload = {
         ...logData,
-        timestamp: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        timestamp: formatDateTimeIST(new Date()),
       };
       
       const newLog = await apiClient.post<StockLog>("/inventory/ledger", payload);
@@ -55,7 +56,7 @@ export const useInventoryHistoryStore = create<InventoryHistoryState>()((set) =>
       const newLog: StockLog = {
         ...logData,
         _id: Math.random().toString(36).substring(2, 11),
-        timestamp: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        timestamp: formatDateTimeIST(new Date()),
       };
       set((state) => ({ logs: [newLog, ...state.logs] }));
     }

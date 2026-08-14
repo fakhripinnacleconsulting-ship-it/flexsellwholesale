@@ -1,4 +1,5 @@
 import { Order } from "@/stores/orderStore";
+import { formatDateIST } from "@/lib/datetime";
 
 export async function exportOrdersToExcel(orders: Order[]) {
   const ExcelJS = (await import("exceljs")).default;
@@ -180,7 +181,7 @@ export async function exportOrdersToExcel(orders: Order[]) {
 
     ws.addRow({
       _id: order._id,
-      createdAt: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : order.date || "",
+      createdAt: order.createdAt ? formatDateIST(new Date(order.createdAt)) : order.date || "",
       orderType: order.orderType || "B2B",
       status: order.status || "Processing",
       origin: originStr,

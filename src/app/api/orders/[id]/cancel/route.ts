@@ -3,6 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
+import { buildHistoryEvent, orderStatusNotes, resolveActor } from "@/lib/orderHistory";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { ORDER_STATUS_CLASSES, CUSTOMER_CANCELLABLE_STATUSES } from "@/lib/constants";
 import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
@@ -30,9 +31,13 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
+    // Held outside the branch so the history entry can name the manager who cancelled.
+    let managerName: string | undefined;
+
     if (payload.role === "manager") {
       const access = await verifyManagerOrderAccess(payload, order);
       if (access.error) return access.error;
+      managerName = access.manager?.name;
     } else if (payload.role !== "admin") {
       const isOwner = order.customerId === payload.userId || order.shippingAddress?.email?.toLowerCase() === payload.email.toLowerCase();
       if (!isOwner) {
@@ -57,6 +62,15 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
     // same order (a double-click, or a retry racing the abandoned-order reaper) both passed
     // the checks above and both credited the stock back — inventory grew out of thin air.
     // Conditioning the update on a still-cancellable status makes exactly one caller win.
+    // Actor is taken from the verified session. A customer cancelling their own order must
+    // never be able to have it recorded as an administrator's action.
+    const cancelActor = resolveActor(payload, managerName ?? order.customerName);
+    const cancelEvent = buildHistoryEvent({
+      status: "Cancelled",
+      actor: cancelActor,
+      ...orderStatusNotes("Cancelled", cancelActor),
+    });
+
     // Filter is untyped because the Order model declares `_id` as a string while Mongoose's
     // FilterQuery generic expects an ObjectId here.
     const claimed = await Order.findOneAndUpdate(
@@ -68,13 +82,7 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
         },
         $push: {
           history: {
-            $each: [{
-              status: "Cancelled",
-              timestamp: new Date().toLocaleString("en-US", {
-                month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
-              }),
-              description: payload.role === "admin" ? "Order cancelled by administrator." : "Order cancelled by customer.",
-            }],
+            $each: [cancelEvent],
             $position: 0,
           },
         },

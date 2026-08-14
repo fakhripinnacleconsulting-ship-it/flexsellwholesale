@@ -33,11 +33,48 @@ const ShipmentDetailsSchema = new Schema({
   shiprocket: { type: ShiprocketOrderSchema },
 });
 
+/**
+ * One step of the fulfilment stepper.
+ *
+ * `timestamp` and `description` are the legacy fields. They are kept (and still written)
+ * so historical orders keep rendering during and after rollout, but nothing new should
+ * read them when the modern fields are present.
+ *
+ * Why the split into two notes: the customer must only ever be told that FlexSell
+ * Wholesale handled the step, while staff need to know *which* staff member did it.
+ * Storing both, rather than redacting one at render time, means the customer endpoint can
+ * project the internal text away in the query — a component that forgets to redact can
+ * then never leak a staff name.
+ */
 const HistoryEventSchema = new Schema({
   status: { type: String, required: true },
-  timestamp: { type: String, required: true },
-  description: { type: String, required: true },
-});
+
+  /** Legacy pre-formatted display string. Written in UTC with a US format — do not add more. */
+  timestamp: { type: String },
+  /** Legacy single description. Superseded by customerNote / internalNote. */
+  description: { type: String },
+
+  /**
+   * The real instant. Everything new writes this; display formatting happens at the edge
+   * in Asia/Kolkata via lib/datetime.ts.
+   */
+  at: { type: Date },
+
+  /** Customer-safe text. Never contains a staff name. */
+  customerNote: { type: String },
+  /** Staff-only text. Names the admin or manager who performed the step. */
+  internalNote: { type: String },
+
+  /**
+   * Who performed the step. Always derived from the session server-side — never accepted
+   * from the request body, or a customer could post an event claiming to be an admin.
+   */
+  actor: {
+    userId: { type: String },
+    name: { type: String },
+    role: { type: String, enum: ["Admin", "Manager", "Customer", "System"] },
+  },
+}, { _id: false });
 
 const OrderSchema = new Schema<OrderType & Document>(
   {

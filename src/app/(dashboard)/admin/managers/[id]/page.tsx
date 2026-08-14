@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/apiClient";
 import { formatPrice } from "@/lib/utils";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { ExecutiveKpiCard } from "@/components/managers/ExecutiveKpiCard";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import {
   ArrowLeft, Shield, Users, ShoppingBag, FileText,
   Clock, Activity, Package, Briefcase,
@@ -242,11 +243,11 @@ export default function AdminManagerDetailPage({ params }: PageProps) {
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-muted-foreground">Account Created:</span>
-                <span>{new Date(manager.createdAt).toLocaleDateString()}</span>
+                <span>{formatDateIST(new Date(manager.createdAt))}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Last Session Login:</span>
-                <span className="font-mono">{manager.lastLogin ? new Date(manager.lastLogin).toLocaleString() : "Never"}</span>
+                <span className="font-mono">{manager.lastLogin ? formatDateTimeIST(new Date(manager.lastLogin)) : "Never"}</span>
               </div>
             </CardContent>
           </Card>
@@ -314,7 +315,7 @@ export default function AdminManagerDetailPage({ params }: PageProps) {
                             {o.status}
                           </span>
                         </td>
-                        <td className="p-3 text-right text-muted-foreground">{o.date || new Date(o.createdAt).toLocaleDateString()}</td>
+                        <td className="p-3 text-right text-muted-foreground">{o.date || formatDateIST(new Date(o.createdAt))}</td>
                       </tr>
                     ))
                   )}
@@ -380,7 +381,7 @@ export default function AdminManagerDetailPage({ params }: PageProps) {
                             {inv.status}
                           </span>
                         </td>
-                        <td className="p-3 text-right text-muted-foreground">{inv.generatedAt || new Date(inv.createdAt).toLocaleDateString()}</td>
+                        <td className="p-3 text-right text-muted-foreground">{inv.generatedAt || formatDateIST(new Date(inv.createdAt))}</td>
                       </tr>
                     ))
                   )}
@@ -498,7 +499,7 @@ export default function AdminManagerDetailPage({ params }: PageProps) {
                         <td className="p-3 font-bold">{st.productTitle || st.productName || "Product"}</td>
                         <td className="p-3 uppercase text-[10px] font-bold">{st.action || st.type || "Update"}</td>
                         <td className="p-3 font-mono font-bold">{st.quantityDelta || st.quantity || 0}</td>
-                        <td className="p-3 text-right text-muted-foreground">{new Date(st.createdAt).toLocaleString()}</td>
+                        <td className="p-3 text-right text-muted-foreground">{formatDateTimeIST(new Date(st.createdAt))}</td>
                       </tr>
                     ))
                   )}
@@ -577,10 +578,10 @@ export default function AdminManagerDetailPage({ params }: PageProps) {
                         <tr key={index} className="hover:bg-secondary/10 transition-colors">
                           <td className="p-3 font-mono text-muted-foreground">{absoluteIndex}</td>
                           <td className="p-3 font-mono font-semibold text-foreground">
-                            {loginDate.toLocaleString()}
+                            {formatDateTimeIST(loginDate)}
                           </td>
                           <td className="p-3 font-mono text-muted-foreground">
-                            {logoutDate ? logoutDate.toLocaleString() : <span className="text-emerald-600 font-bold">● Active Now</span>}
+                            {logoutDate ? formatDateTimeIST(logoutDate) : <span className="text-emerald-600 font-bold">● Active Now</span>}
                           </td>
                           <td className="p-3 font-bold">{durationStr}</td>
                           <td className="p-3 text-right">

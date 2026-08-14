@@ -1,3 +1,4 @@
+import { formatDateIST } from "@/lib/datetime";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
@@ -127,9 +128,7 @@ async function syncMissingInvoicesForOrders() {
       // Parse generated date from order.date or fallback to current date
       let parsedDate = order.date;
       if (!parsedDate || parsedDate === "N/A") {
-        parsedDate = new Date().toLocaleDateString("en-IN", {
-          day: "2-digit", month: "long", year: "numeric",
-        });
+        parsedDate = formatDateIST(new Date());
       }
 
       const customerDoc = await Customer.findOne({ email: order.shippingAddress.email.toLowerCase() }).select("_id customerTypes").lean() as any;
@@ -481,11 +480,7 @@ export async function POST(request: Request) {
     const sellerInfo = await getSellerInfo();
     const invoiceId = await generateInvoiceId(type);
 
-    const generatedAt = new Date().toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
+    const generatedAt = formatDateIST(new Date());
 
     let defaultStatus = "paid";
     if (type === "quote") {
@@ -596,11 +591,7 @@ export async function POST(request: Request) {
     // If it's a receipt or order created directly, auto-create the order
     if ((type === "receipt" || isOrder) && !linkedOrderId) {
       linkedOrderId = await generateNextId("order");
-      const orderDate = new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
+      const orderDate = formatDateIST(new Date());
       await Order.create({
         _id: linkedOrderId,
         date: orderDate,

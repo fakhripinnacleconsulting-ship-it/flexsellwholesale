@@ -1,4 +1,5 @@
 "use client";
+import { formatDateIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { createPortal } from "react-dom";
@@ -388,11 +389,7 @@ export function B2BCatalogPrintModal({
 
   if (!isOpen || !mounted) return null;
 
-  const formattedDate = new Date().toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const formattedDate = formatDateIST(new Date());
 
   const handlePrint = (e: React.MouseEvent) => {
     e.preventDefault();

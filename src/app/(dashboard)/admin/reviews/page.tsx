@@ -1,4 +1,5 @@
 "use client";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 
 import * as React from "react";
 import Link from "next/link";
@@ -313,7 +314,7 @@ export default function AdminReviewsPage() {
                             <span>{rev.customerName || "Anonymous B2B Client"}</span>
                           </div>
                           <div className="text-[11px] text-muted-foreground pl-5">
-                            {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : "N/A"}
+                            {rev.createdAt ? formatDateIST(new Date(rev.createdAt)) : "N/A"}
                           </div>
                         </div>
                       </td>
@@ -492,7 +493,7 @@ export default function AdminReviewsPage() {
                   {getStatusBadge(selectedReviewForView.status)}
                 </div>
                 <p className="text-muted-foreground text-xs mt-0.5">
-                  Submitted on {selectedReviewForView.createdAt ? new Date(selectedReviewForView.createdAt).toLocaleString() : "N/A"}
+                  Submitted on {selectedReviewForView.createdAt ? formatDateTimeIST(new Date(selectedReviewForView.createdAt)) : "N/A"}
                 </p>
               </div>
               <button

@@ -1,4 +1,5 @@
 "use client";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { Mail, Phone, Building2, Save } from "lucide-react";
@@ -65,7 +66,7 @@ export function InquiryDetailsModal({ isOpen, onClose, onSuccess, inquiry }: Inq
           <div>
             <h3 className="text-xl font-bold tracking-tight">{inquiry.subject}</h3>
             <p className="text-muted-foreground text-xs mt-1">
-              Submitted on {new Date(inquiry.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              Submitted on {formatDateTimeIST(new Date(inquiry.createdAt))}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>

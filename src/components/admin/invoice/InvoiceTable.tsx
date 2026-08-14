@@ -1,4 +1,5 @@
 "use client";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -119,13 +120,7 @@ export function InvoiceTable({
                       </span>
                     </td>
                     <td className="p-4 text-muted-foreground">
-                      {new Date(inv.generatedAt).toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
+                      {formatDateTimeIST(new Date(inv.generatedAt))}
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">

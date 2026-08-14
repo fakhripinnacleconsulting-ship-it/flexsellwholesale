@@ -5,6 +5,7 @@ import Product from "@/models/Product";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 import { revalidateProductStock } from "@/lib/revalidate";
+import { buildHistoryEvent, SYSTEM_ACTOR } from "@/lib/orderHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -81,13 +82,12 @@ async function sweepAbandonedOrders(request: Request) {
           $set: { status: "Cancelled", statusClass: ORDER_STATUS_CLASSES.Cancelled },
           $push: {
             history: {
-              $each: [{
+              $each: [buildHistoryEvent({
                 status: "Cancelled",
-                timestamp: new Date().toLocaleString("en-US", {
-                  month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-                }),
-                description: `Auto-cancelled: online payment not completed within ${ABANDON_AFTER_MINUTES} minutes. Stock returned.`,
-              }],
+                actor: SYSTEM_ACTOR,
+                customerNote: "Order cancelled — payment was not completed in time.",
+                internalNote: `Auto-cancelled by system after ${ABANDON_AFTER_MINUTES} minutes without payment. Stock returned.`,
+              })],
               $position: 0,
             },
           },

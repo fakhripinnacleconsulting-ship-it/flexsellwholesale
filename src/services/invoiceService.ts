@@ -1,3 +1,4 @@
+import { formatDateIST } from "@/lib/datetime";
 import { Invoice, Order } from "@/types";
 import { apiClient, isMockMode } from "@/lib/apiClient";
 import { generateNextClientMockId } from "@/lib/idGenerator";
@@ -368,7 +369,7 @@ export const invoiceService = {
           phone: "+91 261 2409000"
         },
         notes: data.notes,
-        generatedAt: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+        generatedAt: formatDateIST(new Date()),
         generatedBy: "admin",
         status: (data.status || defaultStatus) as Invoice["status"],
         salesperson: data.salesperson

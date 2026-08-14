@@ -8,8 +8,10 @@ import CmsContent from "@/models/CmsContent";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
+import { buildHistoryEvent, SYSTEM_ACTOR } from "@/lib/orderHistory";
 import { rateLimit } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
+import { formatDateIST } from "@/lib/datetime";
 
 async function getSellerInfo() {
   const brandCms = await CmsContent.findOne({ key: "brandSettings" }).lean();
@@ -128,17 +130,9 @@ export async function POST(request: Request) {
     const invoiceId = await generateNextId("receipt");
     const orderId = await generateNextId("order");
 
-    const generatedAt = new Date().toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
+    const generatedAt = formatDateIST(new Date());
 
-    const orderDate = new Date().toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    const orderDate = formatDateIST(new Date());
 
     let resolvedCreatedBy: any = { role: "System", name: "System" };
     if (payload.role === "admin") {
@@ -256,11 +250,14 @@ export async function POST(request: Request) {
       salesperson: salesperson || undefined,
       dropshipDetails,
       createdBy: resolvedCreatedBy,
-      history: [{
-        status: "Processing",
-        description: "Dropshipping order created via Public Portal.",
-        timestamp: new Date().toISOString()
-      }]
+      history: [
+        buildHistoryEvent({
+          status: "Processing",
+          actor: SYSTEM_ACTOR,
+          customerNote: "Order received and is being prepared for dispatch.",
+          internalNote: "Dropshipping order created via Public Portal.",
+        })
+      ]
     } as any);
 
     revalidateAdminDashboard();

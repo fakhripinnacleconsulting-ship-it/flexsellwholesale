@@ -1,3 +1,4 @@
+import { formatDateTimeIST } from "@/lib/datetime";
 import crypto from "crypto";
 
 /**
@@ -102,9 +103,7 @@ export async function settleOrderPayment(params: {
   order.transactionId = params.razorpayPaymentId;
   order.history.unshift({
     status: order.status,
-    timestamp: new Date().toLocaleString("en-US", {
-      month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-    }),
+    timestamp: formatDateTimeIST(new Date()),
     description: `Online payment verified via Razorpay (${params.source}). Txn ID: ${params.razorpayPaymentId}`,
   });
   await order.save();

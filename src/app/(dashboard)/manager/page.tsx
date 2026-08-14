@@ -11,6 +11,7 @@ import { formatPrice } from "@/lib/utils";
 import { apiClient } from "@/lib/apiClient";
 import { ExecutiveKpiCard } from "@/components/managers/ExecutiveKpiCard";
 import { CreatedByBadge } from "@/components/common/CreatedByBadge";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import {
   Shield,
   Clock,
@@ -144,7 +145,7 @@ export default function ManagerDashboardOverview() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-emerald-400" />
-                  Joined {new Date(manager.createdAt).toLocaleDateString()}
+                  Joined {formatDateIST(new Date(manager.createdAt))}
                 </span>
               </div>
             </div>
@@ -216,9 +217,7 @@ export default function ManagerDashboardOverview() {
               </span>
               <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                {manager.lastLogin ? new Date(manager.lastLogin).toLocaleString("en-IN", {
-                  day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
-                }) : "First Active Session"}
+                {manager.lastLogin ? formatDateTimeIST(new Date(manager.lastLogin)) : "First Active Session"}
               </span>
             </div>
 

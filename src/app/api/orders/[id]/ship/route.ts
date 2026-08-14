@@ -3,6 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Customer from "@/models/Customer";
 import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
+import { buildHistoryEvent, orderStatusNotes, resolveActor } from "@/lib/orderHistory";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 
@@ -27,23 +28,21 @@ export async function PUT(
     const access = await verifyManagerOrderAccess(payload, order);
     if (access.error) return access.error;
 
-    const timestamp = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-
-    const carrierInfo = shipmentDetails.type === "self" 
-      ? "local transport (Self)" 
+    const carrierInfo = shipmentDetails.type === "self"
+      ? "local transport (Self)"
       : `${shipmentDetails.carrierName} courier`;
 
-    const newEvent = {
+    // Customers are told FlexSell Wholesale shipped it; staff see who dispatched it and
+    // through which carrier.
+    const shipActor = resolveActor(payload, access.manager?.name);
+    const newEvent = buildHistoryEvent({
       status: "Shipped",
-      timestamp,
-      description: `Shipment dispatched and handed over to ${carrierInfo}. Tracking ID: ${shipmentDetails.trackingId}`
-    };
+      actor: shipActor,
+      ...orderStatusNotes("Shipped", shipActor, {
+        carrier: carrierInfo,
+        trackingId: shipmentDetails.trackingId,
+      }),
+    });
 
     order.status = "Shipped";
     order.statusClass = ORDER_STATUS_CLASSES["Shipped"];

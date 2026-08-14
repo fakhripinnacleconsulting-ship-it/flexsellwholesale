@@ -1,4 +1,5 @@
 "use client";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -137,7 +138,7 @@ export default function ClientNotificationsPage() {
                     <p className="text-xs text-muted-foreground leading-relaxed">{notif.message}</p>
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-[10px] text-muted-foreground">
-                        {notif.createdAt ? new Date(notif.createdAt).toLocaleString("en-IN") : ""}
+                        {notif.createdAt ? formatDateTimeIST(new Date(notif.createdAt)) : ""}
                       </span>
                       <div className="flex items-center gap-2">
                         {notif.link && <ExternalLink className="h-3 w-3 text-muted-foreground" />}

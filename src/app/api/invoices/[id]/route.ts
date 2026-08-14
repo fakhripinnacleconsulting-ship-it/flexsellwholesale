@@ -1,3 +1,4 @@
+import { formatDateTimeIST } from "@/lib/datetime";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
@@ -259,7 +260,7 @@ export async function DELETE(
           history: {
             $each: [{
               status: "Receipt Deleted",
-              timestamp: new Date().toLocaleString("en-IN"),
+              timestamp: formatDateTimeIST(new Date()),
               description: `Receipt ${id} was deleted by Admin. Payment status remains Pending.`
             }],
             $position: 0

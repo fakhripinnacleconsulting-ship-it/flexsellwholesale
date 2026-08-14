@@ -130,10 +130,25 @@ export interface CartItem {
   priceTier?: "B2C" | "B2B" | "Dropshipping";
 }
 
+export interface HistoryActor {
+  userId?: string;
+  name?: string;
+  role?: "Admin" | "Manager" | "Customer" | "System";
+}
+
 export interface HistoryEvent {
   status: string;
-  timestamp: string;
-  description: string;
+  /** @deprecated Legacy pre-formatted display string. Read `at` and format via lib/datetime.ts. */
+  timestamp?: string;
+  /** @deprecated Legacy single description. Read `customerNote` / `internalNote`. */
+  description?: string;
+  /** Real instant for this step. Format for display in IST, never store formatted text. */
+  at?: string | Date;
+  /** Customer-safe text — never names a staff member. */
+  customerNote?: string;
+  /** Staff-only text — names the admin or manager who acted. Projected away for customers. */
+  internalNote?: string;
+  actor?: HistoryActor;
 }
 
 export interface ShiprocketOrderDetails {

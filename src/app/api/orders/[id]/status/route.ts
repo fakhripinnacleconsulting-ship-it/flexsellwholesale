@@ -6,6 +6,7 @@ import InvoiceModel from "@/models/Invoice";
 import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
+import { buildHistoryEvent, orderStatusNotes, resolveActor } from "@/lib/orderHistory";
 
 export async function PUT(
   request: NextRequest,
@@ -32,26 +33,15 @@ export async function PUT(
     const access = await verifyManagerOrderAccess(payload, order);
     if (access.error) return access.error;
 
-    let description = `Order status updated to ${status}.`;
-    if (status === "Processing") {
-      description = "Order packaging and B2B validation completed.";
-    } else if (status === "Delivered") {
-      description = "Order delivered safely to customer dock.";
-    } else if (status === "Cancelled") {
-      description = "Order has been cancelled by administrator.";
-    }
+    // The actor comes from the verified session, never from the request body — otherwise a
+    // caller could label their own action as an administrator's.
+    const actor = resolveActor(payload, access.manager?.name);
+    const notes = orderStatusNotes(status, actor, {
+      carrier: order.shipmentDetails?.carrierName,
+      trackingId: order.shipmentDetails?.trackingId,
+    });
 
-    const newEvent = {
-      status,
-      timestamp: new Date().toLocaleString("en-US", {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      }),
-      description
-    };
+    const newEvent = buildHistoryEvent({ status, actor, ...notes });
 
     order.status = status;
     order.statusClass = ORDER_STATUS_CLASSES[status as keyof typeof ORDER_STATUS_CLASSES];
@@ -113,7 +103,9 @@ export async function PUT(
     const targetCustomerId = (await Customer.findOne({ email: order.shippingAddress.email.toLowerCase() }).select("_id"))?._id || "";
     dispatchWebhook("order.status_updated", order, targetCustomerId, {
       title: `Order Status Updated: ${status}`,
-      message: `Your wholesale order ${order._id} status has been updated to ${status}. Description: ${description}`,
+      // Customer-facing message, so it uses the customer-safe note — never the internal
+      // one, which names the admin or manager who acted.
+      message: `Your wholesale order ${order._id} status has been updated to ${status}. ${notes.customerNote}`,
       type: status === "Cancelled" ? "warning" : status === "Delivered" ? "success" : "info"
     }).catch(console.error);
 

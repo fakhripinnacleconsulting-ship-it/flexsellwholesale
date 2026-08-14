@@ -96,7 +96,10 @@ export async function requireAdminOrManagerAuth(permission?: string): Promise<{
 export async function verifyManagerOrderAccess(
   payload: AuthenticatedRequestState,
   order: { orderType?: string; [key: string]: unknown } | null | undefined
-): Promise<{ allowed: boolean; error?: NextResponse }> {
+  // `manager` is returned so callers can attribute order-history entries to the person who
+  // acted. The manager document is already loaded here for the permission check, so this
+  // costs nothing and saves every caller a second lookup.
+): Promise<{ allowed: boolean; error?: NextResponse; manager?: { id?: string; name?: string } }> {
   if (payload.role === "admin") {
     return { allowed: true };
   }
@@ -142,7 +145,10 @@ export async function verifyManagerOrderAccess(
       };
     }
 
-    return { allowed: true };
+    return {
+      allowed: true,
+      manager: { id: String(managerDoc._id), name: (managerDoc as { name?: string }).name },
+    };
   }
 
   return {

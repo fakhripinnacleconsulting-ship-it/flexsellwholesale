@@ -1,4 +1,5 @@
 "use client";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { Search, Filter, Mail, Phone, Building2, Calendar, Tag, CheckCircle2, Clock, AlertCircle, Trash2, Save, MessageSquarePlus } from "lucide-react";
@@ -232,7 +233,7 @@ export function AdminInquiriesManager({ initialCategory = "all" }: { initialCate
                         <span className="font-semibold text-foreground">{inq.firstName} {inq.lastName}</span>
                         <span>• {inq.email}</span>
                         {inq.company && <span>• {inq.company}</span>}
-                        <span>• {new Date(inq.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                        <span>• {formatDateTimeIST(new Date(inq.createdAt))}</span>
                       </p>
                     </div>
 

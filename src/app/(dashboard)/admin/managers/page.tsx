@@ -1,4 +1,5 @@
 "use client";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -480,10 +481,10 @@ export default function AdminManagersPage() {
                         })()}
                       </td>
                       <td className="px-6 py-4 text-center text-xs text-muted-foreground">
-                        {mgr.lastLogin ? new Date(mgr.lastLogin).toLocaleString() : "Never"}
+                        {mgr.lastLogin ? formatDateTimeIST(new Date(mgr.lastLogin)) : "Never"}
                       </td>
                       <td className="px-6 py-4 text-center text-xs text-muted-foreground">
-                        {mgr.lastLogout ? new Date(mgr.lastLogout).toLocaleString() : "Never"}
+                        {mgr.lastLogout ? formatDateTimeIST(new Date(mgr.lastLogout)) : "Never"}
                       </td>
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">

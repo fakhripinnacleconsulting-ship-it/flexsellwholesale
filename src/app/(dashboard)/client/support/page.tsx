@@ -1,4 +1,5 @@
 "use client";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -177,7 +178,7 @@ export default function ClientSupportPage() {
                       <span className="font-bold text-primary">Support Team:</span> <span className="text-muted-foreground italic">{t.adminNotes}</span>
                     </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground">{new Date(t.createdAt).toLocaleString("en-IN")}</p>
+                  <p className="text-[10px] text-muted-foreground">{formatDateTimeIST(new Date(t.createdAt))}</p>
                 </div>
               ))
             )}

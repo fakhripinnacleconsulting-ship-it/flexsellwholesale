@@ -14,6 +14,8 @@ import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
 import { formatPrice } from "@/lib/utils";
+import { formatDateTimeIST } from "@/lib/datetime";
+import { OrderFulfillmentStepper } from "@/components/storefront/OrderFulfillmentStepper";
 import { Pagination } from "@/components/ui/Pagination";
 import { ViewDetailsDialog } from "@/components/ui/ViewDetailsDialog";
 
@@ -271,7 +273,7 @@ export function ClientOrdersView() {
                             <p className="font-bold truncate">{truncateString(order._id, 20)}</p>
                             <p className="text-xs text-muted-foreground mt-1">{order.itemsCount} items</p>
                           </td>
-                          <td className="px-6 py-4 text-muted-foreground">{order.date}</td>
+                          <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{formatDateTimeIST((order as any).createdAt ?? order.date)}</td>
                           <td className="px-6 py-4 font-bold">{formatPrice(order.amount)}</td>
                           <td className="px-6 py-4">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${order.statusClass}`}>
@@ -331,9 +333,12 @@ export function ClientOrdersView() {
         isOpen={selectedOrder !== null}
         onClose={() => setSelectedOrder(null)}
         title="Order Details"
+        // Customers get a fulfilment timeline for the first time here. It renders the
+        // customer-safe notes only — and the API has already stripped the internal ones.
+        footer={<OrderFulfillmentStepper history={selectedOrder?.history} variant="customer" />}
         data={selectedOrder ? {
           "Order ID": selectedOrder._id,
-          "Date": selectedOrder.date,
+          "Date": formatDateTimeIST((selectedOrder as any).createdAt ?? selectedOrder.date),
           "Status": selectedOrder.status,
           "Total Amount": formatPrice(selectedOrder.amount),
           "Payment Method": selectedOrder.paymentMethod || "N/A",

@@ -4,15 +4,18 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { formatDateTimeIST, toDate } from "@/lib/datetime";
 
 interface ViewDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   data: Record<string, any>;
+  /** Extra content rendered below the key/value grid — e.g. an order's fulfilment stepper. */
+  footer?: React.ReactNode;
 }
 
-export function ViewDetailsDialog({ isOpen, onClose, title, data }: ViewDetailsDialogProps) {
+export function ViewDetailsDialog({ isOpen, onClose, title, data, footer }: ViewDetailsDialogProps) {
   // Prevent body scroll when open
   React.useEffect(() => {
     if (isOpen) {
@@ -37,27 +40,13 @@ export function ViewDetailsDialog({ isOpen, onClose, title, data }: ViewDetailsD
         return <a href={val} target="_blank" rel="noreferrer" className="text-primary hover:underline text-xs break-all">{val}</a>;
       }
       
-      // Date formatting for ISO strings
+      // Date formatting. Routed through the shared IST helpers — this used to format in
+      // en-US with no timeZone, so it rendered the server's UTC clock in US date order.
       const isDateKey = key.toLowerCase().includes("date") || key === "createdAt" || key === "updatedAt";
       const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
       if (isDateKey || isoRegex.test(val)) {
-        const dateObj = new Date(val);
-        if (!isNaN(dateObj.getTime())) {
-          return (
-            <span className="font-medium whitespace-nowrap">
-              {dateObj.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-              })} 
-              <span className="text-muted-foreground ml-1">
-                {dateObj.toLocaleTimeString('en-US', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
-              </span>
-            </span>
-          );
+        if (toDate(val)) {
+          return <span className="font-medium whitespace-nowrap">{formatDateTimeIST(val)}</span>;
         }
       }
     }
@@ -105,6 +94,8 @@ export function ViewDetailsDialog({ isOpen, onClose, title, data }: ViewDetailsD
                   </div>
                 ))}
               </div>
+
+              {footer && <div className="mt-6 pt-5 border-t border-border">{footer}</div>}
             </div>
 
             <div className="px-6 py-4 border-t border-border bg-secondary/10 flex justify-end">

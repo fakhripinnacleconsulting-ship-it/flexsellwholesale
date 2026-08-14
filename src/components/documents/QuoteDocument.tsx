@@ -3,6 +3,7 @@
 import * as React from "react";
 import { InvoiceDocument } from "./InvoiceDocument";
 import { CartItem, TaxBreakdown, SellerInfo } from "@/types";
+import { formatDateIST } from "@/lib/datetime";
 
 export interface QuoteDocumentProps {
   quoteId: string;
@@ -34,7 +35,7 @@ export function QuoteDocument({
       documentNumber={quoteId}
       order={{
         _id: quoteId,
-        date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
+        date: formatDateIST(new Date()),
         amount: grandTotal,
         customerName: "Wholesale Buyer",
         shippingAddress: {

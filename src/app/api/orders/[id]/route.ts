@@ -3,6 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import { requireAuth, requireAdminOrManagerAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
+import { actorLabel, buildHistoryEvent, resolveActor } from "@/lib/orderHistory";
 import Manager from "@/models/Manager";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
@@ -24,7 +25,12 @@ export async function GET(request: NextRequest, { params }: RouteProps) {
     const resolvedParams = await params;
     const { id } = resolvedParams;
 
-    const order = await Order.findById(id).lean();
+    // Same rule as the list endpoint: staff-only history fields never leave the database
+    // for a customer, so no component downstream can accidentally render a staff name.
+    const isStaffViewer = payload.role === "admin" || payload.role === "manager";
+    const order = await Order.findById(id)
+      .select(isStaffViewer ? "" : "-history.internalNote -history.actor")
+      .lean();
     if (!order) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
@@ -198,18 +204,17 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
     }
     if (status !== undefined) order.status = status;
 
-    // Log the edit action in history
-    order.history.unshift({
-      status: order.status,
-      timestamp: new Date().toLocaleString("en-US", {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      }),
-      description: "Order items, quantities or shipping address modified by Administrator."
-    });
+    // Log the edit action in history. The internal note names whoever actually made the
+    // edit — previously this said "by Administrator" even when a manager did it.
+    const editActor = resolveActor(auth.payload!, access.manager?.name);
+    order.history.unshift(
+      buildHistoryEvent({
+        status: order.status,
+        actor: editActor,
+        customerNote: "Your order details were updated by FlexSell Wholesale.",
+        internalNote: `Order items, quantities or shipping address modified by ${actorLabel(editActor)}.`,
+      })
+    );
 
     await order.save();
     revalidateAdminDashboard();

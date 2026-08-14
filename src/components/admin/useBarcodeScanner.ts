@@ -1,4 +1,5 @@
 "use client";
+import { formatTimeIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { Product, ColorVariant, SubVariant } from "@/types";
@@ -131,7 +132,7 @@ export function useBarcodeScanner(
       setScanInput(res.subVariant.sku);
 
       const newItem: ScanHistoryItem = {
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: formatTimeIST(new Date()),
         sku: res.subVariant.sku,
         productTitle: res.product.title,
         variantDetails: `${res.colorVariant.color} - ${res.subVariant.size || "Std"} / ${res.subVariant.weight || "250g"}`,

@@ -5,6 +5,7 @@ import Product from "@/models/Product";
 import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
+import { buildHistoryEvent, SYSTEM_ACTOR } from "@/lib/orderHistory";
 
 export async function POST(request: Request) {
   try {
@@ -62,13 +63,12 @@ export async function POST(request: Request) {
         },
         $push: {
           history: {
-            $each: [{
+            $each: [buildHistoryEvent({
               status: "Cancelled",
-              timestamp: new Date().toLocaleString("en-US", {
-                month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-              }),
-              description: "Order cancelled: Online payment window closed without completing payment. Stock restored.",
-            }],
+              actor: SYSTEM_ACTOR,
+              customerNote: "Order cancelled — the payment window closed before payment completed.",
+              internalNote: "Auto-cancelled by system: online payment window closed without completing payment. Stock restored.",
+            })],
             $position: 0,
           },
         },

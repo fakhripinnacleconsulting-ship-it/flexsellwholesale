@@ -1,3 +1,4 @@
+import { formatDateIST } from "@/lib/datetime";
 import { SystemEventPayload } from "./eventDispatcher";
 
 const NOTIFICATIONS_STORAGE_KEY = "flexsell-notifications-storage";
@@ -308,7 +309,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
             html: `<h2>New Coupon Available!</h2>
                    <p>Use code <strong>${data?.code}</strong> to get ${data?.discountType === "percentage" ? data?.discountValue + "%" : "₹" + data?.discountValue} off on your next order!</p>
                    ${data?.minOrderValue ? `<p>Minimum order value: ₹${data?.minOrderValue}</p>` : ""}
-                   <p>Valid until: ${new Date(data?.expiryDate || Date.now()).toLocaleDateString()}</p>`,
+                   <p>Valid until: ${formatDateIST(new Date(data?.expiryDate || Date.now()))}</p>`,
             category: "marketing",
           });
         }

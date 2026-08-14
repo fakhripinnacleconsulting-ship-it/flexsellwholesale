@@ -1,3 +1,4 @@
+import { formatDateIST } from "@/lib/datetime";
 import * as React from "react";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
@@ -238,11 +239,11 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
     for (let i = diffDays; i >= 0; i--) {
       const d = new Date(endDateObj);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const dateStr = formatDateIST(d);
       chartDataMap[dateStr] = 0;
     }
     for (const o of ordersInPeriod as any[]) {
-      const dateStr = new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const dateStr = formatDateIST(new Date(o.createdAt));
       if (chartDataMap[dateStr] !== undefined) chartDataMap[dateStr] += o.amount;
     }
     revenueTrend = Object.keys(chartDataMap).map((date) => ({ date, revenue: chartDataMap[date] }));

@@ -1,4 +1,5 @@
 "use client";
+import { formatDateIST } from "@/lib/datetime";
 
 import * as React from "react";
 import Link from "next/link";
@@ -221,7 +222,7 @@ export default function OrderConfirmationPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wider">Order Date</span>
-                  <span className="font-semibold text-foreground">{order.date || (order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "")}</span>
+                  <span className="font-semibold text-foreground">{order.date || (order.createdAt ? formatDateIST(new Date(order.createdAt)) : "")}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-xs uppercase font-bold tracking-wider">Payment Status</span>

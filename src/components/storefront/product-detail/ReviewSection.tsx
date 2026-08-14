@@ -1,4 +1,5 @@
 "use client";
+import { formatDateIST } from "@/lib/datetime";
 
 import * as React from "react";
 import Link from "next/link";
@@ -74,7 +75,7 @@ export function ReviewSection() {
                     <div>
                       <span className="font-bold text-xs">{rev.customerName}</span>
                       <span className="text-[10px] text-muted-foreground ml-2">
-                        {new Date(rev.createdAt).toLocaleDateString()}
+                        {formatDateIST(new Date(rev.createdAt))}
                       </span>
                     </div>
                     <div className="flex items-center gap-0.5">

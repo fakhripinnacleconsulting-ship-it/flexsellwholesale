@@ -1,4 +1,5 @@
 "use client";
+import { formatDateIST } from "@/lib/datetime";
 
 import * as React from "react";
 import { Edit3, Trash2, BookOpen, ExternalLink, Calendar, User, Search, Clock } from "lucide-react";
@@ -141,7 +142,7 @@ export function BlogsTab({ blogs, onEdit, onDelete }: BlogsTabProps) {
                       {blog.publishedAt && (
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(blog.publishedAt).toLocaleDateString()}
+                          {formatDateIST(new Date(blog.publishedAt))}
                         </span>
                       )}
                     </div>

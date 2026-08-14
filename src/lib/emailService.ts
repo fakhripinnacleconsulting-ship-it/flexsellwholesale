@@ -1,3 +1,4 @@
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import nodemailer from "nodemailer";
 
 export interface EmailAttachment {
@@ -121,7 +122,7 @@ export function buildValidPdfBuffer(data: any, typeLabel: string): Buffer {
   const addressObj = data.shippingAddress || {};
   const customerAddress = (addressObj.address ? `${addressObj.address}, ${addressObj.city || ''}, ${addressObj.state || ''} - ${addressObj.pinCode || ''}` : (data.address || "N/A")).replace(/[()\\]/g, "");
   const customerGstin = (data.gstin || addressObj.gstin || "N/A").replace(/[()\\]/g, "");
-  const dateStr = new Date(data.createdAt || Date.now()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const dateStr = formatDateIST(new Date(data.createdAt || Date.now()));
   const amount = Number(data.amount || data.total || 0);
   const paymentStatus = (data.paymentStatus || "Paid / Recorded").replace(/[()\\]/g, "");
 
@@ -272,7 +273,7 @@ export function generateDocumentAttachments(data: any, typeLabel: string): Email
   const addressObj = data.shippingAddress || {};
   const customerAddress = addressObj.address ? `${addressObj.address}, ${addressObj.city || ''}, ${addressObj.state || ''} - ${addressObj.pinCode || ''}` : (data.address || "N/A");
   const customerGstin = data.gstin || addressObj.gstin || "N/A";
-  const dateStr = new Date(data.createdAt || Date.now()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const dateStr = formatDateIST(new Date(data.createdAt || Date.now()));
   const amount = Number(data.amount || data.total || 0);
 
   const items: any[] = data.items || [];
@@ -717,7 +718,7 @@ export const emailService = {
           <ul>
             <li><strong>Manager:</strong> ${managerName}</li>
             <li><strong>Attempted Action/Route:</strong> ${attemptedAction} ${route ? `(${route})` : ""}</li>
-            <li><strong>Timestamp:</strong> ${new Date().toLocaleString()}</li>
+            <li><strong>Timestamp:</strong> ${formatDateTimeIST(new Date())}</li>
           </ul>
           <p>This action was automatically blocked by the RBAC guard.</p>
         </div>
@@ -1104,7 +1105,7 @@ export const emailService = {
 
           <ul style="font-size: 14px; color: #475569; padding-left: 20px; margin-bottom: 24px;">
             ${coupon.minOrderValue ? `<li>Minimum Order Value: <strong>₹${Number(coupon.minOrderValue).toLocaleString("en-IN")}</strong></li>` : ""}
-            ${coupon.expiryDate ? `<li>Valid Until: <strong>${new Date(coupon.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</strong></li>` : ""}
+            ${coupon.expiryDate ? `<li>Valid Until: <strong>${formatDateIST(new Date(coupon.expiryDate))}</strong></li>` : ""}
           </ul>
         </div>
         ${renderStandardEmailFooter("Promotional Offer")}
