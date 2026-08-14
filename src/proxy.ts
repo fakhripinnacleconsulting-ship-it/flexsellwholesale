@@ -34,7 +34,6 @@ export async function proxy(request: NextRequest) {
     CSRF_EXEMPT_AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`)) ||
     pathname.startsWith("/api/csrf") ||
     pathname.startsWith("/api/system-diagnostics") ||
-    pathname.startsWith("/api/shiprocket/webhook") ||
     pathname.startsWith("/api/razorpay/webhook") ||
     pathname.startsWith("/api/customers/upload-document") ||
     pathname.startsWith("/api/upload");

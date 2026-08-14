@@ -1,4 +1,5 @@
 "use client";
+import { formatDateIST } from "@/lib/datetime";
 
 import * as React from "react";
 import Image from "next/image";
@@ -227,7 +228,6 @@ export function InvoiceDocument({
     const trackingCode =
       shipmentDetails?.awbNumber ||
       order.shipmentDetails?.trackingId ||
-      order.shipmentDetails?.shiprocket?.awbCode ||
       (documentNumber && documentNumber !== order._id ? documentNumber : `AWB-${order._id}`);
     const carrierTitle = shipmentDetails?.carrierName || order.shipmentDetails?.carrierName || "FLEXSELL IN-HOUSE TRANSPORT DISPATCH";
     const totalWeightGrams = itemsList.reduce((acc: number, item: any) => {
@@ -238,8 +238,8 @@ export function InvoiceDocument({
     const totalUnitsCount = itemsList.reduce((a: number, c: any) => a + (c.quantity || 1), 0);
 
     const formattedDate = order.date
-      ? new Date(order.date).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase()
-      : new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase();
+      ? formatDateIST(new Date(order.date)).toUpperCase()
+      : formatDateIST(new Date()).toUpperCase();
 
     const uploadedLabelUrl = order.shipmentDetails?.uploadShippingLabel || (shipmentDetails as any)?.uploadShippingLabel;
 
@@ -547,7 +547,7 @@ export function InvoiceDocument({
               {isShippingLabel ? "AWB" : isQuote ? "Quote" : isInvoice ? "Invoice" : "Receipt"} #: {documentNumber || order._id}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Date: {order.date || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}
+              Date: {order.date || formatDateIST(new Date())}
             </p>
             {isQuote && (
               <p className="text-[10px] text-amber-600 font-semibold mt-0.5">

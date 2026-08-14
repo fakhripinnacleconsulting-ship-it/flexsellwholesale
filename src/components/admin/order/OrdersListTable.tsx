@@ -9,6 +9,7 @@ import { Search, Eye, FileText } from "lucide-react";
 import { Order } from "@/stores/orderStore";
 import { useDraggableScroll } from "@/hooks/useDraggableScroll";
 import { formatPrice } from "@/lib/utils";
+import { formatDateTimeIST } from "@/lib/datetime";
 import { CreatedByBadge } from "@/components/common/CreatedByBadge";
 import { ShippingLabelDocument } from "@/components/documents/ShippingLabelDocument";
 import { useAuthStore } from "@/stores/authStore";
@@ -294,7 +295,7 @@ export function OrdersListTable({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-xs text-muted-foreground">{order.date}</td>
+                    <td className="px-6 py-4 text-xs text-muted-foreground whitespace-nowrap">{formatDateTimeIST((order as any).createdAt ?? order.date)}</td>
                     <td className="px-6 py-4 font-semibold text-foreground max-w-[200px] truncate" title={order.customerName}>
                       {truncateString(order.customerName, 40)}
                     </td>
@@ -331,16 +332,6 @@ export function OrdersListTable({
                             size="sm"
                             variant="outline"
                             onClick={async () => {
-                              if (order.shipmentDetails?.type === "shiprocket") {
-                                try {
-                                  const res = await fetch(`/api/shiprocket/label/${order._id}`);
-                                  const data = await res.json();
-                                  if (data.labelUrl) {
-                                    window.open(data.labelUrl, "_blank");
-                                    return;
-                                  }
-                                } catch {}
-                              }
                               setSelectedLabelOrder(order);
                             }}
                             className="flex items-center gap-1 h-8 text-xs cursor-pointer font-semibold border-primary/30 text-primary hover:bg-primary/10"

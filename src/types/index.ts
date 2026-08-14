@@ -151,27 +151,8 @@ export interface HistoryEvent {
   actor?: HistoryActor;
 }
 
-export interface ShiprocketOrderDetails {
-  orderId?: number;
-  shipmentId?: number;
-  awbCode?: string;
-  courierId?: number;
-  courierName?: string;
-  labelUrl?: string;
-  manifestUrl?: string;
-  pickupScheduledDate?: string;
-  pickupTokenNumber?: string;
-  currentStatus?: string;
-  currentStatusCode?: number;
-  etd?: string;
-  trackingUrl?: string;
-  fulfillmentStep?: string;
-  failedAt?: string | null;
-  failureReason?: string | null;
-}
-
 export interface ShipmentDetails {
-  type: "self" | "third-party" | "shiprocket";
+  type: "self" | "third-party";
   carrierName?: string;
   trackingId: string;
   trackingUrl?: string;
@@ -180,7 +161,6 @@ export interface ShipmentDetails {
   estimatedDelivery?: string;
   notes?: string;
   uploadShippingLabel?: string;
-  shiprocket?: ShiprocketOrderDetails;
 }
 
 export interface CreatedByInfo {
@@ -480,23 +460,6 @@ export interface ShippingWeightSlab {
   amount: number;
 }
 
-export interface ShiprocketConfig {
-  enabled?: boolean;
-  email?: string;
-  password?: string;
-  webhookToken?: string;
-  channelId?: string;
-  pickupAddress?: {
-    name?: string;
-    phone?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    pinCode?: string;
-    country?: string;
-  };
-}
-
 export interface ShippingConfig {
   _id?: string;
   weightSlabs: ShippingWeightSlab[];
@@ -504,7 +467,6 @@ export interface ShippingConfig {
   dropshippingFixedCharge?: number;
   packagingCharge?: number;
   packagingChargeType?: "per_unit" | "per_order";
-  shiprocket?: ShiprocketConfig;
   updatedAt?: string;
 }
 

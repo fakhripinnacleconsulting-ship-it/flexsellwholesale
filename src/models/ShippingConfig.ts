@@ -7,23 +7,6 @@ const WeightSlabSchema = new Schema({
   amount: { type: Number, required: true },
 }, { _id: true });
 
-const ShiprocketConfigSchema = new Schema({
-  enabled: { type: Boolean, default: false },
-  email: { type: String, default: "" },
-  password: { type: String, default: "" },
-  webhookToken: { type: String, default: "" },
-  channelId: { type: String, default: "" },
-  pickupAddress: {
-    name: { type: String, default: "" },
-    phone: { type: String, default: "" },
-    address: { type: String, default: "" },
-    city: { type: String, default: "" },
-    state: { type: String, default: "" },
-    pinCode: { type: String, default: "" },
-    country: { type: String, default: "India" },
-  },
-}, { _id: false });
-
 const ShippingConfigSchema = new Schema<ShippingConfigType & Document>(
   {
     _id: { type: String, default: "shipping-config" },
@@ -32,7 +15,6 @@ const ShippingConfigSchema = new Schema<ShippingConfigType & Document>(
     dropshippingFixedCharge: { type: Number, default: 0 },
     packagingCharge: { type: Number, default: 0 },
     packagingChargeType: { type: String, enum: ["per_unit", "per_order"], default: "per_unit" },
-    shiprocket: { type: ShiprocketConfigSchema, default: () => ({}) },
   },
   { timestamps: true }
 );

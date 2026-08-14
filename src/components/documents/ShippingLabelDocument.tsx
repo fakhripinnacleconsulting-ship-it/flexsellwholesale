@@ -41,7 +41,7 @@ export function ShippingLabelDocument({ order, sellerInfo: propSellerInfo, onClo
     carrierName: "FlexSell In-House Transport",
   };
 
-  const awbCode = shipment.shiprocket?.awbCode || shipment.trackingId || order._id;
+  const awbCode = shipment.trackingId || order._id;
 
   const handlePrint = () => {
     triggerPrintWithTitle("Shipping_Label", awbCode, order.customerName);

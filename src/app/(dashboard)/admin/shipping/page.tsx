@@ -5,11 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/stores/toastStore";
-import { Trash2, Plus, Scale, Truck, Save, Rocket, CheckCircle2, XCircle, Copy, Check, RefreshCw, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, Scale, Truck, Save } from "lucide-react";
 import { shippingService } from "@/services/shippingService";
-import { shiprocketService } from "@/services/shiprocketService";
 import { ShippingWeightSlab } from "@/types";
-import { ShiprocketTable } from "@/components/admin/shiprocket/ShiprocketTable";
 
 export default function AdminShippingPage() {
   const { addToast } = useToastStore();
@@ -18,36 +16,12 @@ export default function AdminShippingPage() {
   const [b2bFixedCharge, setB2bFixedCharge] = React.useState(150);
   const [dropshippingFixedCharge, setDropshippingFixedCharge] = React.useState(80);
   const [slabs, setSlabs] = React.useState<ShippingWeightSlab[]>([]);
-  const [activeTab, setActiveTab] = React.useState<"weight" | "b2b" | "shiprocket">("weight");
+  const [activeTab, setActiveTab] = React.useState<"weight" | "b2b">("weight");
 
   // Add slab form states
   const [newFromGram, setNewFromGram] = React.useState("");
   const [newUptoGram, setNewUptoGram] = React.useState("");
   const [newAmount, setNewAmount] = React.useState("");
-
-  // Shiprocket states
-  const [srEnabled, setSrEnabled] = React.useState(false);
-  const [srEmail, setSrEmail] = React.useState("");
-  const [srPassword, setSrPassword] = React.useState("");
-  const [srWebhookToken, setSrWebhookToken] = React.useState("");
-  const [srChannelId, setSrChannelId] = React.useState("");
-  const [pickupName, setPickupName] = React.useState("");
-  const [pickupPhone, setPickupPhone] = React.useState("");
-  const [pickupAddress, setPickupAddress] = React.useState("");
-  const [pickupCity, setPickupCity] = React.useState("");
-  const [pickupState, setPickupState] = React.useState("");
-  const [pickupPinCode, setPickupPinCode] = React.useState("");
-
-  // Test connection states [UPDATED-6]
-  const [isTesting, setIsTesting] = React.useState(false);
-  const [testResult, setTestResult] = React.useState<{
-    authOk?: boolean;
-    channelOk?: boolean;
-    channelConfigured?: boolean;
-    pickupOk?: boolean;
-    error?: string | null;
-  } | null>(null);
-  const [copiedWebhook, setCopiedWebhook] = React.useState(false);
 
   React.useEffect(() => {
     shippingService.getConfig()
@@ -56,22 +30,6 @@ export default function AdminShippingPage() {
           setB2bFixedCharge(config.b2bFixedCharge ?? 150);
           setDropshippingFixedCharge(config.dropshippingFixedCharge ?? 80);
           setSlabs(config.weightSlabs || []);
-
-          if (config.shiprocket) {
-            setSrEnabled(Boolean(config.shiprocket.enabled));
-            setSrEmail(config.shiprocket.email || "");
-            setSrPassword(config.shiprocket.password || "");
-            setSrWebhookToken(config.shiprocket.webhookToken || "");
-            setSrChannelId(config.shiprocket.channelId || "");
-
-            const pa = config.shiprocket.pickupAddress || {};
-            setPickupName(pa.name || "");
-            setPickupPhone(pa.phone || "");
-            setPickupAddress(pa.address || "");
-            setPickupCity(pa.city || "");
-            setPickupState(pa.state || "");
-            setPickupPinCode(pa.pinCode || "");
-          }
         }
       })
       .catch((err) => {
@@ -131,92 +89,19 @@ export default function AdminShippingPage() {
     addToast("Shipping slab removed. Remember to save changes.", "info");
   };
 
-  const handleTestConnection = async () => {
-    setIsTesting(true);
-    setTestResult(null);
-    try {
-      const res: any = await shiprocketService.testConnection({ pickupPinCode });
-      setTestResult(res);
-      if (res.authOk && res.channelOk && res.pickupOk) {
-        addToast("Shiprocket connection test passed successfully!", "success");
-      } else {
-        addToast(res.error || "Shiprocket connection test failed.", "error");
-      }
-    } catch (err: any) {
-      setTestResult({
-        authOk: false,
-        channelOk: false,
-        pickupOk: false,
-        error: err.message || "Connection test request failed."
-      });
-      addToast(err.message || "Connection test failed", "error");
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
     try {
       await shippingService.updateConfig({
         weightSlabs: slabs,
         b2bFixedCharge: Number(b2bFixedCharge),
-        dropshippingFixedCharge: Number(dropshippingFixedCharge),
-        shiprocket: {
-          enabled: srEnabled,
-          email: srEmail,
-          password: srPassword,
-          webhookToken: srWebhookToken,
-          channelId: srChannelId,
-          pickupAddress: {
-            name: pickupName,
-            phone: pickupPhone,
-            address: pickupAddress,
-            city: pickupCity,
-            state: pickupState,
-            pinCode: pickupPinCode,
-            country: "India",
-          }
-        }
-      } as any);
+        dropshippingFixedCharge: Number(dropshippingFixedCharge)      } as any);
       addToast("Shipping configuration updated successfully!", "success");
     } catch (err: any) {
       addToast(err.message || "Failed to save shipping settings", "error");
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const originUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-
-  const webhookEndpoints = [
-    {
-      id: "current",
-      label: "Current Active Environment",
-      badge: "Current Origin",
-      url: `${originUrl}/api/shiprocket/webhook`,
-    },
-    {
-      id: "production",
-      label: "Production Primary Domain",
-      badge: "flexsellwholesale.com",
-      url: "https://flexsellwholesale.com/api/shiprocket/webhook",
-    },
-    {
-      id: "vercel",
-      label: "Vercel Cloud Deployment",
-      badge: "flexsell.vercel.app",
-      url: "https://flexsell.vercel.app/api/shiprocket/webhook",
-    },
-  ];
-
-  const [copiedId, setCopiedId] = React.useState<string | null>(null);
-
-  const copyEndpointUrl = (url: string, id: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-    addToast("Webhook listener URL copied to clipboard!", "info");
   };
 
   if (isLoading) {
@@ -228,7 +113,7 @@ export default function AdminShippingPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Shipping Configuration</h1>
-          <p className="text-muted-foreground mt-1">Configure shipping rates and Shiprocket API logistics integration.</p>
+          <p className="text-muted-foreground mt-1">Configure weight-based and B2B shipping rates.</p>
         </div>
         <Button onClick={handleSave} disabled={isSaving} className="font-bold flex items-center gap-2 cursor-pointer">
           <Save className="h-4 w-4" /> {isSaving ? "Saving..." : "Save Configuration"}
@@ -254,17 +139,7 @@ export default function AdminShippingPage() {
             }`}
         >
           B2B Order Shipping
-        </button>
-        <button
-          onClick={() => setActiveTab("shiprocket")}
-          className={`pb-3 transition-all border-b-2 -mb-[2px] cursor-pointer flex items-center gap-1.5 ${activeTab === "shiprocket"
-            ? "border-primary text-primary"
-            : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-        >
-          <Rocket className="h-4 w-4" /> Shiprocket Integration
-        </button>
-      </div>
+        </button>      </div>
 
       <div>
         {activeTab === "weight" ? (
@@ -379,226 +254,7 @@ export default function AdminShippingPage() {
               </div>
             </CardContent>
           </Card>
-        ) : (
-          /* SHIPROCKET TAB */
-          <div className="space-y-6">
-            {/* Live Shiprocket Logistical Operations Table */}
-            <ShiprocketTable />
-
-            <Card className="border border-border space-y-6">
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-lg font-bold flex items-center gap-2">
-                      <Rocket className="h-5 w-5 text-primary" /> Shiprocket Automated Logistics
-                    </CardTitle>
-                    <CardDescription>Enable automated order creation, AWB assignment and live tracking via Shiprocket API.</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button onClick={handleSave} disabled={isSaving} className="font-bold flex items-center gap-2 cursor-pointer bg-primary text-primary-foreground">
-                      <Save className="h-4 w-4" /> {isSaving ? "Saving..." : "Save Shiprocket Settings"}
-                    </Button>
-                    <div className="flex items-center gap-2 bg-secondary/20 px-3 py-1.5 rounded-lg border">
-                      <span className="text-xs font-bold">{srEnabled ? "ENABLED" : "DISABLED"}</span>
-                      <input
-                        type="checkbox"
-                        checked={srEnabled}
-                        onChange={(e) => setSrEnabled(e.target.checked)}
-                        className="h-5 w-5 text-primary rounded cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-6">
-                {/* Credentials sub-form */}
-                <div className="space-y-4 border p-4 rounded-xl bg-card">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary">1. Shiprocket API Credentials</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Account Email *</label>
-                      <Input
-                        type="email"
-                        placeholder="e.g. shiprocket@flexsellwholesale.com"
-                        value={srEmail}
-                        onChange={(e) => setSrEmail(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Account Password * [Encrypted AES-256-GCM]</label>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        value={srPassword}
-                        onChange={(e) => setSrPassword(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Channel ID (Optional)</label>
-                      <Input
-                        placeholder="e.g. 102938"
-                        value={srChannelId}
-                        onChange={(e) => setSrChannelId(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Webhook Verification Token (Optional)</label>
-                      <Input
-                        placeholder="e.g. secret-webhook-token"
-                        value={srWebhookToken}
-                        onChange={(e) => setSrWebhookToken(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pickup Address sub-form */}
-                <div className="space-y-4 border p-4 rounded-xl bg-card">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-primary">2. Origin Pickup Address (Warehouse)</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Contact / Warehouse Name *</label>
-                      <Input
-                        placeholder="e.g. Bhopal Central Warehouse"
-                        value={pickupName}
-                        onChange={(e) => setPickupName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Contact Phone *</label>
-                      <Input
-                        placeholder="e.g. 9876543210"
-                        value={pickupPhone}
-                        onChange={(e) => setPickupPhone(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold">Street Address *</label>
-                    <Input
-                      placeholder="e.g. Plot 12, GIDC Sachin Industrial Estate"
-                      value={pickupAddress}
-                      onChange={(e) => setPickupAddress(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">City *</label>
-                      <Input
-                        placeholder="Bhopal"
-                        value={pickupCity}
-                        onChange={(e) => setPickupCity(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">State *</label>
-                      <Input
-                        placeholder="Gujarat"
-                        value={pickupState}
-                        onChange={(e) => setPickupState(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Pin Code *</label>
-                      <Input
-                        placeholder="395003"
-                        value={pickupPinCode}
-                        onChange={(e) => setPickupPinCode(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Test Connection Button & Results Display [UPDATED-6] */}
-                <div className="p-4 border rounded-xl bg-secondary/10 space-y-4">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider">Test Connection & Serviceability</h4>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Verifies authentication, channel ID, and origin pincode registration.</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleTestConnection}
-                      disabled={isTesting}
-                      className="font-bold flex items-center gap-2 cursor-pointer text-xs"
-                    >
-                      {isTesting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-                      {isTesting ? "Testing..." : "Test Connection"}
-                    </Button>
-                  </div>
-
-                  {testResult && (
-                    <div className="p-3 bg-background border rounded-lg text-xs space-y-2 font-mono">
-                      <div className="flex items-center gap-2">
-                        {testResult.authOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                        <span>Authentication Check: {testResult.authOk ? "Passed" : "Failed"}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {testResult.channelConfigured ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <AlertTriangle className="h-4 w-4 text-muted-foreground" />}
-                        <span>Channel ID: {testResult.channelConfigured ? "Configured (not independently verified by Shiprocket's API)" : "Not set (optional)"}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {testResult.pickupOk ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                        <span>Pickup Pincode Serviceability: {testResult.pickupOk ? "Passed" : "Failed"}</span>
-                      </div>
-
-                      {testResult.error && (
-                        <div className="mt-2 text-destructive border-t pt-2 font-sans leading-relaxed">
-                          ⚠ {testResult.error}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Webhook URLs display */}
-                <div className="p-4 border rounded-xl bg-card space-y-4">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Shiprocket Webhook Listener Endpoints</h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Copy and paste the URL matching your deployment environment into your Shiprocket Dashboard under <strong>Settings ➔ API ➔ Webhooks</strong>:
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    {webhookEndpoints.map((ep) => (
-                      <div key={ep.id} className="p-3 bg-secondary/15 rounded-lg border space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-foreground">{ep.label}</span>
-                          <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary">
-                            {ep.badge}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Input readOnly value={ep.url} className="font-mono text-xs bg-background" />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyEndpointUrl(ep.url, ep.id)}
-                            className="shrink-0 font-semibold cursor-pointer h-9 px-3"
-                          >
-                            {copiedId === ep.id ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                            <span className="ml-1.5 text-xs">{copiedId === ep.id ? "Copied" : "Copy"}</span>
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Save Button Bar */}
-                <div className="flex justify-end pt-4 border-t">
-                  <Button onClick={handleSave} disabled={isSaving} size="lg" className="font-bold flex items-center gap-2 cursor-pointer bg-primary text-primary-foreground">
-                    <Save className="h-4.5 w-4.5" /> {isSaving ? "Saving Configuration..." : "Save Shiprocket Credentials & Settings"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

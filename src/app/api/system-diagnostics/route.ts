@@ -1,7 +1,7 @@
+import { formatDateTimeIST } from "@/lib/datetime";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import nodemailer from "nodemailer";
-import { getShiprocketToken } from "@/lib/shiprocketClient";
 import { emailService } from "@/lib/emailService";
 import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import { requireAuth } from "@/lib/authGuard";
@@ -113,28 +113,6 @@ export async function GET() {
     emailResult.error = err.message || "Failed to verify SMTP credentials";
   }
 
-  // 3. Shiprocket API Service Test
-  let shiprocketResult = {
-    status: "NOT CONFIGURED ⚠️",
-    emailConfigured: !!(process.env.SHIPROCKET_EMAIL),
-    maskedEmail: maskSecret(process.env.SHIPROCKET_EMAIL, 12),
-    tokenAcquired: false,
-    error: null as string | null
-  };
-
-  try {
-    const token = await getShiprocketToken(false);
-    if (token) {
-      shiprocketResult.tokenAcquired = true;
-      shiprocketResult.status = "CONNECTED ✅";
-    }
-  } catch (err: any) {
-    if (process.env.SHIPROCKET_EMAIL) {
-      shiprocketResult.status = "FAILED ❌";
-      shiprocketResult.error = err.message || "Shiprocket auth failed";
-    }
-  }
-
   // 4. Integrations & Environment Variables Summary
   const envSummary = {
     MONGODB_URI: maskSecret(process.env.MONGODB_URI, 28),
@@ -155,7 +133,6 @@ export async function GET() {
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
     mongodb: mongodbResult,
     email: emailResult,
-    shiprocket: shiprocketResult,
     envSummary
   });
 }
@@ -184,7 +161,7 @@ export async function POST(req: Request) {
           <p>This is a live test email sent from the <strong>FlexSell Wholesale System Diagnostics Hub</strong>.</p>
           <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; margin: 16px 0; border-radius: 4px; font-size: 13px;">
             <strong>Test Dispatch Details:</strong><br/>
-            - Dispatched At: ${new Date().toLocaleString("en-IN")}<br/>
+            - Dispatched At: ${formatDateTimeIST(new Date())}<br/>
             - Recipient: ${testEmail}<br/>
             - Environment: ${process.env.NODE_ENV || "production"}<br/>
             - Connection: Verified Vercel SMTP Credentials

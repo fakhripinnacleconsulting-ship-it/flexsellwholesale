@@ -232,33 +232,8 @@ export default function SystemDiagnosticsPage() {
             </Card>
           </div>
 
-          {/* Secondary Grid: Shiprocket & Environment Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Shiprocket Service */}
-            <Card className="border border-border shadow-sm">
-              <CardHeader className="pb-3 border-b bg-secondary/20">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Server className="h-4 w-4 text-amber-500" /> Shiprocket Freight Logistics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-3 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Status</span>
-                  <span className="font-bold text-foreground">{data.shiprocket.status}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Account Email</span>
-                  <span className="font-mono text-[11px]">{data.shiprocket.maskedEmail}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Auth Token Status</span>
-                  <span className={`font-bold ${data.shiprocket.tokenAcquired ? "text-emerald-600" : "text-amber-600"}`}>
-                    {data.shiprocket.tokenAcquired ? "ACQUIRED ✅" : "PENDING"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
+          {/* Secondary Grid: Environment Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Vercel Environment Variables Summary */}
             <Card className="md:col-span-2 border border-border shadow-sm">
               <CardHeader className="pb-3 border-b bg-secondary/20">

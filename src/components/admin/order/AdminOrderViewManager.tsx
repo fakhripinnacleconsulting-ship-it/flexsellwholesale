@@ -19,13 +19,13 @@ import { ShipmentDetails } from "@/stores/orderStore";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
 import { apiClient } from "@/lib/apiClient";
-import { shiprocketService } from "@/services/shiprocketService";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
 import { INDIAN_STATES } from "@/lib/constants";
+import { formatDateTimeIST } from "@/lib/datetime";
 
 import { usePathname } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -259,50 +259,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
             </Button>
           )}
 
-          {/* Shiprocket Actions & Labels */}
-          {order.shipmentDetails?.type === "shiprocket" && (
-            <>
-              <Button
-                variant="outline"
-                className="font-bold flex items-center gap-1.5 h-9 text-xs border-primary/40 text-primary hover:bg-primary/10"
-                onClick={async () => {
-                  try {
-                    const res = await fetch(`/api/shiprocket/label/${orderId}`);
-                    const data = await res.json();
-                    if (data.labelUrl) {
-                      window.open(data.labelUrl, "_blank");
-                    } else {
-                      addToast(data.message || "Label not yet available from Shiprocket.", "warning");
-                    }
-                  } catch (err: any) {
-                    addToast(err.message || "Failed to fetch label", "error");
-                  }
-                }}
-              >
-                <FileText className="h-3.5 w-3.5" /> Download Label
-              </Button>
-              {!isDropshippingOrder && order.status !== "Delivered" && order.status !== "Cancelled" && (hasPermission("orders_b2b", "delete") || hasPermission("orders_b2c", "delete") || hasPermission("orders_dropship", "delete")) && (
-                <Button
-                  variant="outline"
-                  className="font-bold text-destructive hover:bg-destructive/10 h-9 text-xs"
-                  onClick={async () => {
-                    if (!confirm("Are you sure you want to cancel this Shiprocket booking?")) return;
-                    try {
-                      await shiprocketService.cancelShiprocketOrder(orderId);
-                      addToast("Shiprocket order cancelled successfully", "success");
-                      initializeOrders();
-                    } catch (err: any) {
-                      addToast(err.message || "Cancel failed", "error");
-                    }
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Cancel Shiprocket Booking
-                </Button>
-              )}
-            </>
-          )}
-
-          {order.status === "Shipped" && order.shipmentDetails?.type !== "shiprocket" && (hasPermission("orders_b2b", "update") || hasPermission("orders_b2c", "update") || hasPermission("orders_dropship", "update")) && (
+          {order.status === "Shipped" && (hasPermission("orders_b2b", "update") || hasPermission("orders_b2c", "update") || hasPermission("orders_dropship", "update")) && (
             <Button
               onClick={() => handleUpdateStatus("Delivered")}
               className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs h-9"
@@ -330,40 +287,6 @@ export function AdminOrderViewManager({ params }: PageProps) {
           </Button>
         </div>
       </div>
-
-      {/* Partial Failure Warning Banner [UPDATED-5] */}
-      {order.shipmentDetails?.shiprocket?.failedAt && (
-        <Card className="border border-destructive/30 bg-destructive/10 p-4 flex items-center justify-between print:hidden">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-6 w-6 text-destructive shrink-0" />
-            <div className="text-xs">
-              <p className="font-bold text-destructive">
-                Shiprocket fulfillment stalled at step: "{order.shipmentDetails.shiprocket.failedAt.toUpperCase()}"
-              </p>
-              <p className="text-muted-foreground mt-0.5">{order.shipmentDetails.shiprocket.failureReason}</p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            className="bg-destructive text-destructive-foreground font-bold text-xs shrink-0"
-            onClick={async () => {
-              try {
-                const res: any = await shiprocketService.retryFulfillment(orderId);
-                if (res.success) {
-                  addToast("Fulfillment step retried successfully!", "success");
-                  initializeOrders();
-                } else {
-                  addToast(res.error || "Retry failed", "error");
-                }
-              } catch (err: any) {
-                addToast(err.message || "Retry failed", "error");
-              }
-            }}
-          >
-            Retry Fulfillment Step
-          </Button>
-        </Card>
-      )}
 
       {/* Invoice Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start print:block">
@@ -398,19 +321,19 @@ export function AdminOrderViewManager({ params }: PageProps) {
                   <div>
                     <span className="text-muted-foreground">Courier Type:</span>
                     <p className="font-bold capitalize mt-0.5">
-                      {order.shipmentDetails.type === "shiprocket" ? "🚀 Shiprocket API" : order.shipmentDetails.type}
+                      {order.shipmentDetails.type}
                     </p>
                   </div>
-                  {(order.shipmentDetails.carrierName || order.shipmentDetails.shiprocket?.courierName) && (
+                  {order.shipmentDetails.carrierName && (
                     <div>
                       <span className="text-muted-foreground">Carrier:</span>
-                      <p className="font-bold mt-0.5">{order.shipmentDetails.shiprocket?.courierName || order.shipmentDetails.carrierName}</p>
+                      <p className="font-bold mt-0.5">{order.shipmentDetails.carrierName}</p>
                     </div>
                   )}
                   <div className="col-span-2 border-t pt-2">
                     <span className="text-muted-foreground">Tracking ID / AWB:</span>
                     <p className="font-mono font-bold mt-1 text-foreground bg-secondary/40 px-2 py-0.5 rounded inline-block">
-                      {order.shipmentDetails.shiprocket?.awbCode || order.shipmentDetails.trackingId}
+                      {order.shipmentDetails.trackingId}
                     </p>
                   </div>
                   {order.shipmentDetails.trackingUrl && (
@@ -443,16 +366,6 @@ export function AdminOrderViewManager({ params }: PageProps) {
                     type="button"
                     variant="outline"
                     onClick={async () => {
-                      if (order.shipmentDetails?.type === "shiprocket") {
-                        try {
-                          const res = await fetch(`/api/shiprocket/label/${order._id}`);
-                          const data = await res.json();
-                          if (data.labelUrl) {
-                            window.open(data.labelUrl, "_blank");
-                            return;
-                          }
-                        } catch { }
-                      }
                       setShowLabelModal(true);
                     }}
                     className="w-full font-bold flex items-center justify-center gap-2 text-xs border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
@@ -494,11 +407,25 @@ export function AdminOrderViewManager({ params }: PageProps) {
                           ev.status === "Cancelled" ? "border-destructive bg-destructive" :
                             "border-yellow-500 bg-yellow-500"
                       }`} />
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <span className="font-bold text-foreground">{ev.status}</span>
-                      <span className="text-[10px] text-muted-foreground">{ev.timestamp}</span>
+                      {/* Every step now renders through one IST formatter, so a single order
+                          can no longer show three different date formats. Falls back to the
+                          legacy string for orders written before the migration. */}
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                        {formatDateTimeIST(ev.at ?? ev.timestamp)}
+                      </span>
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{ev.description}</p>
+                    {/* Staff view: prefer the internal note, which names the admin or the
+                        manager who acted. Customers never receive this field. */}
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {ev.internalNote || ev.description || ev.customerNote}
+                    </p>
+                    {ev.actor?.role && (
+                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                        {ev.actor.role === "Manager" && ev.actor.name ? ev.actor.name : ev.actor.role}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

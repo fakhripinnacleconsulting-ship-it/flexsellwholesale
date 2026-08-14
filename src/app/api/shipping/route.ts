@@ -21,9 +21,6 @@ export async function GET() {
       await ShippingConfig.updateOne({ _id: "shipping-config" } as any, { $set: { dropshippingFixedCharge: 0 } });
       config.dropshippingFixedCharge = 0;
     }
-    if (config.shiprocket) {
-      config.shiprocket.password = config.shiprocket.password ? "••••••••" : "";
-    }
     return NextResponse.json(config);
   } catch (error: any) {
     return NextResponse.json({ message: error.message || "Failed to fetch shipping configuration" }, { status: 500 });
@@ -37,7 +34,7 @@ export async function PUT(request: Request) {
     if (auth.error) return auth.error;
 
     const body = await request.json();
-    const { weightSlabs, b2bFixedCharge, dropshippingFixedCharge, shiprocket } = body;
+    const { weightSlabs, b2bFixedCharge, dropshippingFixedCharge } = body;
 
     let config = await ShippingConfig.findOne({ _id: "shipping-config" } as any);
     if (!config) {
@@ -47,18 +44,9 @@ export async function PUT(request: Request) {
     if (weightSlabs !== undefined) config.weightSlabs = weightSlabs;
     if (b2bFixedCharge !== undefined) config.b2bFixedCharge = b2bFixedCharge;
     if (dropshippingFixedCharge !== undefined) config.dropshippingFixedCharge = dropshippingFixedCharge;
-    if (shiprocket !== undefined) {
-      config.shiprocket = {
-        ...config.shiprocket,
-        ...shiprocket,
-      };
-    }
 
     await config.save();
     const resp = config.toObject();
-    if (resp.shiprocket) {
-      resp.shiprocket.password = resp.shiprocket.password ? "••••••••" : "";
-    }
 
     const { revalidateStorefront } = await import("@/lib/revalidate");
     revalidateStorefront();
