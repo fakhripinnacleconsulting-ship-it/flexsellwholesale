@@ -106,9 +106,9 @@ export function DropshippingBusinessSection({ data }: DropshippingBusinessSectio
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {cards.map((item, idx) => (
-            <div key={idx} className="p-5 bg-card border border-border rounded-xl space-y-3 hover:border-purple-500/40 hover:shadow-md transition-all">
+            <div key={idx} className="min-w-[260px] max-w-[260px] sm:min-w-0 sm:max-w-none flex-shrink-0 snap-center p-5 bg-card border border-border rounded-xl space-y-3 hover:border-purple-500/40 hover:shadow-md transition-all">
               <div className="flex justify-between items-center">
                 <div className="p-2.5 bg-purple-500/10 rounded-lg">
                   {getCardIcon(item.icon)}
