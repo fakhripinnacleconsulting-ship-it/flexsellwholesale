@@ -7,33 +7,10 @@ import { productSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 
 import { searchService } from "@/services/searchService";
+import { PRODUCT_LIST_EXCLUDED_FIELDS } from "@/lib/productProjection";
 
 /** Upper bound for the unfiltered catalog fetch — guards against OOM at scale. */
 const UNFILTERED_CATALOG_CAP = 2000;
-
-/**
- * Fields dropped from the storefront listing payload (`?view=list`).
- *
- * Deliberately an EXCLUSION list, not an inclusion list: a missing field in an inclusion
- * list fails silently at runtime in whichever component happens to read it. Excluding by
- * name means anything not listed here keeps flowing through untouched.
- *
- * Each exclusion is verified unused on the listing path:
- *  - aPlusContent      -> rendered only on the product detail page (full document)
- *  - seo*              -> consumed by generateMetadata server-side, never by a card
- *  - barcodeImage      -> admin barcode sheets only
- *
- * `description` is intentionally NOT excluded: SearchResults scores against it client-side,
- * so dropping it would quietly change search ranking.
- */
-const LIST_VIEW_EXCLUDED_FIELDS = [
-  "-aPlusContent",
-  "-seoTitle",
-  "-seoDescription",
-  "-seoKeywords",
-  "-barcodeImage",
-  "-colorVariants.subVariants.barcodeImage",
-].join(" ");
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +59,7 @@ export async function GET(request: Request) {
 
     const catalogQuery = Product.find({}).sort({ createdAt: -1 }).limit(UNFILTERED_CATALOG_CAP);
     if (isListView) {
-      catalogQuery.select(LIST_VIEW_EXCLUDED_FIELDS);
+      catalogQuery.select(PRODUCT_LIST_EXCLUDED_FIELDS);
     }
 
     const products = await catalogQuery.lean();

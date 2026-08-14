@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { Product } from "@/types";
 import { apiClient } from "@/lib/apiClient";
+import { PRODUCT_LIST_EXCLUDED_FIELDS } from "@/lib/productProjection";
 
 const fetchProductBySlug = cache(async (slug: string): Promise<Product> => {
   if (typeof window === "undefined") {
@@ -135,6 +136,12 @@ export const productService = {
         let query = ProductModel.find({}).sort({ createdAt: -1 });
         if (options?.limit) {
           query = query.limit(options.limit);
+        }
+        // The server branch used to ignore listView entirely, so a caller asking for a
+        // slim payload still got complete documents — including every A+ content block —
+        // embedded in its RSC output.
+        if (options?.listView) {
+          query = query.select(PRODUCT_LIST_EXCLUDED_FIELDS);
         }
         const products = await query.lean();
         // Kept as a JSON round-trip on purpose: it flattens Dates at arbitrary nesting

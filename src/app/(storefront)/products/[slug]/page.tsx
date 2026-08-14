@@ -66,7 +66,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   try {
     const [product, products] = await Promise.all([
       productService.getProductBySlug(slug),
-      productService.getProducts({ limit: 12 })
+      // Related-products strip only needs card fields. This used to pull 12 complete
+      // documents — descriptions, A+ content blocks, every variant and image — and embed
+      // them all in this page's RSC payload, which the browser must download before the
+      // page can render on click.
+      productService.getProducts({ limit: 12, listView: true })
     ]);
 
     const productJsonLd = generateProductSchema(product, `/products/${product.slug}`);

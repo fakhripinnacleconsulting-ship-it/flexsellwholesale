@@ -105,6 +105,8 @@ export function ProductCard({
   }, [allImages.length, isHovered]);
 
   const handleMouseEnter = () => {
+    // Hover is the intent signal — start fetching the product page now, not on click.
+    prefetchProduct();
     setHasCarouselEngaged(true);
     setIsHovered(true);
     if (allImages.length > 1) {
@@ -155,8 +157,29 @@ export function ProductCard({
   const shouldRenderSlide = (i: number) =>
     i === 0 || hasCarouselEngaged || i === currentImgIndex;
 
+  const productHref = `/products/${product.slug}`;
+
+  /**
+   * Warms the product page on intent rather than on sight.
+   *
+   * Next prefetches every in-viewport <Link> by default, which on a 40-card catalog grid
+   * meant 40 full RSC payloads nobody asked for — so prefetching was switched off
+   * entirely. That made the opposite trade: a click then had to wait for a cold
+   * round-trip before anything happened.
+   *
+   * Hovering (or first touch) is a reliable signal of intent and typically lands
+   * 100-300ms before the click, which is enough to have the payload ready. `prefetch`
+   * de-dupes internally, and the ref keeps us from calling it on every mouse re-entry.
+   */
+  const hasPrefetched = React.useRef(false);
+  const prefetchProduct = React.useCallback(() => {
+    if (hasPrefetched.current) return;
+    hasPrefetched.current = true;
+    router.prefetch(productHref);
+  }, [router, productHref]);
+
   const handleCardClick = () => {
-    router.push(`/products/${product.slug}`);
+    router.push(productHref);
   };
 
   const prevImage = (e?: React.MouseEvent) => {
@@ -176,6 +199,8 @@ export function ProductCard({
 
   // Touch Swipe Handlers (Mobile & Tablet)
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Touch devices never hover, so first contact is the equivalent intent signal.
+    prefetchProduct();
     setHasCarouselEngaged(true);
     touchStartX.current = e.touches[0].clientX;
   };
@@ -430,7 +455,7 @@ export function ProductCard({
       onMouseLeave={handleMouseLeave}
       className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
     >
-      {/* prefetch disabled — see the list-layout link above for rationale. */}
+      {/* Viewport prefetch off; warmed on hover/touch — see the list-layout link above. */}
       <Link href={`/products/${product.slug}`} prefetch={false} className="absolute inset-0 z-10">
         <span className="sr-only">View {product.title}</span>
       </Link>
