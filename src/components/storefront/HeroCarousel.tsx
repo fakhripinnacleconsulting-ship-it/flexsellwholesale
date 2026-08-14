@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Volume2, VolumeX, Pause, Play } from "lucide-react";
 import { m, LazyMotion, domAnimation, AnimatePresence } from "framer-motion";
 import { BannerSlide } from "@/components/admin/cms/types";
+import { mergeAspectRatio } from "@/lib/aspectRatioState";
 
 interface HeroCarouselProps {
   slides: BannerSlide[];
@@ -94,28 +95,48 @@ export function HeroCarousel({
   }, []);
 
   const handleImageLoad = (idx: number, el: HTMLImageElement) => {
+    // With a fixed container ratio these measurements are never read, so taking them
+    // would only churn state — and churning state is what makes the feedback loop
+    // described in the preload effect possible in the first place.
+    if (fixedAspectRatio) return;
     const { naturalWidth, naturalHeight } = el;
     if (naturalWidth && naturalHeight) {
       const isMob = typeof window !== "undefined" && window.innerWidth < 640;
       const hasMobImg = isMob && !!slides[idx]?.mobileImageUrl;
       const key = `${idx}-${hasMobImg ? "mobile" : "desktop"}`;
       const newRatio = naturalWidth / naturalHeight;
-      setAspectRatios((prev) => {
-        if (prev[key] === newRatio) return prev;
-        return { ...prev, [key]: newRatio };
-      });
+      setAspectRatios((prev) => mergeAspectRatio(prev, key, newRatio));
     }
   };
 
+  // Latest handleImageLoad without making it a ref dependency — keeps the ref callback
+  // stable across renders while still calling current logic.
+  const handleImageLoadRef = React.useRef(handleImageLoad);
+  handleImageLoadRef.current = handleImageLoad;
+
+  /**
+   * Measures an already-cached image once it is attached.
+   *
+   * Memoised on `current` so React only invokes it when the slide actually changes,
+   * rather than on every commit as an inline arrow would.
+   */
+  const measuredImageRef = React.useCallback(
+    (el: HTMLImageElement | null) => {
+      if (fixedAspectRatio) return;
+      if (el && el.complete && el.naturalWidth) {
+        handleImageLoadRef.current(current, el);
+      }
+    },
+    [current, fixedAspectRatio]
+  );
+
   const handleVideoMetadata = (idx: number, isMobileVideo: boolean, e: React.SyntheticEvent<HTMLVideoElement>) => {
+    if (fixedAspectRatio) return;
     const { videoWidth, videoHeight } = e.currentTarget;
     if (videoWidth && videoHeight) {
       const key = `${idx}-${isMobileVideo ? "mobile" : "desktop"}`;
       const newRatio = videoWidth / videoHeight;
-      setAspectRatios((prev) => {
-        if (prev[key] === newRatio) return prev;
-        return { ...prev, [key]: newRatio };
-      });
+      setAspectRatios((prev) => mergeAspectRatio(prev, key, newRatio));
     }
   };
 
@@ -134,7 +155,15 @@ export function HeroCarousel({
         img.src = desktopUrl;
         const measureDesktop = () => {
           if (img.naturalWidth && img.naturalHeight) {
-            setAspectRatios((prev) => ({ ...prev, [`${idx}-desktop`]: img.naturalWidth / img.naturalHeight }));
+            const key = `${idx}-desktop`;
+            const newRatio = img.naturalWidth / img.naturalHeight;
+            // Bail out when unchanged. Without this the state object is replaced on every
+            // measurement, and because the measured ratio drives the container height it
+            // can feed back into itself: height changes -> page scrollbar toggles ->
+            // viewport width crosses the 640px <source> breakpoint -> a different image is
+            // selected -> a different ratio is measured -> repeat, until React throws
+            // "Maximum update depth exceeded" (#185).
+            setAspectRatios((prev) => mergeAspectRatio(prev, key, newRatio));
           }
         };
         if (img.complete) measureDesktop();
@@ -147,7 +176,10 @@ export function HeroCarousel({
         mobImg.src = slide.mobileImageUrl;
         const measureMobile = () => {
           if (mobImg.naturalWidth && mobImg.naturalHeight) {
-            setAspectRatios((prev) => ({ ...prev, [`${idx}-mobile`]: mobImg.naturalWidth / mobImg.naturalHeight }));
+            const key = `${idx}-mobile`;
+            const newRatio = mobImg.naturalWidth / mobImg.naturalHeight;
+            // Same bail-out as the desktop branch above — see the note there.
+            setAspectRatios((prev) => mergeAspectRatio(prev, key, newRatio));
           }
         };
         if (mobImg.complete) measureMobile();
@@ -417,11 +449,10 @@ export function HeroCarousel({
                   src={dSrc}
                   {...restDesktopProps}
                   fetchPriority={claimsPriority ? "high" : "auto"}
-                  ref={(el) => {
-                    if (el && el.complete && el.naturalWidth) {
-                      handleImageLoad(current, el);
-                    }
-                  }}
+                  // Stable ref: an inline arrow is a new function every render, so React
+                  // detaches and re-attaches it on each commit — re-measuring, and
+                  // re-entering the state churn above, on every single re-render.
+                  ref={measuredImageRef}
                   onLoad={(e) => handleImageLoad(current, e.currentTarget)} 
                 />
               </picture>
