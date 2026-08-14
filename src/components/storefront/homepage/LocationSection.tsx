@@ -1,7 +1,4 @@
-"use client";
-
-import * as React from "react";
-import { MapPin, Phone, Mail, Clock, Navigation, Map as MapIcon } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Navigation } from "lucide-react";
 import type { LocationSectionData } from "@/components/admin/cms/types";
 
 interface LocationSectionProps {
@@ -18,13 +15,12 @@ interface LocationSectionProps {
 /**
  * Store location block, rendered just above the footer.
  *
- * The map is a *facade*: a Google Maps iframe pulls roughly a megabyte of third-party
- * JavaScript and reliably costs 10-25 Lighthouse performance points. Instead we show a
- * lightweight placeholder and only mount the real iframe once the visitor asks for it.
+ * The map embed renders straight away rather than behind a click-to-load facade. It is
+ * a server component — no state, no handlers — so it ships no client JavaScript of its
+ * own, and the iframe is lazily loaded so the Maps payload is only fetched once the
+ * visitor scrolls down to it.
  */
 export function LocationSection({ data, fallback }: LocationSectionProps) {
-  const [mapLoaded, setMapLoaded] = React.useState(false);
-
   if (data?.isActive === false) return null;
 
   const heading = data?.heading || "Visit Our Warehouse";
@@ -130,9 +126,15 @@ export function LocationSection({ data, fallback }: LocationSectionProps) {
             )}
           </div>
 
-          {/* Map — facade until the visitor opts in */}
+          {/*
+            Map renders directly, with no click-to-load step.
+
+            `loading="lazy"` is what keeps this affordable: the section sits at the bottom
+            of the homepage, so the browser defers the (roughly 1 MB) Google Maps payload
+            until the visitor scrolls near it rather than fetching it during initial load.
+          */}
           <div className="relative min-h-[260px] sm:min-h-[320px] lg:min-h-full bg-secondary">
-            {mapLoaded && mapEmbedUrl ? (
+            {mapEmbedUrl ? (
               <iframe
                 src={mapEmbedUrl}
                 title={`Map showing the location of ${heading}`}
@@ -142,9 +144,9 @@ export function LocationSection({ data, fallback }: LocationSectionProps) {
                 allowFullScreen
               />
             ) : (
+              // No embed URL configured — fall back to the address rather than a blank panel.
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
                 {data?.staticMapImageUrl ? (
-                  // Static preview costs one image instead of ~1MB of map JavaScript.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={data.staticMapImageUrl}
@@ -163,23 +165,6 @@ export function LocationSection({ data, fallback }: LocationSectionProps) {
 
                 {address && (
                   <p className="relative text-sm font-semibold text-foreground max-w-xs">{address}</p>
-                )}
-
-                {mapEmbedUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setMapLoaded(true)}
-                    className="relative inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-background text-foreground font-bold text-xs shadow-sm hover:bg-secondary transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  >
-                    <MapIcon className="h-4 w-4" aria-hidden="true" />
-                    View interactive map
-                  </button>
-                )}
-
-                {mapEmbedUrl && (
-                  <p className="relative text-[11px] text-muted-foreground max-w-[16rem]">
-                    Loads Google Maps, which sets third-party cookies.
-                  </p>
                 )}
               </div>
             )}
