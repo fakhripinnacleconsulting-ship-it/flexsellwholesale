@@ -7,26 +7,44 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Truck, ArrowLeft } from "lucide-react";
 import { ShipmentDetails } from "@/stores/orderStore";
-import { shippingService } from "@/services/shippingService";
 
 interface FulfillmentFormProps {
   orderId: string;
   orderPinCode?: string;
   onShip: (details: ShipmentDetails) => Promise<void>;
   onCancel: () => void;
+  /**
+   * Existing dispatch to amend. Its presence switches the form into edit mode: fields are
+   * prefilled, and the submission appends a correction to the stepper instead of creating
+   * a fresh Shipped step.
+   */
+  existingShipment?: ShipmentDetails | null;
 }
 
-export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCancel }: FulfillmentFormProps) {
-  const [shipType, setShipType] = React.useState<"self" | "third-party">("self");
-  const [carrierName, setCarrierName] = React.useState("");
-  const [trackingId, setTrackingId] = React.useState("");
-  const [trackingUrl, setTrackingUrl] = React.useState("");
-  const [estDelivery, setEstDelivery] = React.useState("");
-  const [dispatchNotes, setDispatchNotes] = React.useState("");
+export function FulfillmentForm({
+  orderId,
+  orderPinCode = "395003",
+  onShip,
+  onCancel,
+  existingShipment = null,
+}: FulfillmentFormProps) {
+  const isEdit = !!existingShipment;
+
+  const [shipType, setShipType] = React.useState<"self" | "third-party">(
+    existingShipment?.type === "third-party" ? "third-party" : "self"
+  );
+  const [carrierName, setCarrierName] = React.useState(existingShipment?.carrierName || "");
+  const [trackingId, setTrackingId] = React.useState(existingShipment?.trackingId || "");
+  const [trackingUrl, setTrackingUrl] = React.useState(existingShipment?.trackingUrl || "");
+  const [estDelivery, setEstDelivery] = React.useState(existingShipment?.estimatedDelivery || "");
+  const [dispatchNotes, setDispatchNotes] = React.useState(existingShipment?.notes || "");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // Generate track ID for self shipment
+  // Generate track ID for self shipment.
+  // Skipped while editing — regenerating would silently replace a tracking number the
+  // customer has already been given.
   React.useEffect(() => {
+    if (isEdit) return;
     if (shipType === "self") {
       const randNum = Math.floor(100000 + Math.random() * 900000);
       setTrackingId(`FLEX-IN-${orderId.replace("FS-", "")}-${randNum}`);
@@ -35,7 +53,7 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
     }
   }, [shipType, orderId]);
 
-  const [uploadShippingLabel, setUploadShippingLabel] = React.useState("");
+  const [uploadShippingLabel, setUploadShippingLabel] = React.useState(existingShipment?.uploadShippingLabel || "");
   const [isUploadingLabel, setIsUploadingLabel] = React.useState(false);
 
   const handleLabelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,10 +104,15 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
       trackingId: trackingId.trim(),
       trackingUrl: shipType === "third-party" ? trackingUrl.trim() || undefined : undefined,
       estimatedDelivery: estDelivery.trim() || undefined,
-      shippedAt: formatDateIST(new Date()),
+      // Keep the original dispatch date on an edit — the goods left the warehouse when
+      // they left it, and correcting a tracking number does not change that.
+      shippedAt: existingShipment?.shippedAt || formatDateIST(new Date()),
       notes: dispatchNotes.trim() || undefined,
       uploadShippingLabel: shipType === "third-party" ? uploadShippingLabel || undefined : undefined,
-    };
+      // Tells the server to append a correction rather than re-run the dispatch, which
+      // would reset an already-progressed order back to "Shipped".
+      ...(isEdit ? { isEdit: true } : {}),
+    } as ShipmentDetails;
 
     setIsSubmitting(true);
     try {
@@ -108,7 +131,7 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
       <CardHeader className="flex flex-row items-center justify-between border-b p-4">
         <div>
           <CardTitle className="text-sm font-bold uppercase flex items-center gap-1.5 text-primary">
-            <Truck className="h-4.5 w-4.5" /> Fulfill Order Shipment
+            <Truck className="h-4.5 w-4.5" /> {isEdit ? "Edit Fulfillment Details" : "Fulfill Order Shipment"}
           </CardTitle>
           <CardDescription className="text-[10px] font-mono">{orderId}</CardDescription>
         </div>
@@ -145,11 +168,11 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
 
           <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                Tracking / Waybill ID * {shipType === "self" && "(Auto-Generated)"}
+                Tracking / Waybill ID * {shipType === "self" && !isEdit && "(Auto-Generated)"}
               </label>
               <Input
                 required
-                readOnly={shipType === "self"}
+                readOnly={shipType === "self" && !isEdit}
                 value={trackingId}
                 onChange={(e) => setTrackingId(e.target.value)}
                 placeholder="e.g. 7849102834"
@@ -227,7 +250,7 @@ export function FulfillmentForm({ orderId, orderPinCode = "395003", onShip, onCa
               disabled={isSubmitting}
               className="font-semibold bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Processing Dispatch..." : "Confirm Order Dispatch"}
+              {isSubmitting ? (isEdit ? "Saving Changes..." : "Processing Dispatch...") : isEdit ? "Save Fulfillment Changes" : "Confirm Order Dispatch"}
             </Button>
           </div>
         </form>

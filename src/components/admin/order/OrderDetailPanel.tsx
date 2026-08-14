@@ -8,6 +8,7 @@ import { Order } from "@/stores/orderStore";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useConfirmStore } from "@/stores/confirmStore";
 
 interface OrderDetailPanelProps {
   order: Order;
@@ -25,6 +26,7 @@ export function OrderDetailPanel({
   const pathname = usePathname();
   const basePath = pathname.startsWith("/manager") ? "/manager/documents" : "/admin";
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const confirmAction = useConfirmStore((state) => state.confirm);
 
   const isDropshippingOrder = order.items?.some((item: any) => item.priceTier === "Dropshipping");
 
@@ -35,6 +37,22 @@ export function OrderDetailPanel({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  /**
+   * Delivery closes fulfilment for good — the shipment can no longer be modified once set,
+   * so it takes a deliberate confirmation rather than one click in a list view.
+   */
+  const handleMarkDelivered = () => {
+    confirmAction({
+      title: "Mark this order as delivered?",
+      message:
+        "This closes fulfilment for the order. The shipment details can no longer be edited afterwards.",
+      confirmText: "Yes, mark delivered",
+      cancelText: "Not yet",
+      type: "warning",
+      onConfirm: () => handleStatusChange("Delivered"),
+    });
   };
 
   return (
@@ -102,7 +120,7 @@ export function OrderDetailPanel({
                 <Button
                   size="sm"
                   disabled={isSubmitting}
-                  onClick={() => handleStatusChange("Delivered")}
+                  onClick={handleMarkDelivered}
                   className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1 h-8 text-xs font-bold cursor-pointer"
                 >
                   <CheckCircle className="h-3.5 w-3.5" /> Mark Delivered
@@ -193,9 +211,8 @@ export function OrderDetailPanel({
             <div>
               <p className="text-muted-foreground">Status:</p>
               <p
-                className={`font-bold ${
-                  order.paymentStatus === "Paid" ? "text-green-600" : "text-amber-500"
-                }`}
+                className={`font-bold ${order.paymentStatus === "Paid" ? "text-green-600" : "text-amber-500"
+                  }`}
               >
                 {order.paymentStatus || "Pending"}
               </p>
@@ -333,17 +350,16 @@ export function OrderDetailPanel({
               order.history.map((ev, i) => (
                 <div key={i} className="relative space-y-1">
                   <div
-                    className={`absolute -left-[21.5px] top-1 h-3 w-3 rounded-full border-2 bg-background ${
-                      ev.status === "Delivered"
+                    className={`absolute -left-[21.5px] top-1 h-3 w-3 rounded-full border-2 bg-background ${ev.status === "Delivered"
                         ? "border-green-600 bg-green-600"
                         : ev.status === "Shipped"
-                        ? "border-primary bg-primary"
-                        : ev.status === "Cancelled"
-                        ? "border-destructive bg-destructive"
-                        : ev.status === "Receipt Deleted"
-                        ? "border-amber-500 bg-amber-500"
-                        : "border-yellow-500 bg-yellow-500"
-                    }`}
+                          ? "border-primary bg-primary"
+                          : ev.status === "Cancelled"
+                            ? "border-destructive bg-destructive"
+                            : ev.status === "Receipt Deleted"
+                              ? "border-amber-500 bg-amber-500"
+                              : "border-yellow-500 bg-yellow-500"
+                      }`}
                   />
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-foreground">{ev.status}</span>

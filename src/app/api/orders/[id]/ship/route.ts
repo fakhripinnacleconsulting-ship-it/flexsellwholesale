@@ -3,7 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Customer from "@/models/Customer";
 import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
-import { buildHistoryEvent, orderStatusNotes, resolveActor } from "@/lib/orderHistory";
+import { actorLabel, buildHistoryEvent, orderStatusNotes, resolveActor } from "@/lib/orderHistory";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 
@@ -32,20 +32,67 @@ export async function PUT(
       ? "local transport (Self)"
       : `${shipmentDetails.carrierName} courier`;
 
-    // Customers are told FlexSell Wholesale shipped it; staff see who dispatched it and
-    // through which carrier.
     const shipActor = resolveActor(payload, access.manager?.name);
-    const newEvent = buildHistoryEvent({
-      status: "Shipped",
-      actor: shipActor,
-      ...orderStatusNotes("Shipped", shipActor, {
-        carrier: carrierInfo,
-        trackingId: shipmentDetails.trackingId,
-      }),
-    });
 
-    order.status = "Shipped";
-    order.statusClass = ORDER_STATUS_CLASSES["Shipped"];
+    /**
+     * Amending an existing dispatch rather than creating one.
+     *
+     * The stepper is an append-only record, so an edit must never rewrite or remove the
+     * original Shipped entry — and it must not force the status back to "Shipped" either.
+     * Doing that on an order already marked In Transit or Delivered would rewind its
+     * progress, which is precisely what the previous single code path did.
+     */
+    const isEdit = shipmentDetails.isEdit === true && !!order.shipmentDetails;
+    // Never let a client-supplied flag reach the stored document.
+    delete shipmentDetails.isEdit;
+
+    // Fulfilment is final once the order is delivered or cancelled. The UI hides the Edit
+    // button in those states, but the check belongs here so a stale tab or a direct API
+    // call cannot rewrite a closed shipment.
+    if (order.status === "Delivered" || order.status === "Cancelled") {
+      return NextResponse.json(
+        {
+          message: `This order is already marked ${order.status}. Its fulfilment details can no longer be changed.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    let newEvent;
+    if (isEdit) {
+      const previous = order.shipmentDetails;
+      const changes: string[] = [];
+      if (previous.type !== shipmentDetails.type) changes.push(`method ${previous.type} to ${shipmentDetails.type}`);
+      if ((previous.carrierName || "") !== (shipmentDetails.carrierName || "")) {
+        changes.push(`carrier to ${shipmentDetails.carrierName || "none"}`);
+      }
+      if (previous.trackingId !== shipmentDetails.trackingId) {
+        changes.push(`tracking ID to ${shipmentDetails.trackingId}`);
+      }
+      if ((previous.estimatedDelivery || "") !== (shipmentDetails.estimatedDelivery || "")) {
+        changes.push(`estimated delivery to ${shipmentDetails.estimatedDelivery}`);
+      }
+
+      newEvent = buildHistoryEvent({
+        status: order.status,
+        actor: shipActor,
+        customerNote: `Your shipment details were updated by FlexSell Wholesale.${shipmentDetails.trackingId ? ` Tracking ID: ${shipmentDetails.trackingId}` : ""}`,
+        internalNote: `Fulfilment details modified by ${actorLabel(shipActor)}${changes.length ? `: ${changes.join(", ")}.` : "."}`,
+      });
+    } else {
+      // First dispatch — this is what actually moves the order to Shipped.
+      newEvent = buildHistoryEvent({
+        status: "Shipped",
+        actor: shipActor,
+        ...orderStatusNotes("Shipped", shipActor, {
+          carrier: carrierInfo,
+          trackingId: shipmentDetails.trackingId,
+        }),
+      });
+      order.status = "Shipped";
+      order.statusClass = ORDER_STATUS_CLASSES["Shipped"];
+    }
+
     order.shipmentDetails = shipmentDetails;
     order.history.unshift(newEvent);
 

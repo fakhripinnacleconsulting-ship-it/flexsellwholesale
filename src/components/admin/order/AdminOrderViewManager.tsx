@@ -29,6 +29,7 @@ import { formatDateTimeIST } from "@/lib/datetime";
 
 import { usePathname } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useConfirmStore } from "@/stores/confirmStore";
 
 export function AdminOrderViewManager({ params }: PageProps) {
   const router = useRouter();
@@ -39,6 +40,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
   const pathname = usePathname();
   const basePath = pathname?.startsWith("/manager") ? "/manager" : "/admin";
   const { hasPermission } = usePermissions();
+  const confirmAction = useConfirmStore((state) => state.confirm);
 
   const { orders, initializeOrders, updateOrderStatus, shipOrder, isLoading } = useOrderStore();
   const [cmsData, setCmsData] = React.useState<any>(null);
@@ -46,6 +48,9 @@ export function AdminOrderViewManager({ params }: PageProps) {
 
   // Shipment modal state
   const [isShipModalOpen, setIsShipModalOpen] = React.useState(false);
+  // Distinguishes "dispatch this order" from "correct an existing dispatch". The second
+  // must not re-run the shipping flow, which would push a Delivered order back to Shipped.
+  const [isEditingShipment, setIsEditingShipment] = React.useState(false);
   const [showLabelModal, setShowLabelModal] = React.useState(false);
   const [showPrintModal, setShowPrintModal] = React.useState(false);
 
@@ -84,6 +89,15 @@ export function AdminOrderViewManager({ params }: PageProps) {
 
   const order = React.useMemo(() => orders.find(o => o._id === orderId), [orders, orderId]);
 
+  /**
+   * Fulfilment is locked once the order reaches a terminal state. After delivery the
+   * shipment record is what the customer was actually delivered against, so amending it
+   * would rewrite history rather than correct an in-flight mistake. The server enforces
+   * this too — this only keeps the button from being offered.
+   */
+  const canEditShipment =
+    !!order && order.status !== "Delivered" && order.status !== "Cancelled";
+
   const handleUpdateStatus = async (newStatus: any) => {
     try {
       await updateOrderStatus(orderId, newStatus);
@@ -94,11 +108,32 @@ export function AdminOrderViewManager({ params }: PageProps) {
     }
   };
 
+  /**
+   * Marking delivered is the point of no return for fulfilment: once set, the shipment
+   * can no longer be amended, so it is worth an explicit confirmation rather than a
+   * single mis-click.
+   */
+  const handleMarkDelivered = () => {
+    confirmAction({
+      title: "Mark this order as delivered?",
+      message:
+        "This closes fulfilment for the order. The shipment details can no longer be edited afterwards.",
+      confirmText: "Yes, mark delivered",
+      cancelText: "Not yet",
+      type: "warning",
+      onConfirm: () => handleUpdateStatus("Delivered"),
+    });
+  };
+
   const handleShipSubmit = async (details: ShipmentDetails) => {
     try {
       await shipOrder(orderId, details);
-      addToast("Order shipment dispatched successfully!", "success");
+      addToast(
+        isEditingShipment ? "Fulfillment details updated." : "Order shipment dispatched successfully!",
+        "success"
+      );
       setIsShipModalOpen(false);
+      setIsEditingShipment(false);
       initializeOrders();
     } catch (err: any) {
       addToast(err.message || "Failed to dispatch shipment", "error");
@@ -252,7 +287,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
 
           {(order.status === "Processing" || order.status === "Confirmed" || order.status === "Placed") && (hasPermission("orders_b2b", "update") || hasPermission("orders_b2c", "update") || hasPermission("orders_dropship", "update")) && (
             <Button
-              onClick={() => setIsShipModalOpen(true)}
+              onClick={() => { setIsEditingShipment(false); setIsShipModalOpen(true); }}
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 flex items-center gap-1.5"
             >
               <Truck className="h-3.5 w-3.5" /> Configure Shipment
@@ -261,7 +296,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
 
           {order.status === "Shipped" && (hasPermission("orders_b2b", "update") || hasPermission("orders_b2c", "update") || hasPermission("orders_dropship", "update")) && (
             <Button
-              onClick={() => handleUpdateStatus("Delivered")}
+              onClick={handleMarkDelivered}
               className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs h-9"
             >
               ✓ Mark Delivered
@@ -312,9 +347,21 @@ export function AdminOrderViewManager({ params }: PageProps) {
           {order.shipmentDetails ? (
             <Card className="border border-primary/15 bg-primary/5">
               <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                  <Truck className="h-4.5 w-4.5 text-primary" /> Delivery Credentials
-                </CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                    <Truck className="h-4.5 w-4.5 text-primary" /> Delivery Credentials
+                  </CardTitle>
+                  {canEditShipment && (hasPermission("orders_b2b", "update") || hasPermission("orders_b2c", "update") || hasPermission("orders_dropship", "update")) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { setIsEditingShipment(true); setIsShipModalOpen(true); }}
+                      className="h-7 px-2 text-[11px] font-bold gap-1 text-primary hover:bg-primary/10 cursor-pointer"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" /> Edit
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="pt-4 space-y-4 text-xs">
                 <div className="grid grid-cols-2 gap-3">
@@ -557,7 +604,9 @@ export function AdminOrderViewManager({ params }: PageProps) {
               orderId={orderId}
               orderPinCode={order.shippingAddress?.pinCode || "395003"}
               onShip={handleShipSubmit}
-              onCancel={() => setIsShipModalOpen(false)}
+              onCancel={() => { setIsShipModalOpen(false); setIsEditingShipment(false); }}
+              // Present only when amending, which is what puts the form into edit mode.
+              existingShipment={isEditingShipment ? order.shipmentDetails : null}
             />
           </div>
         </div>

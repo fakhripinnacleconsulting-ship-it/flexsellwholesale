@@ -8,6 +8,8 @@ import Product from "@/models/Product";
 import CmsContent from "@/models/CmsContent";
 import Manager from "@/models/Manager";
 import { requireAuth } from "@/lib/authGuard";
+import { actorLabel, buildHistoryEvent } from "@/lib/orderHistory";
+import type { HistoryActor } from "@/types";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
@@ -586,6 +588,14 @@ export async function POST(request: Request) {
       dropshipDetails,
     } as any);
 
+    // Reuse the identity already resolved for createdBy, so the order's creator and the
+    // first line of its fulfilment stepper can never disagree about who acted.
+    const receiptActor: HistoryActor = {
+      role: (resolvedCreatedBy?.role as HistoryActor["role"]) || "System",
+      name: resolvedCreatedBy?.name || "System",
+      userId: resolvedCreatedBy?.userId,
+    };
+
     let linkedOrderId = orderId;
 
     // If it's a receipt or order created directly, auto-create the order
@@ -619,11 +629,18 @@ export async function POST(request: Request) {
         dropshipDetails,
         createdBy: resolvedCreatedBy,
         origin: isStaff ? "self" : "website",
-        history: [{
-          status: "Processing",
-          description: "Order created directly from Admin Receipt generator.",
-          timestamp: new Date().toISOString()
-        }]
+        // This site was missed when order history moved to buildHistoryEvent, so it still
+        // wrote a legacy timestamp string and hard-coded "Admin" into the text — a manager
+        // creating a receipt here was reported to admins as the admin's own action, even
+        // though createdBy directly above already knew who it was.
+        history: [
+          buildHistoryEvent({
+            status: "Processing",
+            actor: receiptActor,
+            customerNote: "Order received and is being prepared for dispatch.",
+            internalNote: `Order created from the ${type === "receipt" ? "Receipt" : "Invoice"} generator by ${actorLabel(receiptActor)}.`,
+          })
+        ]
       });
       
       // Link back to the invoice
