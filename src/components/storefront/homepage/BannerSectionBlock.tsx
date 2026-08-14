@@ -2,6 +2,7 @@ import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
+import { resolveSectionRatios } from "@/lib/bannerAspectRatios";
 import type { BannerSection } from "@/components/admin/cms/types";
 
 interface BannerSectionBlockProps {
@@ -29,6 +30,8 @@ export function BannerSectionBlock({ section, isFirstOnPage = false }: BannerSec
     : "mx-auto max-w-8xl px-4 md:px-6 w-full";
 
   const hasHeader = !!(section.heading || section.subheading);
+  // One ratio for the whole section — every banner is rendered into an identical box.
+  const ratios = resolveSectionRatios(section);
 
   return (
     <section className={`${containerClass} py-2 sm:py-4`} aria-label={section.heading || section.name}>
@@ -46,7 +49,7 @@ export function BannerSectionBlock({ section, isFirstOnPage = false }: BannerSec
       )}
 
       {section.displayMode === "grid" ? (
-        <BannerGrid section={section} isFirstOnPage={isFirstOnPage && !hasHeader} />
+        <BannerGrid section={section} ratios={ratios} isFirstOnPage={isFirstOnPage && !hasHeader} />
       ) : (
         <div className={section.fullWidth ? "" : "overflow-hidden rounded-2xl"}>
           <HeroCarousel
@@ -56,6 +59,9 @@ export function BannerSectionBlock({ section, isFirstOnPage = false }: BannerSec
             headingLevel={hasHeader ? "h3" : "h2"}
             autoplay={section.autoplay !== false}
             eager={isFirstOnPage}
+            // One box for every slide, so rotating between differently shaped images
+            // cannot resize the section and push the rest of the page around.
+            fixedAspectRatio={ratios}
           />
         </div>
       )}
@@ -63,7 +69,15 @@ export function BannerSectionBlock({ section, isFirstOnPage = false }: BannerSec
   );
 }
 
-function BannerGrid({ section, isFirstOnPage }: { section: BannerSection; isFirstOnPage: boolean }) {
+function BannerGrid({
+  section,
+  ratios,
+  isFirstOnPage,
+}: {
+  section: BannerSection;
+  ratios: { desktop: number; mobile: number };
+  isFirstOnPage: boolean;
+}) {
   const columns = section.gridColumns || 2;
   const columnClass =
     columns === 1
@@ -78,7 +92,6 @@ function BannerGrid({ section, isFirstOnPage }: { section: BannerSection; isFirs
     <div className={`grid ${columnClass} gap-3 sm:gap-4 md:gap-6`}>
       {section.banners.map((banner, idx) => {
         const href = banner.redirectUrl || "/products";
-        const ratio = banner.aspectRatio || 16 / 9;
 
         return (
           <Link
@@ -86,8 +99,16 @@ function BannerGrid({ section, isFirstOnPage }: { section: BannerSection; isFirs
             href={href}
             // High-cardinality grid: prefetching every tile pulls a full RSC payload each.
             prefetch={false}
-            className="group relative block overflow-hidden rounded-xl border border-border bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            style={{ aspectRatio: `${ratio}` }}
+            // Every tile gets the section's ratio, not its own image's — otherwise a grid
+            // of differently shaped uploads produces ragged rows of different heights.
+            // Set as CSS vars because inline styles cannot carry a media query.
+            className="group relative block overflow-hidden rounded-xl border border-border bg-secondary aspect-[var(--tile-ratio-mobile)] sm:aspect-[var(--tile-ratio-desktop)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            style={
+              {
+                "--tile-ratio-mobile": `${ratios.mobile}`,
+                "--tile-ratio-desktop": `${ratios.desktop}`,
+              } as React.CSSProperties
+            }
           >
             {/* Art direction: a mobile image is used below 640px only when one was
                 supplied; otherwise the desktop image serves both, matching the hero. */}

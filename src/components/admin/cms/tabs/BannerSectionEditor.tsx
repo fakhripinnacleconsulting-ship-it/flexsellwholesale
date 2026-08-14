@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { BannersTab } from "./BannersTab";
 import { HeroCarousel } from "@/components/storefront/HeroCarousel";
+import {
+  DESKTOP_ASPECT_PRESETS,
+  MOBILE_ASPECT_PRESETS,
+  DEFAULT_DESKTOP_RATIO,
+  DEFAULT_MOBILE_RATIO,
+  resolveSectionRatios,
+  ratioDeviation,
+  RATIO_TOLERANCE,
+  getPreset,
+} from "@/lib/bannerAspectRatios";
 import type { BannerSection, BannerSlide } from "../types";
 
 interface BannerSectionEditorProps {
@@ -39,6 +49,43 @@ export function BannerSectionEditor({
   const update = (patch: Partial<BannerSection>) => onChange({ ...section, ...patch });
 
   const bannersMissingAlt = section.banners.filter((b) => !b.altText?.trim()).length;
+  const ratios = resolveSectionRatios(section);
+
+  // Flag uploads whose shape is far enough from the section ratio that object-cover will
+  // crop something the admin probably meant to keep. Measured in the browser from the
+  // actual file, so it catches mistakes the URL alone cannot reveal.
+  const [offRatioCount, setOffRatioCount] = React.useState(0);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const urls = section.banners.map((b) => b.imageUrl).filter(Boolean);
+    if (urls.length === 0) {
+      setOffRatioCount(0);
+      return;
+    }
+
+    Promise.all(
+      urls.map(
+        (url) =>
+          new Promise<number | null>((resolve) => {
+            const img = new window.Image();
+            img.onload = () =>
+              resolve(img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : null);
+            img.onerror = () => resolve(null);
+            img.src = url;
+          })
+      )
+    ).then((measured) => {
+      if (cancelled) return;
+      setOffRatioCount(
+        measured.filter((r) => r !== null && ratioDeviation(r, ratios.desktop) > RATIO_TOLERANCE).length
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [section.banners, ratios.desktop]);
 
   return (
     <div className="space-y-5">
@@ -162,6 +209,42 @@ export function BannerSectionEditor({
         </div>
 
         <div className="space-y-1.5">
+          <label htmlFor="bs-ratio" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+            Desktop Image Ratio
+          </label>
+          <select
+            id="bs-ratio"
+            value={section.aspectRatio || DEFAULT_DESKTOP_RATIO}
+            onChange={(e) => update({ aspectRatio: e.target.value })}
+            className="w-full text-xs font-semibold rounded-lg border border-border bg-background px-3 py-2 cursor-pointer"
+          >
+            {DESKTOP_ASPECT_PRESETS.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.label} — {p.recommended}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="bs-ratio-mobile" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+            Mobile Image Ratio
+          </label>
+          <select
+            id="bs-ratio-mobile"
+            value={section.mobileAspectRatio || DEFAULT_MOBILE_RATIO}
+            onChange={(e) => update({ mobileAspectRatio: e.target.value })}
+            className="w-full text-xs font-semibold rounded-lg border border-border bg-background px-3 py-2 cursor-pointer"
+          >
+            {MOBILE_ASPECT_PRESETS.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.label} — {p.recommended}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
             Section Status
           </span>
@@ -176,6 +259,18 @@ export function BannerSectionEditor({
           </label>
         </div>
       </div>
+
+      {offRatioCount > 0 && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="text-xs font-semibold">
+            {offRatioCount} image{offRatioCount === 1 ? " does" : "s do"} not match this section&rsquo;s{" "}
+            {section.aspectRatio || DEFAULT_DESKTOP_RATIO} ratio and will be cropped to fit. Upload at{" "}
+            {getPreset(section.aspectRatio || DEFAULT_DESKTOP_RATIO, DESKTOP_ASPECT_PRESETS)?.recommended}{" "}
+            to control exactly what stays visible. Check the preview below.
+          </p>
+        </div>
+      )}
 
       {bannersMissingAlt > 0 && (
         <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300">
@@ -230,6 +325,9 @@ export function BannerSectionEditor({
                 eager={false}
                 headingLevel="h3"
                 autoplay={false}
+                // Same fixed box the storefront uses, so the preview shows the real crop
+                // rather than each image at its own natural shape.
+                fixedAspectRatio={ratios}
               />
             </div>
             <p className="text-[11px] text-muted-foreground text-center mt-3">

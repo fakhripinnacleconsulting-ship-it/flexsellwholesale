@@ -174,6 +174,17 @@ export interface BannerSection {
   heading?: string;
   subheading?: string;
   displayMode: "carousel" | "grid";
+  /**
+   * Fixed container ratio for EVERY banner in this section, as a "W:H" key.
+   *
+   * Unlike the hero — which sizes itself from each slide's natural dimensions and so
+   * resizes as it rotates — a banner section reserves one box up front and crops images
+   * into it. That is what keeps the page from shifting when a section holds two or more
+   * differently shaped images.
+   */
+  aspectRatio?: string;
+  /** Separate ratio below 640px. Falls back to `aspectRatio` when unset. */
+  mobileAspectRatio?: string;
   /** Grid mode only. */
   gridColumns?: 1 | 2 | 3 | 4;
   /** Carousel mode only. Defaults to true. */

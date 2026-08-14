@@ -29,6 +29,18 @@ interface HeroCarouselProps {
    * section on the page should; everything else stays lazy.
    */
   eager?: boolean;
+  /**
+   * Locks the container to one ratio for every slide.
+   *
+   * Without it the carousel measures each slide's natural dimensions and resizes to match,
+   * so a section holding differently shaped images visibly grows and shrinks as it rotates,
+   * pushing the rest of the page around. With it the box is reserved once and images are
+   * cropped to fill (object-cover instead of object-contain).
+   *
+   * The hero omits this deliberately: it is a single full-bleed band at the top of the page
+   * where letterboxing the whole image matters more than a stable height.
+   */
+  fixedAspectRatio?: { desktop: number; mobile: number };
 }
 
 export function HeroCarousel({
@@ -37,6 +49,7 @@ export function HeroCarousel({
   previewMode = false,
   autoplay = true,
   eager = true,
+  fixedAspectRatio,
 }: HeroCarouselProps) {
   const router = useRouter();
   const [current, setCurrent] = React.useState(0);
@@ -108,6 +121,10 @@ export function HeroCarousel({
 
   // Pre-load and measure intrinsic aspect ratios for both desktop and mobile slides on mount
   React.useEffect(() => {
+    // With a fixed ratio the measurements are never read, and this effect would otherwise
+    // download every slide (desktop *and* mobile) up front purely to inspect its
+    // dimensions — exactly the eager loading the rest of this work removes.
+    if (fixedAspectRatio) return;
     if (!slides || slides.length === 0) return;
     slides.forEach((slide, idx) => {
       // Measure Desktop Image / Poster
@@ -137,7 +154,7 @@ export function HeroCarousel({
         else mobImg.onload = measureMobile;
       }
     });
-  }, [slides]);
+  }, [slides, fixedAspectRatio]);
 
   // Reset video error state when current slide changes
   React.useEffect(() => {
@@ -232,7 +249,17 @@ export function HeroCarousel({
   // measuring after load and animating aspect-ratio into place (a visible CLS hit).
   const authoredRatio = hasMobileImg ? currentSlide?.mobileAspectRatio : currentSlide?.aspectRatio;
   const fallbackRatio = isMobile ? (hasMobileImg ? 1.0 : 1.77) : 2.5;
-  const activeRatio = authoredRatio || naturalRatio || fallbackRatio;
+
+  // A section-level fixed ratio wins over everything: the whole point is that the box
+  // never changes between slides, so per-slide measurements must not feed into it.
+  const isFixed = !!fixedAspectRatio;
+  const activeRatio = isFixed
+    ? (isMobile ? fixedAspectRatio!.mobile : fixedAspectRatio!.desktop)
+    : (authoredRatio || naturalRatio || fallbackRatio);
+
+  // Fixed box => crop to fill. Free box => letterbox, since the container already matches
+  // the image's own shape.
+  const imageFitClass = isFixed ? "object-cover" : "object-contain";
 
   const variants = {
     enter: (dir: number) => ({
@@ -260,7 +287,7 @@ export function HeroCarousel({
     fill: true,
     priority: claimsPriority,
     sizes: "100vw",
-    className: "object-contain w-full h-full",
+    className: `${imageFitClass} w-full h-full`,
   };
 
   // Generate desktop image props
@@ -283,7 +310,11 @@ export function HeroCarousel({
       style={{
         aspectRatio: activeRatio ? `${activeRatio}` : undefined
       }}
-      className="relative w-full overflow-hidden group select-none bg-background flex items-center justify-center transition-[aspect-ratio] duration-500 ease-in-out"
+      // No aspect-ratio transition when the box is fixed — there is nothing to animate
+      // between, and the transition is precisely the layout shift we are removing.
+      className={`relative w-full overflow-hidden group select-none bg-background flex items-center justify-center${
+        isFixed ? "" : " transition-[aspect-ratio] duration-500 ease-in-out"
+      }`}
       aria-roledescription="carousel"
       aria-label={slides.length > 1 ? `Promotional banners, ${slides.length} slides` : "Promotional banner"}
     >
@@ -339,7 +370,7 @@ export function HeroCarousel({
                 preload="auto"
                 onLoadedMetadata={(e) => handleVideoMetadata(current, false, e)}
                 onError={() => setVideoError(true)}
-                className={`w-full h-full object-contain transition-opacity duration-500 ${
+                className={`w-full h-full ${imageFitClass} transition-opacity duration-500 ${
                   currentSlide.mobileVideoUrl ? "hidden sm:block" : "block"
                 }`}
               />
@@ -357,7 +388,7 @@ export function HeroCarousel({
                   preload="auto"
                   onLoadedMetadata={(e) => handleVideoMetadata(current, true, e)}
                   onError={() => setVideoError(true)}
-                  className="w-full h-full object-contain sm:hidden"
+                  className={`w-full h-full ${imageFitClass} sm:hidden`}
                 />
               )}
 
@@ -471,24 +502,12 @@ export function HeroCarousel({
             <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6" />
           </button>
 
-          {/* Pause/play. WCAG 2.2.2: content that auto-updates for more than 5s must offer
-              a way to stop it. Hidden entirely when autoplay is already off. */}
-          {autoplay && !previewMode && !prefersReducedMotion && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsPaused((p) => !p);
-              }}
-              className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-30 p-2 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/20 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all cursor-pointer"
-              aria-label={isPaused ? "Resume banner rotation" : "Pause banner rotation"}
-            >
-              {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-            </button>
-          )}
-
-          {/* Bullet Indicators */}
-          <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-30 bg-black/40 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/10">
+          {/* Slide indicators, plus the rotation pause control.
+              The pause control lives here rather than in its own corner: sitting opposite
+              the video mute button it read as a video play/pause, when it actually stops
+              the slideshow — and it applies to image slides just as much as video ones.
+              Grouping it with the dots makes it unmistakably a carousel control. */}
+          <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-30">
             {slides.map((_, idx) => (
               <button
                 key={idx}
@@ -498,12 +517,31 @@ export function HeroCarousel({
                   setDirection(idx > current ? 1 : -1);
                   setCurrent(idx);
                 }}
-                className={`h-2 sm:h-2.5 rounded-full transition-all cursor-pointer ${
-                  current === idx ? "bg-primary w-5 sm:w-6" : "bg-white/50 hover:bg-white w-2 sm:w-2.5"
+                // drop-shadow replaces the removed dark pill: without a backdrop the dots
+                // would disappear against a light banner.
+                className={`h-2 sm:h-2.5 rounded-full transition-all cursor-pointer drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)] ${
+                  current === idx ? "bg-primary w-5 sm:w-6" : "bg-white/70 hover:bg-white w-2 sm:w-2.5"
                 }`}
                 aria-label={`Go to slide ${idx + 1}`}
               />
             ))}
+
+            {/* WCAG 2.2.2: content that auto-updates for more than 5s needs a way to stop
+                it. Hidden when autoplay is already off, so it never appears as a dead
+                control on a static banner. */}
+            {autoplay && !previewMode && !prefersReducedMotion && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPaused((p) => !p);
+                }}
+                className="ml-1 text-white/80 hover:text-white transition-colors cursor-pointer drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                aria-label={isPaused ? "Resume banner rotation" : "Pause banner rotation"}
+              >
+                {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+              </button>
+            )}
           </div>
         </>
       )}

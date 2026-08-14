@@ -25,6 +25,14 @@ interface CmsFormModalProps {
   onClose: () => void;
   onSave: () => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => void;
+  /**
+   * Target ratios when editing a banner that belongs to a fixed-ratio banner section.
+   *
+   * Shown as guidance next to the upload fields, so the admin knows the crop before
+   * choosing a file rather than discovering it in the preview afterwards. Absent for hero
+   * banners, which size themselves to each image.
+   */
+  targetRatios?: { desktopLabel: string; desktopRecommended: string; mobileLabel: string; mobileRecommended: string };
 }
 
 export function CmsFormModal({
@@ -35,7 +43,8 @@ export function CmsFormModal({
   setFormData,
   onClose,
   onSave,
-  onFileUpload
+  onFileUpload,
+  targetRatios
 }: CmsFormModalProps) {
   const [isFullScreen, setIsFullScreen] = React.useState(true);
 
@@ -148,6 +157,12 @@ export function CmsFormModal({
                         <input type="file" accept="image/*" className="hidden" onChange={(e) => onFileUpload(e, "imageUrl")} />
                       </label>
                     </div>
+                    {targetRatios && (
+                      <p className="text-[11px] text-muted-foreground">
+                        This section crops to <strong>{targetRatios.desktopLabel}</strong> — upload around{" "}
+                        <strong>{targetRatios.desktopRecommended}</strong> so nothing important is cut off.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="font-bold">Mobile Image URL (Optional)</label>
@@ -160,6 +175,12 @@ export function CmsFormModal({
                     </div>
                     <p className="text-[11px] text-muted-foreground">
                       Optional — leave empty and the desktop image is used on mobile too.
+                      {targetRatios && (
+                        <>
+                          {" "}Mobile crops to <strong>{targetRatios.mobileLabel}</strong> (
+                          {targetRatios.mobileRecommended}).
+                        </>
+                      )}
                     </p>
                   </div>
                 </>

@@ -32,6 +32,13 @@ import {
   setBuiltinVisibility,
   validateLayout,
 } from "@/lib/homepageLayout";
+import {
+  DESKTOP_ASPECT_PRESETS,
+  MOBILE_ASPECT_PRESETS,
+  DEFAULT_DESKTOP_RATIO,
+  DEFAULT_MOBILE_RATIO,
+  getPreset,
+} from "@/lib/bannerAspectRatios";
 
 import { CmsHeader } from "@/components/admin/cms/CmsHeader";
 import { CmsTabsNav } from "@/components/admin/cms/CmsTabsNav";
@@ -662,8 +669,24 @@ export default function AdminCmsPage() {
       </Card>
 
       {/* Modals */}
-      {/* Banners in a custom section reuse the hero banner form verbatim. */}
-      <CmsFormModal isOpen={formModalOpen} activeTab={editingBannerSectionId ? "hero" : activeTab} editingIndex={editingIndex} formData={formData} setFormData={setFormData} onClose={() => setFormModalOpen(false)} onSave={saveModalForm} onFileUpload={handleFileUpload} />
+      {/* Banners in a custom section reuse the hero banner form verbatim, plus the
+          section's fixed crop ratios so the admin sizes the image correctly up front. */}
+      <CmsFormModal
+        targetRatios={
+          editingBannerSection
+            ? {
+                desktopLabel: editingBannerSection.aspectRatio || DEFAULT_DESKTOP_RATIO,
+                desktopRecommended:
+                  getPreset(editingBannerSection.aspectRatio || DEFAULT_DESKTOP_RATIO, DESKTOP_ASPECT_PRESETS)
+                    ?.recommended || "",
+                mobileLabel: editingBannerSection.mobileAspectRatio || DEFAULT_MOBILE_RATIO,
+                mobileRecommended:
+                  getPreset(editingBannerSection.mobileAspectRatio || DEFAULT_MOBILE_RATIO, MOBILE_ASPECT_PRESETS)
+                    ?.recommended || "",
+              }
+            : undefined
+        }
+        isOpen={formModalOpen} activeTab={editingBannerSectionId ? "hero" : activeTab} editingIndex={editingIndex} formData={formData} setFormData={setFormData} onClose={() => setFormModalOpen(false)} onSave={saveModalForm} onFileUpload={handleFileUpload} />
       <CmsViewModal isOpen={viewModalOpen} viewData={viewData} onClose={() => setViewModalOpen(false)} />
       <CmsDeleteModal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} />
       <CmsSeedModal isOpen={seedModalOpen} isSeeding={isSeeding} onClose={() => setSeedModalOpen(false)} onConfirm={handleTriggerSeed} />
