@@ -154,6 +154,13 @@ export default async function HomePage() {
 
   const settings = cmsSettings?.value || {};
 
+  const allTestimonials = [
+    ...(cmsTestimonialsWholesale?.value || []),
+    ...(cmsTestimonialsDropshipper?.value || []),
+    ...(cmsTestimonialsClient?.value || [])
+  ];
+  const hasActiveTestimonials = allTestimonials.some((t: any) => t.isActive !== false);
+
   return (
     <div className="flex flex-col gap-10 md:gap-14 pb-16">
       {/* High Performance Video & Image Hero Banner Carousel */}
@@ -273,7 +280,7 @@ export default async function HomePage() {
       )}
 
       {/* Unified Single Frame Testimonials with 3-Tab Options */}
-      {settings.showTestimonials !== false && (
+      {settings.showTestimonials !== false && hasActiveTestimonials && (
         <TestimonialsSection
           title="What Our Retailers & Partners Say"
           subtitle="Real reviews from shopkeepers, online sellers, and dropship partners across India."
