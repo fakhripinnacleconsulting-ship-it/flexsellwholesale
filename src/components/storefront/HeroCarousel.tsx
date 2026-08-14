@@ -51,6 +51,11 @@ interface HeroCarouselProps {
    * mobile banner before publishing it.
    */
   forceViewport?: "desktop" | "mobile";
+  /**
+   * Overrides how images fill a fixed box. Without it a fixed ratio always crops, which
+   * destroys poster-style artwork whose text sits near the edges.
+   */
+  objectFit?: "cover" | "contain";
 }
 
 export function HeroCarousel({
@@ -61,6 +66,7 @@ export function HeroCarousel({
   eager = true,
   fixedAspectRatio,
   forceViewport,
+  objectFit,
 }: HeroCarouselProps) {
   const router = useRouter();
   const [current, setCurrent] = React.useState(0);
@@ -304,7 +310,12 @@ export function HeroCarousel({
 
   // Fixed box => crop to fill. Free box => letterbox, since the container already matches
   // the image's own shape.
-  const imageFitClass = isFixed ? "object-cover" : "object-contain";
+  // Written as literals, not `object-${objectFit}` — Tailwind's scanner only picks up
+  // complete class names, so an interpolated one would never be generated.
+  const imageFitClass =
+    objectFit === "contain" ? "object-contain"
+      : objectFit === "cover" ? "object-cover"
+        : isFixed ? "object-cover" : "object-contain";
 
   const variants = {
     enter: (dir: number) => ({

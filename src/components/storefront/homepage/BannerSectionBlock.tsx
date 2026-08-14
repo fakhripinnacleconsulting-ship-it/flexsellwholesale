@@ -62,6 +62,8 @@ export function BannerSectionBlock({ section, isFirstOnPage = false }: BannerSec
             // One box for every slide, so rotating between differently shaped images
             // cannot resize the section and push the rest of the page around.
             fixedAspectRatio={ratios}
+            // Poster-style artwork must not be cropped; the section decides.
+            objectFit={section.imageFit}
           />
         </div>
       )}
@@ -121,7 +123,7 @@ function BannerGrid({
                 alt={banner.altText || banner.overlayTitle || "Promotional banner"}
                 fill
                 sizes={columns >= 3 ? "(max-width: 640px) 100vw, 33vw" : "(max-width: 640px) 100vw, 50vw"}
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                className={`${section.imageFit === "contain" ? "object-contain" : "object-cover"} transition-transform duration-500 group-hover:scale-105`}
                 priority={isFirstOnPage && idx === 0}
               />
             </picture>

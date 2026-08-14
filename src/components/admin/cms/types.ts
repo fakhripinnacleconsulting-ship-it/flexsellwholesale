@@ -185,6 +185,14 @@ export interface BannerSection {
   aspectRatio?: string;
   /** Separate ratio below 640px. Falls back to `aspectRatio` when unset. */
   mobileAspectRatio?: string;
+  /**
+   * How an image fills the fixed box.
+   *
+   * `cover` (default) crops to fill — right for photographic banners. `contain` shows the
+   * whole image with padding, which is the only safe option for poster-style artwork
+   * where cropping would cut off text.
+   */
+  imageFit?: "cover" | "contain";
   /** Grid mode only. */
   gridColumns?: 1 | 2 | 3 | 4;
   /** Carousel mode only. Defaults to true. */

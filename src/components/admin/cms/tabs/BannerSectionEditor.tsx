@@ -14,7 +14,7 @@ import {
   resolveSectionRatios,
   ratioDeviation,
   RATIO_TOLERANCE,
-  getPreset,
+  describeRatio,
 } from "@/lib/bannerAspectRatios";
 import type { BannerSection, BannerSlide } from "../types";
 
@@ -54,38 +54,66 @@ export function BannerSectionEditor({
   // Flag uploads whose shape is far enough from the section ratio that object-cover will
   // crop something the admin probably meant to keep. Measured in the browser from the
   // actual file, so it catches mistakes the URL alone cannot reveal.
-  const [offRatioCount, setOffRatioCount] = React.useState(0);
+  const [ratioIssues, setRatioIssues] = React.useState<
+    Array<{ which: "desktop" | "mobile"; actual: number; suggestion?: string }>
+  >([]);
 
   React.useEffect(() => {
     let cancelled = false;
-    const urls = section.banners.map((b) => b.imageUrl).filter(Boolean);
-    if (urls.length === 0) {
-      setOffRatioCount(0);
+
+    // Measure BOTH uploads. Only the desktop image used to be checked, so a portrait
+    // mobile banner dropped into a landscape mobile box was cropped hard with no warning
+    // at all — which is exactly how a poster-style image loses its top and bottom.
+    const targets = section.banners.flatMap((b) => [
+      ...(b.imageUrl ? [{ url: b.imageUrl, which: "desktop" as const }] : []),
+      ...(b.mobileImageUrl ? [{ url: b.mobileImageUrl, which: "mobile" as const }] : []),
+    ]);
+
+    if (targets.length === 0) {
+      setRatioIssues([]);
       return;
     }
 
     Promise.all(
-      urls.map(
-        (url) =>
-          new Promise<number | null>((resolve) => {
+      targets.map(
+        (t) =>
+          new Promise<{ which: "desktop" | "mobile"; actual: number } | null>((resolve) => {
             const img = new window.Image();
             img.onload = () =>
-              resolve(img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : null);
+              resolve(
+                img.naturalWidth && img.naturalHeight
+                  ? { which: t.which, actual: img.naturalWidth / img.naturalHeight }
+                  : null
+              );
             img.onerror = () => resolve(null);
-            img.src = url;
+            img.src = t.url;
           })
       )
     ).then((measured) => {
       if (cancelled) return;
-      setOffRatioCount(
-        measured.filter((r) => r !== null && ratioDeviation(r, ratios.desktop) > RATIO_TOLERANCE).length
-      );
+
+      const issues = measured
+        .filter((m): m is { which: "desktop" | "mobile"; actual: number } => m !== null)
+        .filter((m) => ratioDeviation(m.actual, m.which === "mobile" ? ratios.mobile : ratios.desktop) > RATIO_TOLERANCE)
+        .map((m) => {
+          // Name the preset the image actually is, so the admin can pick it rather than
+          // having to work out the ratio from the file's pixel dimensions.
+          const presets = m.which === "mobile" ? MOBILE_ASPECT_PRESETS : DESKTOP_ASPECT_PRESETS;
+          const closest = presets.reduce((best, p) =>
+            Math.abs(p.value - m.actual) < Math.abs(best.value - m.actual) ? p : best
+          );
+          const suggestion =
+            ratioDeviation(m.actual, closest.value) <= RATIO_TOLERANCE ? closest.key : undefined;
+          return { ...m, suggestion };
+        });
+
+      setRatioIssues(issues);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [section.banners, ratios.desktop]);
+  }, [section.banners, ratios.desktop, ratios.mobile]);
 
   return (
     <div className="space-y-5">
@@ -245,6 +273,24 @@ export function BannerSectionEditor({
         </div>
 
         <div className="space-y-1.5">
+          <label htmlFor="bs-fit" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+            Image Fit
+          </label>
+          <select
+            id="bs-fit"
+            value={section.imageFit || "cover"}
+            onChange={(e) => update({ imageFit: e.target.value as BannerSection["imageFit"] })}
+            className="w-full text-xs font-semibold rounded-lg border border-border bg-background px-3 py-2 cursor-pointer"
+          >
+            <option value="cover">Fill &amp; crop — best for photos</option>
+            <option value="contain">Show whole image — best for posters</option>
+          </select>
+          <p className="text-[10px] text-muted-foreground leading-snug">
+            Choose &ldquo;show whole image&rdquo; when the artwork has text near the edges that must not be cut.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
             Section Status
           </span>
@@ -260,15 +306,33 @@ export function BannerSectionEditor({
         </div>
       </div>
 
-      {offRatioCount > 0 && (
+      {ratioIssues.length > 0 && (
         <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="text-xs font-semibold">
-            {offRatioCount} image{offRatioCount === 1 ? " does" : "s do"} not match this section&rsquo;s{" "}
-            {section.aspectRatio || DEFAULT_DESKTOP_RATIO} ratio and will be cropped to fit. Upload at{" "}
-            {getPreset(section.aspectRatio || DEFAULT_DESKTOP_RATIO, DESKTOP_ASPECT_PRESETS)?.recommended}{" "}
-            to control exactly what stays visible. Check the preview below.
-          </p>
+          <div className="text-xs font-semibold space-y-1.5">
+            <p>
+              {ratioIssues.length} image{ratioIssues.length === 1 ? "" : "s"} will be cropped because
+              the shape does not match this section&rsquo;s box.
+            </p>
+            <ul className="space-y-1 font-medium">
+              {ratioIssues.map((issue, i) => {
+                const target = issue.which === "mobile"
+                  ? section.mobileAspectRatio || DEFAULT_MOBILE_RATIO
+                  : section.aspectRatio || DEFAULT_DESKTOP_RATIO;
+                return (
+                  <li key={i}>
+                    <strong className="capitalize">{issue.which}</strong> image is{" "}
+                    <strong>{describeRatio(issue.actual)}</strong> but the section is set to{" "}
+                    <strong>{target}</strong>.
+                    {issue.suggestion && (
+                      <> Set the {issue.which} ratio to <strong>{issue.suggestion}</strong> above to show it uncropped.</>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="font-medium opacity-80">Use the Mobile toggle in the preview below to check the crop.</p>
+          </div>
         </div>
       )}
 
@@ -332,6 +396,7 @@ export function BannerSectionEditor({
                 // the admin's desktop viewport. Without this, switching to Mobile kept
                 // showing the desktop upload and a mobile banner could not be checked.
                 forceViewport={previewViewport}
+                objectFit={section.imageFit}
               />
             </div>
             <p className="text-[11px] text-muted-foreground text-center mt-3">
