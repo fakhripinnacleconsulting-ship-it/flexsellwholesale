@@ -3,16 +3,32 @@ import { Product } from "@/types";
 import { apiClient } from "@/lib/apiClient";
 import { PRODUCT_LIST_EXCLUDED_FIELDS } from "@/lib/productProjection";
 
-const fetchProductBySlug = cache(async (slug: string): Promise<Product> => {
+/**
+ * Finds a product by its **id or its slug**.
+ *
+ * Product URLs are keyed on `_id` (`PROD-0101`) rather than a slugified title, because a
+ * title-derived slug is unbounded in length: the bulk importer produced slugs of 200+
+ * characters from long marketing titles, and a path segment that long broke the detail page
+ * in production while the listing kept working.
+ *
+ * Slugs are still resolved so every URL Google has already indexed, and every link a customer
+ * has shared, keeps working. The page redirects those to the id form so the two do not compete
+ * as duplicate content.
+ *
+ * One query, not two: `$or` lets a hit on either field come back in a single round trip.
+ */
+const fetchProductByIdentifier = cache(async (identifier: string): Promise<Product> => {
   if (typeof window === "undefined") {
     const dbConnect = (await import("@/lib/dbConnect")).default;
     await dbConnect();
     const ProductModel = (await import("@/models/Product")).default;
-    const product = await ProductModel.findOne({ slug }).lean();
+    const product = await ProductModel.findOne({
+      $or: [{ _id: identifier }, { slug: identifier }],
+    } as Record<string, unknown>).lean();
     if (!product) throw new Error("Product not found");
     return JSON.parse(JSON.stringify(product));
   }
-  return apiClient.get<Product>(`/products/slug/${slug}`);
+  return apiClient.get<Product>(`/products/slug/${encodeURIComponent(identifier)}`);
 });
 
 const fetchTrendingProducts = cache(async (): Promise<Product[]> => {
@@ -173,8 +189,9 @@ export const productService = {
     return apiClient.get<Product>(`/products/${id}`);
   },
 
-  getProductBySlug(slug: string): Promise<Product> {
-    return fetchProductBySlug(slug);
+  /** Accepts an id or a slug. Kept under the old name so existing callers need no change. */
+  getProductBySlug(identifier: string): Promise<Product> {
+    return fetchProductByIdentifier(identifier);
   },
 
   async createProduct(

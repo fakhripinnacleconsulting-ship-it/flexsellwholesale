@@ -198,7 +198,7 @@ export function ProductTable({
                       </td>
                       <td className="px-6 py-4 text-right space-x-1 whitespace-nowrap">
                         {/* View in New Tab */}
-                        <a href={`/products/${product.slug}`} target="_blank" rel="noopener noreferrer">
+                        <a href={`/products/${product._id}`} target="_blank" rel="noopener noreferrer">
                           <Button variant="ghost" size="icon" title="View Storefront">
                             <ExternalLink className="h-4 w-4" />
                           </Button>

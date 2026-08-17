@@ -306,7 +306,7 @@ export function SearchResults({ query, initialProducts, initialCategories }: Sea
               </div>
             </div>
           </div>
-          <Link href={`/products/${exactSkuMatch.product.slug}`}>
+          <Link href={`/products/${exactSkuMatch.product._id}`}>
             <Button size="sm" className="font-bold">View Product &rarr;</Button>
           </Link>
         </div>

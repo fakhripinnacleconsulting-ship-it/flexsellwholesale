@@ -38,12 +38,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const dbConnect = (await import("@/lib/dbConnect")).default;
     const ProductModel = (await import("@/models/Product")).default;
     await dbConnect();
+    // `_id` rather than `slug`: the canonical product URL is the id, and a sitemap entry
+    // pointing at a slug would list a URL that immediately 308s.
     const products = await ProductModel.find({ isActive: true })
-      .select("slug updatedAt")
-      .lean<Array<{ slug: string; updatedAt?: Date }>>();
+      .select("_id updatedAt")
+      .lean<Array<{ _id: string; updatedAt?: Date }>>();
 
     const productRoutes = products.map((product) => ({
-      url: `${baseUrl}/products/${product.slug}`,
+      url: `${baseUrl}/products/${product._id}`,
       lastModified: product.updatedAt ? new Date(product.updatedAt) : new Date(),
       changeFrequency: "weekly" as const,
       priority: 0.8,

@@ -95,9 +95,22 @@ export function ProductDetailProvider({
     initializeProducts(initialProducts);
   }, [initialProducts, initializeProducts]);
 
+  /**
+   * The route identifier is the product **id** now, not its title-slug.
+   *
+   * So every comparison here matches on either. Testing only `slug` meant the guard below
+   * never recognised the product the server had already sent, which triggered an
+   * unnecessary refetch on every load — and then discarded its result for the same reason,
+   * surfacing as "Product not found".
+   */
+  const matchesIdentifier = React.useCallback(
+    (p: Product | null | undefined) => Boolean(p && (p._id === slug || p.slug === slug)),
+    [slug]
+  );
+
   React.useEffect(() => {
-    if (initialProduct && initialProduct.slug === slug) {
-      setFetchedProduct(initialProduct);
+    if (matchesIdentifier(initialProduct)) {
+      setFetchedProduct(initialProduct!);
     } else {
       const { productService } = require("@/services/productService");
       productService
@@ -105,7 +118,7 @@ export function ProductDetailProvider({
         .then((p: Product) => setFetchedProduct(p))
         .catch((err: any) => console.error("Client product lookup notice:", err));
     }
-  }, [slug, initialProduct]);
+  }, [slug, initialProduct, matchesIdentifier]);
 
   const activeProducts = React.useMemo(() => {
     const list = products.length > 0 ? products : initialProducts;
@@ -120,10 +133,10 @@ export function ProductDetailProvider({
   // window, so its stock figures can be stale — `product` below overlays live stock on
   // top of this once the on-demand lookup resolves.
   const baseProduct = React.useMemo(() => {
-    if (fetchedProduct && fetchedProduct.slug === slug) return fetchedProduct;
-    if (initialProduct && initialProduct.slug === slug) return initialProduct;
-    return activeProducts.find((p) => p.slug === slug) || null;
-  }, [slug, fetchedProduct, initialProduct, activeProducts]);
+    if (matchesIdentifier(fetchedProduct)) return fetchedProduct;
+    if (matchesIdentifier(initialProduct)) return initialProduct;
+    return activeProducts.find((p) => matchesIdentifier(p)) || null;
+  }, [fetchedProduct, initialProduct, activeProducts, matchesIdentifier]);
 
   // Live stock, fetched on demand so order activity never has to purge cached HTML.
   const [liveStock, setLiveStock] = React.useState<LiveStockEntry | null>(null);

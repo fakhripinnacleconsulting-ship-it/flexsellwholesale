@@ -6,15 +6,10 @@ import { generateNextId } from "@/lib/idGeneratorServer";
 import HsnRecord from "@/models/HsnRecord";
 import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 import { revalidateProducts } from "@/lib/revalidate";
+import { uniqueSlug as uniqueSlug_ } from "@/lib/slugify";
 
-// Helper to generate a slug from title
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
+// Slug generation lives in lib/slugify. This route previously had its own copy with **no
+// length cap**, which is how 200-character slugs reached production.
 
 export async function POST(request: Request) {
   try {
@@ -196,20 +191,10 @@ export async function POST(request: Request) {
           // CREATE NEW PRODUCT
           const productId = await generateNextId("product");
 
-          // Resolve slug uniqueness
-          let baseSlug = generateSlug(imported.title);
-          let uniqueSlug = baseSlug;
-          let counter = 1;
-
-          const slugExists = async (slugVal: string) => {
-            const dbCheck = await Product.findOne({ slug: slugVal }).lean();
+          const uniqueSlug = await uniqueSlug_(imported.title, async (candidate) => {
+            const dbCheck = await Product.findOne({ slug: candidate }).select("_id").lean();
             return !!dbCheck;
-          };
-
-          while (await slugExists(uniqueSlug)) {
-            uniqueSlug = `${baseSlug}-${counter}`;
-            counter++;
-          }
+          });
 
           // Build new color variants
           const newColorVariants = (imported.colorVariants || []).map((cv: any) => {

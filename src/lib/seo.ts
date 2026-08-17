@@ -255,7 +255,9 @@ export function generateProductSchema(product: Product, canonicalPath?: string) 
     (cv.subVariants || []).map(sv => sv.stock || 0)
   ).reduce((a, b) => a + b, 0);
 
-  const productUrl = `${SITE_URL}${canonicalPath || `/products/${product.slug}`}`;
+  // Falls back to the id, matching the canonical route. A slug fallback here would emit
+  // structured data pointing at a URL that immediately redirects.
+  const productUrl = `${SITE_URL}${canonicalPath || `/products/${product._id}`}`;
 
   return {
     "@context": "https://schema.org",

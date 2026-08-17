@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useProductStore } from "@/stores/productStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useHsnStore } from "@/stores/hsnStore";
+import { slugify } from "@/lib/slugify";
 import { useToastStore } from "@/stores/toastStore";
 import { apiClient } from "@/lib/apiClient";
 import { parseWeightToGrams, parseDimensionsToCm } from "@/lib/priceTierHelper";
@@ -712,7 +713,15 @@ export function useProductFormState(
 
     const productData: Omit<Product, "_id" | "createdAt"> = {
       title,
-      slug: existingProduct ? existingProduct.slug : title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 80) + "-" + Date.now().toString().slice(-4),
+      /**
+       * A slug is no longer load-bearing — product URLs use the id — but it is still stored
+       * for search and for the redirect from previously indexed URLs.
+       *
+       * Built by the shared helper, which caps the length at a word boundary. The previous
+       * inline version cut at exactly 80 characters and appended a timestamp, producing the
+       * mid-word cuts and double hyphens visible in production URLs.
+       */
+      slug: existingProduct ? existingProduct.slug : slugify(title),
       description,
       categoryId,
       rating: existingProduct ? existingProduct.rating : 0,

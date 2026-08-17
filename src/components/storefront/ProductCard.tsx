@@ -157,7 +157,7 @@ export function ProductCard({
   const shouldRenderSlide = (i: number) =>
     i === 0 || hasCarouselEngaged || i === currentImgIndex;
 
-  const productHref = `/products/${product.slug}`;
+  const productHref = `/products/${product._id}`;
 
   /**
    * Warms the product page on intent rather than on sight.
@@ -266,7 +266,7 @@ export function ProductCard({
         {/* prefetch disabled: a catalog grid puts 40+ of these in the viewport at once,
             and each prefetch pulls a full RSC payload — a cache miss on any of them also
             costs an ISR write. Navigation stays instant via the router cache on click. */}
-        <Link href={`/products/${product.slug}`} prefetch={false} className="absolute inset-0 z-10">
+        <Link href={`/products/${product._id}`} prefetch={false} className="absolute inset-0 z-10">
           <span className="sr-only">View {product.title}</span>
         </Link>
         {/* Wishlist Button */}
@@ -456,7 +456,7 @@ export function ProductCard({
       className="flex flex-col h-full bg-card hover:shadow-xl hover:border-primary/30 transition-all duration-300 relative group/card border border-border/80 select-none rounded-xl overflow-hidden max-w-sm w-full mx-auto"
     >
       {/* Viewport prefetch off; warmed on hover/touch — see the list-layout link above. */}
-      <Link href={`/products/${product.slug}`} prefetch={false} className="absolute inset-0 z-10">
+      <Link href={`/products/${product._id}`} prefetch={false} className="absolute inset-0 z-10">
         <span className="sr-only">View {product.title}</span>
       </Link>
       {/* Fixed Floating Overlay Badges */}

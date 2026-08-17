@@ -120,7 +120,7 @@ export function GlobalSearchInput({
         let count = 0;
         if (selectedIndex < suggestions.skus.length) {
           const item = suggestions.skus[selectedIndex];
-          router.push(`/products/${item.slug}`);
+          router.push(`/products/${item.productId}`);
           setIsFocused(false);
           if (onSearchSubmitted) onSearchSubmitted();
           return;
@@ -129,7 +129,9 @@ export function GlobalSearchInput({
 
         if (selectedIndex - count < suggestions.products.length) {
           const item = suggestions.products[selectedIndex - count];
-          router.push(`/products/${item.slug}`);
+          // Product suggestions carry `_id`; SKU suggestions above carry `productId`. Both
+          // are the product's id — the two result shapes just name it differently.
+          router.push(`/products/${item._id}`);
           setIsFocused(false);
           if (onSearchSubmitted) onSearchSubmitted();
           return;
@@ -221,7 +223,7 @@ export function GlobalSearchInput({
                       return (
                         <Link
                           key={skuItem.sku}
-                          href={`/products/${skuItem.slug}`}
+                          href={`/products/${skuItem.productId}`}
                           onClick={() => {
                             setIsFocused(false);
                             if (onSearchSubmitted) onSearchSubmitted();
@@ -272,7 +274,7 @@ export function GlobalSearchInput({
                       return (
                         <Link
                           key={prod._id}
-                          href={`/products/${prod.slug}`}
+                          href={`/products/${prod._id}`}
                           onClick={() => {
                             setIsFocused(false);
                             if (onSearchSubmitted) onSearchSubmitted();
