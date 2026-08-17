@@ -2,7 +2,7 @@
 
 A multi-tier commerce platform that sells the same catalogue to **three different buyers** —
 retail (B2C), wholesale (B2B), and resellers (Dropshipping) — from one product record, one
-inventory pool, and one order pipeline.
+inventory pool, and one order pipeline. 
 
 Built with Next.js 16 (App Router), React 19, TypeScript, MongoDB and Tailwind CSS v4.
 Deployed on Vercel.
