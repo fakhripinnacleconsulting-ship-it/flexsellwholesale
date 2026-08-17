@@ -582,7 +582,7 @@ export function VariantCard({
                                   Print Barcode Label
                                 </button>
                               </div>
-                              ${generateBarcodeCardHtml(sv)}
+                              ${generateBarcodeCardHtml(sv, item.color)}
                             </div>
                           </body>
                         </html>

@@ -307,7 +307,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
     selectedProducts.forEach(product => {
       product.colorVariants.forEach(cv => {
         cv.subVariants?.forEach(sv => {
-          cardsHtml += generateBarcodeCardHtml(sv);
+          cardsHtml += generateBarcodeCardHtml(sv, cv.color);
         });
       });
     });
@@ -393,7 +393,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
                 Print Barcode Label
               </button>
             </div>
-            ${generateBarcodeCardHtml(sv)}
+            ${generateBarcodeCardHtml(sv, cv.color)}
           </div>
         </body>
       </html>
@@ -416,7 +416,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
     const titleText = barcodePrintProduct.title;
     const cardsHtml = barcodePrintProduct.colorVariants.flatMap(cv =>
       cv.subVariants?.map(sv => {
-        return generateBarcodeCardHtml(sv);
+        return generateBarcodeCardHtml(sv, cv.color);
       }) || []
     ).join("");
 

@@ -70,25 +70,66 @@ export function getBarcodeSvgString(
   </svg>`;
 }
 
-export function generateBarcodeCardHtml(sv: SubVariant): string {
+export function generateBarcodeCardHtml(sv: SubVariant, colorName?: string): string {
   const barValue = sv.barcode || sv.sku || "FX0000";
-  
+
   const barcodeContentHtml = (sv.barcodeSource === "image" && sv.barcodeImage)
-    ? `<img src="${sv.barcodeImage}" style="max-height: 40px; max-width: 100%; object-fit: contain;" />`
-    : getBarcodeSvgString(barValue, { width: 1.5, height: 40, displayValue: false });
+    ? `<img src="${sv.barcodeImage}" style="max-height: 48px; max-width: 100%; object-fit: contain;" />`
+    : getBarcodeSvgString(barValue, { width: 1.6, height: 48, displayValue: false, margin: 0 });
+
+  const sizeText = colorName ? `${sv.size} / ${colorName}` : sv.size;
 
   return `
-    <div class="barcode-card" style="width: 3in; height: 2in; display: inline-flex; flex-direction: column; justify-content: center; align-items: center; border: 1px dashed #ccc; box-sizing: border-box; padding: 0.1in; margin: 4px; background: #fff; text-align: center;">
-      <div style="display:flex; justify-content:center; width: 100%;">
-        ${barcodeContentHtml}
+    <div class="barcode-card" style="width: 3in; height: 2in; border: 1px solid #999; border-radius: 8px; box-sizing: border-box; padding: 0.1in; margin: 4px; background: #fff; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; page-break-inside: avoid; color: #000; display: flex; flex-direction: column; justify-content: space-between;">
+      
+      <!-- Header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 2px; height: 18px;">
+        <img src="/Flexsell%20Logo.png" alt="FlexSell" style="height: 16px; object-fit: contain;" />
+        <div style="display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 500; color: #333;">
+          <span>www.flexsellwholesale.com</span>
+        </div>
       </div>
-      <div style="font-size: 13px; font-weight: bold; font-family: monospace; text-transform: uppercase; margin-top: 4px; letter-spacing: 0.5px; text-align: center;">${sv.sku}</div>
-      <div style="margin-top: 8px; font-size: 9px; font-family: sans-serif; width: 100%; display: flex; justify-content: space-around; flex-wrap: wrap; line-height: 1.4;">
-        <span><strong>B2C:</strong> ₹${sv.b2cPrice || 0}</span>
-        <span><strong>B2B:</strong> ₹${sv.b2bPrice || 0}</span>
-        <span><strong>Drop:</strong> ₹${sv.dropshippingPrice || 0}</span>
-        <span><strong>MOQ:</strong> ${sv.b2bMoq || 1}</span>
+
+      <!-- Divider -->
+      <div style="border-bottom: 1px solid #ccc; margin: 4px 0 6px 0;"></div>
+
+      <!-- Barcode Section -->
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 4px;">
+        <div style="width: 100%; text-align: center; display: flex; justify-content: center; height: 48px; overflow: hidden;">
+          ${barcodeContentHtml}
+        </div>
+        <div style="font-size: 13px; font-weight: 800; font-family: monospace; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">
+          ${sv.sku}
+        </div>
       </div>
+
+      <!-- Data Rows -->
+      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px; line-height: 1.2; padding: 0 4px; flex: 1; justify-content: center;">
+        
+        <!-- Row 1: Size and Weight -->
+        <div style="display: flex; justify-content: space-between;">
+          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;"><strong>Size:</strong> ${sizeText}</span>
+          <span><strong>Weight:</strong> ${sv.weight || '-'}</span>
+        </div>
+        
+        <!-- Row 2: MRP and B2C -->
+        <div style="display: flex; justify-content: space-between;">
+          <span><strong>MRP:</strong> Rs. ${sv.mrp}</span>
+          <span><strong>B2C:</strong> Rs. ${sv.b2cPrice || 0}</span>
+        </div>
+
+      </div>
+
+      <!-- Pricing Row -->
+      <div style="border-top: 1px dashed #999; padding: 4px 4px 0 4px; margin-top: 2px;">
+        <div style="font-size: 8px; font-weight: 700; color: #555; text-align: center; margin-bottom: 2px; letter-spacing: 1px;">FLEXSELL RATES</div>
+        <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: 800;">
+          <span>DROP: <span style="font-size: 12px;">Rs. ${sv.dropshippingPrice || 0}</span></span>
+          <span>B2B: <span style="font-size: 12px;">Rs. ${sv.b2bPrice || 0}</span></span>
+          <span>B2B MOQ: <span style="font-size: 12px;">${sv.b2bMoq || 1}</span></span>
+        </div>
+      </div>
+
     </div>
   `;
 }
