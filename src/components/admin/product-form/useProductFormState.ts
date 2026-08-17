@@ -712,7 +712,7 @@ export function useProductFormState(
 
     const productData: Omit<Product, "_id" | "createdAt"> = {
       title,
-      slug: existingProduct ? existingProduct.slug : title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now().toString().slice(-4),
+      slug: existingProduct ? existingProduct.slug : title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 80) + "-" + Date.now().toString().slice(-4),
       description,
       categoryId,
       rating: existingProduct ? existingProduct.rating : 0,

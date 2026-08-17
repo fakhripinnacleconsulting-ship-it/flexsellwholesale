@@ -216,6 +216,9 @@ export interface Order extends BaseDocument {
   transactionId?: string;
   /** Razorpay order handle minted for this order; used to bind payment verification. */
   razorpayOrderId?: string;
+  /** Set when this order was paid from a wallet — links back to the ledger entry. */
+  walletTransactionId?: string;
+  walletAmount?: number;
   invoiceId?: string;
   quoteId?: string;
   salesperson?: string;
@@ -498,3 +501,6 @@ export interface Collection extends BaseDocument {
   seoDescription?: string;
   seoKeywords?: string;
 }
+
+// Wallet domain types.
+export * from "./wallet";

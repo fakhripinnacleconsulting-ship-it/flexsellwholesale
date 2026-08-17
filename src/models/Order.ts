@@ -110,7 +110,11 @@ const OrderSchema = new Schema<OrderType & Document>(
       hsnSlabs: [{ type: Schema.Types.Mixed }],
     },
     history: [HistoryEventSchema],
-    paymentMethod: { type: String, enum: ["Bank Transfer", "Razorpay", "UPI", "COD"] },
+    paymentMethod: { type: String, enum: ["Bank Transfer", "Razorpay", "UPI", "COD", "Wallet"] },
+    // Set when this order was paid from a wallet. The ledger entry is the record of the
+    // money; these two fields let the order link back to it without a lookup.
+    walletTransactionId: { type: String, index: true, sparse: true },
+    walletAmount: { type: Number },
     paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed"], default: "Pending" },
     transactionId: { type: String },
     // Razorpay order handle, minted server-side from this order's own amount. Payment

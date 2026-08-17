@@ -5,6 +5,7 @@ import "quill/dist/quill.snow.css";
 import { Code, Eye, Edit3, Image as ImageIcon, Video, Sparkles, Check, Copy } from "lucide-react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { apiClient } from "@/lib/apiClient";
+import { useToastStore } from "@/stores/toastStore";
 
 interface RichTextEditorProps {
   value: string;
@@ -24,6 +25,7 @@ export default function RichTextEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<any>(null);
   const isInitiated = useRef(false);
+  const { addToast } = useToastStore();
 
   const [mode, setMode] = useState<"visual" | "html" | "preview">("visual");
   const [htmlValue, setHtmlValue] = useState(value || "");
@@ -82,7 +84,7 @@ export default function RichTextEditor({
           if (!file) return;
 
           if (file.size > 2 * 1024 * 1024) {
-            alert("Image size exceeds 2MB limit. Please upload a smaller image.");
+            addToast("Image size exceeds 2MB limit. Please upload a smaller image.", "error");
             return;
           }
 

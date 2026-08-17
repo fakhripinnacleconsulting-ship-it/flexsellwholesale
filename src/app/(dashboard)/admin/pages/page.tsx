@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { useToastStore } from "@/stores/toastStore";
 import { apiClient } from "@/lib/apiClient";
 import { FileText, Plus, Pencil, Trash2, ExternalLink, X } from "lucide-react";
@@ -37,6 +38,7 @@ export default function AdminPagesPage() {
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editingPage, setEditingPage] = React.useState<StaticPage | null>(null);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
   const [title, setTitle] = React.useState("");
   const [slug, setSlug] = React.useState("");
@@ -48,11 +50,14 @@ export default function AdminPagesPage() {
   const fetchPages = React.useCallback(async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const res = await fetch("/api/cms");
+      if (!res.ok) throw new Error("Failed to load static pages");
       const data = await res.json();
       setPages(Array.isArray(data?.staticPages) ? data.staticPages : []);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load static pages:", err);
+      setError(err.message || "Something went wrong while fetching pages.");
     } finally {
       setIsLoading(false);
     }
@@ -166,6 +171,8 @@ export default function AdminPagesPage() {
 
       {isLoading ? (
         <p className="text-center text-muted-foreground py-12">Loading pages...</p>
+      ) : error ? (
+        <ErrorState title="Failed to load pages" description={error} onRetry={fetchPages} />
       ) : pages.length === 0 ? (
         <Card>
           <CardContent className="pt-6">

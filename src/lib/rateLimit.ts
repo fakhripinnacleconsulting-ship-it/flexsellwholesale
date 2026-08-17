@@ -34,7 +34,7 @@ function cleanupExpired() {
 }
 
 export async function rateLimit(identifier: string, tier: "auth" | "general" | "search" = "auth") {
-  if (process.env.TEST_MODE === "true") return;
+  if (process.env.TEST_MODE === "true" && process.env.NODE_ENV !== "production") return;
 
   const maxRequestsMap = {
     auth: 5,

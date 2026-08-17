@@ -20,7 +20,7 @@ import { Product, Category, ColorVariant, SubVariant } from "@/types";
 import { BarcodeScanner } from "./BarcodeScanner";
 import { Barcode } from "@/components/ui/Barcode";
 import { Pagination } from "@/components/ui/Pagination";
-import { getBarcodeSvgString } from "@/lib/barcodeHelper";
+import { getBarcodeSvgString, generateBarcodeCardHtml } from "@/lib/barcodeHelper";
 import { calculateProductRelevanceScore } from "@/services/searchService";
 import { resolvePrice } from "@/lib/priceTierHelper";
 import { InventoryManager } from "./InventoryManager";
@@ -307,15 +307,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
     selectedProducts.forEach(product => {
       product.colorVariants.forEach(cv => {
         cv.subVariants?.forEach(sv => {
-          const barValue = sv.barcode || sv.sku || "FX0000";
-          cardsHtml += `
-            <div style="text-align:center; width:150px; margin:8px; display:inline-block; box-sizing:border-box; padding:6px; border:1px border #e5e7eb; border-radius:4px;">
-              <div style="display:flex; justify-content:center;">
-                ${getBarcodeSvgString(barValue, { width: 1.4, height: 35, displayValue: false })}
-              </div>
-              <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase; margin-top:3px; letter-spacing:0.5px;">${sv.sku}</div>
-            </div>
-          `;
+          cardsHtml += generateBarcodeCardHtml(sv);
         });
       });
     });
@@ -327,14 +319,21 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
           <title>${generateDocumentTitle("Barcode_Labels", "Bulk")}</title>
           <style>
             @page {
-              size: auto;
-              margin: 0mm;
+              size: 3in 2in;
+              margin: 0;
             }
-            body { font-family: system-ui, -apple-system, sans-serif; padding: 15px; background: #fff; text-align:center; }
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 15px; background: #fff; text-align:center; margin: 0; }
             .grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
             @media print {
-              html, body { background: #fff; padding: 5mm; margin: 0; }
+              html, body { background: #fff; padding: 0; margin: 0; }
               .no-print { display: none !important; }
+              .grid { display: block; }
+              .barcode-card {
+                margin: 0 !important;
+                border: none !important;
+                page-break-after: always;
+                page-break-inside: avoid;
+              }
             }
           </style>
         </head>
@@ -371,14 +370,19 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
           <title>${generateDocumentTitle("Barcode_Label", sv.sku)}</title>
           <style>
             @page {
-              size: auto;
-              margin: 0mm;
+              size: 3in 2in;
+              margin: 0;
             }
-            body { display: flex; justify-content: center; align-items: center; min-height: 90vh; font-family: system-ui, sans-serif; background:#fff; margin:0; }
-            .card { text-align: center; width: 220px; border: 1px border #000; padding: 12px; border-radius: 6px; }
+            body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; font-family: system-ui, sans-serif; background:#fff; margin:0; padding: 15px; }
             @media print {
-              html, body { margin: 0; padding: 0; }
+              html, body { margin: 0; padding: 0; display: block; }
               .no-print { display: none !important; }
+              .barcode-card {
+                margin: 0 !important;
+                border: none !important;
+                page-break-after: always;
+                page-break-inside: avoid;
+              }
             }
           </style>
         </head>
@@ -389,13 +393,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
                 Print Barcode Label
               </button>
             </div>
-            <div class="card">
-              <div style="font-size:11px; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">${product.title}</div>
-              <div style="display:flex; justify-content:center;">
-                ${getBarcodeSvgString(barValue, { width: 1.4, height: 35, displayValue: false })}
-              </div>
-              <div style="font-size:11px; font-weight:bold; font-family:monospace; text-transform:uppercase; margin-top:4px;">${sv.sku}</div>
-            </div>
+            ${generateBarcodeCardHtml(sv)}
           </div>
         </body>
       </html>
@@ -418,16 +416,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
     const titleText = barcodePrintProduct.title;
     const cardsHtml = barcodePrintProduct.colorVariants.flatMap(cv =>
       cv.subVariants?.map(sv => {
-        const barValue = sv.barcode || sv.sku || "FX0000";
-
-        return `
-          <div style="text-align:center; width:150px; margin:8px; display:inline-block; box-sizing:border-box; padding:6px; border:1px border #e5e7eb; border-radius:4px;">
-            <div style="display:flex; justify-content:center;">
-              ${getBarcodeSvgString(barValue, { width: 1.4, height: 35, displayValue: false })}
-            </div>
-            <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase; margin-top:3px; letter-spacing:0.5px;">${sv.sku}</div>
-          </div>
-        `;
+        return generateBarcodeCardHtml(sv);
       }) || []
     ).join("");
 
@@ -438,14 +427,21 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
           <title>Print Barcode Labels - ${titleText}</title>
           <style>
             @page {
-              size: auto;
-              margin: 0mm;
+              size: 3in 2in;
+              margin: 0;
             }
             body { font-family: system-ui, -apple-system, sans-serif; padding: 15px; background: #fff; text-align:center; margin:0; }
             .grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
             @media print {
-              html, body { background: #fff; padding: 5mm; margin: 0; }
+              html, body { background: #fff; padding: 0; margin: 0; }
               .no-print { display: none !important; }
+              .grid { display: block; }
+              .barcode-card {
+                margin: 0 !important;
+                border: none !important;
+                page-break-after: always;
+                page-break-inside: avoid;
+              }
             }
           </style>
         </head>

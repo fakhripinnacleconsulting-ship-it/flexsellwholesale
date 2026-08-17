@@ -1324,5 +1324,114 @@ export const emailService = {
       </div>
     `;
     return this.sendEmail({ to: customerEmail, subject: `Reply regarding Inquiry: ${inquiry.subject}`, html: bodyHtml, category: "quotes" });
+  },
+
+  /**
+   * Tells a customer that money was spent from their wallet.
+   *
+   * With no approval step before a staff spend, this email is the customer's first real
+   * chance to notice a wrong charge — which makes it a fraud control, not a courtesy.
+   * It names the person who spent it for the same reason.
+   */
+  async sendWalletExpenseEmail(params: {
+    to: string;
+    customerName: string;
+    amount: number;
+    walletLabel: string;
+    category: string;
+    description: string;
+    spentBy: string;
+    balanceAfter: number;
+    receiptNumber: string;
+    occurredAt: string;
+  }): Promise<boolean> {
+    const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #10b981; margin: 0;">Wallet Expense Recorded</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello <strong>${params.customerName}</strong>,</p>
+          <p>An expense has been recorded against your <strong>${params.walletLabel}</strong>.</p>
+
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;">
+            <tr><td style="padding: 8px 0; color: #64748b;">Amount</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 18px;">${money(params.amount)}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">For</td><td style="padding: 8px 0; text-align: right; font-weight: bold;">${params.description}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Category</td><td style="padding: 8px 0; text-align: right;">${params.category}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Recorded by</td><td style="padding: 8px 0; text-align: right; font-weight: bold;">${params.spentBy}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Date</td><td style="padding: 8px 0; text-align: right;">${params.occurredAt}</td></tr>
+            <tr style="border-top: 1px solid #e2e8f0;"><td style="padding: 12px 0 0; color: #64748b;">Remaining balance</td><td style="padding: 12px 0 0; text-align: right; font-weight: bold; color: #10b981;">${money(params.balanceAfter)}</td></tr>
+          </table>
+
+          <p style="font-size: 12px; color: #64748b;">
+            Receipt ${params.receiptNumber}. If you did not expect this expense, reply to this
+            email or raise a query from your wallet passbook and we will look into it.
+          </p>
+        </div>
+        ${renderStandardEmailFooter("Wallet Expense", params.receiptNumber)}
+      </div>
+    `;
+
+    return this.sendEmail({
+      to: params.to,
+      subject: `${money(params.amount)} spent from your ${params.walletLabel} — FlexSell Wholesale`,
+      html: bodyHtml,
+      category: "payments",
+    });
+  },
+
+  /**
+   * The same expense, reported to the business owner.
+   *
+   * Sent for every staff spend regardless of who made it. Managers have no spend cap and no
+   * per-customer scoping, so this is the only place an owner sees the activity as it
+   * happens rather than by opening each wallet.
+   */
+  async sendAdminWalletExpenseAlert(params: {
+    customerName: string;
+    customerId: string;
+    amount: number;
+    walletLabel: string;
+    category: string;
+    description: string;
+    spentBy: string;
+    spentByRole: string;
+    balanceAfter: number;
+    receiptNumber: string;
+    hasBill: boolean;
+  }): Promise<boolean> {
+    const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+    const bodyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #10b981; margin: 0;">Wallet Spend Alert</h2>
+        </div>
+        <div style="padding: 24px; color: #334155;">
+          <p>Hello Admin,</p>
+          <p><strong>${params.spentBy}</strong> (${params.spentByRole}) recorded an expense against a customer wallet.</p>
+
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;">
+            <tr><td style="padding: 8px 0; color: #64748b;">Customer</td><td style="padding: 8px 0; text-align: right; font-weight: bold;">${params.customerName} (${params.customerId})</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Wallet</td><td style="padding: 8px 0; text-align: right;">${params.walletLabel}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Amount</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 18px;">${money(params.amount)}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Category</td><td style="padding: 8px 0; text-align: right;">${params.category}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Description</td><td style="padding: 8px 0; text-align: right;">${params.description}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Bill attached</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: ${params.hasBill ? "#10b981" : "#ef4444"};">${params.hasBill ? "Yes" : "No"}</td></tr>
+            <tr style="border-top: 1px solid #e2e8f0;"><td style="padding: 12px 0 0; color: #64748b;">Balance left</td><td style="padding: 12px 0 0; text-align: right; font-weight: bold;">${money(params.balanceAfter)}</td></tr>
+          </table>
+        </div>
+        ${renderStandardEmailFooter("Wallet Spend Alert", params.receiptNumber)}
+      </div>
+    `;
+
+    return this.sendEmail({
+      to: this.getAdminEmail(),
+      subject: `[Wallet] ${params.spentBy} spent ${money(params.amount)} for ${params.customerName}`,
+      html: bodyHtml,
+      category: "payments",
+    });
   }
 };

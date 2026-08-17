@@ -8,10 +8,12 @@ import { useToastStore } from "@/stores/toastStore";
 import { Trash2, Plus, Scale, Truck, Save } from "lucide-react";
 import { shippingService } from "@/services/shippingService";
 import { ShippingWeightSlab } from "@/types";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 export default function AdminShippingPage() {
   const { addToast } = useToastStore();
   const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [b2bFixedCharge, setB2bFixedCharge] = React.useState(150);
   const [dropshippingFixedCharge, setDropshippingFixedCharge] = React.useState(80);
@@ -33,7 +35,8 @@ export default function AdminShippingPage() {
         }
       })
       .catch((err) => {
-        addToast(err.message || "Failed to load shipping settings", "error");
+        console.error(err);
+        setError(err.message || "Failed to load shipping settings");
       })
       .finally(() => {
         setIsLoading(false);
@@ -106,6 +109,10 @@ export default function AdminShippingPage() {
 
   if (isLoading) {
     return <div className="text-center py-12 text-muted-foreground">Loading shipping settings...</div>;
+  }
+
+  if (error) {
+    return <div className="p-8"><ErrorState title="Failed to load shipping settings" description={error} onRetry={() => window.location.reload()} /></div>;
   }
 
   return (

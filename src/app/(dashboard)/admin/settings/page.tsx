@@ -11,10 +11,12 @@ import { Search, Hash, RefreshCw, Save, Layers, CreditCard, FileText, Users, Sho
 import { CompanyInformationTab, CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
 import { AdminManagementTab } from "@/components/admin/settings/AdminManagementTab";
 import { apiClient } from "@/lib/apiClient";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 export default function AdminSettingsPage() {
   const { addToast } = useToastStore();
   const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
 
   // Unified Company & Brand Information state
@@ -49,6 +51,7 @@ export default function AdminSettingsPage() {
   const [defaultTaxRate, setDefaultTaxRate] = React.useState("18");
   const [enableCod, setEnableCod] = React.useState(true);
   const [enableOnlinePayment, setEnableOnlinePayment] = React.useState(true);
+  const [enableWalletOnlineRecharge, setEnableWalletOnlineRecharge] = React.useState(true);
 
   // Footer settings state
   const [footerSettings, setFooterSettings] = React.useState<{
@@ -122,6 +125,7 @@ export default function AdminSettingsPage() {
           if (commerce.defaultTaxRate) setDefaultTaxRate(commerce.defaultTaxRate);
           if (commerce.enableCod !== undefined) setEnableCod(commerce.enableCod);
           if (commerce.enableOnlinePayment !== undefined) setEnableOnlinePayment(commerce.enableOnlinePayment);
+          if (commerce.enableWalletOnlineRecharge !== undefined) setEnableWalletOnlineRecharge(commerce.enableWalletOnlineRecharge);
 
           // Populate idFormats list safely merging defaults
           if (data.idFormats) {
@@ -138,8 +142,9 @@ export default function AdminSettingsPage() {
             });
             setIdFormatsList(merged);
           }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load settings:", err);
+        setError(err.message || "Failed to load system settings.");
       } finally {
         setIsLoading(false);
       }
@@ -151,7 +156,7 @@ export default function AdminSettingsPage() {
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
-      const commerceSettings = { defaultTaxRate, enableCod, enableOnlinePayment };
+      const commerceSettings = { defaultTaxRate, enableCod, enableOnlinePayment, enableWalletOnlineRecharge };
 
       const saveReqs = [
         apiClient.post("/cms", { key: "businessSettings", value: companyInfo }),
@@ -221,6 +226,10 @@ export default function AdminSettingsPage() {
 
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground text-sm">Loading system settings...</div>;
+  }
+
+  if (error) {
+    return <ErrorState title="Failed to load settings" description={error} onRetry={() => window.location.reload()} />;
   }
 
   return (
@@ -308,6 +317,18 @@ export default function AdminSettingsPage() {
                   type="checkbox"
                   checked={enableOnlinePayment}
                   onChange={(e) => setEnableOnlinePayment(e.target.checked)}
+                  className="h-4 w-4 rounded text-primary focus:ring-primary bg-background border-border cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Enable Online Wallet Recharge</label>
+                  <p className="text-xs text-muted-foreground">Allow customers to top-up their B2B wallet directly via Payment Gateway.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enableWalletOnlineRecharge}
+                  onChange={(e) => setEnableWalletOnlineRecharge(e.target.checked)}
                   className="h-4 w-4 rounded text-primary focus:ring-primary bg-background border-border cursor-pointer"
                 />
               </div>

@@ -94,6 +94,39 @@ export async function PUT(request: NextRequest, { params }: RouteProps) {
       return NextResponse.json({ message: "This order is already cancelled." }, { status: 400 });
     }
 
+    /**
+     * Return wallet money, if this order was paid from one.
+     *
+     * Runs after the cancellation is claimed, so it inherits that claim's exclusivity — the
+     * same guard that stops stock being restored twice stops the refund happening twice.
+     * `refundWalletOrder` is independently idempotent as well (it only reverses a `success`
+     * debit), because a refund credited twice is money invented from nothing.
+     *
+     * The money returns to the wallet it came from, never to a bank: balance is
+     * non-refundable, and a Business-Wallet-funded order must not refund into the Store
+     * Wallet, which would turn one-way money back into spendable money.
+     */
+    if (order.walletTransactionId) {
+      try {
+        const { refundWalletOrder } = await import("@/lib/walletCheckout");
+        const { toWalletActor } = await import("@/lib/walletLedger");
+        const refund = await refundWalletOrder({
+          walletTransactionId: order.walletTransactionId,
+          orderId: id,
+          actor: toWalletActor(cancelActor),
+          reason: `Order ${id} cancelled`,
+        });
+        if (refund.refunded) {
+          console.log(`[Wallet] Refunded order ${id} to wallet (${refund.amountPaise} paise)`);
+        }
+      } catch (err) {
+        // Loud, and deliberately not fatal: the order is already cancelled and the stock is
+        // about to come back. A failed refund needs a human, not a rolled-back cancellation
+        // that would leave the buyer unable to try again.
+        console.error(`[Wallet] REFUND FAILED for cancelled order ${id} — needs manual reversal:`, err);
+      }
+    }
+
     // Restore stock for every item, same atomic pattern used by the admin cancel/delete flow.
     for (const oldItem of order.items) {
       try {

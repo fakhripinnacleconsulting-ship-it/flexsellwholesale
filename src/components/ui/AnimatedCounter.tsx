@@ -59,6 +59,21 @@ export function AnimatedCounter({ value, duration = 1800, className }: AnimatedC
       return;
     }
 
+    /**
+     * Honour a reduced-motion preference by showing the final figure immediately.
+     *
+     * Counting up is decorative everywhere it is used, and on a wallet balance it is worse
+     * than decorative: someone who has asked for less motion should not have to watch a
+     * number they came to read climb towards itself.
+     */
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setDisplayValue(strValue);
+      return;
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;

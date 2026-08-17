@@ -14,10 +14,6 @@ export function sanitizeHtml(dirty: string): string {
     });
   } catch (err) {
     console.error("DOMPurify sanitize notice:", err);
-    return dirty
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-      .replace(/on\w+="[^"]*"/gi, "")
-      .replace(/on\w+='[^']*'/gi, "");
+    return "";
   }
 }

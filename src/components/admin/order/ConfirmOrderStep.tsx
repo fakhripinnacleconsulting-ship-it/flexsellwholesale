@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Invoice } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import { useToastStore } from "@/stores/toastStore";
 
 interface ConfirmOrderStepProps {
   quote: Invoice;
@@ -25,6 +26,7 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
   const [paymentMethod, setPaymentMethod] = React.useState<"Bank Transfer" | "Razorpay" | "UPI" | "COD">("COD");
   const [transactionId, setTransactionId] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { addToast } = useToastStore();
 
   // Shipping Address States
   const [firstName, setFirstName] = React.useState(quote.shippingAddress?.firstName || "");
@@ -63,19 +65,19 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (paymentOption === "now" && !transactionId.trim()) {
-      alert("Please provide a transaction reference ID for Paid Invoices.");
+      addToast("Please provide a transaction reference ID for Paid Invoices.", "error");
       return;
     }
 
     if (showAddressEditor) {
-      if (!firstName.trim()) { alert("First name is required."); return; }
-      if (!lastName.trim()) { alert("Last name is required."); return; }
-      if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert("Invalid email address."); return; }
-      if (address.trim().length < 5) { alert("Address must be at least 5 characters."); return; }
-      if (city.trim().length < 2) { alert("City is required."); return; }
-      if (state.trim().length < 2) { alert("State is required."); return; }
-      if (!/^\d{6}$/.test(pinCode)) { alert("Pin code must be exactly 6 digits."); return; }
-      if (phone.trim().length < 10) { alert("Phone number must be at least 10 digits."); return; }
+      if (!firstName.trim()) { addToast("First name is required.", "error"); return; }
+      if (!lastName.trim()) { addToast("Last name is required.", "error"); return; }
+      if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { addToast("Invalid email address.", "error"); return; }
+      if (address.trim().length < 5) { addToast("Address must be at least 5 characters.", "error"); return; }
+      if (city.trim().length < 2) { addToast("City is required.", "error"); return; }
+      if (state.trim().length < 2) { addToast("State is required.", "error"); return; }
+      if (!/^\d{6}$/.test(pinCode)) { addToast("Pin code must be exactly 6 digits.", "error"); return; }
+      if (phone.trim().length < 10) { addToast("Phone number must be at least 10 digits.", "error"); return; }
     }
 
     const validShippingAddress = showAddressEditor ? {

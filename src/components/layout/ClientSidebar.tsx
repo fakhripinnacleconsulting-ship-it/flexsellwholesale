@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, Heart, MapPin, User, Star, Ticket, Bell, LogOut, Menu, ChevronLeft, ChevronRight, ArrowUpCircle } from "lucide-react";
+import { Package, Heart, MapPin, User, Star, Ticket, Bell, LogOut, Menu, ChevronLeft, ChevronRight, ArrowUpCircle, Wallet } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Drawer } from "@/components/ui/Drawer";
 import { Customer } from "@/types";
@@ -49,6 +49,7 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
         icon: Package 
       },
       { name: "Wishlist", href: "/client/wishlist", icon: Heart },
+      { name: "My Wallets", href: "/client/wallet", icon: Wallet },
       { name: "Addresses", href: "/client/addresses", icon: MapPin },
       { name: "Profile", href: "/client/profile", icon: User },
     ];

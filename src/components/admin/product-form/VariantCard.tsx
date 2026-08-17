@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Trash2, Upload, Download, CheckCircle2, Copy, AlertCircle } from "lucide-react";
 import { Barcode } from "@/components/ui/Barcode";
-import { getBarcodeSvgString } from "@/lib/barcodeHelper";
+import { getBarcodeSvgString, generateBarcodeCardHtml } from "@/lib/barcodeHelper";
 import { parseWeightToGrams, parseDimensionsToCm } from "@/lib/priceTierHelper";
 import { generateDocumentTitle } from "@/lib/pdfPrintHelper";
 import { useProductForm } from "./ProductFormContext";
@@ -552,10 +552,6 @@ export function VariantCard({
                         return;
                       }
 
-                      const barcodeContentHtml = (sv.barcodeSource === "image" && sv.barcodeImage)
-                        ? `<img src="${sv.barcodeImage}" style="max-height: 80px; max-width: 100%; object-fit: contain;" />`
-                        : getBarcodeSvgString(barVal, { width: 1.4, height: 35, displayValue: false });
-
                       printWindow.document.write(`
                         <!DOCTYPE html>
                         <html>
@@ -563,14 +559,19 @@ export function VariantCard({
                             <title>${generateDocumentTitle("Barcode_Label", sv.sku || "Variant")}</title>
                             <style>
                               @page {
-                                size: auto;
-                                margin: 0mm;
+                                size: 3in 2in;
+                                margin: 0;
                               }
-                              body { display: flex; justify-content: center; align-items: center; min-height: 90vh; font-family: system-ui, sans-serif; background: #fff; margin: 0; }
-                              .card { text-align: center; width: 220px; border: 1px solid #000; padding: 12px; border-radius: 6px; }
+                              body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; font-family: system-ui, sans-serif; background: #fff; margin: 0; padding: 15px; }
                               @media print {
-                                html, body { margin: 0; padding: 0; }
+                                html, body { margin: 0; padding: 0; display: block; }
                                 .no-print { display: none !important; }
+                                .barcode-card {
+                                  margin: 0 !important;
+                                  border: none !important;
+                                  page-break-after: always;
+                                  page-break-inside: avoid;
+                                }
                               }
                             </style>
                           </head>
@@ -581,14 +582,7 @@ export function VariantCard({
                                   Print Barcode Label
                                 </button>
                               </div>
-                              <div class="card">
-                                <div style="font-size:11px; font-weight:bold; margin-bottom:2px; text-transform:uppercase;">${title || 'Product'}</div>
-                                <div style="font-size:9px; color:#555; margin-bottom:4px;">Variant: ${sv.size || 'Std'} / ${sv.weight || '250g'}</div>
-                                <div style="display:flex; justify-content:center; margin:4px 0;">
-                                  ${barcodeContentHtml}
-                                </div>
-                                <div style="font-size:10px; font-weight:bold; font-family:monospace; text-transform:uppercase;">${sv.sku}</div>
-                              </div>
+                              ${generateBarcodeCardHtml(sv)}
                             </div>
                           </body>
                         </html>

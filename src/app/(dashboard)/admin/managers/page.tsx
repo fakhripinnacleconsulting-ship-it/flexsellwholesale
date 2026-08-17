@@ -78,6 +78,19 @@ const PERMISSION_GROUPS = [
       { id: "ops_hsn", label: "HSN Management" },
       { id: "ops_shipping", label: "Shipping Options" },
       { id: "ops_coupons", label: "Coupons" },
+      {
+        id: "wallet_store",
+        label: "Store Wallet — Spend",
+        // Wallet permissions are not scoped to "this manager's customers", because that
+        // relationship does not exist in the data model. Saying so here is the whole
+        // mitigation: an admin must not grant this believing it is narrower than it is.
+        hint: "Lets this manager spend from ANY customer's Store Wallet. No amount limit.",
+      },
+      {
+        id: "wallet_business",
+        label: "Business Wallet — Spend",
+        hint: "Lets this manager spend from ANY customer's Business Wallet. No amount limit.",
+      },
     ]
   },
   {
@@ -588,7 +601,14 @@ export default function AdminManagersPage() {
                           </tr>
                           {group.permissions.map(perm => (
                             <tr key={perm.id} className="hover:bg-secondary/10 transition-colors">
-                              <td className="px-4 py-3 font-semibold text-xs">{perm.label}</td>
+                              <td className="px-4 py-3 font-semibold text-xs">
+                                {perm.label}
+                                {"hint" in perm && perm.hint && (
+                                  <span className="block font-normal text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 max-w-[22rem]">
+                                    {perm.hint}
+                                  </span>
+                                )}
+                              </td>
                               {(["create", "read", "update", "delete"] as const).map(action => (
                                 <td key={action} className="px-4 py-3 text-center">
                                   <input

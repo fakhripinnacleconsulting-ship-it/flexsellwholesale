@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature, settleOrderPayment, type SettledOrderSummary } from "@/lib/razorpayPayment";
+import { settleWalletRecharge } from "@/lib/walletRecharge";
 import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
@@ -62,6 +63,40 @@ export async function POST(request: Request) {
     }
 
     await dbConnect();
+
+    /**
+     * Wallet recharges settle here too.
+     *
+     * Deliberately a branch inside this route rather than a second webhook endpoint: this
+     * one already verifies the signature over the raw body and is already exempt from CSRF.
+     * A separate endpoint would mean rebuilding both, and getting either wrong on a route
+     * that credits money is not a recoverable mistake.
+     */
+    if (notes.flexsellWalletTxnId) {
+      const capturedPaise = Number(payment.amount || 0);
+      const settlement = await settleWalletRecharge({
+        razorpayOrderId,
+        razorpayPaymentId,
+        capturedPaise,
+        source: "webhook",
+      });
+
+      if (settlement.status === "not_found") {
+        return NextResponse.json({ message: "Wallet recharge not found" }, { status: 404 });
+      }
+      if (settlement.status === "amount_mismatch") {
+        // 200 so Razorpay stops retrying — retrying will not fix a mismatch. The error is
+        // logged inside settleWalletRecharge for manual review.
+        return NextResponse.json({ message: "Amount mismatch; flagged for review" });
+      }
+      if (settlement.status === "already_settled") {
+        return NextResponse.json({ message: "Already processed", walletTransactionId: settlement.transactionId });
+      }
+      return NextResponse.json({
+        message: "Wallet credited",
+        walletTransactionId: settlement.transactionId,
+      });
+    }
 
     // Prefer the id we stamped on the order; otherwise look it up by Razorpay handle.
     let orderId = flexsellOrderId;

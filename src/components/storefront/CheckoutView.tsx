@@ -20,6 +20,8 @@ import { OrderSummary } from "./checkout/OrderSummary";
 import { CouponInput } from "./checkout/CouponInput";
 import { Card } from "@/components/ui/Card";
 import { useRazorpay } from "react-razorpay";
+import * as walletService from "@/services/walletService";
+import type { CheckoutPaymentMethod } from "@/components/storefront/checkout/PaymentSection";
 import { SuggestedProductsCarousel } from "./SuggestedProductsCarousel";
 import { trackBeginCheckout, trackPurchase } from "@/lib/gtm";
 
@@ -61,7 +63,9 @@ export function CheckoutView() {
   const [phone, setPhone] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const [paymentMethod, setPaymentMethod] = React.useState<"Razorpay" | "COD">("Razorpay");
+  const [paymentMethod, setPaymentMethod] = React.useState<CheckoutPaymentMethod>("Razorpay");
+  // Store Wallet balance in rupees, or null while unknown / not applicable.
+  const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
   const [enableCod, setEnableCod] = React.useState(true);
   const [enableOnlinePayment, setEnableOnlinePayment] = React.useState(true);
   const [isPaying, setIsPaying] = React.useState(false);
@@ -78,6 +82,26 @@ export function CheckoutView() {
   React.useEffect(() => {
     setExistingOrderId(null);
   }, [items, grandTotal, email, firstName, lastName, company, address, city, state, pinCode, phone, paymentMethod, appliedCoupon]);
+
+  /**
+   * The payable total, at component scope.
+   *
+   * The submit handler computes this again from the same helpers; it is duplicated here
+   * because the wallet option has to compare against the *final* figure. Comparing against
+   * the pre-shipping total would show "covers this order" and then fail at payment once
+   * shipping pushed it over — the worst possible moment to discover a shortfall.
+   */
+  const payableTotal = React.useMemo(() => {
+    const { calculateShippingByWeight, calculateEffectiveUnitWeightGrams } = require("@/lib/priceTierHelper");
+    const { calculateTotalShippingCharge } = require("@/lib/shippingHelper");
+    const shipping = calculateTotalShippingCharge(
+      items,
+      shippingConfig,
+      calculateShippingByWeight,
+      calculateEffectiveUnitWeightGrams
+    );
+    return Math.max(0, grandTotal + shipping - couponDiscount);
+  }, [items, shippingConfig, grandTotal, couponDiscount]);
 
   // Admin delegation states
   const [currentUser, setCurrentUser] = React.useState<any>(null);
@@ -208,7 +232,24 @@ export function CheckoutView() {
       }
     };
 
+    /**
+     * Loads the Store Wallet balance so the option can show what is actually available.
+     *
+     * Failures are swallowed to null rather than surfaced: a wallet lookup that errors must
+     * never block checkout, and hiding one payment option is a far better outcome than an
+     * error screen between a buyer and their order.
+     */
+    const fetchWalletBalance = async () => {
+      try {
+        const wallets = await walletService.getWallets();
+        setWalletBalance(wallets.store?.availableBalance ?? null);
+      } catch {
+        setWalletBalance(null);
+      }
+    };
+
     fetchSettings();
+    fetchWalletBalance();
     loadCustomer();
   }, [setBuyerState, router]);
 
@@ -300,17 +341,17 @@ export function CheckoutView() {
 
     if (currentUser?.role === "admin") {
       if (!selectedCustomerId) {
-        alert("Administrators cannot place orders for themselves. Please select a B2B customer from the dropdown list at the top.");
+        addToast("Administrators cannot place orders for themselves. Please select a B2B customer from the dropdown list at the top.", "error");
         return;
       }
       if (email.toLowerCase() === currentUser.email.toLowerCase()) {
-        alert("Administrators cannot place orders for themselves. Please select a different B2B customer.");
+        addToast("Administrators cannot place orders for themselves. Please select a different B2B customer.", "error");
         return;
       }
     }
 
     if (!email || !firstName || !lastName || !address || !city || !state || !pinCode || !phone) {
-      alert("Please fill in all required shipping address fields.");
+      addToast("Please fill in all required shipping address fields.", "error");
       return;
     }
 
@@ -436,6 +477,9 @@ export function CheckoutView() {
           }
         };
 
+        if (!Razorpay) {
+          throw new Error("Payment gateway is still loading. Please wait a moment and try again.");
+        }
         const rzp = new (Razorpay as any)(options as any);
         rzp.on("payment.failed", function (response: any) {
           // Deliberately does NOT release the order: Razorpay lets the buyer retry with
@@ -448,6 +492,48 @@ export function CheckoutView() {
         rzp.open();
       } catch (err: any) {
         addToast(err?.message || "Could not start payment gateway", "error");
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    if (paymentMethod === "Wallet") {
+      setIsSubmitting(true);
+
+      // Minted once per submit attempt so a retried request settles as one payment. The
+      // ledger is append-only, so a duplicated debit can only be undone by a reversal the
+      // customer would also see.
+      const clientRequestId = walletService.newRequestId();
+
+      try {
+        // Order first, then pay — the same ordering the Razorpay path uses. The order is
+        // what binds the payment to a server-computed price, and the wallet route reads the
+        // amount from it rather than from this page.
+        const orderId = await createOrder(
+          items,
+          amountToPay,
+          shippingAddress,
+          { paymentMethod: "Wallet", paymentStatus: "Pending" },
+          appliedCoupon?.couponCode || undefined,
+          couponDiscount || undefined,
+          { shippingCharge }
+        );
+
+        if (!orderId) throw new Error("Could not create your order. Please try again.");
+
+        await apiClient.post("/wallet/pay-order", { orderId, clientRequestId });
+
+        trackPurchase({ _id: orderId, amount: amountToPay, items });
+        clearCart();
+        router.push(`/order-confirmation/${orderId}`);
+      } catch (err) {
+        // The order exists but is unpaid. Releasing it returns the stock immediately rather
+        // than waiting for the daily reaper, and nothing has left the wallet — the hold is
+        // rolled back server-side on any failure.
+        addToast(
+          err instanceof Error ? err.message : "Could not pay from your wallet. Please try again.",
+          "error"
+        );
         setIsSubmitting(false);
       }
       return;
@@ -517,9 +603,10 @@ export function CheckoutView() {
             phone={phone} setPhone={setPhone}
             INDIAN_STATES={INDIAN_STATES}
           />
-          <PaymentSection 
+          <PaymentSection
             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
             enableCod={enableCod} enableOnlinePayment={enableOnlinePayment}
+            walletBalance={walletBalance} orderTotal={payableTotal}
           />
         </div>
 

@@ -24,6 +24,7 @@ import {
   User,
   Package,
 } from "lucide-react";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { reviewService } from "@/services/reviewService";
 import { Review } from "@/types";
 
@@ -33,6 +34,7 @@ export default function AdminReviewsPage() {
 
   const [reviews, setReviews] = React.useState<Review[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   // Filter & Search state
   const [activeTab, setActiveTab] = React.useState<"all" | "pending" | "approved" | "rejected">("all");
@@ -52,10 +54,12 @@ export default function AdminReviewsPage() {
   const fetchReviews = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const data = await reviewService.getAllReviewsAdmin();
       setReviews(data);
     } catch (err: unknown) {
-      addToast((err as any).message || "Failed to load reviews for moderation", "error");
+      console.error(err);
+      setError((err as any).message || "Failed to load reviews for moderation");
     } finally {
       setIsLoading(false);
     }
@@ -266,6 +270,8 @@ export default function AdminReviewsPage() {
               <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
               <span>Loading reviews for moderation...</span>
             </div>
+          ) : error ? (
+            <ErrorState title="Failed to load reviews" description={error} onRetry={fetchReviews} className="border-0 bg-transparent" />
           ) : paginatedReviews.length === 0 ? (
             <div className="text-center py-16 px-4">
               <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/40 mb-3" />

@@ -9,6 +9,7 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Layers, AlertCircle, ShoppingBag } from "lucide-react";
 
 import { constructMetadata, generateCollectionSchema, generateBreadcrumbSchema } from "@/lib/seo";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
@@ -138,7 +139,7 @@ export default async function CollectionDetailPage({ params }: { params: Promise
             {collection.description && (
               <div
                 className="text-xs md:text-sm text-muted-foreground leading-relaxed font-semibold mt-3 prose prose-sm dark:prose-invert max-w-none [&_p]:m-0 [&_p+p]:mt-2"
-                dangerouslySetInnerHTML={{ __html: collection.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(collection.description) }}
               />
             )}
 

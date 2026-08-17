@@ -35,11 +35,10 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/api/csrf") ||
     pathname.startsWith("/api/system-diagnostics") ||
     pathname.startsWith("/api/razorpay/webhook") ||
-    pathname.startsWith("/api/customers/upload-document") ||
     pathname.startsWith("/api/upload");
 
   if (isApiRoute && isStateChanging && !isExcludedCsrf) {
-    const isTestMode = process.env.TEST_MODE === "true";
+    const isTestMode = process.env.TEST_MODE === "true" && process.env.NODE_ENV !== "production";
     if (!isTestMode && !validateCsrf(request)) {
       return new NextResponse(
         JSON.stringify({ message: "Invalid or missing CSRF token" }),

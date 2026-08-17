@@ -11,6 +11,7 @@ import { formatPrice } from "@/lib/utils";
 import { useCartStore } from "@/stores/cartStore";
 import { useProductStore } from "@/stores/productStore";
 import Image from "next/image";
+import { useToastStore } from "@/stores/toastStore";
 
 import { INDIAN_STATES } from "@/lib/constants";
 import { SuggestedProductsCarousel } from "./SuggestedProductsCarousel";
@@ -18,6 +19,7 @@ import { SuggestedProductsCarousel } from "./SuggestedProductsCarousel";
 export function CartView() {
   const { items, updateQuantity, removeItem, clearCart, buyerState, setBuyerState, getCartSubtotal, hydrateProducts, getTaxDetails, delegatedCustomerId, setDelegatedCustomerId } = useCartStore();
   const products = useProductStore((state) => state.products);
+  const { addToast } = useToastStore();
 
   React.useEffect(() => {
     const initCartProducts = async () => {
@@ -96,7 +98,7 @@ export function CartView() {
     if (items.length === 0) return;
     const printWindow = window.open("/quote", "_blank");
     if (!printWindow) {
-      alert("Please allow popups to export the B2B Quote.");
+      addToast("Please allow popups to export the B2B Quote.", "error");
     }
   };
 

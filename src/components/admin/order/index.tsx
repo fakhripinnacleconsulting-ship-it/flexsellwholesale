@@ -208,16 +208,16 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   const handleRecordDispatchPayment = async () => {
     if (!activeSelectedOrder) return;
     if (!dispatchPayAmount.trim()) {
-      alert("Please enter the amount received.");
+      addToast("Please enter the amount received.", "error");
       return;
     }
     const amount = parseFloat(dispatchPayAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert("Invalid payment amount entered.");
+      addToast("Invalid payment amount entered.", "error");
       return;
     }
     if (dispatchPayMethod !== "COD" && !dispatchTxnId.trim()) {
-      alert("Please enter a transaction reference ID.");
+      addToast("Please enter a transaction reference ID.", "error");
       return;
     }
 

@@ -7,6 +7,7 @@ import { generateNextId } from "@/lib/idGeneratorServer";
 import { validateCustomerKycRequirements } from "@/lib/kycValidationHelper";
 import { escapeRegex } from "@/lib/utils";
 import Manager from "@/models/Manager";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 
 // GET: Fetch all customers (restricted to admins, with public mode for Dropshipping search)
 export async function GET(request: Request) {
@@ -79,11 +80,11 @@ export async function GET(request: Request) {
     }
     
     if (payload.role === "manager") {
-      let perms = (payload as any).permissions || [];
       const managerUser = await Manager.findById(payload.userId).lean();
-      if (managerUser) {
-        perms = managerUser.permissions || [];
+      if (!managerUser || managerUser.status !== "active") {
+        return NextResponse.json({ message: "Forbidden: Account inactive" }, { status: 403 });
       }
+      const perms = managerUser.permissions || [];
       
       const hasInvoiceOrOrderPerms = perms.some((p: string) => p.startsWith("invoices_") || p.startsWith("orders_"));
       
@@ -152,21 +153,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const { payload, error } = await requireAdminOrManagerAuth();
+    if (error) return error;
 
     const body = await request.json();
     const { name, email, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments } = body;
 
-    if (payload.role === "manager") {
-      const perms = (payload as any).permissions || [];
+    if (payload!.role === "manager") {
+      const managerUser = await Manager.findById(payload!.userId).lean();
+      if (!managerUser || managerUser.status !== "active") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      const perms = managerUser.permissions || [];
       const cTypes = customerTypes || ["B2C"];
       const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:create");
       const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:create");
@@ -244,15 +240,8 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const { payload, error } = await requireAdminOrManagerAuth();
+    if (error) return error;
 
     const body = await request.json();
     const { _id, name, email, password, company, storeName, address, city, state, pinCode, phone, gstin, customerTypes, kycDocuments } = body;
@@ -266,8 +255,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: "Customer not found" }, { status: 404 });
     }
 
-    if (payload.role === "manager") {
-      const perms = (payload as any).permissions || [];
+    if (payload!.role === "manager") {
+      const managerUser = await Manager.findById(payload!.userId).lean();
+      if (!managerUser || managerUser.status !== "active") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      const perms = managerUser.permissions || [];
       const cTypes = customer.customerTypes || ["B2C"];
       const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:update");
       const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:update");
@@ -346,15 +337,8 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await dbConnect();
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload || (payload.role !== "admin" && payload.role !== "manager")) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const { payload, error } = await requireAdminOrManagerAuth();
+    if (error) return error;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -367,8 +351,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ message: "Customer not found" }, { status: 404 });
     }
 
-    if (payload.role === "manager") {
-      const perms = (payload as any).permissions || [];
+    if (payload!.role === "manager") {
+      const managerUser = await Manager.findById(payload!.userId).lean();
+      if (!managerUser || managerUser.status !== "active") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      const perms = managerUser.permissions || [];
       const cTypes = customer.customerTypes || ["B2C"];
       const hasB2C = perms.includes("customers_b2c") || perms.includes("customers_b2c:delete");
       const hasB2B = perms.includes("customers_b2b") || perms.includes("customers_b2b:delete");

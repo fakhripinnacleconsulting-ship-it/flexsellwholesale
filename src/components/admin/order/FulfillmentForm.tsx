@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Truck, ArrowLeft } from "lucide-react";
 import { ShipmentDetails } from "@/stores/orderStore";
+import { useToastStore } from "@/stores/toastStore";
 
 interface FulfillmentFormProps {
   orderId: string;
@@ -39,6 +40,7 @@ export function FulfillmentForm({
   const [estDelivery, setEstDelivery] = React.useState(existingShipment?.estimatedDelivery || "");
   const [dispatchNotes, setDispatchNotes] = React.useState(existingShipment?.notes || "");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { addToast } = useToastStore();
 
   // Generate track ID for self shipment.
   // Skipped while editing — regenerating would silently replace a tracking number the
@@ -79,7 +81,7 @@ export function FulfillmentForm({
       if (!res.ok) throw new Error(data.message || "Failed to upload shipping label");
       if (data.url) setUploadShippingLabel(data.url);
     } catch (err: any) {
-      alert(err.message || "Failed to upload shipping label");
+      addToast(err.message || "Failed to upload shipping label", "error");
     } finally {
       setIsUploadingLabel(false);
     }
@@ -89,12 +91,12 @@ export function FulfillmentForm({
     e.preventDefault();
 
     if (shipType === "third-party" && (!carrierName.trim() || !trackingId.trim())) {
-      alert("Please provide the Carrier Name and Tracking ID for third-party courier dispatch.");
+      addToast("Please provide the Carrier Name and Tracking ID for third-party courier dispatch.", "error");
       return;
     }
 
     if (!estDelivery.trim()) {
-      alert("Please provide the Estimated Delivery Date before dispatching this shipment.");
+      addToast("Please provide the Estimated Delivery Date before dispatching this shipment.", "error");
       return;
     }
 

@@ -1,138 +1,200 @@
- # FlexSell Wholesale - Enterprise B2B & Dropshipping Platform        
-  
-FlexSell Wholesale is a next-generation, enterprise-grade B2B e-commerce platform designed for direct manufacturer-to-retailer supply chain networks, bulk ordering, dropshipping fulfillment, and regional tax/logistics distribution. It features multi-tier pricing, SKU-first search algorithms, real-time inventory controls with camera barcode scanning, Razorpay payment verification, Shiprocket logistics dispatch, and an integrated Indian GST taxation engine. 
-      
----                        
+# FlexSell Wholesale
 
-           
-## 📚 Master Documentation     
-       
-Complete technical documentation, architecture diagrams, ERD database schemas, REST API endpoints, GST tax rules, and operational guides are available:
+A multi-tier commerce platform that sells the same catalogue to **three different buyers** —
+retail (B2C), wholesale (B2B), and resellers (Dropshipping) — from one product record, one
+inventory pool, and one order pipeline.
 
-- 📖 **Master Markdown File:** [docs/FLEXSELL_COMPLETE_TECHNICAL_DOCUMENTATION.md](docs/FLEXSELL_COMPLETE_TECHNICAL_DOCUMENTATION.md)
-- 🌐 **Interactive Public Portal:** `/documentation`
-- 🔄 **Regenerate Documentation Command:** `npm run update-docs` 
- 
---- 
- 
-## 🎯 Architectural Core & Tech Stack
-
-FlexSell Wholesale bridges the gap between manufacturers/distributors and wholesale retailers or dropshippers. The platform enables multi-tier pricing models, high-volume bulk variant purchases, automated commercial tax invoices, and real-time inventory synchronization.
-
-### Stack Overview:
-- **Framework:** Next.js 16.2.10 (App Router with React 19.2.4 & TypeScript 5.0)
-- **Styling:** Tailwind CSS v4 with custom CSS variables, smooth transitions, glassmorphism, and dynamic theme customization
-- **State Management:** 14 Scoped Zustand stores (`src/stores/`) for client-side state hydration
-- **Database & Modeling:** MongoDB Atlas with 17 Mongoose schemas (`src/models/`), weighted text indexes, and compound SKU/barcode indexing
-- **Unified B2B Service Layer Pattern:** 13 Centralized client/server service modules (`src/services/`) supporting dual operational modes:
-  1. **Live Production API (`isMockMode = false`):** Routes requests to REST API endpoints using `apiClient.ts`.
-  2. **Developer Sandbox Mode (`isMockMode = true`):** Persists data arrays directly in `localStorage` for rapid offline feature prototyping.
+Built with Next.js 16 (App Router), React 19, TypeScript, MongoDB and Tailwind CSS v4.
+Deployed on Vercel.
 
 ---
 
-## ✨ Key Application Subsystems
+## The idea in one paragraph
 
-### 1. Multi-Tier B2B Pricing & Variant Matrix
-- **Tabular Variant Matrix:** Allows wholesale buyers to view all Color, Size, and Weight combinations in a single matrix and enter order quantities for multiple SKUs simultaneously.
-- **Multi-Tier Price Resolution (`priceTierHelper.ts`):** Resolves prices dynamically based on the active customer type (`B2C`, `B2B`, `Dropshipping`), minimum order quantities (MOQ), and volume discounts.
-
-### 2. Indian GST Taxation Engine & Commercial Invoicing
-- **Intrastate vs. Interstate Split:** Automatically applies **CGST (9%) + SGST (9%)** for home state shipments (Madhya Pradesh) vs. **IGST (18%)** for out-of-state shipments.
-- **B2B Financial Lifecycle:** `Quote (QUO-xxxx)` ➔ `Receipt (RCP-xxxx)` ➔ `Tax Invoice (INV-xxxx)` with HSN tax slab breakdowns.
-
-### 3. Camera Barcode Scanner & Warehouse Audit Ledger
-- **Camera Barcode Scanner:** Integrated camera scanning using `html5-qrcode` to scan physical barcodes and adjust stock levels on mobile and desktop browsers.
-- **Warehouse Audit Ledger (`StockLog.ts`):** Persisted audit log tracking every inventory modification (manual edits, barcode scans, order deductions, CSV bulk imports).
-
-### 4. Razorpay & Shiprocket Logistics Integrations
-- **Razorpay Payments:** Server-side HMAC-SHA256 signature verification in `/api/razorpay/verify`.
-- **Shiprocket Dispatch:** Real-time courier serviceability checks, AWB tracking label generation, and automated fulfillment webhooks.
-
-### 5. Security & Authentication Controls
-- **JWT & Double-Submit CSRF:** Signed `httpOnly` JWT session tokens and `X-CSRF-Token` headers.
-- **Brute-Force Account Lockout:** Automatically locks user accounts for 15 minutes after 10 consecutive failed login attempts.
-- **Sliding-Window Rate Limiting:** Upstash Redis rate limiter protecting REST endpoints.
+The same physical product sells at three prices to three audiences. Running three storefronts
+to achieve that would triple the catalogue work, so FlexSell stores **one product with a price
+per tier** and resolves the right one from the signed-in customer's entitlement. A customer may
+hold more than one tier, which is why entitlement is a *resolved value* rather than an account
+type.
 
 ---
 
-## 🗄️ Database Schemas (17 Mongoose Models)
+## Quick start
 
-| Collection Model | File Location | Key Responsibilities |
-| :--- | :--- | :--- |
-| **Product** | `src/models/Product.ts` | Catalog products, `colorVariants`, `subVariants` (SKU, barcode, stock, prices), HSN code, SEO tags. |
-| **Customer** | `src/models/Customer.ts` | Accounts (`B2C`, `B2B`, `Dropshipping`), bcrypt passwords, address book, GSTIN, `failedLoginAttempts`. |
-| **Order** | `src/models/Order.ts` | B2B orders, line items, shipment details, tax calculations, payment status, state transitions. |
-| **Invoice** | `src/models/Invoice.ts` | Tax invoices, quotes, receipts, payment wire instructions, HSN tax breakdown. |
-| **Category** | `src/models/Category.ts` | Category hierarchy (`parentId`), slug, image, sorting order. |
-| **Collection** | `src/models/Collection.ts` | Manual product lists & smart automated collections with rules (`matchType`, `conditions`). |
-| **Coupon** | `src/models/Coupon.ts` | Promotional discounts, min order value, category/product restrictions, usage caps. |
-| **StockLog** | `src/models/StockLog.ts` | Warehouse audit ledger logging stock additions, subtractions, and manual adjustments. |
-| **Review** | `src/models/Review.ts` | Ratings, review comments, approval moderation status. |
-| **HsnRecord** | `src/models/HsnRecord.ts` | Master list of HSN codes and GST rates. |
-| **Notification** | `src/models/Notification.ts` | System notification logs and webhook event triggers. |
-| **ShippingConfig**| `src/models/ShippingConfig.ts`| Weight slabs and Shiprocket configuration settings. |
-| **Inquiry** | `src/models/Inquiry.ts` | B2B custom quote requests and contact messages. |
-| **CmsContent** | `src/models/CmsContent.ts` | CMS key-value store for marketing banners, FAQs, footers & blogs. |
-| **OtpVerification**| `src/models/OtpVerification.ts`| Email / Mobile OTP verification records. |
-| **NotificationPreference**| `src/models/NotificationPreference.ts`| User notification channel preferences. |
-| **PushSubscription**| `src/models/PushSubscription.ts`| Browser Web Push VAPID subscriptions. |
-
----
-
-## 📂 Project Folder Structure
-
+```bash
+npm install
+cp .env.example .env.local     # then fill in the values below
+npm run dev                    # http://localhost:3000
 ```
-flexsell-wholesale/
-├── docs/                   # Consolidated Master Documentation & Diagrams
-│   ├── FLEXSELL_COMPLETE_TECHNICAL_DOCUMENTATION.md
-│   └── README.md
-├── public/                 # Static branding assets & PWA service worker
-├── scripts/                # Utility scripts (update-docs.mjs, etc.)
-├── src/
-│   ├── app/                # Next.js App Router pages and 63 REST API routes
-│   │   ├── (dashboard)/    # Admin and Customer dashboard views
-│   │   ├── (storefront)/   # Catalog, product details, checkout, /documentation
-│   │   └── api/            # REST API route handlers (/api/products, /api/orders, /api/auth, etc.)
-│   ├── components/         # UI Components (Admin, Storefront, Layout, UI primitives)
-│   ├── lib/                # Database connection, price helpers, auth guards, validators
-│   ├── models/             # 17 Mongoose schemas for MongoDB
-│   ├── services/           # 13 Unified B2B Service Modules (Products, Orders, Search, etc.)
-│   ├── stores/             # 14 Zustand State Stores (cartStore, authStore, toastStore, etc.)
-│   └── types/              # TypeScript interfaces and domain types
-├── package.json            # Project dependencies and npm scripts
-└── AGENTS.md               # AI agent architectural guidelines & rules
+
+### Required environment
+
+| Variable | Purpose | If missing |
+|---|---|---|
+| `MONGODB_URI` | Database | Throws on connect |
+| `JWT_SECRET` | Session signing | **Set this.** See the note below |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Payments | Payment routes return a config error |
+| `RAZORPAY_WEBHOOK_SECRET` | Webhook verification | Webhook returns 500 |
+| `CRON_SECRET` | Scheduled job auth | Scheduled routes return 403 |
+| `BLOB_READ_WRITE_TOKEN` | File storage | Falls back to local disk |
+| `NEXT_PUBLIC_SITE_URL` | Absolute URLs | Defaults to localhost |
+
+> **`JWT_SECRET` currently falls back to a value committed in this repository**
+> (`src/lib/auth.ts`). Any deploy that misses the variable signs sessions with a public
+> secret. Tracked as **FS-101** — fix it before the next production deploy.
+
+### Commands
+
+```bash
+npm run dev            # development server
+npm run build          # production build (also typechecks)
+npm run typecheck      # tsc --noEmit
+npm run test           # vitest — 261 tests
+npm run lint           # eslint
+npm run sync-indexes   # create MongoDB indexes (see below)
 ```
 
 ---
 
-## 🛠️ Essential Commands
+## ⚠️ Before your first deploy
 
-- **Development Server:**
-  ```bash
-  npm run dev
-  ```
-  Launches Next.js development server on [http://localhost:3000](http://localhost:3000).
+Production runs with `autoIndex: false`, so **MongoDB never creates indexes on its own**:
 
-- **Production Build:**
-  ```bash
-  npm run build
-  ```
-  Compiles optimized production build bundle and validates TypeScript types.
+```bash
+npx tsx scripts/sync-indexes.mjs
+```
 
-- **Update Technical Documentation:**
-  ```bash
-  npm run update-docs
-  ```
-  Scans codebase models, API routes, services, and stores to regenerate documentation.
+Several indexes are **correctness**, not performance. The unique sparse indexes on
+`WalletTransaction.paymentId` and `clientRequestId` are what stop a replayed payment webhook or
+a double-submitted form from moving money twice. Without them the app still runs — it just
+stops being safe.
 
-- **Run Unit & Integration Tests:**
-  ```bash
-  npm run test
-  ```
-  Executes Vitest test suite (`trending.test.ts`, `searchService.test.ts`, `auth.test.ts`, `endpoints.test.ts`).
+---
 
-- **Lint Codebase:**
-  ```bash
-  npm run lint
-  ```
-  Runs ESLint static analysis checks across the codebase.
+## Documentation
+
+| Document | Read it when |
+|---|---|
+| [Product Requirements](docs/01-Product-Requirement-Document.md) | You need to know *what* the product does and why |
+| [Technical Architecture](docs/02-Technical-Architecture-Document.md) | You need to know *how* it is built |
+| [Security & Access](docs/03-Security-and-Access-Document.md) | You are touching auth, permissions or money |
+| [Frontend Specification](docs/04-Frontend-Specification-Document.md) | You are writing UI |
+| [Feature Ticket List](docs/05-Feature-Ticket-List.md) | You are picking up work |
+| [Release Report](report.md) | You need the manual test guide or the open security findings |
+| [Wallet Plan](plan.md) | You are working on wallets — decision log and rationale |
+| [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md) | You are an AI agent working in this repo |
+
+---
+
+## What is in here
+
+### Commerce
+
+- **Catalogue** — products with nested colour → size/weight variants. Price, stock, SKU and
+  barcode live at the *sub-variant* level. A+ content, HSN codes, per-tier pricing, MOQ.
+- **Orders** — an append-only fulfilment stepper that shows customers one story and staff
+  another, atomic stock reservation, and dispatch by self-delivery or third-party courier.
+- **Invoicing** — quotes → receipts → GST tax invoices with HSN slab breakdowns.
+  CGST + SGST for Madhya Pradesh, IGST elsewhere.
+- **Payments** — Razorpay with server-side signature verification, Cash on Delivery, and the
+  Store Wallet.
+- **Dropshipping Hub** — a separate flow where the order ships to the reseller's customer.
+
+### Wallets
+
+Two prepaid balances per customer:
+
+| | Store Wallet | Business Wallet |
+|---|---|---|
+| Buys | Products **and** services | Services only (GST filing, ads, trademark) |
+| Customer spends it | Yes, at checkout | No |
+| Staff spend it | Yes | Yes |
+| Available to | Everyone | B2B and Dropshipping |
+
+Every rupee creates a permanent ledger entry. Entries are never edited — corrections are
+reversals that reference the original. Every staff-created entry names the person who made it,
+**and the customer can see that name**.
+
+### Operations
+
+Multi-tier customer management with KYC, a permission-scoped manager role, CMS-driven homepage
+with reorderable sections, blogs, policy pages, coupons, review moderation, an inquiry inbox
+split by type, HSN registry, weight-based shipping configuration, and an analytics dashboard.
+
+---
+
+## Project layout
+
+```
+src/
+├── app/
+│   ├── (storefront)/     31 public pages
+│   ├── (dashboard)/      67 pages — client, admin, manager
+│   └── api/              88 route handlers
+├── components/          187 components
+│   ├── ui/               21 primitives — use these first
+│   ├── admin/            76
+│   ├── storefront/       46
+│   ├── wallet/            9
+│   └── …
+├── lib/                  54 domain modules — guards, ledger, pricing, tax, dates
+├── models/               22 Mongoose schemas
+├── services/             14 client-side API wrappers
+├── stores/               13 Zustand stores
+└── types/                TypeScript domain types
+
+scripts/                  sync-indexes · migrate-order-timestamps · reconcile-razorpay
+docs/                     the five documents above
+```
+
+---
+
+## Conventions that are not negotiable
+
+These exist because each one has already caused a real bug.
+
+| Rule | Why |
+|---|---|
+| **No `fetch` outside `src/services/`** | The service layer owns CSRF tokens, base URLs and error shape. Bypassing it fails silently until a token rotates |
+| **All dates through `lib/datetime.ts`** | Seven routes once hand-rolled this. One order displayed three different date formats |
+| **Money through `formatPrice`; wallet money in paise** | Float rupees drift. Conversion happens once, at the API edge |
+| **No hardcoded colours** | The app ships a dark theme; a literal breaks it |
+| **`ConfirmDialog` / `toastStore`, never `window.alert`** | Native dialogs block the tab and read as browser warnings |
+| **Ledger entries are append-only** | A correction must be visible as a correction, not a rewrite |
+| **Types in `src/types/`, avoid `any`** | — |
+
+Full checklist: [Frontend Specification §13](docs/04-Frontend-Specification-Document.md).
+
+---
+
+## Testing
+
+```bash
+npm run test
+```
+
+261 tests. The wallet's 93 are the ones to watch — they pin the money guarantees: two
+concurrent debits resolve to one, a replayed webhook credits once, a manager cannot reach an
+admin route, and a customer cannot read another customer's wallet.
+
+There is **no integration test layer**. Concurrency is unit-tested against mocks, which assume
+MongoDB behaves as documented but do not prove it here. Tracked as **FS-303**.
+
+---
+
+## Known issues
+
+Eight open security findings are documented in [report.md](report.md), three of them critical
+and three of those fixable in one line each. Start with **FS-101, FS-102, FS-103** in the
+[ticket list](docs/05-Feature-Ticket-List.md).
+
+---
+
+## Status
+
+| | |
+|---|---|
+| Version | 2.0 — wallet release |
+| Tests | 261 passing |
+| Typecheck | Clean |
+| Environment | Live in production |

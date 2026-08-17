@@ -1,8 +1,9 @@
-import jwt from "jsonwebtoken";
+import * as jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { SESSION_HINT_COOKIE, SESSION_HINT_MAX_AGE_SECONDS } from "@/lib/sessionHint";
 
-const JWT_SECRET = process.env.JWT_SECRET || "default-flexsell-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET as string;
+if (!JWT_SECRET) throw new Error("JWT_SECRET is not set");
 const TOKEN_EXPIRY = "1d"; // 1 day
 
 export interface JWTPayload {
@@ -19,7 +20,7 @@ export function signToken(payload: JWTPayload): string {
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    return jwt.verify(token, JWT_SECRET) as unknown as JWTPayload;
   } catch (_error) {
     return null;
   }
