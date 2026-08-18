@@ -15,7 +15,8 @@ interface ToastStore {
 
 export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
-  addToast: (message, type = "success", duration = 5000) => {
+  addToast: (message, type = "success", customDuration?: number) => {
+    const duration = customDuration ?? (type === "error" || type === "warning" ? 5000 : 3000);
     const id = Math.random().toString(36).substring(2, 9);
     set((state) => ({ toasts: [...state.toasts, { id, message, type, duration }] }));
     setTimeout(() => {
