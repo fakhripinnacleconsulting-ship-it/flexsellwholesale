@@ -85,7 +85,7 @@ export function OrderDetailPanel({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-4 space-y-4 max-h-[75vh] overflow-y-auto">
+      <CardContent className="p-4 space-y-4 max-h-[75dvh] overflow-y-auto">
         {/* Fulfillment Control Block */}
         <div className="flex justify-between items-center bg-secondary/15 p-3.5 rounded-lg border border-border/80">
           <div>

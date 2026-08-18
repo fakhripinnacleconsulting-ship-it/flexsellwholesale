@@ -407,9 +407,31 @@ export default function AdminSettingsPage() {
                           {/* Sequence Counter Input */}
                           <td className="py-3.5 px-4 align-middle">
                             <Input
-                              type="number"
-                              value={row.startCount}
-                              onChange={(e) => handleUpdateIdFormatRow(row.key, "startCount", Number(e.target.value) || 1)}
+                              type="text"
+                              value={String(row.startCount).padStart(row.padLength || 1, "0")}
+                              onChange={(e) => {
+                                const rawVal = e.target.value.replace(/\D/g, "");
+                                if (rawVal === "") {
+                                  // Temporarily allow 0/0 while typing
+                                  setIdFormatsList((prev) => prev.map((item) => item.key === row.key ? { ...item, startCount: 0, padLength: 0 } : item));
+                                  return;
+                                }
+                                const pad = rawVal.length;
+                                const num = parseInt(rawVal, 10);
+                                setIdFormatsList((prev) =>
+                                  prev.map((item) => {
+                                    if (item.key === row.key) {
+                                      return { ...item, startCount: num, padLength: pad };
+                                    }
+                                    return item;
+                                  })
+                                );
+                              }}
+                              onBlur={() => {
+                                if (row.startCount === 0) {
+                                  setIdFormatsList((prev) => prev.map((item) => item.key === row.key ? { ...item, startCount: 1, padLength: Math.max(1, row.padLength) } : item));
+                                }
+                              }}
                               className="h-8.5 font-mono text-xs w-32 bg-background font-semibold"
                             />
                           </td>

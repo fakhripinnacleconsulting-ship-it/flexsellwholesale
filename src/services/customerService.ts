@@ -213,9 +213,12 @@ export const customerService = {
       });
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    return apiClient.post<{ url: string }>("/customers/upload-document", formData);
+    // KYC is the most sensitive class the application handles — Aadhaar, PAN, cheque images.
+    // `kind: "kyc"` stores it in the private bucket by pathname and serves it only through an
+    // authenticated, ownership-checked route.
+    const { uploadWithCompression } = await import("@/lib/uploadHelper");
+    const uploaded = await uploadWithCompression(file, { kind: "kyc" });
+    return { url: uploaded.url };
   },
 
   async submitUpgradeRequest(data: {

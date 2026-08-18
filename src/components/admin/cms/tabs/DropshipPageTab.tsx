@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { uploadFileAndGetUrl } from "@/lib/uploadHelper";
 import {
   Save,
   Plus,
@@ -61,19 +62,9 @@ export function DropshipPageTab({ data, setData, isSaving, onSave }: DropshipPag
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
       addToast("Uploading image...", "info");
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error("Upload failed");
-      const result = await res.json();
-      const imageUrl = result.url || result.path;
+      const imageUrl = await uploadFileAndGetUrl(file, "image");
       if (imageUrl) {
         onComplete(imageUrl);
         addToast("Image uploaded successfully!", "success");

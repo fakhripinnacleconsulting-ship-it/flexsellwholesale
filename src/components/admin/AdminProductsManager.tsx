@@ -587,7 +587,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
       {/* Barcode print modal dialogue */}
       {barcodePrintProduct && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full border-border max-h-[85vh] flex flex-col">
+          <Card className="max-w-2xl w-full border-border max-h-[85dvh] flex flex-col">
             <CardHeader className="border-b">
               <CardTitle className="text-lg flex justify-between items-center">
                 <span>Print Barcodes - {barcodePrintProduct.title}</span>

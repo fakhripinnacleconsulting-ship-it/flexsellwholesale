@@ -130,6 +130,14 @@ export const orderSchema = z.object({
   shippingCharge: z.number().optional(),
   quoteId: z.string().optional(),
   salesperson: z.string().optional(),
+  /**
+   * The category the caller is explicitly placing this order under.
+   *
+   * Optional, and never trusted on its own — the route validates it against the customer's
+   * own `customerTypes` before honouring it. It exists so an explicit choice outranks
+   * guessing the category from whether a GSTIN happened to be on the shipping address.
+   */
+  orderType: z.enum(["B2B", "B2C", "Dropshipping"]).optional(),
 });
 
 // Product validation schema

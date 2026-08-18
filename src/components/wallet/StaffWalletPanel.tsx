@@ -18,7 +18,7 @@ import * as walletService from "@/services/walletService";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatPrice } from "@/lib/utils";
 import { DateRangePicker } from "@/components/wallet/DateRangePicker";
-import { resolveRange, describeRange, type DateRange } from "@/lib/dateRange";
+import { resolveRange, describeRange, formatRangePeriod, type DateRange } from "@/lib/dateRange";
 import { Receipt, Banknote, Wallet as WalletIcon, ArrowRight, Lock, Unlock, Download, PieChart, FileText, Briefcase, CreditCard, Info } from "lucide-react";
 import { AddMoneyDialog } from "@/components/wallet/AddMoneyDialog";
 import { RECHARGE_UNAVAILABLE_STAFF_MESSAGE } from "@/lib/walletConstants";
@@ -113,7 +113,7 @@ export function StaffWalletPanel({ userId, customerName, isAdmin }: StaffWalletP
       const fullPage = await walletService.getTransactions({ userId, walletType: passbookTab, limit: 1000, ...dates });
       if (fullPage && fullPage.transactions.length > 0) {
         const label = passbookTab === "business" ? "Business Wallet" : "Store Wallet";
-        await downloadStatementPdf(fullPage.transactions, customerName, label, describeRange(range));
+        await downloadStatementPdf(fullPage.transactions, customerName, label, formatRangePeriod(range));
         addToast("Statement PDF downloaded successfully", "success");
       } else {
         addToast("No transactions found for the selected period", "info");

@@ -1,113 +1,141 @@
-import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
-import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { requireAuth } from "@/lib/authGuard";
 import { rateLimit } from "@/lib/rateLimit";
-import fs from "fs/promises";
-import path from "path";
+import {
+  uploadFile,
+  validateUpload,
+  AllProvidersFailedError,
+  UPLOAD_KIND_RULES,
+  type UploadKind,
+} from "@/lib/storage";
 
 export const maxDuration = 60;
 
+/**
+ * The single upload endpoint.
+ *
+ * Replaces two routes that had drifted apart: this one returned a direct URL, while
+ * `/api/customers/upload-document` returned a **proxy** path that was then stored in Mongo —
+ * so every later view of a document was served by a serverless function that fetched the blob
+ * and re-streamed it. Two billed egresses per view, no CDN caching, and 255 MB of storage
+ * producing 10 GB of transfer.
+ *
+ * `kind` decides everything that used to differ between the two routes: who may call, the
+ * size cap, the accepted content types, and — the part that matters most — whether the object
+ * is public (CDN URL stored) or private (pathname stored, served behind auth).
+ */
+
+/** Who may upload each kind. KYC is the only one a customer can send, and only their own. */
+const KIND_ACCESS: Record<UploadKind, Array<"admin" | "manager" | "customer">> = {
+  image: ["admin", "manager"],
+  video: ["admin", "manager"],
+  kyc: ["admin", "manager", "customer"],
+  proof: ["admin", "manager"],
+  dropship: ["admin", "manager"],
+};
+
+function isUploadKind(value: string): value is UploadKind {
+  return Object.prototype.hasOwnProperty.call(UPLOAD_KIND_RULES, value);
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    // Rate limit uploads to prevent storage quota exhaustion
-    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+    const payload = auth.payload!;
+
+    // Keyed on the session rather than the IP: an office behind one NAT should not be
+    // throttled as though it were a single abusive client.
     try {
-      await rateLimit(ip);
+      await rateLimit(payload.userId, "general");
     } catch {
-      return NextResponse.json({ message: "Too many upload requests. Please try again later." }, { status: 429 });
-    }
-
-    const token = await getTokenFromCookie();
-    if (!token) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ message: "Invalid session" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Too many uploads. Please try again in a moment." },
+        { status: 429 }
+      );
     }
 
     let formData: FormData;
     try {
       formData = await request.formData();
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("FormData parse error in upload route:", err);
       return NextResponse.json(
-        { message: "File upload failed or payload body exceeded server limit. Please use a smaller file or video URL." },
+        { message: "Upload failed or the payload exceeded the server limit. Try a smaller file." },
         { status: 400 }
       );
     }
 
-    const file = formData.get("file") as File;
-
-    if (!file) {
+    const file = formData.get("file");
+    if (!file || typeof file === "string") {
       return NextResponse.json({ message: "No file uploaded" }, { status: 400 });
     }
 
-    const isVideo = file.type.startsWith("video/");
+    // Defaults to `image` so the pre-existing callers that send no `kind` keep working
+    // exactly as they did while they are migrated.
+    const rawKind = String(formData.get("kind") || "image");
+    if (!isUploadKind(rawKind)) {
+      return NextResponse.json({ message: `Unknown upload kind "${rawKind}".` }, { status: 400 });
+    }
+    const kind: UploadKind = rawKind;
 
-    // Validate file type — allow common images and videos
-    const ALLOWED_TYPES = [
-      "image/jpeg", "image/png", "image/webp", "image/gif",
-      "image/jpg", "image/avif",
-      "video/mp4", "video/webm", "video/ogg", "video/quicktime", "video/x-matroska"
-    ];
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const allowedRoles = KIND_ACCESS[kind];
+    if (!allowedRoles.includes(payload.role as "admin" | "manager" | "customer")) {
       return NextResponse.json(
-        { message: "File type not allowed. Supported formats: Images (JPEG, PNG, WebP, GIF) and Videos (MP4, WebM, QuickTime)." },
-        { status: 400 }
+        { message: "You do not have permission to upload this kind of file." },
+        { status: 403 }
       );
     }
 
-    // Validate file size — 10MB for images, 30MB for videos
-    const MAX_SIZE = isVideo ? 30 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json(
-        { message: `File too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed size is ${isVideo ? "30MB" : "10MB"}.` },
-        { status: 400 }
-      );
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const contentType = file.type || "application/octet-stream";
+
+    const check = validateUpload(kind, contentType, buffer.byteLength);
+    if (!check.ok) {
+      return NextResponse.json({ message: check.message }, { status: 400 });
     }
 
-    // Generate a clean safe filename prefixing with timestamp to avoid name collisions
-    const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+    const result = await uploadFile({
+      buffer,
+      filename: file.name || "upload",
+      contentType,
+      kind,
+    });
 
-    // 1. If Vercel Blob Token is configured, attempt upload to Vercel Blob store
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-    if (blobToken) {
-      try {
-        const blob = await put(safeName, file, { access: "public", token: blobToken });
-        if (blob?.url) {
-          return NextResponse.json({ url: blob.url });
-        }
-      } catch (blobError: any) {
-        console.warn("Vercel Blob upload failed, falling back:", blobError?.message || blobError);
-      }
-    }
+    /**
+     * `url` is what the caller stores and renders.
+     *
+     * Public → the CDN URL itself, so the browser never calls us again for those bytes.
+     * Private → our own authenticated serving path. The `ref` beside it is the raw pathname,
+     * for callers that would rather persist that and build the path themselves.
+     */
+    const url =
+      result.assetClass === "public"
+        ? result.ref
+        : `/api/documents/${result.ref.split("/").map(encodeURIComponent).join("/")}`;
 
-    // 2. Fallback: Try saving file locally in public/uploads (works in local dev & self-hosted servers)
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    try {
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      await fs.mkdir(uploadDir, { recursive: true });
-      const filePath = path.join(uploadDir, safeName);
-      await fs.writeFile(filePath, buffer);
-
-      return NextResponse.json({ url: `/uploads/${safeName}` });
-    } catch (fsError: any) {
-      console.warn("Local disk write failed (read-only serverless environment):", fsError);
-
-      return NextResponse.json(
-        { message: "Serverless filesystem is read-only. Please configure BLOB_READ_WRITE_TOKEN in Vercel environment variables to enable uploads." },
-        { status: 500 }
-      );
-    }
+    return NextResponse.json(
+      { url, ref: result.ref, assetClass: result.assetClass, provider: result.provider },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error: unknown) {
+    if (error instanceof AllProvidersFailedError) {
+      // Name the real cause. The previous code answered "Serverless filesystem is read-only",
+      // which described its own dead fallback rather than anything the operator could act on.
+      console.error("[upload] every storage provider declined:", error.attempts);
+      return NextResponse.json(
+        {
+          message:
+            "File storage is currently unavailable. Please try again shortly, or contact support if this continues.",
+          code: "STORAGE_UNAVAILABLE",
+        },
+        { status: 503 }
+      );
+    }
+
     console.error("File upload failed:", error);
     return NextResponse.json(
-      { message: (error as any).message || "Failed to process file upload" },
+      { message: (error as Error)?.message || "Failed to process the upload" },
       { status: 500 }
     );
   }

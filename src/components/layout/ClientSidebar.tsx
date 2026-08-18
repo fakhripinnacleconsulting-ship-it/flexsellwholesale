@@ -37,6 +37,16 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
   React.useEffect(() => {
     if (customerTypes.length === 1 && activeView !== customerTypes[0]) {
       setActiveView(customerTypes[0]);
+      return;
+    }
+    /**
+     * `activeView` is persisted to localStorage, so it can outlive the account type it names
+     * — a customer whose Dropshipping access was removed would keep a stale view selected,
+     * and the orders API now refuses a type the account does not hold. Fall back to the
+     * first type they actually have.
+     */
+    if (customerTypes.length > 0 && !customerTypes.includes(activeView)) {
+      setActiveView(customerTypes[0]);
     }
   }, [customerTypes, activeView, setActiveView]);
 

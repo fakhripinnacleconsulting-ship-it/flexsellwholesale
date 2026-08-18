@@ -5,7 +5,7 @@ import { useProductStore } from "./productStore";
 import { useToastStore } from "./toastStore";
 import { useAuthStore } from "./authStore";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { resolvePrice, resolveMoq, resolvePriceTierName, isPureB2B } from "@/lib/priceTierHelper";
+import { resolvePrice, enforceMoq, resolvePriceTierName } from "@/lib/priceTierHelper";
 import { dispatchEvent } from "@/lib/events/eventDispatcher";
 
 /**
@@ -101,17 +101,22 @@ export const useCartStore = create<CartState>()(
         const variantKey = buildVariantKey(selectedVariants);
 
         const availableStock = matchedVariant.stock;
-        const moq = resolveMoq(matchedVariant, customer || customerTypes);
 
         // Check if item exists in cart
         const existingItem = get().items.find(item => item.productId === liveProduct._id && buildVariantKey(item.selectedVariants) === variantKey);
         const currentQty = existingItem ? existingItem.quantity : 0;
         let targetQty = currentQty + quantity;
 
-        // Verify mandatory MOQ constraint (Pure B2B only)
-        if (targetQty < moq) {
-          useToastStore.getState().addToast(`MOQ required for B2B orders. Minimum limit is ${moq} units.`, "warning");
-          targetQty = moq;
+        // This site clamped unconditionally, so a B2C or Dropshipping shopper adding one unit
+        // had it silently raised to the wholesale minimum. enforceMoq returns the requested
+        // quantity untouched when no minimum applies.
+        const moqCheck = enforceMoq(targetQty, matchedVariant, customer || customerTypes);
+        targetQty = moqCheck.quantity;
+        if (moqCheck.wasRaised) {
+          useToastStore.getState().addToast(
+            `Wholesale orders for this item start at ${moqCheck.moq} units.`,
+            "warning"
+          );
         }
 
         // Verify Stock limit
@@ -234,16 +239,17 @@ export const useCartStore = create<CartState>()(
         if (!matchedVariant) return;
 
         const availableStock = matchedVariant.stock;
-        const moq = resolveMoq(matchedVariant, customer || customerTypes);
 
-        let targetQty = qty;
-
-        const isPureB2bCustomer = isPureB2B(customerTypes);
-
-        // Enforce mandatory MOQ constraint (Pure B2B accounts only)
-        if (isPureB2bCustomer && targetQty < moq) {
-          useToastStore.getState().addToast(`MOQ required for Pure B2B orders: minimum ${moq} units.`, "warning");
-          targetQty = moq;
+        // The pure-B2B test that used to be inline here now lives inside enforceMoq, so all
+        // three clamp sites in this file reach the same verdict instead of one of them
+        // guarding and two not.
+        const moqCheck = enforceMoq(qty, matchedVariant, customer || customerTypes);
+        let targetQty = moqCheck.quantity;
+        if (moqCheck.wasRaised) {
+          useToastStore.getState().addToast(
+            `Wholesale orders for this item start at ${moqCheck.moq} units.`,
+            "warning"
+          );
         }
 
         // Enforce stock
@@ -389,11 +395,11 @@ export const useCartStore = create<CartState>()(
               (!selectedWeight || s.weight.toLowerCase() === selectedWeight.toLowerCase())
             ) || cv?.subVariants?.[0];
 
-            const moq = resolveMoq(sv, customer || customerTypes);
-            let targetQty = item.quantity;
-            if (targetQty < moq) {
-              targetQty = moq;
-            }
+            // Silent on this path by design: a cart refresh is not a user action, so raising
+            // a quantity here should not produce a toast the shopper cannot connect to
+            // anything they did. It clamped unconditionally before, which is how a B2C cart
+            // could grow on its own between visits.
+            const targetQty = enforceMoq(item.quantity, sv, customer || customerTypes).quantity;
 
             const updatedPrice = sv ? resolvePrice(sv, customer || customerTypes, targetQty) : item.pricePerUnit;
             const updatedTierName = sv ? resolvePriceTierName(sv, customer || customerTypes, targetQty) : (item.priceTier || "B2C");

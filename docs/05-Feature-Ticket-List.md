@@ -27,6 +27,29 @@ Every ticket carries: context, the change, and acceptance criteria that can be v
 
 ---
 
+## Shipped — August 2026
+
+Landed since this list was written. Kept here because several tickets below assume the old
+behaviour.
+
+| Area | What changed | Reference |
+|---|---|---|
+| **Receipt → invoice** | Settlement moved to `POST /api/invoices/[id]/settle` — the only route that may mark a document paid or mint an `INV-` number. A paid receipt now issues a **separate** invoice document instead of having its `type` flipped in place, which had left every tax invoice carrying its `REC-` number (GST Rule 46(b)) | [settle route](src/app/api/invoices/[id]/settle/route.ts) |
+| **Wallet settlement** | A wallet payment now reserves → captures through the ledger. A short balance returns **409** and nothing changes; previously the UI dropdown was decorative and a ₹0 wallet settled in full | same |
+| **Wallet authorisation** | `admin-pay-order` uses `requireWalletSpendAccess`; a bare role check had let any manager spend any customer's balance | [admin-pay-order](src/app/api/wallet/admin-pay-order/route.ts) |
+| **File storage** | One provider-agnostic layer, two asset classes, client-side compression, direct URLs in the database, deletion, orphan sweep | ADR §7A |
+| **Document proxy** | Authenticated, ownership-checked, `?url=` ignored (SEC-09) | [legacy route](src/app/api/customers/document/[filename]/route.ts) |
+| **Statement period** | `formatRangePeriod()` — a downloaded statement states its own dates instead of "This month" | [dateRange.ts](src/lib/dateRange.ts) |
+| **Spend breakdown** | Store → Business transfers now appear in "Where your money went". ⚠️ **Total Spent rises** for wallets with transfers — announce it | [breakdown route](src/app/api/wallet/breakdown/route.ts) |
+| **MOQ** | Applies to verified B2B only, decided in one helper (`enforceMoq`). Three cart clamp sites had disagreed; two ignored the customer's type entirely | [priceTierHelper.ts](src/lib/priceTierHelper.ts) |
+| **Order categorisation** | `orderType` is the authority. The customer dashboard had inferred it from price tiers and claimed *any non-B2B COD order* as Dropshipping | [ClientOrdersView.tsx](src/components/storefront/ClientOrdersView.tsx) |
+| **Timestamps** | Documents render `issuedAt`, not `new Date(generatedAt)` — a date-only string that parsed to midnight, so every manager document row read 12:00 AM. `formatDateTimeIST` now warns in development when handed one | [datetime.ts](src/lib/datetime.ts) |
+| **Type checking** | `ignoreBuildErrors` removed; nine real errors fixed | [next.config.ts](next.config.ts) |
+
+**Migrations written, not yet run in production** — see the runbook in the repository root.
+
+---
+
 # E1 — Security remediation
 
 > **Four of these are one-line changes.** Ship FS-101, 102, 103 and 104 together, before

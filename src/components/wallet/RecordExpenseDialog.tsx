@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { uploadWithCompression } from "@/lib/uploadHelper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/stores/toastStore";
@@ -81,16 +82,10 @@ export function RecordExpenseDialog({
     if (!file) return;
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const headers: Record<string, string> = {};
-      const csrf = document.cookie.match(/csrf_token=([^;]+)/);
-      if (csrf?.[1]) headers["X-CSRF-Token"] = csrf[1];
-
-      const res = await fetch("/api/customers/upload-document", { method: "POST", headers, body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Upload failed");
-      if (data.url) setProofUrl(data.url);
+      // A payment proof names a customer and an amount, so it is private: stored by
+      // pathname and served behind an ownership check, never from a public CDN URL.
+      const uploaded = await uploadWithCompression(file, { kind: "proof" });
+      if (uploaded.url) setProofUrl(uploaded.url);
     } catch (err) {
       addToast((err as Error).message || "Could not upload the bill", "error");
     } finally {
@@ -153,7 +148,7 @@ export function RecordExpenseDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="expense-title"
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-card p-5 shadow-xl sm:rounded-2xl"
+        className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-card p-5 shadow-xl sm:rounded-2xl"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>

@@ -150,6 +150,37 @@ export async function GET(request: Request) {
           { "shippingAddress.email": payload.email.toLowerCase() }
         ]
       });
+
+      /**
+       * Scope to the requested account type, validated against what this customer holds.
+       *
+       * The dashboard used to do this filtering client-side by guessing from line-item price
+       * tiers, which put B2B COD orders in the Dropshipping tab. Enforcing it here means the
+       * tab is a real boundary rather than a display convention — and a customer cannot ask
+       * for a type they do not hold.
+       */
+      const requestedType = new URL(request.url).searchParams.get("orderType");
+      if (requestedType && requestedType !== "ALL" && requestedType !== "all") {
+        const customerDoc = await Customer.findById(payload.userId).select("customerTypes").lean() as
+          | { customerTypes?: string[] }
+          | null;
+        const held = customerDoc?.customerTypes || ["B2C"];
+
+        if (!held.includes(requestedType)) {
+          return NextResponse.json(
+            { message: "This account does not hold that order type." },
+            { status: 403 }
+          );
+        }
+
+        andConditions.push(
+          requestedType === "B2B"
+            ? // Legacy orders carry no orderType and are treated as B2B, the same convention
+              // the manager branch below already uses.
+              { $or: [{ orderType: "B2B" }, { orderType: { $exists: false } }, { orderType: null }] }
+            : { orderType: requestedType }
+        );
+      }
     } else if (payload.role === "manager") {
       // Enforce granular RBAC for managers
       let perms = (payload as any).permissions || [];
@@ -655,21 +686,47 @@ export async function POST(request: Request) {
       const docType = pStatus === "Paid" ? "invoice" : "receipt";
       const invoiceId = await generateInvoiceId(docType, session);
 
-      // Determine B2B/B2C/Dropshipping category and order origin
-      let orderType: "B2B" | "B2C" | "Dropshipping" = "B2C";
-      if (quoteId) {
-        const quoteDoc = await InvoiceModel.findById(quoteId).session(session || null).lean() as unknown as { customerType?: "B2B" | "B2C" | "Dropshipping" } | null;
-        if (quoteDoc && quoteDoc.customerType) {
-          orderType = quoteDoc.customerType;
-        } else if (customerTypes.length === 1 && customerTypes[0] === "Dropshipping") {
-          orderType = "Dropshipping";
-        } else if (shippingAddress?.company || shippingAddress?.gstin || customerTypes.includes("B2B")) {
-          orderType = "B2B";
-        } else {
-          orderType = "B2C";
-        }
-      } else if (customerTypes.length === 1 && customerTypes[0] === "Dropshipping") {
-        orderType = "Dropshipping";
+      /**
+       * Determine the order's category.
+       *
+       * Precedence, strongest first:
+       *
+       *   1. **An explicit choice** — `body.orderType`, or the quote's `customerType`.
+       *      Whoever placed the order said what it was; nothing should second-guess that.
+       *   2. The customer's single account type, when they hold exactly one.
+       *   3. Only then, a guess from the shipping address.
+       *
+       * The previous chain started at step 3 for anyone holding more than one type, so a
+       * customer who was both B2B and Dropshipping had their order categorised by whether a
+       * GSTIN happened to be filled in on the address — and `customerTypes[0]` acted as a
+       * tiebreaker elsewhere, which is array ordering standing in for a decision.
+       */
+      const VALID_ORDER_TYPES = ["B2B", "B2C", "Dropshipping"] as const;
+      const isValidOrderType = (v: unknown): v is (typeof VALID_ORDER_TYPES)[number] =>
+        typeof v === "string" && (VALID_ORDER_TYPES as readonly string[]).includes(v);
+
+      let orderType: "B2B" | "B2C" | "Dropshipping";
+
+      const quoteDoc = quoteId
+        ? ((await InvoiceModel.findById(quoteId).session(session || null).lean()) as unknown as {
+            customerType?: "B2B" | "B2C" | "Dropshipping";
+          } | null)
+        : null;
+
+      const explicitType = isValidOrderType(body.orderType)
+        ? body.orderType
+        : isValidOrderType(quoteDoc?.customerType)
+          ? quoteDoc!.customerType!
+          : null;
+
+      if (explicitType) {
+        // A buyer may only claim a type their account actually holds. Staff act on the
+        // customer's behalf and are trusted with the choice.
+        const staffPlaced = payload.role === "admin" || payload.role === "manager";
+        orderType =
+          staffPlaced || customerTypes.includes(explicitType) ? explicitType : "B2C";
+      } else if (customerTypes.length === 1 && isValidOrderType(customerTypes[0])) {
+        orderType = customerTypes[0];
       } else if (shippingAddress?.company || shippingAddress?.gstin || customerTypes.includes("B2B")) {
         orderType = "B2B";
       } else if (customerTypes.includes("Dropshipping")) {

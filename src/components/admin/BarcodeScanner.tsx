@@ -96,7 +96,7 @@ export function BarcodeScanner({ isOpen, onClose, onSelectVariant, customerType 
       aria-label="Barcode Scanner Modal"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm text-foreground"
     >
-      <div className={`relative w-full ${isDocumentMode ? "max-w-xl" : "max-w-3xl"} bg-background rounded-xl border border-border shadow-2xl flex flex-col max-h-[90vh]`}>
+      <div className={`relative w-full ${isDocumentMode ? "max-w-xl" : "max-w-3xl"} bg-background rounded-xl border border-border shadow-2xl flex flex-col max-h-[90dvh]`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">

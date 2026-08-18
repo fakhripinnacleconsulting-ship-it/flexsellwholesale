@@ -66,7 +66,7 @@ export function CreateOrderModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-background border rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative">
+      <div className="bg-background border rounded-xl max-w-4xl w-full max-h-[90dvh] overflow-y-auto shadow-2xl relative">
         <div className="p-6 border-b sticky top-0 bg-background z-10 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-foreground">

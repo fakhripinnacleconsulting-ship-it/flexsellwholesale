@@ -11,6 +11,18 @@ export const dynamic = "force-dynamic";
 const OTHER_COLOUR = "#94a3b8";
 
 /**
+ * Slices that are not expense categories.
+ *
+ * A transfer to the Business Wallet is money that genuinely left the Store Wallet, so it has
+ * to be accounted for here — but it is a movement, not a spend, and giving it a real category
+ * would put it in the same list an admin edits. A distinct colour keeps it visibly different
+ * from actual expenditure in the donut.
+ */
+const SYNTHETIC_SLICES: Record<string, { label: string; colour: string }> = {
+  __TRANSFER_OUT: { label: "Transferred to Business Wallet", colour: "#0ea5e9" },
+};
+
+/**
  * "Where your money went" — spend grouped by expense category for a date range.
  *
  * The customer's real question is not "what is my balance" but "where did my ₹15,000 go",
@@ -47,16 +59,29 @@ export async function GET(request: NextRequest) {
             userId,
             walletType,
             status: "success",
-            // Only outbound money, and only entries that carry a category. An order
-            // payment has no category and belongs in the passbook, not in this chart.
+            // Only outbound money.
             type: { $in: ["DEBIT", "ADJUSTMENT", "TRANSFER_OUT"] },
-            expenseCategory: { $exists: true, $ne: null },
+            /**
+             * A transfer out has no expense category, and the `expenseCategory: { $exists:
+             * true }` clause that used to sit here removed it again — so money moved from the
+             * Store Wallet to the Business Wallet left the wallet and then failed to appear
+             * in that wallet's own "where did it go" chart.
+             *
+             * Categoryless *order payments* must still be excluded (they belong in the
+             * passbook), so the filter is by type rather than by the absence of a category.
+             */
+            $or: [
+              { expenseCategory: { $exists: true, $ne: null } },
+              { type: "TRANSFER_OUT" },
+            ],
             createdAt: { $gte: from, $lte: to },
           },
         },
         {
           $group: {
-            _id: "$expenseCategory",
+            // A transfer is not an expense *category*, so rather than inventing one it is
+            // grouped under a synthetic key the slice mapper below gives a fixed label.
+            _id: { $ifNull: ["$expenseCategory", { $concat: ["__", "$type"] }] },
             total: { $sum: "$amount" },
             count: { $sum: 1 },
           },
@@ -76,15 +101,18 @@ export async function GET(request: NextRequest) {
 
     const totalPaise = groups.reduce((sum, g) => sum + g.total, 0);
 
-    const named = groups.map((g) => ({
-      categoryKey: g._id,
-      // A deactivated category still resolves here; only a hard delete would break it, and
-      // the categories route deliberately offers no delete.
-      label: meta.get(g._id)?.label || g._id,
-      colour: meta.get(g._id)?.colour || OTHER_COLOUR,
-      totalPaise: g.total,
-      count: g.count,
-    }));
+    const named = groups.map((g) => {
+      const synthetic = SYNTHETIC_SLICES[g._id];
+      return {
+        categoryKey: g._id,
+        // A deactivated category still resolves here; only a hard delete would break it, and
+        // the categories route deliberately offers no delete.
+        label: synthetic?.label || meta.get(g._id)?.label || g._id,
+        colour: synthetic?.colour || meta.get(g._id)?.colour || OTHER_COLOUR,
+        totalPaise: g.total,
+        count: g.count,
+      };
+    });
 
     /**
      * Beyond six slices a donut stops being information and becomes a colour wheel, so the

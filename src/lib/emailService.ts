@@ -780,7 +780,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello <strong>${order.customerName || "Valued Customer"}</strong>,</p>
-          <p>Thank you for your order! We have received your wholesale purchase order <strong>#${order._id}</strong>.</p>
+          <p>Thank you for your order! We have received your order <strong>#${order._id}</strong>.</p>
           <p>Total Amount: <strong>₹${Number(order.amount || order.total || 0).toLocaleString("en-IN")}</strong></p>
           <p>Payment Method: <strong>${order.paymentMethod || "N/A"}</strong> | Payment Status: <strong>${order.paymentStatus || "Pending"}</strong></p>
         </div>
@@ -803,7 +803,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello <strong>${customerName}</strong>,</p>
-          <p>Your wholesale purchase order <strong>#${docId}</strong> has been <strong>CANCELLED</strong>.</p>
+          <p>Your  order <strong>#${docId}</strong> has been <strong>CANCELLED</strong>.</p>
           
           <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 14px; border-radius: 4px; margin: 16px 0;">
             <p style="margin: 0; font-size: 13px; color: #991b1b; font-weight: 500;">
@@ -827,7 +827,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello Admin,</p>
-          <p>A new wholesale purchase order has been placed:</p>
+          <p>A new  order has been placed:</p>
           <ul>
             <li><strong>Order ID:</strong> #${order._id}</li>
             <li><strong>Buyer:</strong> ${order.customerName}</li>
@@ -1074,7 +1074,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello <strong>${order.customerName || "Valued Customer"}</strong>,</p>
-          <p>The status for your wholesale purchase order <strong>#${order._id}</strong> is now: <strong>${order.status || "Updated"}</strong>.</p>
+          <p>The status for your order <strong>#${order._id}</strong> is now: <strong>${order.status || "Updated"}</strong>.</p>
           <p>Payment Status: <strong>${order.paymentStatus || "Pending"}</strong> | Total Amount: <strong>₹${Number(order.amount || order.total || 0).toLocaleString("en-IN")}</strong></p>
           ${paymentNotice}
         </div>

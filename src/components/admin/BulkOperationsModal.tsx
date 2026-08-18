@@ -247,7 +247,7 @@ export function BulkOperationsModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="max-w-4xl w-full border-border max-h-[90vh] flex flex-col bg-background shadow-2xl relative animate-in zoom-in-95 duration-250">
+      <Card className="max-w-4xl w-full border-border max-h-[90dvh] flex flex-col bg-background shadow-2xl relative animate-in zoom-in-95 duration-250">
         
         {/* Close Button */}
         <button

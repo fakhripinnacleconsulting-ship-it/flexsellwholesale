@@ -226,7 +226,9 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
           </div>
         )}
 
-        <div className="border rounded-lg overflow-hidden">
+        {/* overflow-x-auto, not just overflow-hidden: a nowrap quote table is wider than a
+            phone, and clipping it hides columns rather than letting them be reached. */}
+        <div className="border rounded-lg overflow-hidden overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
             <thead className="bg-secondary/25 border-b font-bold">
               <tr>

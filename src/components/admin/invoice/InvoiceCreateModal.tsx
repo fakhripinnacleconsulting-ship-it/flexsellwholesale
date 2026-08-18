@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { uploadWithCompression } from "@/lib/uploadHelper";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -196,32 +197,16 @@ export function InvoiceCreateModal({
     else setIsUploadingPackingSlip(true);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // Hand-rolled CSRF header reading lived here in every upload call site. apiClient
+      // already does that once, correctly, which is the reason the service layer exists.
+      // `dropship` marks these private — an Amazon tax invoice is a customer record, not a
+      // public asset, so it is stored by pathname and served behind an ownership check.
+      const uploaded = await uploadWithCompression(file, { kind: "dropship" });
 
-      const headers: Record<string, string> = {};
-      if (typeof document !== "undefined") {
-        const matches = document.cookie.match(/csrf_token=([^;]+)/);
-        if (matches && matches[1]) {
-          headers["X-CSRF-Token"] = matches[1];
-        }
-      }
-
-      const res = await fetch("/api/customers/upload-document", {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to upload document");
-      }
-
-      if (data.url && setDropshipDetails && dropshipDetails) {
+      if (uploaded.url && setDropshipDetails && dropshipDetails) {
         setDropshipDetails({
           ...dropshipDetails,
-          [fieldKey]: data.url,
+          [fieldKey]: uploaded.url,
         });
         addToast(
           `${isTax ? "Amazon Tax Invoice" : "Amazon Packaging Slip"} uploaded successfully!`,
@@ -481,7 +466,7 @@ export function InvoiceCreateModal({
 
   return (
     <div className={isPublicMode ? "max-w-5xl mx-auto px-4 py-6" : "fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"}>
-      <div className={`bg-background border rounded-xl max-w-5xl w-full ${isPublicMode ? '' : 'max-h-[90vh]'} overflow-y-auto shadow-2xl relative`}>
+      <div className={`bg-background border rounded-xl max-w-5xl w-full ${isPublicMode ? '' : 'max-h-[90dvh]'} overflow-y-auto shadow-2xl relative`}>
         <div className="p-6 border-b sticky top-0 bg-background z-10 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-foreground">

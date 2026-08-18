@@ -155,7 +155,7 @@ export function CustomerFormModal({ isOpen, onClose, onSuccess, editingCustomer 
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-card border rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 text-foreground space-y-4">
+      <div className="bg-card border rounded-xl max-w-lg w-full max-h-[90dvh] overflow-y-auto shadow-2xl p-6 text-foreground space-y-4">
         <div>
           <h3 className="text-xl font-bold tracking-tight">{editingCustomer ? "Edit Customer Account" : "Create Customer Account"}</h3>
           <p className="text-muted-foreground text-xs mt-0.5">Define login credentials and business billing address details.</p>

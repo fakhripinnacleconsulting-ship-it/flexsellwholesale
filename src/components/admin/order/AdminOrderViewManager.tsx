@@ -484,7 +484,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
       {/* Edit Order Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 no-print">
-          <div className="bg-card border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 text-foreground space-y-4">
+          <div className="bg-card border rounded-xl max-w-2xl w-full max-h-[90dvh] overflow-y-auto shadow-2xl p-6 text-foreground space-y-4">
             <div>
               <h3 className="text-xl font-bold tracking-tight">Edit Wholesale Order Details</h3>
               <p className="text-muted-foreground text-xs mt-0.5">Modify shipping details or adjust item quantities.</p>
@@ -599,7 +599,7 @@ export function AdminOrderViewManager({ params }: PageProps) {
       {/* Configure Shipment Modal */}
       {isShipModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 no-print">
-          <div className="bg-card border rounded-xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 text-foreground space-y-4">
+          <div className="bg-card border rounded-xl max-w-xl w-full max-h-[90dvh] overflow-y-auto shadow-2xl p-6 text-foreground space-y-4">
             <FulfillmentForm
               orderId={orderId}
               orderPinCode={order.shippingAddress?.pinCode || "395003"}

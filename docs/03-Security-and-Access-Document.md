@@ -433,18 +433,40 @@ status shown on the wallet page, and a reminder after ~7 days.
 
 ## 10. Open findings
 
-| ID | Finding | Severity | CVSS-ish | Fix |
+| ID | Finding | Severity | CVSS-ish | State |
 |---|---|---|---|---|
-| SEC-01 | Unauthenticated file upload | Critical | 7.5 | `requireAuth()`, drop the CSRF exemption, sniff magic bytes |
-| SEC-02 | KYC documents at public URLs | Critical | 9.1 | Private blobs + authorising route + UUID names |
-| SEC-03 | `JWT_SECRET` falls back to a committed value | Critical | 9.8 *(if unset)* | Throw at module load |
-| SEC-04 | `TEST_MODE` disables CSRF and rate limiting | High | 8.1 *(if set)* | Bind to `NODE_ENV !== "production"` |
-| SEC-05 | Notification preferences unauthenticated | High | 7.1 | Authenticate; `userId` from the session |
-| SEC-06 | Stored XSS in collection descriptions | High | 6.8 | `sanitizeHtml()` |
-| SEC-07 | Permissions read from the token, three handlers | Medium | 5.4 | `requireAdminOrManagerAuth` |
-| SEC-08 | Sanitiser fallback bypassable | Medium | 4.3 | Fail closed |
+| SEC-01 | Unauthenticated file upload | Critical | 7.5 | ✅ **Fixed** — `requireAuth()`, per-session rate limit, CSRF exemption removed, per-`kind` MIME allowlist |
+| SEC-02 | KYC documents at public URLs | Critical | 9.1 | ✅ **Fixed** — private asset class, pathname-only storage, authorising route (§7.4) |
+| SEC-09 | **Document proxy open to the world** | Critical | 9.3 | ✅ **Fixed** — see below |
+| SEC-03 | `JWT_SECRET` falls back to a committed value | Critical | 9.8 *(if unset)* | ✅ **Fixed** — throws at module load ([lib/auth.ts:6](src/lib/auth.ts#L6)) |
+| SEC-04 | `TEST_MODE` disables CSRF and rate limiting | High | 8.1 *(if set)* | ✅ **Fixed** — bound to `NODE_ENV !== "production"` ([proxy.ts](src/proxy.ts)) |
+| SEC-05 | Notification preferences unauthenticated | High | 7.1 | Open — authenticate; `userId` from the session |
+| SEC-06 | Stored XSS in collection descriptions | High | 6.8 | Open — `sanitizeHtml()` |
+| SEC-07 | Permissions read from the token, three handlers | Medium | 5.4 | Partly fixed — invoice update/delete now match the exact action; a token-wide fix is still open |
+| SEC-08 | Sanitiser fallback bypassable | Medium | 4.3 | Open — fail closed |
+| SEC-10 | `:read` permission granted update and delete | Medium | 6.5 | ✅ **Fixed** — exact-action match on the document routes |
 
-**SEC-03, SEC-04 and SEC-06 are one-line changes.** They should not wait for a sprint boundary.
+### SEC-09 — the document proxy (found during the storage remediation)
+
+`GET /api/customers/document/[filename]` had **no authentication of any kind**, and took the
+upstream object as a query parameter which it then fetched with the store's own read-write
+token, validated only by a hostname substring test:
+
+```ts
+const blobUrl = searchParams.get("url");
+if (!blobUrl.includes(".blob.vercel-storage.com/")) return 400;
+await fetch(blobUrl, { headers: { Authorization: `Bearer ${blobToken}` } });
+```
+
+Three distinct problems: any anonymous caller could read any customer's Aadhaar, PAN or cheque
+image given a filename; the same endpoint was a free bandwidth amplifier (an unauthenticated
+route that streams files); and the substring test matched *any* Vercel Blob store, so it would
+fetch a third party's object using our token.
+
+Now authenticated, ownership-checked, rate-limited, and the `?url=` parameter is **ignored** —
+the object is resolved server-side from the filename. **A caller never names the upstream URL.**
+
+**SEC-05, SEC-06 and SEC-08 are small changes.** They should not wait for a sprint boundary.
 
 Severity ratings are indicative, for prioritisation — not a formal CVSS assessment.
 

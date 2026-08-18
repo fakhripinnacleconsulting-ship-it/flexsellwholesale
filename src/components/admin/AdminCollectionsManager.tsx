@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { uploadFileAndGetUrl } from "@/lib/uploadHelper";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -169,23 +170,10 @@ export function AdminCollectionsManager({ initialCollections }: AdminCollections
     addToast(`Uploading ${labelName.toLowerCase()}...`, "info");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      let uploadedUrl = "";
-      try {
-        const data = await apiClient.post<{ url: string }>("/upload", formData);
-        uploadedUrl = data?.url || "";
-      } catch {
-        const rawRes = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-        if (rawRes.ok) {
-          const data = await rawRes.json();
-          uploadedUrl = data.url;
-        }
-      }
+      // The raw-fetch retry that used to sit here was a workaround for apiClient failures;
+      // it also bypassed CSRF. uploadFileAndGetUrl goes through apiClient once and reports a
+      // real error instead of silently trying again without the header.
+      const uploadedUrl = await uploadFileAndGetUrl(file, "image");
 
       if (uploadedUrl) {
         if (target === "thumbnail") {

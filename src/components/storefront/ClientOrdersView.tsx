@@ -73,26 +73,39 @@ export function ClientOrdersView() {
     }
   };
 
-  // Initialize store if empty
-  React.useEffect(() => {
-    initializeOrders();
-  }, [initializeOrders]);
-
   // Filter orders dynamically based on active dashboard view
   const { activeView } = useDashboardViewStore();
 
+  /**
+   * Re-fetch when the dashboard view changes.
+   *
+   * The server now scopes by `orderType` and validates it against the account's own
+   * `customerTypes`, so the tab is enforced rather than being a display convention the
+   * client could get wrong — which is exactly how B2B COD orders ended up listed under
+   * Dropshipping. The client-side filter below still runs, so a stale cache never shows
+   * the wrong tab's orders in the gap before this resolves.
+   */
+  React.useEffect(() => {
+    initializeOrders({ orderType: activeView });
+  }, [initializeOrders, activeView]);
+
   const filteredOrders = React.useMemo(() => {
     let viewFiltered = orders.filter(o => {
-      const hasB2BItem = o.items?.some((item: any) => item.priceTier === "B2B");
-      const hasDropshipItem = o.items?.some((item: any) => item.priceTier === "Dropshipping");
-      
-      if (activeView === "B2B") {
-        return hasB2BItem;
-      }
-      if (activeView === "Dropshipping") {
-        return hasDropshipItem || (!hasB2BItem && o.paymentMethod === "COD");
-      }
-      return !hasB2BItem && !hasDropshipItem;
+      /**
+       * `orderType` is the authority, and it is the only thing consulted here.
+       *
+       * This used to infer the category from line-item price tiers, with a Dropshipping
+       * branch of `hasDropshipItem || (!hasB2BItem && paymentMethod === "COD")` — so **any
+       * non-B2B COD order was claimed as Dropshipping**. A B2B order whose items had not
+       * resolved to the B2B tier (quantity under the MOQ, or a legacy line carrying no
+       * `priceTier`) therefore surfaced in the customer's Dropshipping tab.
+       *
+       * `orderType` is set by the server, indexed, and already what the admin dashboard
+       * filters on. Legacy orders predating the field are treated as B2B, matching the
+       * server's own convention in /api/orders.
+       */
+      const orderType = (o as any).orderType || "B2B";
+      return orderType === activeView;
     });
 
     if (statusFilter) {

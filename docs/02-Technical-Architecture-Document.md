@@ -19,6 +19,7 @@
 5. [Request lifecycle](#5-request-lifecycle)
 6. [Key flows](#6-key-flows)
 7. [Money subsystem](#7-money-subsystem)
+7A. [File storage](#7a-file-storage)
 8. [Scheduled work](#8-scheduled-work)
 9. [Rendering and caching](#9-rendering-and-caching)
 10. [Error handling](#10-error-handling)
@@ -345,6 +346,83 @@ caused it, and the ledger is the record of truth.
 
 Held balance is included because it has left `availableBalance` without being debited; omitting
 it would make every wallet with a live checkout look permanently short.
+
+---
+
+## 7A. File storage
+
+Files are the second place this system spends real money, and it went wrong the same way money
+subsystems do — by having two implementations that disagreed.
+
+### 7A.1 One writer
+
+`lib/storage/` is the only module that writes a file, mirroring §7.1's rule for balances.
+Before it there were two upload routes with different fallbacks, limits and return shapes, and
+eight components calling `fetch` directly — so a defect in one of them had eight places it
+could have been introduced and only one place it could be fixed.
+
+```
+uploadFile({ buffer, filename, contentType, kind })
+   ├── vercelBlob      primary
+   ├── cloudinary      fallback #1
+   └── supabaseStorage fallback #2
+```
+
+Providers are tried in order; the first **configured** one that succeeds wins.
+
+### 7A.2 Two asset classes
+
+| Class | Examples | `access` | Stored in Mongo | Cache |
+|---|---|---|---|---|
+| **Public** | product, category, collection and CMS imagery | `public` | the **CDN URL** | `max-age=31536000`, immutable |
+| **Private** | `kycDocuments.*`, `walletTransaction.proofUrl`, dropship documents, shipping labels | `private` | the **pathname** | `no-store` |
+
+A private reference is a pathname, never a URL: a URL is either permanently public or it
+expires, and a stored reference must be neither. Reads go through
+`GET /api/documents/[...pathname]` — authenticated, ownership-checked, and answering with a
+**302 to a short-lived signed URL** so the bytes travel from the CDN to the browser without
+passing through a function.
+
+### 7A.3 Why the URL in the database matters
+
+Uploads used to store `/api/customers/document/<name>?url=<blobUrl>`. Every view was therefore
+served by a serverless function that fetched the blob and re-streamed it:
+
+```
+browser → function → blob   (egress #1)
+browser ← function ← bytes  (egress #2)   …with no Cache-Control at all
+```
+
+Two billed egresses per view, the CDN bypassed entirely, and the whole file buffered in
+function memory by `arrayBuffer()`. **255 MB of stored files produced 10 GB of transfer** —
+roughly 40× amplification — which exhausted the plan's quota and suspended the store.
+
+Storing the direct reference is the fix. `scripts/migrate-document-urls.mjs` rewrites the
+historic rows; the legacy route is retained read-only (now authenticated) until it has run
+everywhere.
+
+### 7A.4 Degradation, not failure
+
+Provider availability is decided by typed SDK errors, never by matching message text:
+
+| Error | Treated as |
+|---|---|
+| `BlobStoreSuspendedError`, `BlobServiceRateLimited`, `BlobServiceNotAvailable` | `PROVIDER_UNAVAILABLE` → try the next provider |
+| `BlobStoreNotFoundError`, `BlobAccessError` | `PROVIDER_MISCONFIGURED` → try the next, alert |
+| anything else | `UPLOAD_FAILED` → **stop** |
+
+The last row is the important one: a file the first provider *refused* must not be retried
+elsewhere, or a rejected content type gets stored by whichever provider happens to be laxer.
+
+### 7A.5 Compression and deletion
+
+Images are compressed in the browser before upload (`lib/uploadHelper.ts`, max 1 MB / 1920 px)
+— the cheapest byte is the one never stored, and no amount of caching beats not storing it.
+
+`deleteFile()` exists because `put` without `del` is a leak: the codebase previously imported
+`put` and never `del`, so every replaced document stayed in the store forever.
+`scripts/sweep-orphan-blobs.mjs` reports unreferenced objects and is **report-only by
+default** — blob deletion is the one irreversible step in this design.
 
 ---
 

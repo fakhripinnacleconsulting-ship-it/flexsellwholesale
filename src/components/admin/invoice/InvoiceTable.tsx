@@ -120,7 +120,13 @@ export function InvoiceTable({
                       </span>
                     </td>
                     <td className="p-4 text-muted-foreground">
-                      {formatDateTimeIST(new Date(inv.generatedAt))}
+                      {/*
+                        `generatedAt` is a display string ("18 Aug 2026") with no time in it,
+                        so wrapping it in `new Date()` produced midnight and every row on the
+                        manager's Documents pages read 12:00 AM. `issuedAt` is the real
+                        instant; `createdAt` covers documents written before it existed.
+                      */}
+                      {formatDateTimeIST(inv.issuedAt ?? inv.createdAt ?? inv.generatedAt)}
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">

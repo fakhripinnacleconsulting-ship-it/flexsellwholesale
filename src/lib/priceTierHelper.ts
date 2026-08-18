@@ -47,19 +47,57 @@ export function resolveCustomerTier(customerTypes?: string[]): PriceTier {
   return "B2C";
 }
 
+/**
+ * The minimum order quantity that applies to this buyer.
+ *
+ * **A minimum order quantity is a B2B wholesale term and belongs to B2B alone.** The array
+ * branch used to read `includes("B2B") || includes("Dropshipping")`, which forced the
+ * wholesale MOQ onto every Dropshipping account — and because the object branch checked only
+ * B2B, the same customer got a different answer depending on which shape the caller happened
+ * to pass. All three shapes now agree.
+ *
+ * Returns 1 — "no minimum" — for everyone else, so callers can clamp unconditionally against
+ * the result without needing their own role test.
+ */
 export function resolveMoq(sv?: SubVariant, tierOrTypes?: PriceTier | string[] | any): number {
   if (!sv) return 1;
 
+  const moq = sv.b2bMoq || 1;
+
   if (typeof tierOrTypes === "object" && tierOrTypes !== null && !Array.isArray(tierOrTypes)) {
+    // Admins order on a customer's behalf at that customer's terms, not their own.
     if (tierOrTypes.role === "admin") return 1;
-    return isB2bVerified(tierOrTypes) ? (sv.b2bMoq || 1) : 1;
+    return isPureB2B(tierOrTypes.customerTypes) ? moq : 1;
   }
 
   if (Array.isArray(tierOrTypes)) {
-    return (tierOrTypes.includes("B2B") || tierOrTypes.includes("Dropshipping")) ? (sv.b2bMoq || 1) : 1;
+    return isPureB2B(tierOrTypes) ? moq : 1;
   }
 
-  return tierOrTypes === "B2B" ? (sv.b2bMoq || 1) : 1;
+  return tierOrTypes === "B2B" ? moq : 1;
+}
+
+/**
+ * The quantity this buyer must actually order, given what they asked for.
+ *
+ * The single place the MOQ decision is made. `cartStore` previously clamped at three
+ * different sites and only one of them checked whether the customer was pure B2B, so adding
+ * a single unit as a B2C shopper silently became "minimum 50" with a toast reading
+ * "MOQ required for B2B orders".
+ *
+ * Returns the requested quantity unchanged whenever no minimum applies, and reports whether
+ * it raised anything so the caller can decide whether to say so.
+ */
+export function enforceMoq(
+  requested: number,
+  sv?: SubVariant,
+  customerOrTypes?: PriceTier | string[] | any
+): { quantity: number; wasRaised: boolean; moq: number } {
+  const moq = resolveMoq(sv, customerOrTypes);
+  if (moq <= 1 || requested >= moq) {
+    return { quantity: requested, wasRaised: false, moq };
+  }
+  return { quantity: moq, wasRaised: true, moq };
 }
 
 /**

@@ -41,6 +41,16 @@ export function AddToCartPanel() {
   const mrp = activeSubVariant ? activeSubVariant.mrp : 0;
   const b2bMoq = activeSubVariant ? (activeSubVariant.b2bMoq || 1) : 1;
 
+  /**
+   * Whether this viewer can actually buy at the wholesale rate.
+   *
+   * A minimum order quantity is a B2B term, so it is only worth showing to someone B2B
+   * pricing is available to. `isPureB2B` matches the rule `resolveMoq` now enforces, so the
+   * badge and the cart cannot disagree about who the minimum applies to.
+   */
+  const { isPureB2B } = require("@/lib/priceTierHelper");
+  const canReachB2bPricing = customer?.role === "admin" || isPureB2B(customer?.customerTypes);
+
   let taxAmount = 0;
   let totalPrice = highlightPrice;
 
@@ -155,9 +165,16 @@ export function AddToCartPanel() {
               <Badge variant="destructive">Out of Stock</Badge>
             )}
 
-            <Badge variant="outline" className="border-amber-500/60 text-amber-800 dark:text-amber-300 font-extrabold bg-amber-50/50 dark:bg-amber-950/20">
-              • MOQ: {b2bMoq} pcs
-            </Badge>
+            {/*
+              Shown only to viewers who can actually reach wholesale pricing. A B2C or
+              Dropshipping shopper was being told about a minimum that does not apply to
+              them — and, until the cart was fixed, was then silently held to it.
+            */}
+            {b2bMoq > 1 && canReachB2bPricing && (
+              <Badge variant="outline" className="border-amber-500/60 text-amber-800 dark:text-amber-300 font-extrabold bg-amber-50/50 dark:bg-amber-950/20">
+                • MOQ: {b2bMoq} pcs
+              </Badge>
+            )}
 
             {visibility.showDimensions && activeVariant?.dimensions && (
               <span className="text-muted-foreground font-semibold">• Box Size: {activeVariant.dimensions}</span>

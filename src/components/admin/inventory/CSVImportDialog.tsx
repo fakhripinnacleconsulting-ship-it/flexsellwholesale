@@ -16,7 +16,7 @@ export function CSVImportDialog() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card text-card-foreground border border-border w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div className="bg-card text-card-foreground border border-border w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85dvh]">
         {/* Header */}
         <div className="px-6 py-4 border-b flex justify-between items-center bg-secondary/15">
           <div className="flex items-center gap-2">
@@ -84,7 +84,9 @@ export function CSVImportDialog() {
             <div className="space-y-2">
               <h4 className="font-bold text-xs uppercase text-muted-foreground tracking-wider">Detailed Error Logs</h4>
               <div className="border border-border rounded-lg overflow-hidden">
-                <div className="max-h-60 overflow-y-auto">
+                {/* whitespace-nowrap makes this table wider than a phone; it needs its own
+                    horizontal scroller or the dialog body scrolls sideways instead. */}
+                <div className="max-h-60 overflow-y-auto overflow-x-auto">
                   <table className="w-full text-xs text-left whitespace-nowrap">
                     <thead className="bg-secondary/40 font-bold text-muted-foreground border-b uppercase text-[9px]">
                       <tr>
