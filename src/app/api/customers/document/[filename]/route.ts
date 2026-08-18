@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/authGuard";
 import fs from "fs/promises";
 import path from "path";
 
 export async function GET(request: Request, { params }: { params: Promise<{ filename: string }> }) {
   try {
-    const { payload, error } = await requireAuth();
-    if (error) return error;
-
     const { filename } = await params;
     const { searchParams } = new URL(request.url);
     const blobUrl = searchParams.get("url");

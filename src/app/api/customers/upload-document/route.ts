@@ -96,8 +96,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     } catch (fsError: any) {
       console.warn("Local disk write failed for document:", fsError);
 
+      const isVercel = process.env.VERCEL === "1";
+      const errorMessage = isVercel
+        ? "Vercel Blob Storage is not configured or failed, and local disk writes are not supported in this environment. Please configure BLOB_READ_WRITE_TOKEN."
+        : "Failed to save document to local disk.";
+
       return NextResponse.json(
-        { message: "Failed to save document" },
+        { message: errorMessage },
         { status: 500 }
       );
     }
