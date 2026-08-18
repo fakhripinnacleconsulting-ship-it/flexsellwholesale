@@ -77,7 +77,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     let blobErrorMessage = "";
     if (blobToken) {
       try {
-        const blob = await put(safeName, buffer, { access: "private", token: blobToken });
+        const blob = await put(safeName, buffer, { access: "public", token: blobToken });
         if (blob?.url) {
           return NextResponse.json({ url: `/api/customers/document/${safeName}?url=${encodeURIComponent(blob.url)}` });
         }
