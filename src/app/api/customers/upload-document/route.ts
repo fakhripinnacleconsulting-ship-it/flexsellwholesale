@@ -74,6 +74,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // 1. Try Vercel Blob
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    let blobErrorMessage = "";
     if (blobToken) {
       try {
         const blob = await put(safeName, buffer, { access: "private", token: blobToken });
@@ -81,7 +82,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           return NextResponse.json({ url: `/api/customers/document/${safeName}?url=${encodeURIComponent(blob.url)}` });
         }
       } catch (blobError: any) {
-        console.warn("Vercel Blob upload failed for document, falling back:", blobError?.message || blobError);
+        blobErrorMessage = blobError?.message || String(blobError);
+        console.warn("Vercel Blob upload failed for document, falling back:", blobErrorMessage);
       }
     }
 
@@ -97,9 +99,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       console.warn("Local disk write failed for document:", fsError);
 
       const isVercel = process.env.VERCEL === "1";
-      const errorMessage = isVercel
-        ? "Vercel Blob Storage is not configured or failed, and local disk writes are not supported in this environment. Please configure BLOB_READ_WRITE_TOKEN."
-        : "Failed to save document to local disk.";
+      let errorMessage = "Failed to save document to local disk.";
+      
+      if (isVercel) {
+        if (blobErrorMessage) {
+          errorMessage = `Vercel Blob error: ${blobErrorMessage}`;
+        } else if (!blobToken) {
+          errorMessage = "Vercel Blob Storage token (BLOB_READ_WRITE_TOKEN) is missing. Local disk writes are not supported on Vercel.";
+        } else {
+          errorMessage = "Vercel Blob upload failed silently without an error message.";
+        }
+      }
 
       return NextResponse.json(
         { message: errorMessage },
