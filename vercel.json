@@ -1,11 +1,5 @@
 {
-  "$comment": [
-    "Vercel Hobby allows 2 cron jobs, each triggered once per day. Both slots are used.",
-    "Adding a third will fail deployment; adding a sub-daily schedule (e.g. */30 * * * *)",
-    "is rejected on Hobby. Wallet maintenance therefore runs all three of its jobs in one",
-    "pass, and stuck recharges are also settled lazily when a customer opens their wallet",
-    "so nobody waits a day for money they have already paid."
-  ],
+
   "crons": [
     {
       "path": "/api/orders/reap-abandoned",
