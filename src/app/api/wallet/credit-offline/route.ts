@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Customer from "@/models/Customer";
 import { requireWalletAdmin, verifyAdminPassword } from "@/lib/walletGuard";
+import { rateLimit } from "@/lib/rateLimit";
 import { parseAmountToPaise, toRupees, formatPaise } from "@/lib/money";
 import {
   writeLedgerEntry,
@@ -51,6 +52,14 @@ export async function POST(request: NextRequest) {
     const auth = await requireWalletAdmin();
     if (auth.error) return auth.error;
     const { payload, actor } = auth;
+
+    // Every wallet write is rate limited per actor. Only recharge/initiate had one, so the
+    // rest were bounded by nothing but how fast a script could post.
+    try {
+      await rateLimit(payload.userId, "general");
+    } catch {
+      return NextResponse.json({ message: "Too many requests. Please try again later." }, { status: 429 });
+    }
 
     const body = await request.json();
     const {

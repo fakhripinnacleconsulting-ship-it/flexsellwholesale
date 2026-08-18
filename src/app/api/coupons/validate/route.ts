@@ -2,9 +2,22 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Coupon from "@/models/Coupon";
 import { verifyToken, getTokenFromCookie } from "@/lib/auth";
+import { rateLimit } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
   try {
+    /**
+     * Unauthenticated and previously unlimited, which made the whole coupon table
+     * enumerable: the response distinguishes "invalid code" from every other refusal, so a
+     * script could walk the keyspace and read back which codes exist and what they are worth.
+     */
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    try {
+      await rateLimit(`coupon_validate_${ip.split(",")[0].trim()}`, "general");
+    } catch {
+      return NextResponse.json({ message: "Too many attempts. Please try again later." }, { status: 429 });
+    }
+
     await dbConnect();
     const body = await request.json();
     const { code, orderValue, orderAmount } = body;

@@ -16,6 +16,8 @@ import { formatPrice } from "@/lib/utils";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
+import { useAuthStore } from "@/stores/authStore";
+import * as walletService from "@/services/walletService";
 
 export default function OrderConfirmationPage() {
   const params = useParams();
@@ -30,6 +32,7 @@ export default function OrderConfirmationPage() {
   const [paying, setPaying] = React.useState(false);
   const { Razorpay } = useRazorpay();
   const { addToast } = useToastStore();
+  const currentUser = useAuthStore((state: any) => state.customer);
 
   React.useEffect(() => {
     if (!orderId) return;
@@ -68,11 +71,45 @@ export default function OrderConfirmationPage() {
   // An order can legitimately sit here unpaid — an admin-converted Razorpay quote, or a
   // checkout whose stock release failed. Without this the buyer has no way to pay it.
   const needsPayment =
-    !!order && order.paymentMethod === "Razorpay" && order.paymentStatus !== "Paid" && order.status !== "Cancelled";
+    !!order && ["Razorpay", "Wallet"].includes(order.paymentMethod || "") && order.paymentStatus !== "Paid" && order.status !== "Cancelled";
 
   const handleCompletePayment = async () => {
     if (!order || paying) return;
     setPaying(true);
+
+    if (order.paymentMethod === "Wallet") {
+      try {
+        const clientRequestId = walletService.newRequestId();
+        const isAdminOrManager = currentUser?.role === "admin" || currentUser?.role === "manager";
+
+        if (isAdminOrManager) {
+          const customerId = (order.customerId || (order as any).customer?._id || (order as any).customer || "") as string;
+          if (!customerId) throw new Error("This order has no linked customer account to charge.");
+          await walletService.adminPayOrder({
+            orderId: order._id,
+            customerId,
+            // Which wallet was chosen is recorded on the order itself. Reading it back from
+            // the payment method could never work — both wallets store "Wallet" there.
+            walletType: order.walletType === "business" ? "business" : "store",
+            clientRequestId
+          });
+        } else {
+          await walletService.payOrderFromWallet({ orderId: order._id, clientRequestId });
+        }
+
+        addToast("Payment received from wallet. Thank you!", "success");
+        setOrder(await orderService.getOrderById(order._id));
+      } catch (err: unknown) {
+        addToast(
+          err instanceof Error ? err.message : "Could not complete wallet payment.",
+          "error"
+        );
+      } finally {
+        setPaying(false);
+      }
+      return;
+    }
+
     try {
       // Amount is read from the stored order server-side; nothing here can influence it.
       const init = await apiClient.post<{ orderId?: string; amount?: number; currency?: string; error?: string }>(

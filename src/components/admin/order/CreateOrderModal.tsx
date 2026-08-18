@@ -15,7 +15,7 @@ interface CreateOrderModalProps {
     quoteId: string;
     salesperson?: string;
     paymentOption: "now" | "later";
-    paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD";
+    paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD" | "Store Wallet" | "Business Wallet";
     transactionId?: string;
   }) => Promise<void>;
   initialQuoteId: string | null;

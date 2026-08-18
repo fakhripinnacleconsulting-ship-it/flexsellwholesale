@@ -13,7 +13,7 @@ interface ConfirmOrderStepProps {
     quoteId: string;
     salesperson?: string;
     paymentOption: "now" | "later";
-    paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD";
+    paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD" | "Store Wallet" | "Business Wallet";
     transactionId?: string;
     shippingAddress?: any;
   }) => Promise<void>;
@@ -23,7 +23,7 @@ interface ConfirmOrderStepProps {
 export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrderStepProps) {
   const [salesperson, setSalesperson] = React.useState(quote.salesperson || "");
   const [paymentOption, setPaymentOption] = React.useState<"now" | "later">("now");
-  const [paymentMethod, setPaymentMethod] = React.useState<"Bank Transfer" | "Razorpay" | "UPI" | "COD">("COD");
+  const [paymentMethod, setPaymentMethod] = React.useState<"Bank Transfer" | "Razorpay" | "UPI" | "COD" | "Store Wallet" | "Business Wallet">("COD");
   const [transactionId, setTransactionId] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const { addToast } = useToastStore();
@@ -64,7 +64,10 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (paymentOption === "now" && !transactionId.trim()) {
+    // A wallet payment's reference is the ledger entry the debit creates, so there is nothing
+    // for the operator to type. Every other method must name how the money arrived.
+    const isWalletPayment = paymentMethod === "Store Wallet" || paymentMethod === "Business Wallet";
+    if (paymentOption === "now" && !isWalletPayment && !transactionId.trim()) {
       addToast("Please provide a transaction reference ID for Paid Invoices.", "error");
       return;
     }
@@ -326,6 +329,8 @@ export function ConfirmOrderStep({ quote, onConfirmOrder, onBack }: ConfirmOrder
                 <option value="Bank Transfer">Bank Transfer</option>
                 <option value="UPI">UPI</option>
                 <option value="Razorpay">Online (Razorpay)</option>
+                <option value="Store Wallet">Store Wallet</option>
+                <option value="Business Wallet">Business Wallet</option>
               </select>
             </div>
             <div>

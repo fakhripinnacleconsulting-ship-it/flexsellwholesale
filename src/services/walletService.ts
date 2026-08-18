@@ -185,6 +185,17 @@ export async function payOrderFromWallet(params: {
   return apiClient.post<WalletWriteResult & { orderId?: string }>("/wallet/pay-order", params);
 }
 
+/** Admin-only: Pays for an existing order from a customer's Store or Business Wallet. */
+export async function adminPayOrder(params: {
+  orderId: string;
+  customerId: string;
+  walletType: "store" | "business";
+  clientRequestId: string;
+}): Promise<WalletWriteResult & { orderId?: string }> {
+  assertWritable("Paying from a wallet");
+  return apiClient.post<WalletWriteResult & { orderId?: string }>("/wallet/admin-pay-order", params);
+}
+
 /**
  * Admin-only: moves money from the Store Wallet to the Business Wallet.
  *

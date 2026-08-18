@@ -66,6 +66,8 @@ export function CheckoutView() {
   const [paymentMethod, setPaymentMethod] = React.useState<CheckoutPaymentMethod>("Razorpay");
   // Store Wallet balance in rupees, or null while unknown / not applicable.
   const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
+  // Business Wallet balance in rupees, or null while unknown / not applicable.
+  const [businessWalletBalance, setBusinessWalletBalance] = React.useState<number | null>(null);
   const [enableCod, setEnableCod] = React.useState(true);
   const [enableOnlinePayment, setEnableOnlinePayment] = React.useState(true);
   const [isPaying, setIsPaying] = React.useState(false);
@@ -232,26 +234,41 @@ export function CheckoutView() {
       }
     };
 
-    /**
-     * Loads the Store Wallet balance so the option can show what is actually available.
-     *
-     * Failures are swallowed to null rather than surfaced: a wallet lookup that errors must
-     * never block checkout, and hiding one payment option is a far better outcome than an
-     * error screen between a buyer and their order.
-     */
-    const fetchWalletBalance = async () => {
-      try {
-        const wallets = await walletService.getWallets();
-        setWalletBalance(wallets.store?.availableBalance ?? null);
-      } catch {
-        setWalletBalance(null);
-      }
-    };
-
     fetchSettings();
-    fetchWalletBalance();
     loadCustomer();
   }, [setBuyerState, router]);
+
+  /**
+   * Loads the Wallet balances so the options can show what is actually available.
+   * Runs whenever selectedCustomerId changes (for admins) or on mount (for customers).
+   */
+  React.useEffect(() => {
+    const fetchWalletBalance = async () => {
+      try {
+        // If we are an admin and haven't selected a customer yet, we can't fetch their wallet.
+        // Wait, if we are admin but no delegated customer is selected, we just don't have a balance to show yet.
+        const userIdToFetch = (currentUser?.role === "admin" || currentUser?.role === "manager") ? selectedCustomerId : undefined;
+        
+        if ((currentUser?.role === "admin" || currentUser?.role === "manager") && !userIdToFetch) {
+          setWalletBalance(null);
+          setBusinessWalletBalance(null);
+          return;
+        }
+
+        const wallets = await walletService.getWallets(userIdToFetch);
+        setWalletBalance(wallets.store?.availableBalance ?? null);
+        setBusinessWalletBalance(wallets.business?.availableBalance ?? null);
+      } catch {
+        setWalletBalance(null);
+        setBusinessWalletBalance(null);
+      }
+    };
+    
+    // Only fetch if we know who the user is
+    if (currentUser) {
+      fetchWalletBalance();
+    }
+  }, [currentUser, selectedCustomerId]);
 
   const handleSelectSavedAddress = (id: string) => {
     const selected = savedAddresses.find(a => a._id === id);
@@ -497,13 +514,15 @@ export function CheckoutView() {
       return;
     }
 
-    if (paymentMethod === "Wallet") {
+    if (paymentMethod === "Wallet" || paymentMethod === "BusinessWallet") {
       setIsSubmitting(true);
 
       // Minted once per submit attempt so a retried request settles as one payment. The
       // ledger is append-only, so a duplicated debit can only be undone by a reversal the
       // customer would also see.
       const clientRequestId = walletService.newRequestId();
+      const isAdminOrManager = currentUser?.role === "admin" || currentUser?.role === "manager";
+      const targetWalletType = paymentMethod === "BusinessWallet" ? "business" : "store";
 
       try {
         // Order first, then pay — the same ordering the Razorpay path uses. The order is
@@ -513,6 +532,10 @@ export function CheckoutView() {
           items,
           amountToPay,
           shippingAddress,
+          // Both wallets are the "Wallet" method; which one paid is recorded server-side as
+          // `walletType` when the debit succeeds. Encoding it into the method string here
+          // (both branches of the ternary this replaces returned "Wallet") lost the
+          // distinction entirely and left a failed Business Wallet payment un-retryable.
           { paymentMethod: "Wallet", paymentStatus: "Pending" },
           appliedCoupon?.couponCode || undefined,
           couponDiscount || undefined,
@@ -521,7 +544,17 @@ export function CheckoutView() {
 
         if (!orderId) throw new Error("Could not create your order. Please try again.");
 
-        await apiClient.post("/wallet/pay-order", { orderId, clientRequestId });
+        if (isAdminOrManager) {
+          if (!selectedCustomerId) throw new Error("Please select a customer first.");
+          await walletService.adminPayOrder({
+            orderId,
+            customerId: selectedCustomerId,
+            walletType: targetWalletType,
+            clientRequestId
+          });
+        } else {
+          await walletService.payOrderFromWallet({ orderId, clientRequestId });
+        }
 
         trackPurchase({ _id: orderId, amount: amountToPay, items });
         clearCart();
@@ -604,9 +637,14 @@ export function CheckoutView() {
             INDIAN_STATES={INDIAN_STATES}
           />
           <PaymentSection
-            paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-            enableCod={enableCod} enableOnlinePayment={enableOnlinePayment}
-            walletBalance={walletBalance} orderTotal={payableTotal}
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            enableCod={enableCod}
+            enableOnlinePayment={enableOnlinePayment}
+            walletBalance={walletBalance}
+            businessWalletBalance={businessWalletBalance}
+            isAdmin={currentUser?.role === "admin" || currentUser?.role === "manager"}
+            orderTotal={payableTotal}
           />
         </div>
 

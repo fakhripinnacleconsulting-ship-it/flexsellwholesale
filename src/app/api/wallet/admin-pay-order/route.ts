@@ -2,55 +2,52 @@ import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Customer from "@/models/Customer";
-import { requireAuth } from "@/lib/authGuard";
+import { requireWalletSpendAccess } from "@/lib/walletGuard";
 import { rateLimit } from "@/lib/rateLimit";
-import { resolveActor } from "@/lib/orderHistory";
 import { toPaise, toRupees } from "@/lib/money";
 import { InsufficientBalanceError } from "@/lib/walletLedger";
-import { reserveWalletFunds, captureWalletFunds, releaseWalletFunds, refundWalletOrder } from "@/lib/walletCheckout";
-import type { WalletActor } from "@/types/wallet";
+import { reserveWalletFunds, captureWalletFunds, refundWalletOrder } from "@/lib/walletCheckout";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Pays for an existing order from the customer's Store Wallet.
+ * Pays for an existing order from the customer's Wallet on behalf of them by an Admin/Manager.
  *
- * The **customer-facing** entry point, and it accepts the Store Wallet only. The Business
- * Wallet is services-only from the customer's side; staff placing an order on someone's
- * behalf use a different route, so the two rules live in two endpoints rather than in one
- * with a role check buried inside it.
- *
- * The amount comes from the stored order, never the request — the same protection the
- * Razorpay path already relies on.
+ * This endpoint allows staff to settle an order using the customer's Store or Business Wallet.
  */
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth();
-    if (auth.error) return auth.error;
-    const payload = auth.payload!;
-
-    // Every wallet write is rate limited per actor. Only recharge/initiate had one, so the
-    // rest were bounded by nothing but how fast a script could post.
-    try {
-      await rateLimit(payload.userId, "general");
-    } catch {
-      return NextResponse.json({ message: "Too many requests. Please try again later." }, { status: 429 });
-    }
-
-    if (payload.role !== "customer") {
-      return NextResponse.json(
-        { message: "Only the account holder can pay from their own wallet here" },
-        { status: 403 }
-      );
-    }
-
-    const { orderId, clientRequestId } = await request.json();
+    const { orderId, clientRequestId, customerId, walletType } = await request.json();
 
     if (!orderId || typeof orderId !== "string") {
       return NextResponse.json({ message: "Order is required" }, { status: 400 });
     }
     if (!clientRequestId || typeof clientRequestId !== "string") {
       return NextResponse.json({ message: "Missing request id" }, { status: 400 });
+    }
+    if (!customerId || typeof customerId !== "string") {
+      return NextResponse.json({ message: "Customer ID is required" }, { status: 400 });
+    }
+    if (walletType !== "store" && walletType !== "business") {
+      return NextResponse.json({ message: "Invalid wallet type" }, { status: 400 });
+    }
+
+    /**
+     * The permission is derived from `walletType`, so a `wallet_business` holder cannot reach
+     * a Store Wallet by changing a field in the payload.
+     *
+     * A bare `role === "manager"` check was not enough: it let a manager holding *any*
+     * permission — content, CMS, shipping — spend any customer's balance. Spending money is
+     * gated on the exact wallet permission and nothing else.
+     */
+    const auth = await requireWalletSpendAccess(walletType);
+    if (auth.error) return auth.error;
+    const { payload, actor } = auth;
+
+    try {
+      await rateLimit(payload.userId, "general");
+    } catch {
+      return NextResponse.json({ message: "Too many requests. Please try again later." }, { status: 429 });
     }
 
     await dbConnect();
@@ -60,11 +57,26 @@ export async function POST(request: NextRequest) {
     const order: any = await Order.findById(orderId);
     if (!order) return NextResponse.json({ message: "Order not found" }, { status: 404 });
 
-    // A valid session does not prove ownership of this order.
-    const ownsOrder =
-      order.customerId === payload.userId ||
-      order.shippingAddress?.email?.toLowerCase() === payload.email?.toLowerCase();
-    if (!ownsOrder) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    // No ownership check needed as admin/manager is authorized to act on behalf of the customer
+    // We just verify the target customer actually exists
+    const customer = await Customer.findById(customerId).select("name").lean() as
+      | { name?: string }
+      | null;
+
+    if (!customer) {
+      return NextResponse.json({ message: "Customer not found" }, { status: 404 });
+    }
+
+    // The wallet being charged must belong to the customer this order is for. Without this a
+    // staff member could name any customerId and settle one buyer's order from another
+    // buyer's balance.
+    const orderCustomerId = order.customerId ? String(order.customerId) : undefined;
+    if (orderCustomerId && orderCustomerId !== customerId) {
+      return NextResponse.json(
+        { message: "This order does not belong to the selected customer" },
+        { status: 403 }
+      );
+    }
 
     if (order.paymentStatus === "Paid") {
       return NextResponse.json({ message: "This order is already paid" }, { status: 409 });
@@ -78,16 +90,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Order has no payable amount" }, { status: 400 });
     }
 
-    const customer = await Customer.findById(payload.userId).select("name").lean() as
-      | { name?: string }
-      | null;
-    const actor = resolveActor(payload, customer?.name) as WalletActor;
-
     let hold;
     try {
       hold = await reserveWalletFunds({
-        userId: payload.userId,
-        walletType: "store",
+        userId: customerId,
+        walletType: walletType as "store" | "business",
         amountPaise,
         actor,
         clientRequestId,
@@ -132,6 +139,10 @@ export async function POST(request: NextRequest) {
         {
           $set: {
             paymentMethod: "Wallet",
+            // Which wallet paid, kept alongside the method rather than encoded into it: the
+            // method drives display and reporting, and collapsing both wallets into one
+            // string is what made a failed Business Wallet payment un-retryable.
+            walletType,
             paymentStatus: "Paid",
             walletTransactionId: captured.transactionId,
             walletAmount: toRupees(amountPaise),
@@ -147,7 +158,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         {
-          message: "Paid from your Store Wallet",
+          message: `Paid from ${walletType === "business" ? "Business Wallet" : "Store Wallet"}`,
           orderId,
           transactionId: captured.transactionId,
           balance: toRupees(captured.balancePaise),

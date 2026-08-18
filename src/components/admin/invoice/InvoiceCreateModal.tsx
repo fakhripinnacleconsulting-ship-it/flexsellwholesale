@@ -151,8 +151,10 @@ export function InvoiceCreateModal({
   setIncludeDropshipDetails,
   dropshipDetails,
   setDropshipDetails,
+  walletBalance,
+  businessWalletBalance,
   isPublicMode,
-}: InvoiceCreateModalProps) {
+}: InvoiceCreateModalProps & { walletBalance?: number; businessWalletBalance?: number }) {
   const calculatedShipping = React.useMemo(() => {
     if (!shippingConfig || !formItems || formItems.length === 0) return 0;
     try {
@@ -1215,6 +1217,8 @@ export function InvoiceCreateModal({
                       <option value="Bank Transfer">Bank Transfer</option>
                       <option value="Razorpay">Online (Razorpay)</option>
                       <option value="UPI">UPI</option>
+                      <option value="Store Wallet">Store Wallet (Bal: ₹{walletBalance || 0})</option>
+                      <option value="Business Wallet">Business Wallet (Bal: ₹{businessWalletBalance || 0})</option>
                     </select>
                   </div>
                   <div>
@@ -1229,14 +1233,14 @@ export function InvoiceCreateModal({
                       <option value="Failed">Failed (Log Failure)</option>
                     </select>
                   </div>
-                  {paymentStatus === "Paid" && (
+                  {paymentStatus === "Paid" && paymentMethod !== "Store Wallet" && paymentMethod !== "Business Wallet" && (
                     <div className="col-span-1 sm:col-span-2">
                       <label className="text-xs font-semibold text-muted-foreground block mb-1">Transaction Ref / Reference ID *</label>
                       <Input
                         value={transactionId}
                         onChange={(e) => setTransactionId(e.target.value)}
                         placeholder="e.g. pay_N1oH5mC17842"
-                        required={paymentStatus === "Paid"}
+                        required={paymentStatus === "Paid" && paymentMethod !== "Store Wallet" && paymentMethod !== "Business Wallet"}
                         className="text-sm font-mono"
                       />
                     </div>

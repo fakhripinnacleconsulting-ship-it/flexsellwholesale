@@ -64,12 +64,12 @@ const nextConfig: NextConfig = {
       "embla-carousel-react",
     ],
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // No `typescript.ignoreBuildErrors` here, deliberately.
+  //
+  // It was set to `true` and masking nine real errors — every one an `addToast({ title })`
+  // call against an `addToast(message: string)` signature, so those toasts rendered
+  // "[object Object]" at runtime. A switched-off type checker is also how a wallet payment
+  // that never debited anything shipped. `npm run typecheck` must stay clean.
   async headers() {
     return [
       // Public read-only API routes — allow CDN edge caching but force browser to revalidate

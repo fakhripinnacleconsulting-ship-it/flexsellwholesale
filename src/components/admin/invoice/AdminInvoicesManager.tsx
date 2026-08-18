@@ -10,6 +10,8 @@ import { useConfirmStore } from "@/stores/confirmStore";
 import { customerService } from "@/services/customerService";
 import { shippingService } from "@/services/shippingService";
 import { orderService } from "@/services/orderService";
+import { invoiceService } from "@/services/invoiceService";
+import * as walletService from "@/services/walletService";
 import { Customer, Invoice, TaxBreakdown } from "@/types";
 import { INDIAN_STATES } from "@/lib/constants";
 
@@ -21,7 +23,7 @@ import { useInvoiceForm } from "@/hooks/useInvoiceForm";
 import { InvoiceTable } from "@/components/admin/invoice/InvoiceTable";
 import { CompanyInformationTab, CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
 import { InvoiceCreateModal } from "@/components/admin/invoice/InvoiceCreateModal";
-import { InvoicePayModal } from "@/components/admin/invoice/InvoicePayModal";
+import { InvoicePayModal, PayOnlineMethod } from "@/components/admin/invoice/InvoicePayModal";
 import { InvoicePreviewModal } from "@/components/admin/invoice/InvoicePreviewModal";
 
 import { usePermissions } from "@/hooks/usePermissions";
@@ -104,10 +106,22 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
   // Pay Modal State
   const [isPayModalOpen, setIsPayModalOpen] = React.useState(false);
   const [payInvoiceId, setPayInvoiceId] = React.useState<string | null>(null);
-  const [payInvoiceType, setPayInvoiceType] = React.useState<"invoice" | "receipt" | "quote">("receipt");
   const [paymentType, setPaymentType] = React.useState<"cash" | "online">("cash");
-  const [onlineMethod, setOnlineMethod] = React.useState<"UPI" | "Razorpay" | "Bank Transfer">("UPI");
+  const [onlineMethod, setOnlineMethod] = React.useState<PayOnlineMethod>("UPI");
   const [txnId, setTxnId] = React.useState("");
+  const [payAmount, setPayAmount] = React.useState(0);
+  const [isPaySubmitting, setIsPaySubmitting] = React.useState(false);
+  /**
+   * Minted when the modal opens, not when it submits.
+   *
+   * That is what makes a double-click settle once: every retry of this one intent carries
+   * the same key, and the ledger is append-only so a duplicate debit could only be undone
+   * by an admin reversal the customer would also see.
+   */
+  const [payRequestId, setPayRequestId] = React.useState<string>("");
+
+  const [walletBalance, setWalletBalance] = React.useState(0);
+  const [businessWalletBalance, setBusinessWalletBalance] = React.useState(0);
 
   // Data fetching
   const loadData = React.useCallback(async () => {
@@ -186,31 +200,59 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
 
   const handlePayInvoice = (inv: Invoice) => {
     setPayInvoiceId(inv._id);
-    setPayInvoiceType(inv.type);
+    setPayAmount(Number(inv.amount) || 0);
     setTxnId("");
     setPaymentType("cash");
     setOnlineMethod("UPI");
+    setPayRequestId(walletService.newRequestId());
+
+    const custId = inv.customerId || (inv as any).customer?._id || (inv as any).customer;
+    if (custId) {
+      walletService
+        .getWallets(String(custId))
+        .then((res) => {
+          setWalletBalance(res.store?.availableBalance || 0);
+          setBusinessWalletBalance(res.business?.availableBalance || 0);
+        })
+        .catch(() => {
+          setWalletBalance(0);
+          setBusinessWalletBalance(0);
+        });
+    } else {
+      setWalletBalance(0);
+      setBusinessWalletBalance(0);
+    }
+
     setIsPayModalOpen(true);
   };
 
+  /**
+   * Records the payment through the settle endpoint.
+   *
+   * This used to call `updateInvoice({ paymentStatus: "Paid", paymentMethod: "Store Wallet",
+   * type: "invoice" })`. That marked the document paid without ever calling the wallet, so a
+   * customer with ₹0 was settled in full, and it flipped `type` in place so the resulting Tax
+   * Invoice kept its `REC-` number. `/settle` moves the money first and issues a real `INV-`
+   * document; a short balance comes back as a 409 and nothing changes.
+   */
   const handleConfirmPay = async () => {
-    if (!payInvoiceId) return;
-    const finalTxnId = paymentType === "cash"
-      ? (txnId || `CASH-HAND-${Date.now().toString().slice(-4)}`)
-      : (txnId || `${onlineMethod.toUpperCase()}-${Date.now().toString().slice(-6)}`);
+    if (!payInvoiceId || isPaySubmitting) return;
 
+    const method = paymentType === "cash" ? "Cash" : onlineMethod;
+    setIsPaySubmitting(true);
     try {
-      await updateInvoice(payInvoiceId, {
-        paymentStatus: "Paid",
-        paymentMethod: paymentType === "cash" ? "Cash" : onlineMethod,
-        transactionId: finalTxnId,
-        type: "invoice"
-      } as any);
+      const result = await invoiceService.settleInvoice(payInvoiceId, {
+        method,
+        transactionId: txnId.trim() || undefined,
+        clientRequestId: payRequestId,
+      });
       setIsPayModalOpen(false);
-      addToast(`Payment recorded for document ${payInvoiceId}!`, "success");
+      addToast(result.message || `Tax Invoice ${result.invoiceId} issued.`, "success");
       loadData();
     } catch (err: any) {
-      addToast(err.message || "Failed to update status to paid", "error");
+      addToast(err.message || "Failed to record the payment", "error");
+    } finally {
+      setIsPaySubmitting(false);
     }
   };
 
@@ -379,7 +421,7 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
         isOpen={isPayModalOpen}
         onClose={() => setIsPayModalOpen(false)}
         payInvoiceId={payInvoiceId}
-        payInvoiceType={payInvoiceType}
+        payAmount={payAmount}
         paymentType={paymentType}
         setPaymentType={setPaymentType}
         onlineMethod={onlineMethod}
@@ -387,6 +429,9 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
         txnId={txnId}
         setTxnId={setTxnId}
         onConfirmPay={handleConfirmPay}
+        isSubmitting={isPaySubmitting}
+        walletBalance={walletBalance}
+        businessWalletBalance={businessWalletBalance}
       />
 
       <InvoicePreviewModal

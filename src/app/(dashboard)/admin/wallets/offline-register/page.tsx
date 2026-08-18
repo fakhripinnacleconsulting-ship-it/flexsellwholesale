@@ -73,7 +73,7 @@ export default function OfflineRegisterPage() {
 
   const downloadCSV = () => {
     if (!data || !data.entries.length) {
-      addToast({ title: "Nothing to export", type: "error" });
+      addToast("Nothing to export", "error");
       return;
     }
 

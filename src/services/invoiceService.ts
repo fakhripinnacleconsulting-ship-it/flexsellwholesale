@@ -410,43 +410,22 @@ export const invoiceService = {
         throw new Error("Converted quotes cannot be modified.");
       }
 
-      // Convert Receipt to Invoice
-      let updatedType = match.type;
-      let updatedStatus = data.status || match.status;
-      let updatedPaymentStatus = data.paymentStatus || match.paymentStatus;
-
-      if (match.type === "receipt" && (data.status === "paid" || data.paymentStatus === "Paid")) {
-        // Safe check for duplicate order invoice
-        if (match.orderId) {
-          const duplicate = list.find(x => x.orderId === match.orderId && x.type === "invoice");
-          if (duplicate) throw new Error("An invoice has already been generated for this order.");
-        }
-        updatedType = "invoice";
-        updatedStatus = "paid";
-        updatedPaymentStatus = "Paid";
-
-        // Sync order payment status in mock mode
-        if (match.orderId) {
-          const ordersRaw = localStorage.getItem("flexsell-orders-storage");
-          if (ordersRaw) {
-            const orders = JSON.parse(ordersRaw) as Order[];
-            const ordIdx = orders.findIndex((o) => o._id === match.orderId);
-            if (ordIdx !== -1) {
-              orders[ordIdx].paymentStatus = "Paid";
-              orders[ordIdx].paymentMethod = (data.paymentMethod || match.paymentMethod) as Order["paymentMethod"];
-              orders[ordIdx].transactionId = data.transactionId || match.transactionId;
-              localStorage.setItem("flexsell-orders-storage", JSON.stringify(orders));
-            }
-          }
-        }
+      /**
+       * Settlement is not an update — mirrored from the API so mock mode cannot teach the UI
+       * a workflow the server refuses. The receipt-to-invoice conversion that used to live
+       * here flipped `type` in place and kept the `REC-` number, exactly as the server did.
+       */
+      if (data.paymentStatus !== undefined || data.paymentMethod !== undefined || data.transactionId !== undefined) {
+        throw new Error("Payment details cannot be set through an update. Use the payment action.");
+      }
+      if (match.type === "receipt" && data.status === "paid") {
+        throw new Error("A receipt is marked paid by recording a payment, not by editing its status.");
       }
 
       const updatedDoc: Invoice = {
         ...match,
         ...data,
-        type: updatedType,
-        status: updatedStatus as Invoice["status"],
-        paymentStatus: updatedPaymentStatus
+        status: (data.status || match.status) as Invoice["status"],
       };
 
       list[matchIndex] = updatedDoc;
@@ -454,6 +433,34 @@ export const invoiceService = {
       return updatedDoc;
     }
     return apiClient.put<Invoice>(`/invoices/${id}`, data);
+  },
+
+  /**
+   * Records payment against a receipt and issues its Tax Invoice.
+   *
+   * The only path that may mark a document paid. `updateInvoice` cannot do it any more — the
+   * API rejects payment fields outright — because that route moved no money: a wallet method
+   * was written straight onto the document with no balance check and no ledger entry.
+   *
+   * Not available in mock mode, for the same reason wallet writes are not: a mocked
+   * settlement teaches the UI that money moved when nothing did.
+   *
+   * `clientRequestId` must be generated when the pay modal **opens** and kept for the life of
+   * that modal, so a double-click settles once.
+   */
+  async settleInvoice(
+    id: string,
+    input: {
+      method: string;
+      transactionId?: string;
+      clientRequestId: string;
+      notes?: string;
+    }
+  ): Promise<{ message: string; invoiceId: string; receiptId: string; transactionId: string; invoice: Invoice }> {
+    if (isMockMode) {
+      throw new Error("Recording a payment is unavailable in mock mode — it requires a real server.");
+    }
+    return apiClient.post(`/invoices/${id}/settle`, input);
   },
 
   async voidInvoice(id: string): Promise<Invoice> {

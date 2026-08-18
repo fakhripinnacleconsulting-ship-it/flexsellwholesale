@@ -219,6 +219,8 @@ export interface Order extends BaseDocument {
   /** Set when this order was paid from a wallet — links back to the ledger entry. */
   walletTransactionId?: string;
   walletAmount?: number;
+  /** Which wallet paid, when `paymentMethod` is "Wallet". */
+  walletType?: "store" | "business";
   invoiceId?: string;
   quoteId?: string;
   salesperson?: string;
@@ -306,9 +308,19 @@ export interface Invoice extends BaseDocument {
   paymentMethod?: string;
   paymentStatus?: string;
   transactionId?: string;
+  /** On an invoice: the receipt it settled. Unique — one invoice per receipt. */
+  sourceReceiptId?: string;
+  /** On a receipt: the invoice issued when it was paid. */
+  settledByInvoiceId?: string;
+  /** The WalletTransaction that paid this document, when a wallet paid it. */
+  walletTransactionId?: string;
+  walletType?: "store" | "business";
   sellerInfo: SellerInfo;
   notes?: string;
+  /** Display string in IST. Use `issuedAt` for sorting and range queries. */
   generatedAt: string;
+  /** The sortable issue instant. */
+  issuedAt?: string;
   generatedBy: string;
   createdBy?: CreatedByInfo;
   salesperson?: string;

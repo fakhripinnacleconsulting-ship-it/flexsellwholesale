@@ -112,7 +112,15 @@ export const orderSchema = z.object({
   }),
   status: z.enum(["Processing", "Shipped", "Delivered", "Cancelled"]).optional(),
   paymentDetails: z.object({
-    paymentMethod: z.enum(["Bank Transfer", "Razorpay", "UPI", "COD"]),
+    /**
+     * Must stay in step with the `paymentMethod` enum on the Order model.
+     *
+     * "Wallet" was missing, so every wallet checkout failed Zod validation before it reached
+     * the wallet at all — the order was never created and the buyer saw a generic 500.
+     * A wallet order is always created `Pending` here and moved to `Paid` by
+     * /api/wallet/pay-order once the debit succeeds; the method alone never settles anything.
+     */
+    paymentMethod: z.enum(["Bank Transfer", "Razorpay", "UPI", "COD", "Wallet", "Cash"]),
     paymentStatus: z.enum(["Pending", "Paid", "Failed"]),
     transactionId: z.string().optional(),
   }).optional(),

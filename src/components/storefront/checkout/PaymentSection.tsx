@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { formatPrice } from "@/lib/utils";
 import { Wallet, CreditCard, Banknote, CheckCircle2, AlertCircle } from "lucide-react";
 
-export type CheckoutPaymentMethod = "Razorpay" | "COD" | "Wallet";
+export type CheckoutPaymentMethod = "Razorpay" | "COD" | "Wallet" | "BusinessWallet";
 
 interface PaymentSectionProps {
   paymentMethod: CheckoutPaymentMethod;
@@ -12,6 +12,10 @@ interface PaymentSectionProps {
   enableOnlinePayment?: boolean;
   /** Store Wallet balance in rupees, or null when the customer has no usable wallet. */
   walletBalance?: number | null;
+  /** Business Wallet balance in rupees, or null when not eligible. */
+  businessWalletBalance?: number | null;
+  /** Whether the current user is an admin/manager checking out for a customer. */
+  isAdmin?: boolean;
   /** Order total, so a short balance can name the shortfall instead of just refusing. */
   orderTotal?: number;
 }
@@ -22,11 +26,17 @@ export function PaymentSection({
   enableCod = true,
   enableOnlinePayment = true,
   walletBalance = null,
+  businessWalletBalance = null,
+  isAdmin = false,
   orderTotal = 0,
 }: PaymentSectionProps) {
-  const hasWallet = walletBalance !== null && walletBalance > 0;
-  const walletCovers = hasWallet && walletBalance >= orderTotal;
-  const shortfall = hasWallet && !walletCovers ? orderTotal - walletBalance : 0;
+  const hasStoreWallet = walletBalance !== null && walletBalance > 0;
+  const storeWalletCovers = hasStoreWallet && walletBalance >= orderTotal;
+  const storeShortfall = hasStoreWallet && !storeWalletCovers ? orderTotal - walletBalance : 0;
+
+  const hasBusinessWallet = isAdmin && businessWalletBalance !== null && businessWalletBalance > 0;
+  const businessWalletCovers = hasBusinessWallet && businessWalletBalance >= orderTotal;
+  const businessShortfall = hasBusinessWallet && !businessWalletCovers ? orderTotal - businessWalletBalance : 0;
 
   return (
     <>
@@ -35,22 +45,22 @@ export function PaymentSection({
           <CardTitle>Payment Method</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!enableCod && !enableOnlinePayment && !hasWallet && (
+          {!enableCod && !enableOnlinePayment && !hasStoreWallet && !hasBusinessWallet && (
             <p className="text-sm text-destructive">No payment methods are currently available. Please contact support.</p>
           )}
 
-          {hasWallet && (
+          {hasStoreWallet && (
             <div
               className={`relative overflow-hidden rounded-xl border p-5 transition-all duration-300 ease-out group ${
-                !walletCovers
+                !storeWalletCovers
                   ? "bg-secondary/20 border-border opacity-70"
                   : paymentMethod === "Wallet"
                     ? "bg-primary/5 border-primary shadow-[0_0_15px_rgba(var(--primary),0.15)] -translate-y-0.5"
                     : "bg-white/40 dark:bg-white/5 border-border hover:bg-secondary/30 hover:border-primary/40 cursor-pointer hover:-translate-y-0.5"
               }`}
-              onClick={() => walletCovers && setPaymentMethod("Wallet")}
+              onClick={() => storeWalletCovers && setPaymentMethod("Wallet")}
             >
-              {paymentMethod === "Wallet" && walletCovers && (
+              {paymentMethod === "Wallet" && storeWalletCovers && (
                 <div className="absolute top-4 right-4 text-primary animate-in zoom-in duration-200">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
@@ -66,15 +76,15 @@ export function PaymentSection({
                       {formatPrice(walletBalance)} available
                     </span>
                   </div>
-                  {walletCovers ? (
+                  {storeWalletCovers ? (
                     <p className="text-sm text-muted-foreground mt-1">
-                      Pay instantly from your prepaid balance. No payment gateway needed.
+                      Pay instantly from {isAdmin ? "the customer's" : "your"} prepaid store balance. No payment gateway needed.
                     </p>
                   ) : (
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/30 p-2 rounded-md">
                         <AlertCircle className="w-4 h-4" />
-                        <span>{formatPrice(shortfall)} short for this order.</span>
+                        <span>{formatPrice(storeShortfall)} short for this order.</span>
                       </div>
                       <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
                         <div 
@@ -84,8 +94,58 @@ export function PaymentSection({
                       </div>
                       <p className="text-xs text-muted-foreground">
                         <a href="/client/wallet" className="font-semibold text-primary hover:underline">Add money</a>{" "}
-                        to use your wallet, or choose another method below.
+                        to use {isAdmin ? "this" : "your"} wallet, or choose another method below.
                       </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hasBusinessWallet && (
+            <div
+              className={`relative overflow-hidden rounded-xl border p-5 transition-all duration-300 ease-out group ${
+                !businessWalletCovers
+                  ? "bg-secondary/20 border-border opacity-70"
+                  : paymentMethod === "BusinessWallet"
+                    ? "bg-primary/5 border-primary shadow-[0_0_15px_rgba(var(--primary),0.15)] -translate-y-0.5"
+                    : "bg-white/40 dark:bg-white/5 border-border hover:bg-secondary/30 hover:border-primary/40 cursor-pointer hover:-translate-y-0.5"
+              }`}
+              onClick={() => businessWalletCovers && setPaymentMethod("BusinessWallet")}
+            >
+              {paymentMethod === "BusinessWallet" && businessWalletCovers && (
+                <div className="absolute top-4 right-4 text-primary animate-in zoom-in duration-200">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+              )}
+              <div className="flex items-start gap-4">
+                <div className={`p-2 rounded-lg ${paymentMethod === 'BusinessWallet' ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+                  <Wallet className="w-6 h-6" />
+                </div>
+                <div className="flex-1 pr-6">
+                  <div className="font-semibold text-foreground text-base cursor-pointer block flex items-center gap-2">
+                    Business Wallet (Admin Only)
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                      {formatPrice(businessWalletBalance)} available
+                    </span>
+                  </div>
+                  {businessWalletCovers ? (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Pay instantly from the customer's B2B credit line or business balance.
+                    </p>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/30 p-2 rounded-md">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>{formatPrice(businessShortfall)} short for this order.</span>
+                      </div>
+                      <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+                        <div 
+                          className="bg-primary h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, (businessWalletBalance / orderTotal) * 100)}%` }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

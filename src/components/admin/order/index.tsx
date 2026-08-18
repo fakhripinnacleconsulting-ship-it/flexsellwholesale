@@ -7,6 +7,7 @@ import { useOrderStore, Order, ShipmentDetails } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { orderService } from "@/services/orderService";
+import * as walletService from "@/services/walletService";
 import { OrdersListTable } from "./OrdersListTable";
 import { OrderDetailPanel } from "./OrderDetailPanel";
 import { FulfillmentForm } from "./FulfillmentForm";
@@ -239,28 +240,55 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     quoteId: string;
     salesperson?: string;
     paymentOption: "now" | "later";
-    paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD";
+    paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD" | "Store Wallet" | "Business Wallet";
     transactionId?: string;
     shippingAddress?: any;
   }) => {
     try {
+      const walletType =
+        payload.paymentMethod === "Store Wallet" ? "store"
+        : payload.paymentMethod === "Business Wallet" ? "business"
+        : undefined;
+      const isWallet = payload.paymentOption === "now" && Boolean(walletType);
+
+      /**
+       * A wallet order is created Pending and settled by the wallet route.
+       *
+       * Writing `paymentStatus: "Paid"` with a wallet method here marked the order settled
+       * without any balance being read or debited — the same hole the receipt pay modal had.
+       */
       const paymentDetails = {
-        paymentMethod: payload.paymentOption === "later" ? "COD" : payload.paymentMethod,
-        paymentStatus: payload.paymentOption === "later" ? "Pending" : "Paid",
-        transactionId: payload.paymentOption === "later" ? undefined : payload.transactionId,
+        paymentMethod: payload.paymentOption === "later" ? "COD" : isWallet ? "Wallet" : payload.paymentMethod,
+        paymentStatus: payload.paymentOption === "later" || isWallet ? "Pending" : "Paid",
+        transactionId: payload.paymentOption === "later" || isWallet ? undefined : payload.transactionId,
       };
 
       const qId = payload.quoteId;
       const response = await orderService.createOrder(
-        [], 
+        [],
         0,
-        payload.shippingAddress || {} as any, 
+        payload.shippingAddress || {} as any,
         paymentDetails as any,
         undefined,
         undefined,
         qId,
         payload.salesperson
       );
+
+      if (isWallet) {
+        const customerId = (response as any)?.customerId;
+        if (!customerId) {
+          throw new Error("This quote has no linked customer account, so no wallet can be charged.");
+        }
+        // Throws on a short balance — the order stays Pending and can be retried or paid
+        // another way, rather than being marked Paid against money that never moved.
+        await walletService.adminPayOrder({
+          orderId: response._id,
+          customerId: String(customerId),
+          walletType: walletType!,
+          clientRequestId: walletService.newRequestId(),
+        });
+      }
 
       addToast("Quote converted and Order created successfully!", "success");
       setIsCreateOrderModalOpen(false);
@@ -493,6 +521,8 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
                     <option value="UPI">UPI</option>
                     <option value="Razorpay">Razorpay</option>
                     <option value="COD">Cash (COD)</option>
+                    <option value="Store Wallet">Store Wallet</option>
+                    <option value="Business Wallet">Business Wallet</option>
                   </select>
                 </div>
 

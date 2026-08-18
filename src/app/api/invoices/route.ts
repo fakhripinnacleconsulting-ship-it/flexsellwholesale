@@ -95,78 +95,6 @@ async function generateInvoiceId(type: "invoice" | "receipt" | "quote"): Promise
   return generateNextId(type);
 }
 
-async function syncMissingInvoicesForOrders() {
-  try {
-    // Find all orders that do not have an invoiceId or whose invoiceId doesn't exist
-    const orders = await Order.find({
-      $or: [
-        { invoiceId: { $exists: false } },
-        { invoiceId: "" },
-        { invoiceId: null }
-      ]
-    }).lean();
-
-    if (orders.length === 0) return;
-
-    const sellerInfo = await getSellerInfo();
-    const sellerState = resolveSellerState(sellerInfo.address);
-
-    for (const order of orders as any[]) {
-      // Check if an invoice document already exists for this orderId (to prevent duplicates)
-      const existingDoc = await InvoiceModel.findOne({ orderId: order._id }).select("_id").lean();
-      if (existingDoc) {
-        // Just link it
-        await Order.findByIdAndUpdate(order._id, { invoiceId: (existingDoc as any)._id });
-        continue;
-      }
-
-      // Generate invoice/receipt
-      const pStatus = order.paymentStatus || "Pending";
-      const docType = pStatus === "Paid" ? "invoice" : "receipt";
-      
-      const taxDetails = computeOrderTaxDetails(order.items, order.shippingAddress.state, sellerState);
-      const invoiceId = await generateInvoiceId(docType);
-      
-      // Parse generated date from order.date or fallback to current date
-      let parsedDate = order.date;
-      if (!parsedDate || parsedDate === "N/A") {
-        parsedDate = formatDateIST(new Date());
-      }
-
-      const customerDoc = await Customer.findOne({ email: order.shippingAddress.email.toLowerCase() }).select("_id customerTypes").lean() as any;
-      const customerId = customerDoc?._id ? String(customerDoc._id) : "legacy-sync";
-      const resolvedCustomerType = customerDoc?.customerTypes?.[0] || (order.shippingAddress.company || order.shippingAddress.gstin ? "B2B" : "B2C");
-
-      await InvoiceModel.create({
-        _id: invoiceId,
-        type: docType,
-        orderId: order._id,
-        customerId,
-        customerName: order.customerName,
-        customerEmail: order.shippingAddress.email.toLowerCase(),
-        customerGstin: order.shippingAddress.gstin || "",
-        items: order.items as any,
-        amount: order.amount,
-        taxDetails,
-        shippingAddress: order.shippingAddress as any,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: pStatus,
-        transactionId: order.transactionId,
-        sellerInfo,
-        generatedAt: parsedDate,
-        generatedBy: "system",
-        status: docType === "invoice" ? "paid" : "pending",
-        customerType: resolvedCustomerType,
-      } as any);
-
-      // Update order
-      await Order.findByIdAndUpdate(order._id, { invoiceId });
-    }
-  } catch (err) {
-    console.error("Failed to sync missing invoices for orders:", err);
-  }
-}
-
 export async function GET(request: Request) {
   try {
     const auth = await requireAuth();
@@ -174,8 +102,9 @@ export async function GET(request: Request) {
     const payload = auth.payload!;
 
     await dbConnect();
-    // Removed syncMissingInvoicesForOrders() to prevent auto-recreation of deleted receipts 
-    // and to improve performance. Migration should be handled manually if needed.
+    // No backfill runs on read. The 70-line syncMissingInvoicesForOrders() that used to sit
+    // above was already dead code — its call site was removed to stop it recreating deleted
+    // receipts. A backfill belongs in scripts/, not on the hot path of every list request.
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
@@ -393,9 +322,39 @@ export async function POST(request: Request) {
       isOrder,
     } = body;
 
+    /**
+     * A document cannot be born Paid from a wallet.
+     *
+     * The create form offers Store/Business Wallet as a payment method. Choosing one and
+     * setting the status to Paid used to write exactly that — a settled document, with no
+     * balance read and no ledger entry behind it. Wallet money moves in one place only
+     * (POST /api/invoices/[id]/settle), so the document is created Pending and settled after.
+     */
+    const WALLET_METHODS = ["Store Wallet", "Business Wallet", "Wallet"];
+    if (WALLET_METHODS.includes(paymentMethod) && paymentStatus === "Paid") {
+      return NextResponse.json(
+        {
+          message:
+            "A wallet-paid document cannot be created as Paid. Create it first, then record the wallet payment so the balance is actually debited.",
+          code: "USE_SETTLE_ENDPOINT",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Every other settled document must name how the money arrived. Without this a receipt
+    // can be marked Paid with no reference at all, which is unreconcilable against a bank
+    // statement and indistinguishable from the wallet bug above.
+    if (paymentStatus === "Paid" && type !== "quote" && !String(transactionId || "").trim()) {
+      return NextResponse.json(
+        { message: "A transaction reference is required when recording a document as Paid." },
+        { status: 400 }
+      );
+    }
+
     if (payload.role === "manager") {
       let perms = (payload as any).permissions || [];
-      
+
       // Fetch latest permissions from DB to avoid stale JWT issues
       const { default: Manager } = await import("@/models/Manager");
       const managerDoc = await Manager.findById(payload.userId).lean() as any;
@@ -650,10 +609,23 @@ export async function POST(request: Request) {
       await Order.findByIdAndUpdate(linkedOrderId, { invoiceId });
     }
 
-    // Deduct stock for ordered items when an Admin creates a Receipt or Invoice (not a quote)
+    /**
+     * Deduct stock for a Receipt or Invoice (never a quote).
+     *
+     * Each iteration used to be wrapped in `try { } catch { console.error }`, so a failure on
+     * item 3 of 5 left items 1-2 deducted and still returned the document as created. The
+     * `$elemMatch` also had no `stock: { $gte: qty }` guard, so an oversell drove the count
+     * negative instead of being refused — the order route has enforced both for a while and
+     * this path had drifted from it.
+     *
+     * Now: every line is guarded, and any failure rolls back the lines already taken before
+     * the error is surfaced.
+     */
     if (type !== "quote" && Array.isArray(items)) {
-      for (const item of items) {
-        try {
+      const stockRollbacks: Array<{ productId: string; cvColor: string; size?: string; weight?: string; qty: number }> = [];
+
+      try {
+        for (const item of items) {
           const pId = item.product?._id || item.productId || item.product || item.id;
           if (!pId) continue;
           const dbProduct = await Product.findById(pId);
@@ -676,12 +648,14 @@ export async function POST(request: Request) {
           const qty = Number(item.quantity || item.qty || 1);
           if (qty <= 0) continue;
 
-          await Product.updateOne(
+          const updateResult = await Product.updateOne(
             {
               _id: dbProduct._id,
               "colorVariants.color": cv.color,
               "colorVariants.subVariants": {
-                $elemMatch: { size: sv.size, weight: sv.weight }
+                // The stock guard makes the read and the decrement one operation, so two
+                // concurrent documents for the last unit resolve to exactly one success.
+                $elemMatch: { size: sv.size, weight: sv.weight, stock: { $gte: qty } }
               }
             },
             {
@@ -697,10 +671,55 @@ export async function POST(request: Request) {
               ]
             }
           );
-        } catch (err) {
-          console.error("Failed to deduct stock during admin document creation:", err);
+
+          if (updateResult.modifiedCount === 0) {
+            throw new Error(
+              `Insufficient stock for "${dbProduct.title}" (${cv.color}${sv.size ? ` - ${sv.size}` : ""}).`
+            );
+          }
+
+          stockRollbacks.push({
+            productId: String(dbProduct._id),
+            cvColor: cv.color,
+            size: sv.size,
+            weight: sv.weight,
+            qty,
+          });
         }
+      } catch (stockErr) {
+        for (const rb of stockRollbacks) {
+          await Product.updateOne(
+            {
+              _id: rb.productId,
+              "colorVariants.color": rb.cvColor,
+              "colorVariants.subVariants": { $elemMatch: { size: rb.size, weight: rb.weight } }
+            },
+            {
+              $inc: {
+                "colorVariants.$[cv].subVariants.$[sv].stock": rb.qty,
+                totalStock: rb.qty
+              }
+            },
+            {
+              arrayFilters: [
+                { "cv.color": rb.cvColor },
+                { "sv.size": rb.size, "sv.weight": rb.weight }
+              ]
+            }
+          ).catch((rollbackErr) =>
+            console.error("Failed to roll back stock after a failed document creation:", rollbackErr)
+          );
+        }
+
+        // The document and its order were already written above, so remove them rather than
+        // leaving a document behind that claims stock nobody has.
+        await InvoiceModel.findByIdAndDelete(invoiceId).catch(() => {});
+        if (linkedOrderId) await Order.findByIdAndDelete(linkedOrderId).catch(() => {});
+
+        revalidateProductStock();
+        return NextResponse.json({ message: (stockErr as Error).message }, { status: 409 });
       }
+
       revalidateProductStock();
     }
 

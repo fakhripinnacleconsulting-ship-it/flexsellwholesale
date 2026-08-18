@@ -59,6 +59,9 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
   const [includeDropshipDetails, setIncludeDropshipDetails] = React.useState(true);
   const [dropshipDetails, setDropshipDetails] = React.useState<any>({});
 
+  const [walletBalance, setWalletBalance] = React.useState(0);
+  const [businessWalletBalance, setBusinessWalletBalance] = React.useState(0);
+
   React.useEffect(() => {
     shippingService.getConfig()
       .then((cfg: any) => setShippingConfig(cfg))
@@ -80,6 +83,20 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
         setNewCustState(defaultAddr?.state || cust.state || INDIAN_STATES[0]);
         setNewCustPinCode(defaultAddr?.pinCode || cust.pinCode || "");
       }
+
+      // Fetch wallet balance
+      apiClient.get(`/wallet?userId=${selectedCustomerId}`)
+        .then((res: any) => {
+          setWalletBalance(res.store?.availableBalance || 0);
+          setBusinessWalletBalance(res.business?.availableBalance || 0);
+        })
+        .catch(err => {
+          setWalletBalance(0);
+          setBusinessWalletBalance(0);
+        });
+    } else {
+      setWalletBalance(0);
+      setBusinessWalletBalance(0);
     }
   }, [selectedCustomerId, customerMode, customers]);
 
@@ -191,6 +208,29 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
         addToast("Please fill in all required Amazon Shipment Details, including document uploads.", "warning");
         return;
       }
+    }
+
+    /**
+     * A document cannot be created already settled from a wallet.
+     *
+     * Selecting Store/Business Wallet and Paid used to write exactly that — a settled
+     * document with no balance check and no ledger entry behind it. Create it Pending, then
+     * record the payment, which is the only path that actually debits.
+     */
+    const isWalletMethod = paymentMethod === "Store Wallet" || paymentMethod === "Business Wallet";
+    if (isWalletMethod && paymentStatus === "Paid") {
+      addToast(
+        "Create this document as Pending, then use Receive Payment — that is what debits the wallet.",
+        "warning"
+      );
+      return;
+    }
+
+    // A settled document must name how the money arrived, or it reconciles against nothing.
+    const docTypeForValidation = isOrderCreationMode ? "receipt" : formDocType;
+    if (!isWalletMethod && paymentStatus === "Paid" && docTypeForValidation !== "quote" && !transactionId.trim()) {
+      addToast("A transaction reference is required when marking a document Paid.", "warning");
+      return;
     }
 
     if (formCustomerType === "B2B") {
@@ -457,6 +497,8 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
     setIncludeDropshipDetails,
     dropshipDetails,
     setDropshipDetails,
+    walletBalance,
+    businessWalletBalance,
     customers,
     products,
     shippingConfig,

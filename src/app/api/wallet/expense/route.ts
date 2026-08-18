@@ -3,6 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Customer from "@/models/Customer";
 import WalletExpenseCategory from "@/models/WalletExpenseCategory";
 import { requireWalletSpendAccess } from "@/lib/walletGuard";
+import { rateLimit } from "@/lib/rateLimit";
 import { parseAmountToPaise, toRupees, formatPaise } from "@/lib/money";
 import {
   writeLedgerEntry,
@@ -44,7 +45,15 @@ export async function POST(request: NextRequest) {
     // one field.
     const auth = await requireWalletSpendAccess(walletType);
     if (auth.error) return auth.error;
-    const { actor } = auth;
+    const { payload, actor } = auth;
+
+    // Every wallet write is rate limited per actor. Only recharge/initiate had one, so the
+    // rest were bounded by nothing but how fast a script could post.
+    try {
+      await rateLimit(payload.userId, "general");
+    } catch {
+      return NextResponse.json({ message: "Too many requests. Please try again later." }, { status: 429 });
+    }
 
     if (!userId || typeof userId !== "string") {
       return NextResponse.json({ message: "Customer is required" }, { status: 400 });

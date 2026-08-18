@@ -66,8 +66,11 @@ export async function PUT(
           perms = managerDoc.permissions;
         }
       }
+      // Exact match on the action being performed. The `startsWith(`${permKey}:`)` clause
+      // this replaces meant `invoices_invoice:read` satisfied an update check — a read-only
+      // manager could edit and delete every document they were allowed to look at.
       const permKey = `invoices_${existingDoc.type}`;
-      const hasPerm = perms.includes(permKey) || perms.includes(`${permKey}:update`) || perms.some((p: string) => p.startsWith(`${permKey}:`));
+      const hasPerm = perms.includes(permKey) || perms.includes(`${permKey}:update`);
       if (!hasPerm) {
         return NextResponse.json({ message: "Forbidden: Insufficient permissions to update document" }, { status: 403 });
       }
@@ -75,22 +78,58 @@ export async function PUT(
 
     const body = await request.json();
 
-    // 1. INVOICE IMMUTABILITY RULES
+    /**
+     * 0. PAYMENT SETTLEMENT IS NOT AN UPDATE.
+     *
+     * This route used to accept `{ paymentStatus: "Paid", paymentMethod: "Store Wallet" }` and
+     * write it straight through — no balance read, no debit, no ledger entry. A customer with
+     * ₹0 could have a receipt marked Paid and converted to a Tax Invoice.
+     *
+     * Settlement now belongs to POST /api/invoices/[id]/settle, which is the only code that
+     * may both move money and mint an invoice number. Anything arriving here that tries to
+     * settle is refused rather than quietly ignored, so a stale client fails loudly.
+     */
+    if (body.paymentStatus !== undefined || body.paymentMethod !== undefined || body.transactionId !== undefined) {
+      return NextResponse.json(
+        {
+          message:
+            "Payment details cannot be set through this endpoint. Use the payment action so the amount is actually collected.",
+          code: "USE_SETTLE_ENDPOINT",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (existingDoc.type === "receipt" && body.status === "paid") {
+      return NextResponse.json(
+        {
+          message: "A receipt is marked paid by recording a payment, not by editing its status.",
+          code: "USE_SETTLE_ENDPOINT",
+        },
+        { status: 400 }
+      );
+    }
+
+    /**
+     * 1. INVOICE IMMUTABILITY RULES
+     *
+     * An allowlist, not a blocklist. The blocklist this replaces named nine fields and so
+     * left `customerGstin`, `sellerInfo`, `generatedAt` and `customerType` editable on an
+     * issued tax invoice — and would have silently exposed every field added to the schema
+     * afterwards. An allowlist fails closed instead.
+     */
     if (existingDoc.type === "invoice") {
-      const blockedFields = [
-        "items", "amount", "customerName", "customerEmail", 
-        "taxDetails", "shippingAddress", "paymentMethod", 
-        "paymentStatus", "transactionId"
-      ];
-      if (blockedFields.some(field => body[field] !== undefined)) {
+      const INVOICE_MUTABLE_FIELDS = ["notes", "isArchived", "status"];
+      const attempted = Object.keys(body).filter((field) => !INVOICE_MUTABLE_FIELDS.includes(field));
+      if (attempted.length > 0) {
         return NextResponse.json(
-          { message: "Invoice details cannot be modified once generated." }, 
+          { message: `Invoice details cannot be modified once generated (${attempted.join(", ")}).` },
           { status: 400 }
         );
       }
       if (body.status !== undefined && !["paid", "void", "archived"].includes(body.status)) {
         return NextResponse.json(
-          { message: "Invalid status transition for invoices." }, 
+          { message: "Invalid status transition for invoices." },
           { status: 400 }
         );
       }
@@ -104,79 +143,19 @@ export async function PUT(
       );
     }
 
-    // 3. SAFE & IDEMPOTENT RECEIPT TO INVOICE CONVERSION
-    if (existingDoc.type === "receipt" && (body.status === "paid" || body.paymentStatus === "Paid")) {
-      if (existingDoc.orderId) {
-        const duplicateInvoice = await InvoiceModel.findOne({
-          orderId: existingDoc.orderId,
-          type: "invoice"
-        }).lean();
-        if (duplicateInvoice) {
-          return NextResponse.json(
-            { message: "An invoice has already been generated for this order." }, 
-            { status: 400 }
-          );
-        }
-      }
-
-      let orderBackup: any = null;
-      const docBackup = {
-        type: existingDoc.type,
-        status: existingDoc.status,
-        paymentStatus: existingDoc.paymentStatus,
-        paymentMethod: existingDoc.paymentMethod,
-        transactionId: existingDoc.transactionId
-      };
-
-      try {
-        if (existingDoc.orderId) {
-          const linkedOrder = await Order.findById(existingDoc.orderId);
-          if (linkedOrder) {
-            orderBackup = {
-              paymentStatus: (linkedOrder as any).paymentStatus,
-              paymentMethod: (linkedOrder as any).paymentMethod,
-              transactionId: (linkedOrder as any).transactionId
-            };
-            await Order.findByIdAndUpdate(existingDoc.orderId, {
-              paymentStatus: "Paid",
-              paymentMethod: body.paymentMethod || existingDoc.paymentMethod || "Bank Transfer",
-              transactionId: body.transactionId || existingDoc.transactionId || ""
-            });
-          }
-        }
-
-        const updated = await InvoiceModel.findByIdAndUpdate(
-          id,
-          {
-            $set: {
-              type: "invoice",
-              status: "paid",
-              paymentStatus: "Paid",
-              paymentMethod: body.paymentMethod || existingDoc.paymentMethod || "Bank Transfer",
-              transactionId: body.transactionId || existingDoc.transactionId || "",
-              notes: body.notes !== undefined ? body.notes : existingDoc.notes
-            }
-          },
-          { new: true, runValidators: true }
-        ).lean();
-
-        return NextResponse.json(updated);
-      } catch (err: any) {
-        // Rollback Order state
-        if (existingDoc.orderId && orderBackup) {
-          await Order.findByIdAndUpdate(existingDoc.orderId, orderBackup);
-        }
-        // Rollback Receipt document state
-        await InvoiceModel.findByIdAndUpdate(id, { $set: docBackup });
-        throw err;
-      }
-    }
-
-    // 4. STANDARD DOCUMENT UPDATE
+    /**
+     * 3. STANDARD DOCUMENT UPDATE
+     *
+     * The in-place receipt-to-invoice conversion that used to live here has moved to
+     * POST /api/invoices/[id]/settle. It mutated `type` on the existing document, and since
+     * `_id` is an assigned String that MongoDB will not change, every "Tax Invoice" it
+     * produced kept its `REC-` number and the `INV-` counter never advanced — a GST Rule
+     * 46(b) violation. Settlement now issues a real, separate INV- document.
+     */
     const allowedFields = [
       "status", "notes", "items", "amount", "taxDetails",
-      "shippingAddress", "paymentStatus", "customerName", "customerGstin",
-      "paymentMethod", "transactionId", "salesperson", "isArchived"
+      "shippingAddress", "customerName", "customerGstin",
+      "salesperson", "isArchived"
     ];
 
     const updateData: Record<string, any> = {};
@@ -230,8 +209,9 @@ export async function DELETE(
           perms = managerDoc.permissions;
         }
       }
+      // Exact match — see the equivalent note on the update path above.
       const permKey = `invoices_${invoice.type}`;
-      const hasPerm = perms.includes(permKey) || perms.includes(`${permKey}:delete`) || perms.some((p: string) => p.startsWith(`${permKey}:`));
+      const hasPerm = perms.includes(permKey) || perms.includes(`${permKey}:delete`);
       if (!hasPerm) {
         return NextResponse.json({ message: "Forbidden: Insufficient permissions to delete document" }, { status: 403 });
       }
