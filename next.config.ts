@@ -52,9 +52,21 @@ const nextConfig: NextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   experimental: {
+    /**
+     * The browser's router cache, and the last thing standing between a catalogue edit and the
+     * customer seeing it.
+     *
+     * It applies *after* every server-side purge: at `static: 180` a visitor who loaded a page
+     * within the last three minutes kept seeing their own copy no matter how promptly the
+     * server rebuilt it, which capped how fresh the catalogue could ever be. 30 s matches the
+     * dynamic setting and keeps back/forward navigation instant for the case it exists for.
+     *
+     * The cost is more RSC requests on repeat navigation — accepted deliberately, because
+     * "the price I saw is the price that is live" matters more here than saving a fetch.
+     */
     staleTimes: {
       dynamic: 30,
-      static: 180,
+      static: 30,
     },
     optimizePackageImports: [
       "lucide-react",
@@ -119,6 +131,29 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      /**
+       * Legacy search URL — `/products?search=…` → `/search?q=…`.
+       *
+       * The search box used to push to `/products?search=`, where **nothing read the
+       * parameter**: `products/page.tsx` takes no `searchParams` and `ProductCatalog` reads
+       * every filter except `search`, so the term was silently dropped and the visitor got the
+       * whole catalogue. The box now goes to `/search?q=` directly; this covers the URLs
+       * already sitting in histories, bookmarks and shared links.
+       *
+       * Declared here rather than in the page or the middleware, and both alternatives were
+       * tried first: reading `searchParams` in `products/page.tsx` opts that route out of
+       * static rendering, so the main catalogue would lose its ISR cache and hit the database
+       * on every visit; and adding `/products` to the middleware matcher would attach a
+       * `Set-Cookie` to the response, which makes it uncacheable at the CDN for exactly the
+       * first-time visitors the cache exists for. A config redirect resolves at the edge and
+       * costs neither.
+       */
+      {
+        source: "/products",
+        has: [{ type: "query", key: "search", value: "(?<term>.+)" }],
+        destination: "/search?q=:term",
+        permanent: true,
+      },
       { source: "/policies/privacy-policy", destination: "/policies/privacy", permanent: true },
       { source: "/policies/terms-of-service", destination: "/policies/terms", permanent: true },
       { source: "/policies/shipping-policy", destination: "/policies/shipping", permanent: true },

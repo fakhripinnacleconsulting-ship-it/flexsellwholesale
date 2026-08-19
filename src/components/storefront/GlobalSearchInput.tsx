@@ -148,18 +148,30 @@ export function GlobalSearchInput({
       } else if (query.trim()) {
         e.preventDefault();
         trackSearch(query.trim());
-        router.push(`/products?search=${encodeURIComponent(query.trim())}`);
+        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
         setIsFocused(false);
         if (onSearchSubmitted) onSearchSubmitted();
       }
     }
   };
 
+  /**
+   * Submitting the search — the button, the Enter key, and a phone keyboard's Go key.
+   *
+   * Goes to `/search?q=`, which is the page actually built to answer a search: it filters
+   * server-side through `searchService` and fetches only what matched. This used to push to
+   * `/products?search=`, where **nothing reads the parameter** — `products/page.tsx` takes no
+   * `searchParams` and `ProductCatalog` reads every filter except `search` — so the term was
+   * silently dropped and the visitor got the whole catalogue.
+   *
+   * `/search?q=` is also the URL `lib/seo.ts` publishes to search engines as this site's
+   * SearchAction, so the box and the structured data now agree.
+   */
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
       trackSearch(query.trim());
-      router.push(`/products?search=${encodeURIComponent(query.trim())}`);
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
       setIsFocused(false);
       if (onSearchSubmitted) onSearchSubmitted();
     }

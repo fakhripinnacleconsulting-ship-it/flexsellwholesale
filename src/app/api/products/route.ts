@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
 import { generateNextId } from "@/lib/idGeneratorServer";
@@ -107,7 +107,36 @@ export async function POST(request: Request) {
     }
     
     const newProduct = await Product.create(validatedData);
-    revalidateProducts();
+
+    // Pass the id. Without it the `revalidatePath("/products/<id>")` inside
+    // revalidateProducts is dead code, and the product's own page keeps serving whatever the
+    // cache holds until its 24h window expires — which is why an edited product took a day to
+    // change while its card on the listing updated at once.
+    await revalidateProducts(String(newProduct._id));
+
+    /**
+     * Build the new product's page now, so the first customer to open it does not have to.
+     *
+     * Purging a path does not generate it — it only guarantees the next visitor gets a cache
+     * MISS, and that visitor is the one currently paying a ~5s cold render (and, in
+     * production, seeing a 500 when it overruns).
+     *
+     * `after()` rather than a bare `fetch(...).catch()`: a promise left pending when the
+     * response is sent is cancelled on Vercel, so fire-and-forget never actually connects.
+     * `after` is the primitive for work that must outlive the response.
+     */
+    after(async () => {
+      const base =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+      if (!base) return;
+
+      await fetch(`${base}/products/${newProduct._id}`, { cache: "no-store" }).catch((err) =>
+        // Swallowed on purpose: the admin's save must never fail because a warm-up did.
+        console.warn("[products] page warm-up failed:", (err as Error)?.message)
+      );
+    });
+
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error: unknown) {
     if (error instanceof ZodError) {

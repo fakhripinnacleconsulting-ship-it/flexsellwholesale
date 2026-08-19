@@ -9,6 +9,8 @@ import {
   calculateEffectiveUnitWeightGrams,
   calculateDetailedBreakdown,
   enforceMoq,
+  allowedPrices,
+  isPriceAllowed,
 } from "../priceTierHelper";
 
 const sampleSubVariant: any = {
@@ -375,5 +377,81 @@ describe("MOQ applies to verified B2B only", () => {
 
   it("never lowers a quantity that already meets the minimum", () => {
     expect(enforceMoq(80, sv, ["B2B"])).toEqual({ quantity: 80, wasRaised: false, moq: 50 });
+  });
+});
+
+/**
+ * Order price verification.
+ *
+ * The order route used to compare the submitted price against `resolvePrice` — a single
+ * number, the *best* rate the buyer qualifies for. A B2B customer who chose to buy one unit at
+ * the retail price was therefore rejected for paying too much:
+ *
+ *     Price verification failed … Expected ₹499, got ₹650.
+ *
+ * Verification needs the whole set of prices the buyer may pay, not the best entry.
+ */
+describe("allowedPrices / isPriceAllowed", () => {
+  // MRP 1000, retail 650, wholesale 499, dropship 550, MOQ 1 — the common shape, and the one
+  // that reproduces the bug: with b2bMoq of 1 a B2B buyer always qualified for ₹499.
+  const sv: any = { ...sampleSubVariant, mrp: 1000, b2cPrice: 650, b2bPrice: 499, dropshippingPrice: 550, b2bMoq: 1 };
+
+  it("lets a B2B customer buy a single unit at the retail price", () => {
+    expect(isPriceAllowed(650, sv, ["B2B"], 1).ok).toBe(true);
+  });
+
+  it("lets a B2B customer buy at the wholesale price", () => {
+    expect(isPriceAllowed(499, sv, ["B2B"], 1).ok).toBe(true);
+  });
+
+  it("blocks a B2C customer claiming the wholesale price", () => {
+    const verdict = isPriceAllowed(499, sv, ["B2C"], 1);
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.allowed).toEqual([650]);
+  });
+
+  it("blocks a B2C customer claiming the dropship price", () => {
+    expect(isPriceAllowed(550, sv, ["B2C"], 1).ok).toBe(false);
+  });
+
+  it("lets a dropshipper pay the dropship price, and retail too", () => {
+    expect(isPriceAllowed(550, sv, ["Dropshipping"], 1).ok).toBe(true);
+    expect(isPriceAllowed(650, sv, ["Dropshipping"], 1).ok).toBe(true);
+  });
+
+  it("blocks a tampered price for everyone", () => {
+    for (const types of [["B2C"], ["B2B"], ["Dropshipping"]]) {
+      expect(isPriceAllowed(100, sv, types, 1).ok).toBe(false);
+    }
+  });
+
+  it("withholds the wholesale price below the minimum quantity", () => {
+    const withMoq: any = { ...sv, b2bMoq: 50 };
+    expect(isPriceAllowed(499, withMoq, ["B2B"], 10).ok).toBe(false);
+    expect(isPriceAllowed(499, withMoq, ["B2B"], 50).ok).toBe(true);
+    // Retail stays available at any quantity.
+    expect(isPriceAllowed(650, withMoq, ["B2B"], 10).ok).toBe(true);
+  });
+
+  it("never offers MRP as a purchasable price", () => {
+    // MRP is the strikethrough reference. Nothing is ever sold at it.
+    expect(allowedPrices(sv, ["B2B"], 1)).not.toContain(1000);
+    expect(isPriceAllowed(1000, sv, ["B2B"], 1).ok).toBe(false);
+  });
+
+  it("treats a guest as B2C", () => {
+    expect(isPriceAllowed(650, sv, undefined, 1).ok).toBe(true);
+    expect(isPriceAllowed(499, sv, undefined, 1).ok).toBe(false);
+  });
+
+  it("accepts a rounding difference within half a paisa", () => {
+    expect(isPriceAllowed(650.04, sv, ["B2C"], 1).ok).toBe(true);
+    expect(isPriceAllowed(650.5, sv, ["B2C"], 1).ok).toBe(false);
+  });
+
+  it("verifies nothing when the variant has no usable price", () => {
+    // Nothing to compare against is not the same as a violation.
+    const empty: any = { ...sampleSubVariant, b2cPrice: 0, b2bPrice: 0, dropshippingPrice: 0 };
+    expect(isPriceAllowed(123, empty, ["B2C"], 1).ok).toBe(true);
   });
 });

@@ -152,6 +152,68 @@ export function resolvePrice(
   return sv.b2cPrice;
 }
 
+/**
+ * Every price this buyer is permitted to pay for this line.
+ *
+ * `resolvePrice` answers a different question — "what should we *show* this customer" — and
+ * returns exactly one number: the best rate they qualify for. The order route used that single
+ * answer as the *only* acceptable price, so a B2B customer buying a single unit at the retail
+ * rate was rejected for paying **too much**:
+ *
+ *     Price verification failed … Expected ₹499, got ₹650.
+ *
+ * Paying more than you must is not fraud. Verification needs the *set*, not the best entry.
+ *
+ * Note what this deliberately does **not** consult: `item.priceTier`. That field arrives from
+ * the browser, and branching on it would put an entitlement re-check inside each branch —
+ * three places to get right instead of one. Membership of a server-computed set needs no
+ * client input at all.
+ *
+ * MRP is absent on purpose: it is the strikethrough reference, never a rate anything is sold at.
+ */
+export function allowedPrices(
+  sv?: SubVariant,
+  customerOrTypes?: PriceTier | string[] | any,
+  quantity: number = 1
+): number[] {
+  if (!sv) return [];
+
+  const { isVerified, isDropshipper } = resolveEntitlement(customerOrTypes);
+  const b2bMoq = sv.b2bMoq || 1;
+
+  // Retail is open to everyone, including B2B and Dropshipping accounts.
+  const prices: Array<number | undefined> = [sv.b2cPrice];
+
+  // Wholesale needs entitlement *and* the minimum quantity — the same two conditions
+  // resolvePrice applies, so the cart and the check cannot disagree about who qualifies.
+  if (isVerified && quantity >= b2bMoq) prices.push(sv.b2bPrice);
+
+  if (isDropshipper) prices.push(sv.dropshippingPrice);
+
+  return prices.filter((p): p is number => typeof p === "number" && p > 0);
+}
+
+/**
+ * Whether a submitted unit price is one this buyer may pay.
+ *
+ * Uses the same ₹0.05 tolerance the previous single-price check used, which absorbs the
+ * rounding that happens when a price crosses the wire as a float.
+ */
+export function isPriceAllowed(
+  submitted: number,
+  sv?: SubVariant,
+  customerOrTypes?: PriceTier | string[] | any,
+  quantity: number = 1
+): { ok: true } | { ok: false; allowed: number[] } {
+  const allowed = allowedPrices(sv, customerOrTypes, quantity);
+
+  // No priced variant at all — nothing to verify against, so nothing to reject on.
+  if (allowed.length === 0) return { ok: true };
+
+  const matches = allowed.some((price) => Math.abs(price - submitted) <= 0.05);
+  return matches ? { ok: true } : { ok: false, allowed };
+}
+
 export function resolvePriceTierName(
   sv?: SubVariant,
   customerOrTypes?: string[] | any,

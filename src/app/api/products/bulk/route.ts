@@ -257,7 +257,7 @@ export async function POST(request: Request) {
     }
 
     if (results.inserted > 0 || results.updated > 0) {
-      revalidateProducts();
+      await revalidateProducts();
     }
 
     return NextResponse.json({
@@ -288,7 +288,7 @@ export async function DELETE(request: Request) {
     }
 
     const deleteResult = await Product.deleteMany({ _id: { $in: ids } });
-    revalidateProducts();
+    await revalidateProducts();
     return NextResponse.json({
       success: true,
       message: `Successfully deleted ${deleteResult.deletedCount} products in bulk.`,

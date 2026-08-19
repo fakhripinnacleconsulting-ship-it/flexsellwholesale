@@ -4,7 +4,7 @@ import WalletTransaction from "@/models/WalletTransaction";
 import WalletExpenseCategory from "@/models/WalletExpenseCategory";
 import { requireWalletRead } from "@/lib/walletGuard";
 import { toRupees } from "@/lib/money";
-import { WALLET_TYPES, BREAKDOWN_MAX_SLICES } from "@/lib/walletConstants";
+import { BREAKDOWN_MAX_SLICES } from "@/lib/walletConstants";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +19,23 @@ const OTHER_COLOUR = "#94a3b8";
  * from actual expenditure in the donut.
  */
 const SYNTHETIC_SLICES: Record<string, { label: string; colour: string }> = {
+  /**
+   * Money spent on orders — for most customers the largest slice by far, and until now
+   * missing entirely. An order paid from the wallet is a `DEBIT` carrying an `orderId` and
+   * **no** `expenseCategory`: categories describe staff-recorded services, not purchases. The
+   * filter here required a category, so every purchase was dropped and the panel reported a
+   * total that was a fraction of what actually left the wallet.
+   */
+  __ORDER: { label: "Orders & Purchases", colour: "#8b5cf6" },
+
   __TRANSFER_OUT: { label: "Transferred to Business Wallet", colour: "#0ea5e9" },
+  __ADJUSTMENT: { label: "Adjustments & Deductions", colour: "#64748b" },
+  __DEBIT: { label: "Other Debits", colour: "#ec4899" },
 };
+
+/** `all` shows both wallets together; the two literal wallets show one each. */
+const BREAKDOWN_SCOPES = ["all", "store", "business"] as const;
+type BreakdownScope = (typeof BREAKDOWN_SCOPES)[number];
 
 /**
  * "Where your money went" — spend grouped by expense category for a date range.
@@ -40,11 +55,23 @@ export async function GET(request: NextRequest) {
     const { payload } = auth;
 
     const userId = requestedUserId || payload.userId;
-    const walletType = url.searchParams.get("walletType") || "business";
+    const scope = (url.searchParams.get("walletType") || "all") as BreakdownScope;
 
-    if (!WALLET_TYPES.includes(walletType as (typeof WALLET_TYPES)[number])) {
+    if (!BREAKDOWN_SCOPES.includes(scope)) {
       return NextResponse.json({ message: "Unknown wallet type" }, { status: 400 });
     }
+
+    const isAllWallets = scope === "all";
+
+    /**
+     * A transfer between the customer's own wallets is spend **only from the wallet it left**.
+     *
+     * Viewed across both, nothing was spent — the money moved from one pocket to the other,
+     * and whatever the Business Wallet later spent is already counted on its own. Including
+     * it in the combined view would report a larger total than the customer ever spent, which
+     * is the same class of error this panel exists to correct.
+     */
+    const outboundTypes = isAllWallets ? ["DEBIT", "ADJUSTMENT"] : ["DEBIT", "ADJUSTMENT", "TRANSFER_OUT"];
 
     // Default to the current Indian financial year, which is the window a business owner
     // actually thinks in — not the last 30 days.
@@ -57,31 +84,45 @@ export async function GET(request: NextRequest) {
         {
           $match: {
             userId,
-            walletType,
+            // Omitted entirely for `all`, so both wallets aggregate together.
+            ...(isAllWallets ? {} : { walletType: scope }),
             status: "success",
-            // Only outbound money.
-            type: { $in: ["DEBIT", "ADJUSTMENT", "TRANSFER_OUT"] },
             /**
-             * A transfer out has no expense category, and the `expenseCategory: { $exists:
-             * true }` clause that used to sit here removed it again — so money moved from the
-             * Store Wallet to the Business Wallet left the wallet and then failed to appear
-             * in that wallet's own "where did it go" chart.
+             * Every outbound entry, with **no category requirement**.
              *
-             * Categoryless *order payments* must still be excluded (they belong in the
-             * passbook), so the filter is by type rather than by the absence of a category.
+             * This filter used to demand `expenseCategory` (or a `TRANSFER_OUT`), which
+             * silently dropped every order paid from the wallet — those carry an `orderId`
+             * and no category, because categories describe staff-recorded services rather
+             * than purchases. Measured against the live ledger, that hid 56% of all spend and
+             * left the panel reporting a total the customer could not reconcile.
              */
-            $or: [
-              { expenseCategory: { $exists: true, $ne: null } },
-              { type: "TRANSFER_OUT" },
-            ],
+            type: { $in: outboundTypes },
             createdAt: { $gte: from, $lte: to },
           },
         },
         {
           $group: {
-            // A transfer is not an expense *category*, so rather than inventing one it is
-            // grouped under a synthetic key the slice mapper below gives a fixed label.
-            _id: { $ifNull: ["$expenseCategory", { $concat: ["__", "$type"] }] },
+            /**
+             * A real expense category wins. Failing that the entry is grouped by *what it is*
+             * — an order payment, a transfer, an adjustment — under a synthetic key the slice
+             * mapper below gives a fixed label and colour.
+             *
+             * Inventing an expense category for these would be worse: they would then appear
+             * in the admin's editable category list, which is for services the business
+             * actually performs.
+             */
+            _id: {
+              $ifNull: [
+                "$expenseCategory",
+                {
+                  $cond: [
+                    { $ifNull: ["$orderId", false] },
+                    "__ORDER",
+                    { $concat: ["__", "$type"] },
+                  ],
+                },
+              ],
+            },
             total: { $sum: "$amount" },
             count: { $sum: 1 },
           },
@@ -134,7 +175,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
-        walletType,
+        walletType: scope,
         from: from.toISOString(),
         to: to.toISOString(),
         totalSpent: toRupees(totalPaise),

@@ -22,7 +22,7 @@ import { resolveRange, describeRange, formatRangePeriod, type DateRange } from "
 import { Receipt, Banknote, Wallet as WalletIcon, ArrowRight, Lock, Unlock, Download, PieChart, FileText, Briefcase, CreditCard, Info } from "lucide-react";
 import { AddMoneyDialog } from "@/components/wallet/AddMoneyDialog";
 import { RECHARGE_UNAVAILABLE_STAFF_MESSAGE } from "@/lib/walletConstants";
-import type { WalletSummary, WalletBreakdown as BreakdownData, WalletStatementPage, WalletType, WalletTransactionView } from "@/types/wallet";
+import type { WalletSummary, WalletBreakdown as BreakdownData, WalletStatementPage, WalletType, WalletScope, WalletTransactionView } from "@/types/wallet";
 import { downloadStatementPdf } from "@/lib/pdfHelper";
 
 interface StaffWalletPanelProps {
@@ -48,8 +48,8 @@ export function StaffWalletPanel({ userId, customerName, isAdmin }: StaffWalletP
   const [summaryError, setSummaryError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const [breakdownTab, setBreakdownTab] = React.useState<WalletType>("store");
-  const [passbookTab, setPassbookTab] = React.useState<WalletType>("store");
+  const [breakdownTab, setBreakdownTab] = React.useState<WalletScope>("all");
+  const [passbookTab, setPassbookTab] = React.useState<WalletScope>("all");
   const [breakdown, setBreakdown] = React.useState<BreakdownData | null>(null);
   const [passbook, setPassbook] = React.useState<WalletStatementPage | null>(null);
   const [page, setPage] = React.useState(1);
@@ -112,7 +112,14 @@ export function StaffWalletPanel({ userId, customerName, isAdmin }: StaffWalletP
       const dates = { from: range.from, to: range.to };
       const fullPage = await walletService.getTransactions({ userId, walletType: passbookTab, limit: 1000, ...dates });
       if (fullPage && fullPage.transactions.length > 0) {
-        const label = passbookTab === "business" ? "Business Wallet" : "Store Wallet";
+        // The downloaded statement names its own scope — "Store Wallet" on a combined export
+        // would misdescribe what is inside it.
+        const label =
+          passbookTab === "all"
+            ? "All Wallets (Store & Business)"
+            : passbookTab === "business"
+              ? "Business Wallet"
+              : "Store Wallet";
         await downloadStatementPdf(fullPage.transactions, customerName, label, formatRangePeriod(range));
         addToast("Statement PDF downloaded successfully", "success");
       } else {
@@ -194,7 +201,18 @@ export function StaffWalletPanel({ userId, customerName, isAdmin }: StaffWalletP
     );
   }
 
-  const tabs: WalletType[] = summary?.businessEligible ? ["business", "store"] : ["store"];
+  /**
+   * All · Business · Store.
+   *
+   * `all` leads because it answers the question the panel is titled with — a customer wants
+   * their whole position first and the per-wallet split second. Offered only when they
+   * actually hold two wallets; with one, "All" and "Store" would be the same view twice.
+   */
+  const tabs: WalletScope[] = summary?.businessEligible ? ["all", "business", "store"] : ["store"];
+
+  /** Tab captions, kept beside the list so the two cannot drift apart. */
+  const tabLabel = (tab: WalletScope) =>
+    tab === "all" ? "All" : tab === "business" ? "Business" : "Store";
 
   return (
     <div className="space-y-5">
@@ -348,7 +366,7 @@ export function StaffWalletPanel({ userId, customerName, isAdmin }: StaffWalletP
                           isSelected ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {tab === "store" ? "Store" : "Business"}
+                        {tabLabel(tab)}
                       </button>
                     );
                   })}
@@ -399,7 +417,7 @@ export function StaffWalletPanel({ userId, customerName, isAdmin }: StaffWalletP
                           isSelected ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {tab === "store" ? "Store" : "Business"}
+                        {tabLabel(tab)}
                       </button>
                     );
                   })}

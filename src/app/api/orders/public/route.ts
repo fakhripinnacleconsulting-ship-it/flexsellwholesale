@@ -7,6 +7,7 @@ import Product from "@/models/Product";
 import CmsContent from "@/models/CmsContent";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
+import { isPriceAllowed } from "@/lib/priceTierHelper";
 import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
 import { buildHistoryEvent, SYSTEM_ACTOR } from "@/lib/orderHistory";
 import { rateLimit } from "@/lib/rateLimit";
@@ -74,6 +75,80 @@ export async function POST(request: Request) {
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ message: "Order must contain at least one line item" }, { status: 400 });
+    }
+
+    /**
+     * Price verification — this route previously had **none at all**.
+     *
+     * It destructured `amount` and `items` from the request body and wrote them straight onto
+     * the order, so anyone could post any price. Fixing verification on `/api/orders` while
+     * leaving this open would have moved the hole rather than closed it.
+     *
+     * Entitlement here is whatever the *named customer* actually holds, not what the request
+     * claims — this page is public, so an unrecognised or absent customer is B2C and can reach
+     * no wholesale rate at all.
+     */
+    const lookupEmail = newCustomer?.email || customerEmail;
+    const buyerForPricing = customerId
+      ? await Customer.findById(customerId).select("customerTypes").lean()
+      : lookupEmail
+        ? await Customer.findOne({ email: String(lookupEmail).toLowerCase() }).select("customerTypes").lean()
+        : null;
+
+    /**
+     * A customer this order is about to create does not exist yet, so there is nothing to look
+     * up — and defaulting them to B2C would reject the dropship prices the form legitimately
+     * submitted, breaking first-time dropship signups.
+     *
+     * This route is admin/manager-only and hard-codes `resolvedCustomerType = "Dropshipping"`
+     * below, creating new accounts with exactly that type. So Dropshipping is not a permissive
+     * guess here — it is what this order is, stated before it is written rather than after.
+     */
+    const pricingTypes: string[] =
+      (buyerForPricing as { customerTypes?: string[] } | null)?.customerTypes || ["Dropshipping"];
+
+    for (const item of items) {
+      const productId = item.product?._id || item.productId || item.product || item.id;
+      if (!productId) continue;
+
+      const dbProduct = await Product.findById(productId).lean() as any;
+      if (!dbProduct) {
+        return NextResponse.json(
+          { message: `Product not found: ${item.productTitle || productId}` },
+          { status: 400 }
+        );
+      }
+
+      const { color, size, weight } = resolveVariantKeys(item.selectedVariants || item.variants || {});
+      const cv =
+        dbProduct.colorVariants?.find((c: any) => c.color?.toLowerCase() === (color || "").toLowerCase()) ||
+        dbProduct.colorVariants?.[0];
+      const sv =
+        cv?.subVariants?.find(
+          (s: any) =>
+            (!size || s.size?.toLowerCase() === size.toLowerCase()) &&
+            (!weight || s.weight?.toLowerCase() === weight.toLowerCase())
+        ) || cv?.subVariants?.[0];
+
+      if (!sv) continue;
+
+      const verdict = isPriceAllowed(
+        Number(item.pricePerUnit),
+        sv,
+        pricingTypes,
+        Number(item.quantity) || 1
+      );
+
+      if (!verdict.ok) {
+        return NextResponse.json(
+          {
+            message:
+              `Price verification failed for "${dbProduct.title}". ` +
+              `Got ₹${item.pricePerUnit}; this account may pay ${verdict.allowed.map((p) => `₹${p}`).join(" or ")}.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const resolvedCustomerType = "Dropshipping";

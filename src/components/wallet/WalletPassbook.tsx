@@ -49,6 +49,15 @@ export function WalletPassbook({
 }: WalletPassbookProps) {
   const rows = data?.transactions ?? [];
 
+  /**
+   * Both wallets listed together.
+   *
+   * Two things follow: each row needs a badge saying which wallet it came from, and the
+   * Balance column has to go — `balanceAfter` is a per-wallet running total, so interleaving
+   * two wallets by date makes it jump between unrelated figures.
+   */
+  const isCombined = data?.combined ?? false;
+
   // Nested in an accordion the outer chrome already exists; a second card with its own
   // heading would repeat the section title back at the reader.
   const Shell = bare ? React.Fragment : Card;
@@ -123,7 +132,10 @@ export function WalletPassbook({
                     <th scope="col" className="px-4 py-2.5 font-bold">Category</th>
                     <th scope="col" className="px-4 py-2.5 text-right font-bold">Credit</th>
                     <th scope="col" className="px-4 py-2.5 text-right font-bold">Debit</th>
-                    <th scope="col" className="px-4 py-2.5 text-right font-bold">Balance</th>
+                    {/* Dropped when both wallets are listed — see isCombined. */}
+                    {!isCombined && (
+                      <th scope="col" className="px-4 py-2.5 text-right font-bold">Balance</th>
+                    )}
                     <th scope="col" className="px-4 py-2.5 font-bold">Recorded by</th>
                     <th scope="col" className="px-4 py-2.5 font-bold">
                       <span className="sr-only">Documents</span>
@@ -149,6 +161,22 @@ export function WalletPassbook({
                         </th>
 
                         <td className="px-4 py-3">
+                          {/*
+                            Which wallet this row belongs to, shown only when both are listed
+                            together — otherwise the section heading already says it, and a
+                            badge on every row would be noise.
+                          */}
+                          {isCombined && (
+                            <span
+                              className={`mr-2 inline-block rounded px-1.5 py-0.5 align-middle text-[9px] font-bold uppercase tracking-wider ${
+                                row.walletType === "business"
+                                  ? "bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                                  : "bg-primary/10 text-primary"
+                              }`}
+                            >
+                              {row.walletType === "business" ? "Business" : "Store"}
+                            </span>
+                          )}
                           <span
                             className={`font-semibold text-foreground ${isReversed ? "line-through opacity-60" : ""}`}
                           >
@@ -196,9 +224,11 @@ export function WalletPassbook({
                           {/* U+2212 minus, not a hyphen — a hyphen reads as a dash at this size. */}
                           {!isCredit ? `−${formatPrice(row.amount)}` : "—"}
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold tabular-nums text-muted-foreground">
-                          {formatPrice(row.balanceAfter)}
-                        </td>
+                        {!isCombined && (
+                          <td className="px-4 py-3 text-right font-semibold tabular-nums text-muted-foreground">
+                            {formatPrice(row.balanceAfter)}
+                          </td>
+                        )}
 
                         <td className="whitespace-nowrap px-4 py-3">
                           {row.actedByRole === "Customer" || !row.actedBy ? (
@@ -265,8 +295,16 @@ export function WalletPassbook({
                       <th scope="row" className="sticky left-0 z-10 bg-secondary/20 px-4 py-3 text-left">
                         Totals
                       </th>
+                      {/*
+                        Opening and closing are per-wallet figures. Viewing both wallets at
+                        once there is no single running position to state, so the server sends
+                        null and the cell says so rather than printing a number that looks
+                        authoritative and means nothing.
+                      */}
                       <td className="px-4 py-3 text-muted-foreground" colSpan={2}>
-                        Opening {formatPrice(data.openingBalance)}
+                        {data.openingBalance === null
+                          ? "Both wallets"
+                          : `Opening ${formatPrice(data.openingBalance)}`}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-primary">
                         {formatPrice(data.totalCredits)}
@@ -275,7 +313,7 @@ export function WalletPassbook({
                         −{formatPrice(data.totalDebits)}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {formatPrice(data.closingBalance)}
+                        {data.closingBalance === null ? "—" : formatPrice(data.closingBalance)}
                       </td>
                       <td colSpan={2} />
                     </tr>

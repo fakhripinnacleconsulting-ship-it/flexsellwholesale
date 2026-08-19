@@ -28,10 +28,24 @@ export async function GET(request: NextRequest) {
     const userId = requestedUserId || payload.userId;
     const isStaff = payload.role === "admin" || payload.role === "manager";
 
-    const walletType = url.searchParams.get("walletType");
-    if (walletType && !WALLET_TYPES.includes(walletType as (typeof WALLET_TYPES)[number])) {
+    /**
+     * `all` is an explicit scope, not an absent one.
+     *
+     * Omitting the parameter already meant "both wallets" here, but the literal string `all`
+     * was rejected with a 400 — so a UI with an All tab appeared to work until it asked for
+     * it. Normalising it to `undefined` keeps the query below untouched.
+     */
+    const walletTypeParam = url.searchParams.get("walletType");
+    if (
+      walletTypeParam &&
+      walletTypeParam !== "all" &&
+      !WALLET_TYPES.includes(walletTypeParam as (typeof WALLET_TYPES)[number])
+    ) {
       return NextResponse.json({ message: "Unknown wallet type" }, { status: 400 });
     }
+
+    const isAllWallets = !walletTypeParam || walletTypeParam === "all";
+    const walletType = isAllWallets ? undefined : walletTypeParam;
 
     const page = Math.max(Number(url.searchParams.get("page")) || 1, 1);
     const limitParam = Number(url.searchParams.get("limit"));
@@ -159,10 +173,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         walletType: walletType || "all",
+        /**
+         * Tells the passbook that a running balance is not meaningful here.
+         *
+         * `balanceAfter` and the opening/closing pair are **per-wallet** figures. Interleaving
+         * two wallets' rows by date produces a Balance column that jumps between two unrelated
+         * running totals — a number that looks authoritative and is not. The UI hides the
+         * column when this is set rather than printing it.
+         */
+        combined: isAllWallets,
         from: from?.toISOString() || null,
         to: to?.toISOString() || null,
-        openingBalance: toRupees(openingPaise),
-        closingBalance: toRupees(openingPaise + credits - debits),
+        // Withheld in combined mode for the same reason: there is no single balance to state.
+        openingBalance: isAllWallets ? null : toRupees(openingPaise),
+        closingBalance: isAllWallets ? null : toRupees(openingPaise + credits - debits),
+        // Totals stay meaningful across wallets — they are sums, not running positions.
         totalCredits: toRupees(credits),
         totalDebits: toRupees(debits),
         page,

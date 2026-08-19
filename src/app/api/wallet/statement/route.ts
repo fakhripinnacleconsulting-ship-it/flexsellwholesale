@@ -33,11 +33,26 @@ export async function GET(request: NextRequest) {
     const { payload } = auth;
 
     const userId = requestedUserId || payload.userId;
-    const walletType = url.searchParams.get("walletType");
+    const walletTypeParam = url.searchParams.get("walletType");
 
-    if (walletType && !WALLET_TYPES.includes(walletType as (typeof WALLET_TYPES)[number])) {
+    /**
+     * Accepts `all` alongside the two wallets — the third place this had to change.
+     *
+     * The breakdown and the passbook each validate `walletType` separately, and this route is
+     * easy to miss: an All tab would appear to work everywhere until the customer pressed
+     * Download and got a 400. Omitting the filter is what "all" already meant internally.
+     */
+    if (
+      walletTypeParam &&
+      walletTypeParam !== "all" &&
+      !WALLET_TYPES.includes(walletTypeParam as (typeof WALLET_TYPES)[number])
+    ) {
       return NextResponse.json({ message: "Unknown wallet type" }, { status: 400 });
     }
+
+    // Normalised to undefined so every query below reads "no wallet filter" without repeating
+    // the "all" special case at each site.
+    const walletType = walletTypeParam === "all" ? undefined : walletTypeParam;
 
     const fromParam = url.searchParams.get("from");
     const toParam = url.searchParams.get("to");

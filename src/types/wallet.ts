@@ -145,20 +145,36 @@ export interface WalletBreakdownSlice {
 }
 
 export interface WalletBreakdown {
-  walletType: WalletType;
+  walletType: WalletScope;
   from: string;
   to: string;
   slices: WalletBreakdownSlice[];
   totalSpent: number;
 }
 
+/**
+ * A wallet scope for *reading*: either wallet, or both together.
+ *
+ * Distinct from `WalletType` on purpose — a balance, an expense or a recharge always belongs
+ * to one wallet, so only the read surfaces (breakdown, passbook, statement) accept `"all"`.
+ */
+export type WalletScope = WalletType | "all";
+
 /** A passbook page: rows plus the balances that make the range reconcilable. */
 export interface WalletStatementPage {
-  walletType: WalletType;
+  walletType: WalletScope;
+  /**
+   * True when both wallets are shown together.
+   *
+   * A running balance is per-wallet: interleaving two wallets' rows by date makes
+   * `balanceAfter` jump between two unrelated totals. The passbook hides the Balance column
+   * when this is set, and the opening/closing pair is withheld rather than invented.
+   */
+  combined?: boolean;
   from: string;
   to: string;
-  openingBalance: number;
-  closingBalance: number;
+  openingBalance: number | null;
+  closingBalance: number | null;
   totalCredits: number;
   totalDebits: number;
   transactions: WalletTransactionView[];

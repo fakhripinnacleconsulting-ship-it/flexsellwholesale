@@ -8,6 +8,7 @@ import type {
   OfflineCreditInput,
   RechargeInitiateInput,
   WalletType,
+  WalletScope,
 } from "@/types/wallet";
 
 /**
@@ -60,7 +61,7 @@ export async function getWallets(userId?: string): Promise<WalletSummary> {
 
 export interface TransactionQuery {
   userId?: string;
-  walletType?: WalletType;
+  walletType?: WalletScope;
   category?: string;
   from?: string;
   to?: string;
@@ -75,7 +76,7 @@ export async function getTransactions(query: TransactionQuery = {}): Promise<Wal
 
 /** Spend grouped by expense category. */
 export async function getBreakdown(
-  query: { userId?: string; walletType?: WalletType; from?: string; to?: string } = {}
+  query: { userId?: string; walletType?: WalletScope; from?: string; to?: string } = {}
 ): Promise<WalletBreakdown> {
   return apiClient.get<WalletBreakdown>(`/wallet/breakdown${toQueryString({ ...query })}`, { cache: "no-store" });
 }
@@ -242,7 +243,7 @@ export async function setWalletStatus(params: {
  * fetch-then-blob would have to reimplement worse.
  */
 export function statementUrl(
-  query: { userId?: string; walletType?: WalletType; from?: string; to?: string } = {}
+  query: { userId?: string; walletType?: WalletScope; from?: string; to?: string } = {}
 ): string {
   return `/api/wallet/statement${toQueryString({ ...query })}`;
 }

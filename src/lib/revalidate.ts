@@ -30,17 +30,79 @@ export function revalidateStorefront() {
  * Do NOT call this for stock movements from the order lifecycle — use
  * revalidateProductStock() instead, which is intentionally a no-op.
  */
-export function revalidateProducts(productIdOrSlug?: string) {
+export async function revalidateProducts(productIdOrSlug?: string) {
   try {
-    revalidateTag("products", "max" as any);
     for (const path of PRODUCT_LISTING_PATHS) {
       revalidatePath(path);
     }
+
+    // The product's own page. This argument used to be omitted at every call site, so this
+    // line never ran — which is why an edit appeared on the catalogue at once and took up to
+    // 24 hours to appear on the product's own page.
     if (productIdOrSlug) {
       revalidatePath(`/products/${productIdOrSlug}`);
     }
+
+    /**
+     * Category and collection pages, all of them.
+     *
+     * These were never purged at all, so a new product showed on the home page immediately and
+     * on its own category page a day later.
+     *
+     * Purging *every* slug rather than deriving one from the product's `categoryId` is
+     * deliberate, and it is the only approach that is actually correct here:
+     *
+     *  - a product that **moves** category has to disappear from the old page as well as
+     *    appear on the new one;
+     *  - a **smart collection**'s membership is a rule, not a list, so there is no id to
+     *    derive a path from — the product may now match, or no longer match, and neither is
+     *    knowable without re-running the rule.
+     *
+     * Both sets are small (single digits), so this costs a handful of cache entries.
+     */
+    const { categorySlugs, collectionSlugs } = await catalogueSlugs();
+
+    for (const slug of categorySlugs) revalidatePath(`/categories/${slug}`);
+    for (const slug of collectionSlugs) revalidatePath(`/collections/${slug}`);
   } catch (err) {
+    // Never fail a catalogue write because a cache purge failed. The 24h `revalidate` on each
+    // page is the backstop, and a stale page is a far smaller problem than a rejected save.
     console.error("revalidateProducts error:", err);
+  }
+}
+
+/**
+ * Slugs of every category and collection, for the purge above.
+ *
+ * One `dbConnect`, then both reads. They were two independent helpers each opening their own
+ * connection concurrently — redundant, and the concurrent dynamic imports also raced the
+ * module registry, which made the behaviour awkward to test deterministically.
+ *
+ * Read straight from the models rather than through the services: those carry mock-mode
+ * branches and response shaping a cache purge has no business depending on.
+ */
+async function catalogueSlugs(): Promise<{ categorySlugs: string[]; collectionSlugs: string[] }> {
+  try {
+    const dbConnect = (await import("@/lib/dbConnect")).default;
+    await dbConnect();
+
+    const Category = (await import("@/models/Category")).default;
+    const Collection = (await import("@/models/Collection")).default;
+
+    const [categories, collections] = await Promise.all([
+      Category.find({}).select("slug").lean<Array<{ slug?: string }>>(),
+      Collection.find({}).select("slug").lean<Array<{ slug?: string }>>(),
+    ]);
+
+    const slugsOf = (rows: Array<{ slug?: string }>) =>
+      rows.map((r) => r.slug).filter((s): s is string => Boolean(s));
+
+    return { categorySlugs: slugsOf(categories), collectionSlugs: slugsOf(collections) };
+  } catch (err) {
+    // A purge that cannot list the slugs still purges the listings above; the 24h window is
+    // the backstop. Never let this fail the catalogue write that triggered it.
+    console.error("revalidateProducts: could not list catalogue slugs:", err);
+    return { categorySlugs: [], collectionSlugs: [] };
   }
 }
 

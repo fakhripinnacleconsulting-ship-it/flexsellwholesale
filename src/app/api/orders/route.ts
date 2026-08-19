@@ -17,7 +17,7 @@ import { generateNextId, nextCounterValue } from "@/lib/idGeneratorServer";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
-import { resolvePrice } from "@/lib/priceTierHelper";
+import { isPriceAllowed } from "@/lib/priceTierHelper";
 import nodemailer from "nodemailer";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
 import { rateLimit } from "@/lib/rateLimit";
@@ -520,7 +520,33 @@ export async function POST(request: Request) {
       // Fetch customer doc to determine customerTypes for price verification & orderType resolution
       const customerDoc = await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).session(session || null).lean() as any;
       const customerId = customerDoc?._id ? String(customerDoc._id) : "legacy-sync";
-      const customerTypes: string[] = customerDoc?.customerTypes || ["B2C"];
+
+      /**
+       * Whose entitlement decides which prices are acceptable.
+       *
+       * This used to read the tier straight off whatever account the **shipping email**
+       * belonged to — so anyone who knew a B2B customer's address could type it into the
+       * checkout form and be priced as that customer.
+       *
+       *   - A signed-in **customer** is priced as themselves. The shipping email is a delivery
+       *     detail; it says nothing about who is buying.
+       *   - **Staff** placing an order on someone's behalf keep the email lookup: that is the
+       *     whole point of delegated ordering, and they are already authorised to act for the
+       *     customer.
+       *   - A **guest** is B2C. There is no wholesale rate to reach without an account.
+       */
+      const isStaffPlacing = payload.role === "admin" || payload.role === "manager";
+
+      let customerTypes: string[] = ["B2C"];
+      if (isStaffPlacing) {
+        customerTypes = customerDoc?.customerTypes || ["B2C"];
+      } else if (payload.userId) {
+        const buyerDoc = (await Customer.findById(payload.userId)
+          .session(session || null)
+          .select("customerTypes")
+          .lean()) as { customerTypes?: string[] } | null;
+        customerTypes = buyerDoc?.customerTypes || ["B2C"];
+      }
 
       // Deduct stock for each ordered item atomically
       // size/weight are stored exactly as the deduction used them (including undefined for
@@ -555,11 +581,27 @@ export async function POST(request: Request) {
             throw new Error(`Insufficient stock for product "${dbProduct.title}" (${selectedColor} - ${selectedSize || ""})`);
           }
 
-          // Server-side Price Re-verification (Security Check)
+          /**
+           * Server-side price re-verification.
+           *
+           * Checks membership of the set of prices this buyer may pay, rather than equality
+           * with the single best one. `resolvePrice` returns the best rate they qualify for,
+           * and comparing against only that rejected a B2B customer who chose to buy one unit
+           * at the retail price — for paying too much.
+           *
+           * Everything the check needs is computed server-side; nothing from the request is
+           * trusted, so a shopper cannot reach a rate they are not entitled to by editing a
+           * field.
+           */
           if (!quoteId) {
-            const expectedPrice = resolvePrice(sv, customerTypes, item.quantity);
-            if (expectedPrice > 0 && Math.abs(expectedPrice - item.pricePerUnit) > 0.05) {
-              throw new Error(`Price verification failed for product "${dbProduct.title}". Expected ₹${expectedPrice}, got ₹${item.pricePerUnit}.`);
+            const verdict = isPriceAllowed(item.pricePerUnit, sv, customerTypes, item.quantity);
+            if (!verdict.ok) {
+              throw new Error(
+                `Price verification failed for product "${dbProduct.title}". ` +
+                  `Got ₹${item.pricePerUnit}; this account may pay ${verdict.allowed
+                    .map((p) => `₹${p}`)
+                    .join(" or ")}.`
+              );
             }
           }
 
