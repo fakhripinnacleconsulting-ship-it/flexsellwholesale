@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { vercelBlobProvider, streamPrivateBlob } from "./vercelBlob";
+import { mongoDocumentProvider, readStoredDocument } from "./mongoDocument";
 import { cloudinaryProvider } from "./cloudinary";
 import { supabaseStorageProvider } from "./supabaseStorage";
 import {
@@ -15,7 +16,7 @@ import {
 } from "./types";
 
 export * from "./types";
-export { streamPrivateBlob };
+export { streamPrivateBlob, readStoredDocument };
 
 /**
  * The only way anything in this application writes a file.
@@ -32,7 +33,44 @@ export { streamPrivateBlob };
  * declined.
  */
 
-const PROVIDERS: StorageProvider[] = [vercelBlobProvider, cloudinaryProvider, supabaseStorageProvider];
+/**
+ * Provider order, by asset class — the two classes want opposite things.
+ *
+ * **Public** assets are served on every page view, so a CDN is the whole point: blob first.
+ *
+ * **Private** documents go to the database first, and that is not a fallback ordering. A
+ * public Vercel Blob store refuses `access: "private"` outright, so on a store marked Public
+ * — which is the default — every KYC and payment-proof upload failed regardless of the token.
+ * Beyond that, a private document should have no URL that reads it, and the database is the
+ * only option here that offers none. Documents are small and rarely read; they were the wrong
+ * thing to have made a CDN's problem in the first place.
+ */
+const PUBLIC_PROVIDERS: StorageProvider[] = [
+  vercelBlobProvider,
+  cloudinaryProvider,
+  supabaseStorageProvider,
+];
+
+const PRIVATE_PROVIDERS: StorageProvider[] = [
+  mongoDocumentProvider,
+  // Kept behind Mongo so a store that *is* configured for private access can still be used,
+  // and so nothing breaks if the database is ever taken out of this path.
+  vercelBlobProvider,
+  cloudinaryProvider,
+  supabaseStorageProvider,
+];
+
+function providersFor(assetClass: AssetClass): StorageProvider[] {
+  return assetClass === "private" ? PRIVATE_PROVIDERS : PUBLIC_PROVIDERS;
+}
+
+/** Every provider, for operations that must find a file without knowing who stored it. */
+const ALL_PROVIDERS: StorageProvider[] = [
+  mongoDocumentProvider,
+  vercelBlobProvider,
+  cloudinaryProvider,
+  supabaseStorageProvider,
+];
 
 /** How long a private document's direct URL stays valid. Long enough to load, short enough to leak harmlessly. */
 export const SIGNED_URL_TTL_SECONDS = 300;
@@ -95,7 +133,7 @@ export async function uploadFile(input: UploadFileInput): Promise<UploadResult> 
 
   const attempts: Array<{ provider: ProviderName; kind: StorageFailureKind; message: string }> = [];
 
-  for (const provider of PROVIDERS) {
+  for (const provider of providersFor(rule.assetClass)) {
     if (!provider.isConfigured()) continue;
 
     try {
@@ -141,7 +179,7 @@ export async function deleteFile(ref: string | undefined | null, assetClass: Ass
   // Legacy proxy URLs still name the real object in their query string.
   const normalised = extractLegacyBlobUrl(ref) ?? ref;
 
-  for (const provider of PROVIDERS) {
+  for (const provider of providersFor(assetClass)) {
     if (!provider.isConfigured()) continue;
     try {
       await provider.remove(normalised, assetClass);
@@ -160,7 +198,7 @@ export async function deleteFile(ref: string | undefined | null, assetClass: Ass
  * browser without passing through a function.
  */
 export async function signedUrlFor(ref: string): Promise<string | null> {
-  for (const provider of PROVIDERS) {
+  for (const provider of ALL_PROVIDERS) {
     if (!provider.isConfigured() || !provider.signedUrl) continue;
     const url = await provider.signedUrl(ref, SIGNED_URL_TTL_SECONDS);
     if (url) return url;

@@ -17,7 +17,7 @@ export type AssetClass = "public" | "private";
 /** What the caller is uploading. Decides asset class, size cap and accepted MIME types. */
 export type UploadKind = "image" | "video" | "kyc" | "proof" | "dropship";
 
-export type ProviderName = "vercel-blob" | "cloudinary" | "supabase";
+export type ProviderName = "vercel-blob" | "cloudinary" | "supabase" | "mongo";
 
 export interface UploadKindRule {
   assetClass: AssetClass;

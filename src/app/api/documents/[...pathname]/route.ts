@@ -3,7 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Customer from "@/models/Customer";
 import { requireAuth } from "@/lib/authGuard";
 import { rateLimit } from "@/lib/rateLimit";
-import { signedUrlFor, streamPrivateBlob, SIGNED_URL_TTL_SECONDS } from "@/lib/storage";
+import { signedUrlFor, streamPrivateBlob, readStoredDocument, SIGNED_URL_TTL_SECONDS } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -83,10 +83,31 @@ export async function GET(
     }
 
     /**
-     * Preferred path: hand the browser a signed URL and let the CDN serve the bytes.
+     * The usual case: the document lives in the database, so serve it from here.
      *
-     * `no-store` on the redirect itself is deliberate — the signed URL expires, so caching
-     * the 302 would hand a later visitor a dead link.
+     * Checked before any signed-URL path because that is where private documents are
+     * written — see `PRIVATE_PROVIDERS`. There is no URL that reads this document without
+     * passing the ownership check above, which is the entire reason it is stored this way.
+     */
+    const stored = await readStoredDocument(ref);
+    if (stored) {
+      return new NextResponse(new Uint8Array(stored.data), {
+        headers: {
+          "Content-Type": stored.contentType,
+          "Content-Disposition": `inline; filename="${ref.split("/").pop() || "document"}"`,
+          // Private to the one browser that asked, never a shared cache.
+          "Cache-Control": `private, max-age=${SIGNED_URL_TTL_SECONDS}`,
+        },
+      });
+    }
+
+    /**
+     * Otherwise the document predates database storage and lives with a blob provider.
+     *
+     * Hand the browser a short-lived signed URL where the provider can mint one, so the
+     * bytes travel from the CDN rather than through this function. `no-store` on the
+     * redirect is deliberate — the signed URL expires, and a cached 302 would hand a later
+     * visitor a dead link.
      */
     const signed = await signedUrlFor(ref);
     if (signed) {

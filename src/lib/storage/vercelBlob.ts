@@ -65,12 +65,30 @@ function classify(err: unknown): StorageError {
       err
     );
   }
-  return new StorageError(
-    "UPLOAD_FAILED",
-    (err as Error)?.message || "The blob upload failed.",
-    "vercel-blob",
-    err
-  );
+
+  /**
+   * A **public** store refuses private objects outright:
+   *
+   *     Vercel Blob: Cannot use private access on a public store.
+   *
+   * The SDK raises this as a plain `Error`, which would otherwise be read as `UPLOAD_FAILED`
+   * and stop the provider chain — so every KYC and payment-proof upload failed on a Public
+   * store no matter how valid the token was, and the next provider never got a turn.
+   *
+   * It is a property of the store, not of the file, so it is a misconfiguration: fall through
+   * and let a provider that *can* hold a private document take it.
+   */
+  const message = (err as Error)?.message || "";
+  if (/private access on a public store|configured with private access/i.test(message)) {
+    return new StorageError(
+      "PROVIDER_MISCONFIGURED",
+      "This blob store is public and cannot hold private documents.",
+      "vercel-blob",
+      err
+    );
+  }
+
+  return new StorageError("UPLOAD_FAILED", message || "The blob upload failed.", "vercel-blob", err);
 }
 
 export const vercelBlobProvider: StorageProvider = {

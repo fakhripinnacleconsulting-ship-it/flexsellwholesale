@@ -100,7 +100,18 @@ export async function uploadWithCompression(
     return result;
   } catch (err) {
     const message = (err as Error)?.message || "";
-    if (message.includes("STORAGE_UNAVAILABLE") || message.includes("storage is currently unavailable")) {
+    /**
+     * The server distinguishes a suspended store from a transient outage, and so must this:
+     * telling someone to retry in a few minutes is wrong advice when the store will still be
+     * suspended tomorrow. Pass the server's own wording through in that case rather than
+     * overwriting it with a hopeful one.
+     */
+    if (message.includes("STORAGE_SUSPENDED") || message.includes("will not clear on its own")) {
+      throw new Error(
+        "File uploads are switched off at the moment. Please tell an administrator — this needs to be fixed on the hosting account."
+      );
+    }
+    if (message.includes("STORAGE_UNAVAILABLE") || message.includes("storage is temporarily unavailable")) {
       throw new Error("File storage is temporarily unavailable. Please try again in a few minutes.");
     }
     throw err;

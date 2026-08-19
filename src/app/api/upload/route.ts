@@ -123,11 +123,30 @@ export async function POST(request: Request): Promise<NextResponse> {
       // Name the real cause. The previous code answered "Serverless filesystem is read-only",
       // which described its own dead fallback rather than anything the operator could act on.
       console.error("[upload] every storage provider declined:", error.attempts);
+
+      /**
+       * A suspended store is not a blip, and telling someone to "try again shortly" is
+       * actively wrong: a store suspended for exceeding its transfer quota stays suspended
+       * until the plan is raised or the quota period rolls over. The two cases need
+       * different words, and the operator needs the fix printed where they will see it.
+       */
+      const suspended = error.attempts.some((a) => /suspend/i.test(a.message));
+
+      if (suspended) {
+        console.error(
+          "[upload] ACTION REQUIRED — the Vercel Blob store is suspended, which normally means " +
+            "its data-transfer quota is exhausted. Uploads cannot succeed until you either " +
+            "raise the plan or wait for the quota period to reset. To keep uploads working in " +
+            "the meantime, set CLOUDINARY_URL and this route will use it automatically."
+        );
+      }
+
       return NextResponse.json(
         {
-          message:
-            "File storage is currently unavailable. Please try again shortly, or contact support if this continues.",
-          code: "STORAGE_UNAVAILABLE",
+          message: suspended
+            ? "File storage is not accepting uploads right now. This needs an administrator to resolve — it will not clear on its own."
+            : "File storage is temporarily unavailable. Please try again in a few minutes.",
+          code: suspended ? "STORAGE_SUSPENDED" : "STORAGE_UNAVAILABLE",
         },
         { status: 503 }
       );
