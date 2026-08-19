@@ -19,7 +19,7 @@ import { PaymentSection } from "./checkout/PaymentSection";
 import { OrderSummary } from "./checkout/OrderSummary";
 import { CouponInput } from "./checkout/CouponInput";
 import { Card } from "@/components/ui/Card";
-import { useRazorpay } from "react-razorpay";
+import { openRazorpayCheckout } from "@/lib/razorpayLoader";
 import * as walletService from "@/services/walletService";
 import type { CheckoutPaymentMethod } from "@/components/storefront/checkout/PaymentSection";
 import { SuggestedProductsCarousel } from "./SuggestedProductsCarousel";
@@ -71,7 +71,6 @@ export function CheckoutView() {
   const [enableCod, setEnableCod] = React.useState(true);
   const [enableOnlinePayment, setEnableOnlinePayment] = React.useState(true);
   const [isPaying, setIsPaying] = React.useState(false);
-  const { Razorpay } = useRazorpay();
 
   const [existingOrderId, setExistingOrderId] = React.useState<string | null>(null);
 
@@ -386,6 +385,10 @@ export function CheckoutView() {
     if (paymentMethod === "Razorpay") {
       setIsSubmitting(true);
 
+      // Declared out here so the catch can release the order the try created — a `const`
+      // inside the try is not visible to the catch, and that release is the whole point.
+      let releaseAbandonedOrder: () => Promise<void> = async () => {};
+
       try {
         // Order first, then pay.
         //
@@ -426,7 +429,7 @@ export function CheckoutView() {
         // the release path below.
         let paymentStarted = false;
 
-        const releaseAbandonedOrder = async () => {
+        releaseAbandonedOrder = async () => {
           if (paymentStarted) return;
           try {
             await apiClient.post("/orders/cancel-pending", { orderId: pendingOrderId });
@@ -494,21 +497,43 @@ export function CheckoutView() {
           }
         };
 
-        if (!Razorpay) {
-          throw new Error("Payment gateway is still loading. Please wait a moment and try again.");
-        }
-        const rzp = new (Razorpay as any)(options as any);
-        rzp.on("payment.failed", function (response: any) {
-          // Deliberately does NOT release the order: Razorpay lets the buyer retry with
-          // another method inside the same modal, and a released order would leave that
-          // retry paying for something already cancelled. `ondismiss` fires when they
-          // actually close the window, and that is where the release belongs.
-          setIsSubmitting(false);
-          addToast(`Payment failed: ${response.error?.description || "Payment was not completed."} You can try another method.`, "error");
+        /**
+         * Waits for the SDK, then opens.
+         *
+         * The `if (!Razorpay)` guard this replaces could never fire: `react-razorpay` hands
+         * back a wrapper class that is always truthy, and it is the wrapper's constructor
+         * that calls `new window.Razorpay(...)`. Checking it told us nothing; awaiting the
+         * real global is what removes the race.
+         */
+        await openRazorpayCheckout(options as Record<string, unknown>, {
+          onPaymentFailed: (response) => {
+            // Deliberately does NOT release the order: Razorpay lets the buyer retry with
+            // another method inside the same modal, and a released order would leave that
+            // retry paying for something already cancelled. `ondismiss` fires when they
+            // actually close the window, and that is where the release belongs.
+            const failure = response as { error?: { description?: string } };
+            setIsSubmitting(false);
+            addToast(
+              `Payment failed: ${failure.error?.description || "Payment was not completed."} You can try another method.`,
+              "error"
+            );
+          },
         });
-        rzp.open();
-      } catch (err: any) {
-        addToast(err?.message || "Could not start payment gateway", "error");
+      } catch (err: unknown) {
+        /**
+         * The modal never opened, so `ondismiss` will never fire — and the order was already
+         * created above, holding its stock. Release it here, exactly as dismissing the modal
+         * would, or a gateway that fails to load quietly strands inventory.
+         */
+        await releaseAbandonedOrder();
+
+        const isLoadFailure = (err as Error)?.name === "RazorpayUnavailableError";
+        addToast(
+          isLoadFailure
+            ? `${(err as Error).message} Your cart is saved — try again, or choose another payment method.`
+            : (err as Error)?.message || "Could not start payment gateway",
+          "error"
+        );
         setIsSubmitting(false);
       }
       return;

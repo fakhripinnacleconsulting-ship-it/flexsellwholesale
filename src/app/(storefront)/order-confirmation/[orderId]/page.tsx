@@ -5,7 +5,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle, Printer, ArrowRight, ShoppingBag, MapPin, ClipboardList, ShieldCheck, CreditCard } from "lucide-react";
-import { useRazorpay } from "react-razorpay";
+import { openRazorpayCheckout } from "@/lib/razorpayLoader";
 import { apiClient } from "@/lib/apiClient";
 import { useToastStore } from "@/stores/toastStore";
 import { Button } from "@/components/ui/Button";
@@ -30,7 +30,6 @@ export default function OrderConfirmationPage() {
   const [cmsData, setCmsData] = React.useState<any>(null);
   const [invoice, setInvoice] = React.useState<any>(null);
   const [paying, setPaying] = React.useState(false);
-  const { Razorpay } = useRazorpay();
   const { addToast } = useToastStore();
   const currentUser = useAuthStore((state: any) => state.customer);
 
@@ -117,7 +116,7 @@ export default function OrderConfirmationPage() {
       );
       if (!init.orderId) throw new Error(init.error || "Failed to initialize payment gateway");
 
-      const rzp = new (Razorpay as any)({
+      await openRazorpayCheckout({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
         amount: String(init.amount),
         currency: init.currency || "INR",
@@ -152,13 +151,16 @@ export default function OrderConfirmationPage() {
           contact: order.shippingAddress.phone,
         },
         theme: { color: "#10b981" },
+      } as Record<string, unknown>, {
+        onPaymentFailed: (r) => {
+          const failure = r as { error?: { description?: string } };
+          setPaying(false);
+          addToast(`Payment failed: ${failure.error?.description || "Payment was not completed."}`, "error");
+        },
       });
-      rzp.on("payment.failed", (r: any) => {
-        setPaying(false);
-        addToast(`Payment failed: ${r.error?.description || "Payment was not completed."}`, "error");
-      });
-      rzp.open();
     } catch (err: unknown) {
+      // Nothing to unwind here — unlike checkout, this order already exists and stays as it
+      // was. The buyer can simply press the button again.
       addToast(err instanceof Error ? err.message : "Could not start payment gateway", "error");
       setPaying(false);
     }

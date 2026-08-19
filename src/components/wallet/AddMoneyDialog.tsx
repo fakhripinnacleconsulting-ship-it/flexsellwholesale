@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRazorpay } from "react-razorpay";
+import { openRazorpayCheckout } from "@/lib/razorpayLoader";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/stores/toastStore";
@@ -55,7 +55,6 @@ export function AddMoneyDialog({
   allowWalletChange,
 }: AddMoneyDialogProps) {
   const { addToast } = useToastStore();
-  const { Razorpay } = useRazorpay();
 
   const isAssisted = Boolean(onBehalfOf);
 
@@ -94,10 +93,6 @@ export function AddMoneyDialog({
 
     setIsSubmitting(true);
     try {
-      if (!Razorpay) {
-        throw new Error("Payment gateway is still loading. Please wait a moment and try again.");
-      }
-
       // No balance moves here. This records the intent and mints a Razorpay order from a
       // server-side amount, so a tampered page cannot buy ₹30,000 of balance for ₹1.
       const session = await walletService.initiateRecharge({
@@ -108,7 +103,7 @@ export function AddMoneyDialog({
         userId: onBehalfOf?.userId,
       });
 
-      const rzp = new Razorpay({
+      await openRazorpayCheckout({
         key: session.keyId,
         amount: String(session.amount),
         currency: session.currency || "INR",
@@ -141,10 +136,10 @@ export function AddMoneyDialog({
           ondismiss: () => setIsSubmitting(false),
         },
         theme: { color: "#10b981" },
-      } as never);
-
-      rzp.open();
+      } as unknown as Record<string, unknown>);
     } catch (err) {
+      // Covers both a gateway that never loaded and a recharge that could not be started.
+      // Nothing has been charged in either case, so one message serves both.
       addToast((err as Error).message || "Could not start the payment", "error");
       setIsSubmitting(false);
     }
