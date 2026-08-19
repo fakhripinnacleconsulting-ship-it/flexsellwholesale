@@ -72,10 +72,9 @@ export function CustomerFormModal({ isOpen, onClose, onSuccess, editingCustomer 
   }, [isOpen, editingCustomer]);
 
   const handleDocUpload = async (slotKey: keyof import("@/types").KycDocuments, file: File) => {
-    if (file.size > 1024 * 1024) {
-      addToast("File size exceeds 1 MB limit", "error");
-      return;
-    }
+    // No raw-size check here. Images are compressed before upload — a 4 MB phone photo of a
+    // PAN card becomes roughly 200 KB — so rejecting on the original size refused documents
+    // that were never actually too large. customerService measures what is really sent.
     const allowed = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
     if (!allowed.includes(file.type)) {
       addToast("Invalid file type. Only PDF, JPG, JPEG, and PNG are allowed.", "error");

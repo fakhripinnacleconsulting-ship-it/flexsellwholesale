@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/authGuard";
 import { rateLimit } from "@/lib/rateLimit";
+import { issueDocumentPreviewToken } from "@/lib/documentAccess";
 import {
   uploadFile,
   validateUpload,
@@ -25,14 +26,53 @@ export const maxDuration = 60;
  * is public (CDN URL stored) or private (pathname stored, served behind auth).
  */
 
-/** Who may upload each kind. KYC is the only one a customer can send, and only their own. */
-const KIND_ACCESS: Record<UploadKind, Array<"admin" | "manager" | "customer">> = {
+/** Who may upload each kind. `"anonymous"` covers signed-out visitors on public pages. */
+const KIND_ACCESS: Record<UploadKind, Array<"admin" | "manager" | "customer" | "anonymous">> = {
+  // CMS and catalogue assets are public, cached for a year, and staff-authored. Nobody else
+  // has any reason to write one.
   image: ["admin", "manager"],
   video: ["admin", "manager"],
-  kyc: ["admin", "manager", "customer"],
+
+  /**
+   * KYC and dropship documents are uploaded on **public pages, before an account exists**:
+   * `/register` collects KYC for a B2B or Dropshipping signup, and the public `/create-order`
+   * page attaches Amazon invoices. Requiring a session here does not make anything safer — it
+   * simply makes registration impossible, since the account is created *after* the documents
+   * are attached.
+   */
+  kyc: ["admin", "manager", "customer", "anonymous"],
+  dropship: ["admin", "manager", "customer", "anonymous"],
+
+  // A payment proof is a record staff create about money already received. There is no public
+  // page that produces one.
   proof: ["admin", "manager"],
-  dropship: ["admin", "manager"],
 };
+
+/**
+ * File signatures, checked against the actual bytes.
+ *
+ * `file.type` is supplied by the browser and a script can claim anything, so on the anonymous
+ * path — the one reachable without an account — the content type is verified against what the
+ * file really starts with. The route this consolidated used to do exactly this for KYC, and
+ * dropping it would have been a regression hidden inside a refactor.
+ */
+const MAGIC_BYTES: Array<{ mime: string[]; bytes: number[] }> = [
+  { mime: ["application/pdf"], bytes: [0x25, 0x50, 0x44, 0x46] },              // %PDF
+  { mime: ["image/jpeg", "image/jpg"], bytes: [0xff, 0xd8, 0xff] },
+  { mime: ["image/png"], bytes: [0x89, 0x50, 0x4e, 0x47] },
+];
+
+function looksLikeItsContentType(buffer: Buffer, contentType: string): boolean {
+  // WebP carries "RIFF....WEBP"; it has no single fixed prefix, so it is matched separately.
+  if (contentType === "image/webp") {
+    return buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
+  }
+
+  const signature = MAGIC_BYTES.find((m) => m.mime.includes(contentType));
+  if (!signature) return false;
+
+  return signature.bytes.every((byte, i) => buffer[i] === byte);
+}
 
 function isUploadKind(value: string): value is UploadKind {
   return Object.prototype.hasOwnProperty.call(UPLOAD_KIND_RULES, value);
@@ -40,14 +80,28 @@ function isUploadKind(value: string): value is UploadKind {
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
+    /**
+     * A missing session is not an error here.
+     *
+     * `/register` and the public `/create-order` page both attach documents before an account
+     * exists, so the session is resolved and then used to decide *what may be uploaded*,
+     * rather than to decide whether the request is allowed at all.
+     */
     const auth = await requireAuth();
-    if (auth.error) return auth.error;
-    const payload = auth.payload!;
+    const payload = auth.payload;
+    const role = (payload?.role ?? "anonymous") as "admin" | "manager" | "customer" | "anonymous";
+    const isAnonymous = !payload;
 
-    // Keyed on the session rather than the IP: an office behind one NAT should not be
-    // throttled as though it were a single abusive client.
+    /**
+     * Signed-in uploads are keyed on the session — an office behind one NAT should not be
+     * throttled as one abusive client. Anonymous uploads have nothing but the IP, and are
+     * held to a tighter limit because that path needs no account to reach.
+     */
     try {
-      await rateLimit(payload.userId, "general");
+      await rateLimit(
+        isAnonymous ? `anon_upload_${(request.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim()}` : payload!.userId,
+        "general"
+      );
     } catch {
       return NextResponse.json(
         { message: "Too many uploads. Please try again in a moment." },
@@ -79,11 +133,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     const kind: UploadKind = rawKind;
 
-    const allowedRoles = KIND_ACCESS[kind];
-    if (!allowedRoles.includes(payload.role as "admin" | "manager" | "customer")) {
+    if (!KIND_ACCESS[kind].includes(role)) {
       return NextResponse.json(
-        { message: "You do not have permission to upload this kind of file." },
-        { status: 403 }
+        {
+          message: isAnonymous
+            ? "Please sign in to upload this kind of file."
+            : "You do not have permission to upload this kind of file.",
+        },
+        { status: isAnonymous ? 401 : 403 }
       );
     }
 
@@ -93,6 +150,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     const check = validateUpload(kind, contentType, buffer.byteLength);
     if (!check.ok) {
       return NextResponse.json({ message: check.message }, { status: 400 });
+    }
+
+    /**
+     * On the anonymous path, trust the bytes rather than the label.
+     *
+     * `file.type` comes from the browser and a script can set it to anything, so a signed-out
+     * caller could otherwise store an arbitrary payload under an image content type. Staff
+     * uploads skip this: they are authenticated and attributable, and the check would reject
+     * legitimate formats (SVG, AVIF, video) that have no single fixed signature.
+     */
+    if (isAnonymous && !looksLikeItsContentType(buffer, contentType)) {
+      return NextResponse.json(
+        { message: "That file does not look like a valid PDF or image. Please upload the original file." },
+        { status: 400 }
+      );
     }
 
     const result = await uploadFile({
@@ -109,10 +181,22 @@ export async function POST(request: Request): Promise<NextResponse> {
      * Private → our own authenticated serving path. The `ref` beside it is the raw pathname,
      * for callers that would rather persist that and build the path themselves.
      */
-    const url =
-      result.assetClass === "public"
-        ? result.ref
-        : `/api/documents/${result.ref.split("/").map(encodeURIComponent).join("/")}`;
+    let url: string;
+
+    if (result.assetClass === "public") {
+      url = result.ref;
+    } else {
+      const path = `/api/documents/${result.ref.split("/").map(encodeURIComponent).join("/")}`;
+
+      /**
+       * An anonymous uploader gets a short-lived pass to view this one document.
+       *
+       * Without it, the "View Tax Invoice" link on the public order page would answer 401 to
+       * the very person who just attached the file. The token names a single path, is signed,
+       * and expires — it lets someone check what they uploaded, and grants nothing else.
+       */
+      url = isAnonymous ? `${path}?t=${issueDocumentPreviewToken(result.ref)}` : path;
+    }
 
     return NextResponse.json(
       { url, ref: result.ref, assetClass: result.assetClass, provider: result.provider },

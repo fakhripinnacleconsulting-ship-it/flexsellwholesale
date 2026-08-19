@@ -4,6 +4,7 @@ import Customer from "@/models/Customer";
 import { requireAuth } from "@/lib/authGuard";
 import { rateLimit } from "@/lib/rateLimit";
 import { signedUrlFor, streamPrivateBlob, readStoredDocument, SIGNED_URL_TTL_SECONDS } from "@/lib/storage";
+import { verifyDocumentPreviewToken } from "@/lib/documentAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -47,18 +48,33 @@ export async function GET(
   { params }: { params: Promise<{ pathname: string[] }> }
 ) {
   try {
-    const auth = await requireAuth();
+    const { pathname: segments } = await params;
+    const ref = segments.map(decodeURIComponent).join("/");
+
+    /**
+     * A signed, single-document pass stands in for a session.
+     *
+     * Registration and public order creation attach documents *before* an account exists, so
+     * the person who just uploaded a file has no session to prove it with. The upload response
+     * hands them a token naming that one path; it is signed, short-lived, and opens nothing
+     * else — see `lib/documentAccess.ts`.
+     */
+    const previewToken = new URL(request.url).searchParams.get("t");
+    const hasPreviewPass = verifyDocumentPreviewToken(previewToken, ref);
+
+    const auth = hasPreviewPass ? { payload: undefined, error: undefined } : await requireAuth();
     if (auth.error) return auth.error;
-    const payload = auth.payload!;
+    const payload = auth.payload;
 
     try {
-      await rateLimit(payload.userId, "general");
+      await rateLimit(
+        payload?.userId ||
+          `doc_${(request.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim()}`,
+        "general"
+      );
     } catch {
       return NextResponse.json({ message: "Too many requests." }, { status: 429 });
     }
-
-    const { pathname: segments } = await params;
-    const ref = segments.map(decodeURIComponent).join("/");
 
     // Reject traversal outright rather than normalising it. A path that tries to escape is
     // not a path to repair.
@@ -70,13 +86,15 @@ export async function GET(
       return NextResponse.json({ message: "Invalid document path" }, { status: 400 });
     }
 
-    const isStaff = payload.role === "admin" || payload.role === "manager";
+    const isStaff = payload?.role === "admin" || payload?.role === "manager";
 
-    if (!isStaff) {
+    // The pass already named this exact document, so there is nothing further to check —
+    // it cannot be pointed at anything else.
+    if (!hasPreviewPass && !isStaff) {
       // A customer may read their own KYC and nothing else. Proofs and dropship documents are
       // internal records about a customer, not documents belonging to them.
       await dbConnect();
-      const owns = ref.startsWith("private/kyc/") && (await customerOwnsDocument(payload.userId, ref));
+      const owns = ref.startsWith("private/kyc/") && (await customerOwnsDocument(payload!.userId, ref));
       if (!owns) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }

@@ -195,13 +195,21 @@ export const customerService = {
   },
 
   async uploadDocument(file: File): Promise<{ url: string }> {
-    if (file.size > 1024 * 1024) {
-      throw new Error("File size exceeds 1 MB limit");
-    }
     const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
     if (!allowedTypes.includes(file.type)) {
       throw new Error("Invalid file type. Only PDF, JPG, JPEG, and PNG files are allowed.");
     }
+
+    /**
+     * Size is checked **after** compression, not before.
+     *
+     * A flat 1 MB rejection used to happen here, before the file was touched — so an ordinary
+     * phone photo of a PAN card was refused outright, even though compression takes it to
+     * roughly 200 KB. Someone registering was told their own document was too big when it was
+     * not. Images are compressed first and only then measured; the server enforces the real
+     * ceiling either way.
+     */
+    const MAX_AFTER_COMPRESSION = 10 * 1024 * 1024;
 
     if (isMockMode) {
       return new Promise((resolve) => {
@@ -214,10 +222,18 @@ export const customerService = {
     }
 
     // KYC is the most sensitive class the application handles — Aadhaar, PAN, cheque images.
-    // `kind: "kyc"` stores it in the private bucket by pathname and serves it only through an
-    // authenticated, ownership-checked route.
-    const { uploadWithCompression } = await import("@/lib/uploadHelper");
-    const uploaded = await uploadWithCompression(file, { kind: "kyc" });
+    // `kind: "kyc"` keeps it out of blob storage entirely: the bytes live in the database and
+    // are served only through an authenticated, ownership-checked route.
+    const { compressIfImage, uploadWithCompression } = await import("@/lib/uploadHelper");
+
+    const prepared = await compressIfImage(file);
+    if (prepared.size > MAX_AFTER_COMPRESSION) {
+      throw new Error(
+        `This file is ${(prepared.size / (1024 * 1024)).toFixed(1)} MB, which is over the 10 MB limit. Please upload a smaller scan.`
+      );
+    }
+
+    const uploaded = await uploadWithCompression(prepared, { kind: "kyc", skipCompression: true });
     return { url: uploaded.url };
   },
 
