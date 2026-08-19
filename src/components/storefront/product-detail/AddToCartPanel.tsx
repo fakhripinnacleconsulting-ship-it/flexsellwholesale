@@ -96,29 +96,74 @@ export function AddToCartPanel() {
             </div>
           </div>
 
-          {/* Comparative Price Tiers Grid (Indian Standards) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-secondary/10 p-3 rounded-lg text-xs border">
-            <div>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase block">MRP</span>
-              <span className="font-semibold text-foreground">{formatPrice(mrp)}</span>
+          {/* Comparative Price Tiers Grid (2 Rows x 2 Columns, Fully Responsive) */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {/* 1. MRP with Strikethrough Cut Line */}
+            <div className="p-2.5 sm:p-3.5 rounded-xl border border-border/80 bg-secondary/15 flex flex-col justify-between min-w-0 transition-all">
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
+                  MRP
+                </span>
+                <span className="text-[8px] sm:text-[9px] font-semibold text-muted-foreground bg-secondary/40 px-1 py-0.2 rounded shrink-0">
+                  Max Retail
+                </span>
+              </div>
+              <div className="mt-auto pt-0.5">
+                <span className="text-base sm:text-xl md:text-2xl font-bold text-muted-foreground/80 line-through font-mono tracking-tight block truncate">
+                  {formatPrice(mrp)}
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase block text-emerald-600 dark:text-emerald-400">Selling Price (B2C)</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatPrice(b2cPrice)}</span>
+
+            {/* 2. Selling Price (B2C) */}
+            <div className="p-2.5 sm:p-3.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 dark:bg-emerald-950/20 flex flex-col justify-between min-w-0 shadow-2xs transition-all">
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 truncate">
+                  B2C Price
+                </span>
+                <span className="text-[8px] sm:text-[9px] font-extrabold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded shrink-0">
+                  Retail
+                </span>
+              </div>
+              <div className="mt-auto pt-0.5">
+                <span className="text-lg sm:text-xl md:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight block truncate">
+                  {formatPrice(b2cPrice)}
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-[9px] font-bold uppercase block text-blue-600 dark:text-blue-400">
-                Trade Price (B2B) <span className="text-[8px] bg-blue-100 dark:bg-blue-900/40 px-1 py-0.2 rounded font-extrabold ml-0.5">MOQ: {b2bMoq} pcs</span>
-              </span>
-              <span className="font-bold text-blue-600 dark:text-blue-400">
-                {b2bPrice > 0 ? formatPrice(b2bPrice) : "N/A"}
-              </span>
+
+            {/* 3. Trade Price (B2B) */}
+            <div className="p-2.5 sm:p-3.5 rounded-xl border border-blue-500/35 bg-blue-500/10 dark:bg-blue-950/20 flex flex-col justify-between min-w-0 shadow-2xs transition-all">
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 truncate">
+                  Trade Price (B2B)
+                </span>
+                <span className="text-[8px] sm:text-[9px] font-extrabold bg-blue-600 text-white px-1.5 py-0.5 rounded shadow-2xs shrink-0">
+                  MOQ: {b2bMoq}
+                </span>
+              </div>
+              <div className="mt-auto pt-0.5">
+                <span className="text-lg sm:text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight block truncate">
+                  {b2bPrice > 0 ? formatPrice(b2bPrice) : "N/A"}
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase block text-purple-600 dark:text-purple-400">Dropship Price</span>
-              <span className="font-bold text-purple-600 dark:text-purple-400">
-                {dropshippingPrice > 0 ? formatPrice(dropshippingPrice) : "N/A"}
-              </span>
+
+            {/* 4. Dropship Price (Extra Highlighted) */}
+            <div className="p-2.5 sm:p-3.5 rounded-xl border-2 border-purple-500/60 bg-gradient-to-br from-purple-500/20 via-purple-500/10 to-pink-500/10 dark:from-purple-950/40 dark:to-pink-950/30 flex flex-col justify-between min-w-0 shadow-sm relative overflow-hidden ring-2 ring-purple-500/20 transition-all">
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-purple-800 dark:text-purple-200 flex items-center gap-0.5 truncate">
+                  ⭐ Dropship
+                </span>
+                <span className="text-[8px] sm:text-[9px] font-black bg-gradient-to-r from-purple-600 to-pink-600 text-white px-1.5 py-0.5 rounded-full shadow-2xs uppercase tracking-wider shrink-0">
+                  Reseller
+                </span>
+              </div>
+              <div className="mt-auto pt-0.5">
+                <span className="text-xl sm:text-2xl md:text-3xl font-black text-purple-700 dark:text-purple-300 font-mono tracking-tight block truncate">
+                  {dropshippingPrice > 0 ? formatPrice(dropshippingPrice) : "N/A"}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -157,10 +202,8 @@ export function AddToCartPanel() {
           })()}
 
           <div className="flex flex-wrap items-center gap-4 text-xs pt-2">
-            {(activeSubVariant?.stock || 0) > b2bMoq * 2 ? (
-              <Badge variant="success">In Stock ({activeSubVariant?.stock || 0} available)</Badge>
-            ) : (activeSubVariant?.stock || 0) > 0 ? (
-              <Badge variant="warning">Low Stock ({activeSubVariant?.stock || 0} remaining)</Badge>
+            {(activeSubVariant?.stock || 0) > 0 ? (
+              <Badge variant="success">In Stock</Badge>
             ) : (
               <Badge variant="destructive">Out of Stock</Badge>
             )}

@@ -421,14 +421,6 @@ export function ProductDetailProvider({
     }
   }, [selectedSize, selectedWeight, activeVariant]);
 
-  // Auto-focus quantity input on mount
-  React.useEffect(() => {
-    setTimeout(() => {
-      qtyInputRef.current?.focus();
-      qtyInputRef.current?.select();
-    }, 300);
-  }, [selectedColorIdx]);
-
   return (
     <ProductDetailContext.Provider value={{
       slug,

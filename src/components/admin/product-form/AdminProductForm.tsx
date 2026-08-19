@@ -42,7 +42,7 @@ function ProductFormInner() {
             {existingProduct ? "Edit Product" : "Add New Product"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {existingProduct ? `Modify B2B catalogue parameters for ${existingProduct.title}` : "Publish new inventory item"}
+            {existingProduct ? `Modify catalogue parameters for ${existingProduct.title}` : "Publish new inventory item"}
           </p>
         </div>
       </div>

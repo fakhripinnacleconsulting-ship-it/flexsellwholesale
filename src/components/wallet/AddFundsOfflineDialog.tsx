@@ -76,7 +76,6 @@ export function AddFundsOfflineDialog({
   const valid =
     Number.isFinite(numericAmount) &&
     numericAmount > 0 &&
-    proofUrl &&
     (needsRef ? referenceId.trim().length > 0 : description.trim().length >= 3) &&
     (!needsPassword || adminPassword.length > 0);
 
@@ -106,7 +105,7 @@ export function AddFundsOfflineDialog({
         amount: numericAmount,
         referenceId: referenceId.trim() || undefined,
         description: description.trim() || undefined,
-        proofUrl,
+        proofUrl: proofUrl.trim() || undefined,
         clientRequestId: clientRequestId.current,
         adminPassword,
       });
@@ -272,10 +271,10 @@ export function AddFundsOfflineDialog({
 
           <div className="rounded-lg border bg-secondary/20 p-3">
             <label htmlFor="fund-proof" className="block text-xs font-bold text-foreground">
-              Proof of payment <span className="text-destructive">*</span>
+              Proof of payment <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <p className="mb-2 mt-0.5 text-[10px] text-muted-foreground">
-              Receipt, deposit slip or screenshot. Mandatory — a credit with no proof is unauditable.
+              Receipt, deposit slip or screenshot (optional).
             </p>
             <input
               id="fund-proof"
@@ -287,7 +286,16 @@ export function AddFundsOfflineDialog({
             />
             {isUploading && <p className="mt-1.5 animate-pulse text-[10px] text-primary">Uploading…</p>}
             {proofUrl && !isUploading && (
-              <p className="mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">✓ Proof attached</p>
+              <div className="mt-1.5 flex items-center justify-between">
+                <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">✓ Proof attached</p>
+                <button
+                  type="button"
+                  onClick={() => setProofUrl("")}
+                  className="text-[10px] text-destructive hover:underline cursor-pointer"
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </div>
 

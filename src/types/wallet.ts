@@ -198,7 +198,7 @@ export interface OfflineCreditInput {
   amount: number;
   referenceId?: string;
   description?: string;
-  proofUrl: string;
+  proofUrl?: string;
   clientRequestId: string;
   adminPassword: string;
 }

@@ -96,9 +96,6 @@ export function VariantSelector() {
     );
 
     trackAddToCart(product, qty, activeSubVariant);
-
-    qtyInputRef.current?.focus();
-    qtyInputRef.current?.select();
     addToast("Successfully added to cart!", "success");
   };
 
@@ -404,12 +401,10 @@ export function VariantSelector() {
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-center">
-                          {sv.stock > svMoq * 2 ? (
-                            <Badge variant="success">{sv.stock}</Badge>
-                          ) : sv.stock > 0 ? (
-                            <Badge variant="warning">{sv.stock}</Badge>
+                          {sv.stock > 0 ? (
+                            <Badge variant="success">In Stock</Badge>
                           ) : (
-                            <Badge variant="destructive">0</Badge>
+                            <Badge variant="destructive">Out of Stock</Badge>
                           )}
                         </td>
                         <td className="px-3 py-2.5 text-right">

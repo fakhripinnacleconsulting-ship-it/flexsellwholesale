@@ -86,14 +86,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Missing request id" }, { status: 400 });
     }
 
-    // Mandatory, not "recommended". A cash credit with no slip behind it is unauditable,
-    // and the audit trail is the entire substitute for a gateway here.
-    if (!proofUrl || typeof proofUrl !== "string") {
-      return NextResponse.json(
-        { message: "Upload proof of payment (receipt, slip or screenshot) before adding funds" },
-        { status: 400 }
-      );
-    }
+    const sanitizedProofUrl =
+      proofUrl && typeof proofUrl === "string" && proofUrl.trim()
+        ? proofUrl.trim()
+        : undefined;
 
     // Bank, UPI and cheque all carry a number that can be checked against a statement.
     // Cash does not, so it needs a written note instead — something must be reviewable.
@@ -171,7 +167,7 @@ export async function POST(request: NextRequest) {
           actor,
           description: description ? String(description).trim() : undefined,
           referenceId: referenceId ? String(referenceId).trim() : undefined,
-          proofUrl,
+          proofUrl: sanitizedProofUrl,
           clientRequestId,
           status,
           metadata: {
