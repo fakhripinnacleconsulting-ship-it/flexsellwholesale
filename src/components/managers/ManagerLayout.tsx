@@ -88,7 +88,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
 
     // Ops
     { name: "HSN Management", href: "/manager/ops/hsn", icon: Percent, show: hasPerm("ops_hsn") },
-    { name: "Shipping Options", href: "/manager/ops/shipping", icon: Truck, show: hasPerm("ops_shipping") },
+    { name: "Shipping Charges", href: "/manager/ops/shipping", icon: Truck, show: hasPerm("ops_shipping") },
     { name: "Coupons", href: "/manager/ops/coupons", icon: Tags, show: hasPerm("ops_coupons") },
 
     // Content

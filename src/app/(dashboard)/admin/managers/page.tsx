@@ -76,7 +76,7 @@ const PERMISSION_GROUPS = [
     permissions: [
       { id: "ops_upgrades", label: "Upgrade Requests" },
       { id: "ops_hsn", label: "HSN Management" },
-      { id: "ops_shipping", label: "Shipping Options" },
+      { id: "ops_shipping", label: "Shipping Charges" },
       { id: "ops_coupons", label: "Coupons" },
       {
         id: "wallet_store",
