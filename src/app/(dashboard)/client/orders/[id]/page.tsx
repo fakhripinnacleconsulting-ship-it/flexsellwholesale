@@ -12,6 +12,7 @@ import { InvoicePreviewModal } from "@/components/admin/invoice/InvoicePreviewMo
 import { SellerInfo } from "@/types";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
+import { invoiceService } from "@/services/invoiceService";
 import { CUSTOMER_CANCELLABLE_STATUSES } from "@/lib/constants";
 import { orderService } from "@/services/orderService";
 import { useToastStore } from "@/stores/toastStore";
@@ -44,13 +45,15 @@ export default function ClientOrderDetailPage({ params }: PageProps) {
       .then(data => setCmsData(data))
       .catch(err => console.error("Failed to load CMS data:", err));
 
-    fetch(`/api/invoices?orderId=${orderId}`)
-      .then(res => res.json())
-      .then(data => {
-        const invs = Array.isArray(data) ? data : data.invoices || [];
-        if (invs.length > 0) {
-          setInvoice(invs[0]);
-        }
+    /**
+     * Through the service, which prefers the `INV-` Tax Invoice over the `REC-` receipt that
+     * is retained alongside it. Taking `[0]` of the raw list, as this used to, could show a
+     * paid order's pending receipt instead of its invoice.
+     */
+    invoiceService
+      .getInvoiceByOrderId(orderId)
+      .then((doc) => {
+        if (doc) setInvoice(doc);
       })
       .catch(err => console.error("Failed to load invoice:", err));
   }, [initializeOrders, orderId]);

@@ -11,6 +11,7 @@ import { useToastStore } from "@/stores/toastStore";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { orderService } from "@/services/orderService";
+import { invoiceService } from "@/services/invoiceService";
 import { Order } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
@@ -55,14 +56,16 @@ export default function OrderConfirmationPage() {
       .then(data => setCmsData(data))
       .catch(err => console.error("Failed to load CMS data:", err));
 
-    // Fetch original invoice matching this order ID
-    fetch(`/api/invoices?orderId=${orderId}`)
-      .then(res => res.json())
-      .then(data => {
-        const invs = Array.isArray(data) ? data : data.invoices || [];
-        if (invs.length > 0) {
-          setInvoice(invs[0]);
-        }
+    /**
+     * Through the service, which knows that a settled order has **two** documents — the
+     * retained `REC-` receipt and the `INV-` Tax Invoice issued against it — and returns the
+     * invoice. The raw fetch this replaces took `[0]` of the list, so a buyer could be shown
+     * a pending receipt for an order they had already paid.
+     */
+    invoiceService
+      .getInvoiceByOrderId(orderId)
+      .then((doc) => {
+        if (doc) setInvoice(doc);
       })
       .catch(err => console.error("Failed to load invoice:", err));
   }, [orderId]);

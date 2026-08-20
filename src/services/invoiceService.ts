@@ -421,6 +421,20 @@ export const invoiceService = {
       if (match.type === "receipt" && data.status === "paid") {
         throw new Error("A receipt is marked paid by recording a payment, not by editing its status.");
       }
+      /**
+       * A settled receipt is frozen — mirrored from the API for the same reason as the rules
+       * above: mock mode must not teach the UI a workflow the server refuses.
+       *
+       * Settlement retains the receipt as the record of a payment that a live Tax Invoice was
+       * issued against, so voiding it would contradict a document that cannot itself be edited.
+       */
+      const isSettledReceipt =
+        match.type === "receipt" && (Boolean(match.settledByInvoiceId) || match.status === "paid");
+      if (isSettledReceipt && !(Object.keys(data).length === 1 && data.isArchived !== undefined)) {
+        throw new Error(
+          "This receipt was settled and can no longer be changed. Void the Tax Invoice instead."
+        );
+      }
 
       const updatedDoc: Invoice = {
         ...match,
@@ -479,6 +493,10 @@ export const invoiceService = {
       if (match.type === "quote" && match.status === "converted") {
         throw new Error("Converted quotes cannot be deleted.");
       }
+      // A settled receipt is the audit record behind a live Tax Invoice — mirrored from the API.
+      if (match.type === "receipt" && (match.settledByInvoiceId || match.status === "paid")) {
+        throw new Error("This receipt was settled and is the record of that payment, so it cannot be deleted.");
+      }
 
       // Write deletion audit trail to history/console in mock
       console.log(`[AUDIT] Deleted ${match.type} ${id} by Admin.`);
@@ -490,15 +508,31 @@ export const invoiceService = {
     return apiClient.delete(`/invoices/${id}`);
   },
 
+  /**
+   * The document that represents an order — its Tax Invoice once one exists, otherwise the
+   * receipt it is still payable against.
+   *
+   * An order can now have **two** documents against it. Settlement used to flip the receipt's
+   * `type` in place, leaving exactly one; it now issues a separate `INV-` and *retains* the
+   * `REC-` receipt as the record of what was collected, so both carry the same `orderId`.
+   *
+   * Taking `[0]` of that list therefore stopped being a choice and became whatever the sort
+   * happened to put first — which would show a buyer a "pending" receipt for an order they
+   * have already paid. The type is the thing that decides, so decide on it.
+   */
   async getInvoiceByOrderId(orderId: string): Promise<Invoice | null> {
+    const pickForOrder = (docs: Invoice[]): Invoice | null => {
+      if (docs.length === 0) return null;
+      return docs.find((d) => d.type === "invoice") || docs.find((d) => d.type === "receipt") || docs[0];
+    };
+
     if (isMockMode) {
-      const match = getLocalInvoices().find(i => i.orderId === orderId);
-      return match || null;
+      return pickForOrder(getLocalInvoices().filter((i) => i.orderId === orderId));
     }
     try {
       const result = await apiClient.get<unknown>(`/invoices?orderId=${orderId}`);
       const invoices = Array.isArray(result) ? result : (result as { invoices?: Invoice[] }).invoices || [];
-      return invoices.length > 0 ? invoices[0] : null;
+      return pickForOrder(invoices);
     } catch {
       return null;
     }

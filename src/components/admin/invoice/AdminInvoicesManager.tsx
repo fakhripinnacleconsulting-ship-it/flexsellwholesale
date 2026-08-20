@@ -9,8 +9,9 @@ import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { customerService } from "@/services/customerService";
 import { shippingService } from "@/services/shippingService";
-import { orderService } from "@/services/orderService";
 import { invoiceService } from "@/services/invoiceService";
+import { collectOrderPaymentOnline } from "@/lib/razorpayCollect";
+import { describePaymentFailure } from "@/lib/paymentErrors";
 import * as walletService from "@/services/walletService";
 import { Customer, Invoice, TaxBreakdown } from "@/types";
 import { INDIAN_STATES } from "@/lib/constants";
@@ -106,6 +107,9 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
   // Pay Modal State
   const [isPayModalOpen, setIsPayModalOpen] = React.useState(false);
   const [payInvoiceId, setPayInvoiceId] = React.useState<string | null>(null);
+  /** The order behind the receipt being paid — the gateway charges an order, not a document. */
+  const [payOrderId, setPayOrderId] = React.useState<string | null>(null);
+  const [payCustomer, setPayCustomer] = React.useState<{ name?: string; email?: string; phone?: string }>({});
   const [paymentType, setPaymentType] = React.useState<"cash" | "online">("cash");
   const [onlineMethod, setOnlineMethod] = React.useState<PayOnlineMethod>("UPI");
   const [txnId, setTxnId] = React.useState("");
@@ -200,6 +204,12 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
 
   const handlePayInvoice = (inv: Invoice) => {
     setPayInvoiceId(inv._id);
+    setPayOrderId(inv.orderId || null);
+    setPayCustomer({
+      name: inv.customerName,
+      email: inv.customerEmail,
+      phone: inv.shippingAddress?.phone,
+    });
     setPayAmount(Number(inv.amount) || 0);
     setTxnId("");
     setPaymentType("cash");
@@ -240,6 +250,44 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
 
     const method = paymentType === "cash" ? "Cash" : onlineMethod;
     setIsPaySubmitting(true);
+
+    /**
+     * Razorpay is collected, not recorded.
+     *
+     * `/settle` records money already in hand, so it refuses the gateway outright. The
+     * gateway runs here against the receipt's linked order and settles through
+     * `/api/razorpay/verify`, which issues the `INV-` on a verified signature — the same
+     * path the storefront checkout uses.
+     */
+    if (method === "Razorpay") {
+      if (!payOrderId) {
+        addToast("This receipt has no linked order, so the gateway has nothing to charge.", "error");
+        setIsPaySubmitting(false);
+        return;
+      }
+      try {
+        const outcome = await collectOrderPaymentOnline({
+          orderId: payOrderId,
+          customerName: payCustomer.name,
+          customerEmail: payCustomer.email,
+          customerPhone: payCustomer.phone,
+          description: `Payment for receipt ${payInvoiceId}`,
+        });
+        if (outcome.status === "paid") {
+          setIsPayModalOpen(false);
+          addToast(`Payment received. Tax Invoice issued for ${payInvoiceId}.`, "success");
+          loadData();
+        } else {
+          addToast("Payment cancelled — the receipt is unchanged and still payable.", "info");
+        }
+      } catch (err: any) {
+        addToast(describePaymentFailure(err), "error");
+      } finally {
+        setIsPaySubmitting(false);
+      }
+      return;
+    }
+
     try {
       const result = await invoiceService.settleInvoice(payInvoiceId, {
         method,
@@ -250,78 +298,21 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
       addToast(result.message || `Tax Invoice ${result.invoiceId} issued.`, "success");
       loadData();
     } catch (err: any) {
-      addToast(err.message || "Failed to record the payment", "error");
+      addToast(describePaymentFailure(err, { fallback: "The payment could not be recorded." }), "error");
     } finally {
       setIsPaySubmitting(false);
     }
   };
 
-  const handleConvertQuoteToOrder = async (quote: Invoice) => {
-    try {
-      invoiceForm.setIsSubmitting(true);
-
-      const normalizedItems = (quote.items || []).map((i: any, idx: number) => {
-        const pId = typeof i.product === "object" ? (i.product?._id || i.productId || `PROD-${idx}`) : (i.productId || (typeof i.product === "string" ? i.product : `PROD-${idx}`));
-        const pTitle = typeof i.product === "object" ? (i.product?.title || i.product?.name || "Wholesale Product") : (i.productTitle || i.name || i.title || "Wholesale Product");
-        return {
-          id: i.id || i._id || `item-${idx}-${Date.now()}`,
-          productId: pId,
-          product: {
-            _id: pId,
-            title: pTitle,
-            categoryId: i.product?.categoryId || i.categoryId || "cat-default",
-            gstRate: i.product?.gstRate || i.gstRate || 18,
-            priceIncludesGst: i.product?.priceIncludesGst ?? true,
-          },
-          selectedVariants: i.selectedVariants || i.variants || {},
-          quantity: Number(i.quantity || 1),
-          pricePerUnit: Number(i.pricePerUnit || i.price || 0)
-        };
-      });
-
-      const shippingAddress = quote.shippingAddress || {
-        firstName: quote.customerName ? quote.customerName.split(" ")[0] : "Client",
-        lastName: quote.customerName ? quote.customerName.split(" ").slice(1).join(" ") || "Buyer" : "Buyer",
-        email: quote.customerEmail || "customer@example.com",
-        company: (quote as any).customerCompany || (quote.shippingAddress as any)?.company || "",
-        address: "Wholesale Dock Facility Address",
-        city: "Mumbai",
-        state: "Maharashtra",
-        pinCode: "400001",
-        phone: "9876543210",
-        gstin: quote.customerGstin || ""
-      };
-
-      const newOrder = await orderService.createOrder(
-        normalizedItems as any,
-        quote.amount,
-        shippingAddress as any,
-        {
-          paymentMethod: quote.paymentMethod || "Bank Transfer",
-          paymentStatus: "Pending"
-        },
-        quote.couponCode,
-        quote.couponDiscount,
-        quote._id,
-        quote.salesperson
-      );
-
-      addToast(`Quote ${quote._id} converted & Order ${newOrder._id} created successfully!`, "success");
-      setSelectedInvoice(null);
-      loadData();
-    } catch (err: any) {
-      addToast(err.message || "Failed to convert quote to order", "error");
-    } finally {
-      invoiceForm.setIsSubmitting(false);
-    }
-  };
-
+  /**
+   * Quotes are standalone price estimates.
+   *
+   * The conversion handler that used to live here rebuilt the quote's lines and posted them
+   * to `orderService.createOrder`, then marked the quote `converted`. Quotations no longer
+   * become orders, receipts or invoices at all, so the status a user picks is just a status.
+   */
   const handleUpdateQuoteStatus = async (newStatus: string) => {
     if (!selectedInvoice) return;
-    if (newStatus === "converted") {
-      await handleConvertQuoteToOrder(selectedInvoice);
-      return;
-    }
     try {
       await updateInvoice(selectedInvoice._id, { status: newStatus } as any);
       setSelectedInvoice(prev => prev ? ({ ...prev, status: newStatus as any }) : null);
@@ -402,7 +393,6 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
             onViewInvoice={setSelectedInvoice}
             onPayInvoice={handlePayInvoice}
             onEditQuote={invoiceForm.handleEditQuote}
-            onConvertQuote={handleConvertQuoteToOrder}
             onVoidInvoice={handleVoidInvoice}
             onDeleteInvoice={handleDeleteInvoice}
           />
@@ -421,6 +411,7 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
         isOpen={isPayModalOpen}
         onClose={() => setIsPayModalOpen(false)}
         payInvoiceId={payInvoiceId}
+        linkedOrderId={payOrderId}
         payAmount={payAmount}
         paymentType={paymentType}
         setPaymentType={setPaymentType}

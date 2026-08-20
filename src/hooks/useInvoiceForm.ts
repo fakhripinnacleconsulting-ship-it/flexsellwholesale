@@ -6,6 +6,11 @@ import { shippingService } from "@/services/shippingService";
 import { useInvoiceStore } from "@/stores/invoiceStore";
 import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
+import { useAuthStore } from "@/stores/authStore";
+import { invoiceService } from "@/services/invoiceService";
+import * as walletService from "@/services/walletService";
+import { collectOrderPaymentOnline } from "@/lib/razorpayCollect";
+import { describePaymentFailure } from "@/lib/paymentErrors";
 import { apiClient } from "@/lib/apiClient";
 
 interface UseInvoiceFormOptions {
@@ -14,10 +19,51 @@ interface UseInvoiceFormOptions {
   apiEndpoint?: string;
 }
 
+/**
+ * Methods that can settle a document at the moment it is created.
+ *
+ * Razorpay is here as a **real gateway run**, not a text field: choosing it opens Razorpay
+ * Checkout against the order that was just created, and the payment is only recorded once
+ * `/api/razorpay/verify` re-computes the signature. What is not allowed — anywhere — is
+ * typing a payment id into a box and calling that a payment.
+ */
+export const PAY_NOW_METHODS = [
+  "Cash",
+  "UPI",
+  "Bank Transfer",
+  "Razorpay",
+  "Store Wallet",
+  "Business Wallet",
+];
+
+/** Methods that leave the order payable. */
+export const PAY_LATER_METHODS = ["COD", "Bank Transfer", "UPI", "Razorpay"];
+
+/** Settled by running the gateway, so it never takes the create-then-settle path. */
+export const GATEWAY_METHOD = "Razorpay";
+
+/**
+ * Methods that carry a reference worth capturing.
+ *
+ * Cash is absent on purpose: it reconciles against the cash book, not a UTR, so requiring one
+ * just produces unreconcilable strings. Wallets are absent because their ledger entry is the
+ * reference. Mirrors the same list in `/api/invoices/[id]/settle`, which enforces it.
+ */
+export const METHODS_REQUIRING_REFERENCE = ["UPI", "Bank Transfer", "NEFT/RTGS", "Cheque"];
+
 export function useInvoiceForm(options?: UseInvoiceFormOptions) {
   const { createInvoice, updateInvoice } = useInvoiceStore();
   const { products, initializeProducts } = useProductStore();
   const { addToast } = useToastStore();
+  const { manager, customer } = useAuthStore();
+
+  /**
+   * Who to credit the sale to, unless the user says otherwise.
+   *
+   * The field was a blank text box, so attribution depended on staff remembering to type
+   * their own name into it — and manager KPIs are computed from exactly that string.
+   */
+  const defaultSalesperson = manager?.name || customer?.name || "";
 
   const [shippingConfig, setShippingConfig] = React.useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
@@ -48,9 +94,31 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
 
   const [paymentMethod, setPaymentMethod] = React.useState("COD");
   const [paymentStatus, setPaymentStatus] = React.useState("Pending");
+  /**
+   * When the money changes hands — the question the form actually needs answered.
+   *
+   * It replaces a "Payment Status" dropdown offering Pending / Paid / Failed. That control
+   * asked staff to *declare* a payment rather than take one, which is how "Online (Razorpay)
+   * + Paid" came to demand a hand-typed transaction reference for money nobody had collected.
+   *
+   * `now` routes through create-then-settle, the only path that actually moves money.
+   * `later` leaves the order and its receipt payable.
+   *
+   * Defaults to `now`: collecting at the point of sale is the normal case, and the previous
+   * default of `later` meant the common path took an extra click while the unusual one — an
+   * unpaid order on credit — took none.
+   */
+  const [paymentTiming, setPaymentTiming] = React.useState<"now" | "later">("now");
   const [transactionId, setTransactionId] = React.useState("");
   const [invoiceNotes, setInvoiceNotes] = React.useState("");
-  const [salesperson, setSalesperson] = React.useState("");
+  /**
+   * Seeded once from the session so the sale is attributed by default, and freely editable
+   * after — including to empty, which an effect-based prefill could not allow.
+   *
+   * The auth store is persisted and hydrates synchronously, so the name is there on the
+   * first render.
+   */
+  const [salesperson, setSalesperson] = React.useState(defaultSalesperson);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [editInvoiceId, setEditInvoiceId] = React.useState<string | null>(null);
   const [productSearch, setProductSearch] = React.useState("");
@@ -84,13 +152,15 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
         setNewCustPinCode(defaultAddr?.pinCode || cust.pinCode || "");
       }
 
-      // Fetch wallet balance
-      apiClient.get(`/wallet?userId=${selectedCustomerId}`)
-        .then((res: any) => {
+      // Through the service, not a raw apiClient call — the rule in AGENTS.md, and it is
+      // the only place that knows the mock-mode fallback.
+      walletService
+        .getWallets(selectedCustomerId)
+        .then((res) => {
           setWalletBalance(res.store?.availableBalance || 0);
           setBusinessWalletBalance(res.business?.availableBalance || 0);
         })
-        .catch(err => {
+        .catch(() => {
           setWalletBalance(0);
           setBusinessWalletBalance(0);
         });
@@ -99,6 +169,43 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
       setBusinessWalletBalance(0);
     }
   }, [selectedCustomerId, customerMode, customers]);
+
+  /**
+   * Is the money being collected as part of this submit?
+   *
+   * A Tax Invoice is prepaid by definition — it is only issued once payment is in — so it is
+   * always "now" regardless of what the toggle last held. Orders and Sales Receipts choose.
+   *
+   * Derived rather than synced through an effect: an effect that wrote `paymentTiming` back
+   * would let the form render one answer while the submit handler acted on another.
+   */
+  const isPayNow =
+    formDocType !== "quote" &&
+    (paymentTiming === "now" || (!isOrderCreationMode && formDocType === "invoice"));
+
+  /**
+   * What Pay Now falls back to when the current method belongs to the other mode.
+   *
+   * The Business Wallet for staff — it is how admins and managers settle a customer's order
+   * at the counter, so it is the common case and should not need selecting. **Not** in the
+   * public dropshipping portal, which hides both wallets: debiting a balance needs a staff
+   * session against the document, which that flow does not carry. Defaulting to a hidden
+   * option there would bind the select to a value it cannot show and post a method the route
+   * refuses, leaving the order silently unpaid.
+   */
+  const payNowDefaultMethod = options?.isPublicMode ? "Cash" : "Business Wallet";
+
+  /**
+   * The method, corrected for the timing.
+   *
+   * COD cannot be a payment taken now, and a wallet cannot be a promise to pay later. Rather
+   * than an effect rewriting `paymentMethod` whenever the timing flips — which briefly leaves
+   * the two disagreeing — the invalid combination simply never resolves to itself. The select
+   * below is bound to this value, so what the user sees is what gets posted.
+   */
+  const effectivePaymentMethod = isPayNow
+    ? (PAY_NOW_METHODS.includes(paymentMethod) ? paymentMethod : payNowDefaultMethod)
+    : (PAY_LATER_METHODS.includes(paymentMethod) ? paymentMethod : "COD");
 
   React.useEffect(() => {
     const shouldLoad = isCreateModalOpen || options?.isPublicMode;
@@ -211,25 +318,17 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
     }
 
     /**
-     * A document cannot be created already settled from a wallet.
+     * A bank-rail payment has to name itself, or it reconciles against nothing.
      *
-     * Selecting Store/Business Wallet and Paid used to write exactly that — a settled
-     * document with no balance check and no ledger entry behind it. Create it Pending, then
-     * record the payment, which is the only path that actually debits.
+     * Cash and wallets are exempt: a wallet's ledger entry *is* the reference, and a note
+     * handed over the counter has no UTR — demanding one only moves the fabrication from the
+     * code to the person typing "CASH-1".
      */
-    const isWalletMethod = paymentMethod === "Store Wallet" || paymentMethod === "Business Wallet";
-    if (isWalletMethod && paymentStatus === "Paid") {
+    if (isPayNow && METHODS_REQUIRING_REFERENCE.includes(effectivePaymentMethod) && !transactionId.trim()) {
       addToast(
-        "Create this document as Pending, then use Receive Payment — that is what debits the wallet.",
+        `Enter the ${effectivePaymentMethod} reference (UTR or receipt no.) for the payment you received.`,
         "warning"
       );
-      return;
-    }
-
-    // A settled document must name how the money arrived, or it reconciles against nothing.
-    const docTypeForValidation = isOrderCreationMode ? "receipt" : formDocType;
-    if (!isWalletMethod && paymentStatus === "Paid" && docTypeForValidation !== "quote" && !transactionId.trim()) {
-      addToast("A transaction reference is required when marking a document Paid.", "warning");
       return;
     }
 
@@ -314,19 +413,48 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
 
       const formGrandTotal = itemsSubtotal + computedShippingCharge;
 
-      const effectiveDocType = isOrderCreationMode ? "receipt" : formDocType;
+      /**
+       * Everything payable is posted as a **receipt**, then settled if the money is being
+       * collected now.
+       *
+       * `/api/invoices` cannot issue an `INV-` for a wallet payment — it has no way to debit
+       * a balance — and issuing one directly would skip the receipt that records what was
+       * actually collected. Create-then-settle produces both documents, correctly numbered,
+       * through the audited money path.
+       */
+      const wantsTaxInvoice = !isOrderCreationMode && formDocType === "invoice";
+      const effectiveDocType = isOrderCreationMode || wantsTaxInvoice ? "receipt" : formDocType;
 
       const payloadData = {
         type: effectiveDocType,
-        isOrder: isOrderCreationMode,
+        // A Tax Invoice needs an order too — it is a sale, not just paperwork.
+        isOrder: isOrderCreationMode || wantsTaxInvoice,
+        /**
+         * What the user actually asked to create, as opposed to what is posted.
+         *
+         * Without this the server would see `{ type: "receipt", isOrder: true }` and gate the
+         * request on an *orders* permission — so a manager holding `invoices_invoice` would
+         * lose the ability to issue a Tax Invoice they could issue before. The intent says
+         * which permission governs.
+         */
+        docIntent: wantsTaxInvoice ? "invoice" : undefined,
         ...customerPayload,
         items: formItems,
         amount: formGrandTotal,
         shippingCharge: computedShippingCharge,
         taxDetails: formTaxBreakdown,
-        paymentMethod: effectiveDocType === "quote" ? undefined : paymentMethod,
-        paymentStatus: effectiveDocType === "quote" ? "Pending" : (effectiveDocType === "invoice" ? "Paid" : paymentStatus),
-        transactionId: (effectiveDocType === "quote" || (effectiveDocType === "receipt" && paymentStatus !== "Paid")) ? undefined : transactionId || undefined,
+        paymentMethod: effectiveDocType === "quote" ? undefined : effectivePaymentMethod,
+        /**
+         * Created pending, then settled — except in public mode.
+         *
+         * `/api/invoices` documents are settled by the call below, which is the only thing
+         * that marks them paid, so a document can never claim money no ledger entry backs.
+         * The public dropshipping portal posts to `/api/orders/public` instead and cannot
+         * call `/settle` (that route needs a staff session against the *document*), so it
+         * carries the payment inline and that route issues the Tax Invoice itself.
+         */
+        paymentStatus: isPayNow && options?.isPublicMode ? "Paid" : "Pending",
+        transactionId: isPayNow && options?.isPublicMode ? transactionId.trim() || undefined : undefined,
         notes: invoiceNotes || undefined,
         salesperson: salesperson || undefined,
         customerType: formCustomerType,
@@ -335,8 +463,42 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
 
       if (options?.isPublicMode && options?.apiEndpoint) {
         // Public mode: POST to public endpoint via apiClient
-        const res = await apiClient.post(options.apiEndpoint, payloadData);
-        addToast("Dropshipping order created successfully!", "success");
+        const res = await apiClient.post<{ orderId?: string }>(options.apiEndpoint, payloadData);
+
+        /**
+         * A dropshipping order paid online runs the same gateway as everywhere else.
+         *
+         * `/api/orders/public` refuses to record Razorpay as already-paid — it cannot verify
+         * a signature — so the order lands Pending and the payment is collected here against
+         * it. `/api/razorpay/verify` then issues the Tax Invoice.
+         */
+        if (isPayNow && effectivePaymentMethod === GATEWAY_METHOD && res?.orderId) {
+          try {
+            const outcome = await collectOrderPaymentOnline({
+              orderId: res.orderId,
+              customerName: newCustName,
+              customerEmail: newCustEmail,
+              customerPhone: newCustPhone,
+              description: `Payment for order ${res.orderId}`,
+            });
+            addToast(
+              outcome.status === "paid"
+                ? `Payment received. Order ${res.orderId} is paid and its Tax Invoice is issued.`
+                : `Payment cancelled. Order ${res.orderId} is saved and still payable.`,
+              outcome.status === "paid" ? "success" : "info"
+            );
+          } catch (gatewayErr) {
+            addToast(
+              describePaymentFailure(gatewayErr, {
+                documentNote: `Order ${res.orderId} is saved and still payable.`,
+              }),
+              "error"
+            );
+          }
+        } else {
+          addToast("Dropshipping order created successfully!", "success");
+        }
+
         if (options?.onSuccess) {
           options.onSuccess(res);
         }
@@ -352,9 +514,10 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
         setNewCustPinCode("");
         setPaymentMethod("COD");
         setPaymentStatus("Pending");
+        setPaymentTiming("now");
         setTransactionId("");
         setInvoiceNotes("");
-        setSalesperson("");
+        setSalesperson(defaultSalesperson);
         setDropshipDetails({});
         setIncludeDropshipDetails(true);
         setIsSubmitting(false);
@@ -362,12 +525,97 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
       }
 
       if (editInvoiceId) {
-        await updateInvoice(editInvoiceId, payloadData as any);
+        /**
+         * Payment fields are stripped, not sent and ignored.
+         *
+         * `PUT /api/invoices/[id]` refuses outright — deliberately, so a stale client fails
+         * loudly rather than appearing to settle something — any request carrying
+         * `paymentStatus`, `paymentMethod` or `transactionId`. This payload always carried
+         * `paymentStatus`, so **every** "Edit Quote" save came back 400 "Payment details
+         * cannot be set through this endpoint", including edits that touched nothing but the
+         * line items. Settlement has its own route; an edit has no business naming a payment.
+         */
+        const { paymentStatus: _s, paymentMethod: _m, transactionId: _t, isOrder: _o, docIntent: _d, ...editable } =
+          payloadData as Record<string, unknown>;
+        void _s; void _m; void _t; void _o; void _d;
+        await updateInvoice(editInvoiceId, editable as any);
         addToast("Document updated successfully!", "success");
       } else {
-        await createInvoice(payloadData as any);
-        const docLabel = isOrderCreationMode ? "Order" : (effectiveDocType === "invoice" ? "Invoice" : effectiveDocType === "receipt" ? "Receipt" : "Price Quote");
-        addToast(`${docLabel} generated successfully!`, "success");
+        const created = await createInvoice(payloadData as any);
+
+        if (isPayNow && effectivePaymentMethod === GATEWAY_METHOD) {
+          /**
+           * Run the gateway against the order the document just created.
+           *
+           * Razorpay never takes the `/settle` route — that route records a payment someone
+           * has already collected, and a gateway payment is collected *here*. The signature
+           * check in `/api/razorpay/verify` is what settles it, and that path issues the
+           * `INV-` through `settleOrderDocuments` exactly as the storefront checkout does.
+           */
+          const linkedOrderId = (created as any)?.orderId;
+          if (!linkedOrderId) {
+            addToast(
+              `Receipt ${created._id} was created, but it has no linked order to charge. Collect the payment from the Receipts tab.`,
+              "warning"
+            );
+          } else {
+            try {
+              const outcome = await collectOrderPaymentOnline({
+                orderId: linkedOrderId,
+                customerName: newCustName,
+                customerEmail: newCustEmail,
+                customerPhone: newCustPhone,
+                description: `Payment for order ${linkedOrderId}`,
+              });
+              addToast(
+                outcome.status === "paid"
+                  ? `Payment received. Tax Invoice issued for order ${linkedOrderId}.`
+                  : `Payment cancelled. Order ${linkedOrderId} is saved and still payable.`,
+                outcome.status === "paid" ? "success" : "info"
+              );
+            } catch (gatewayErr) {
+              addToast(
+                describePaymentFailure(gatewayErr, {
+                  documentNote: `Order ${linkedOrderId} is saved and can be paid from the Receipts tab.`,
+                }),
+                "error"
+              );
+            }
+          }
+        } else if (isPayNow) {
+          /**
+           * Take the payment and issue the Tax Invoice.
+           *
+           * If this fails — most often a wallet short of the total, which comes back as a
+           * 409 naming the shortfall — the receipt and its pending order remain and can be
+           * settled later from the Receipts tab. Say so, rather than leaving the user
+           * thinking nothing was created.
+           */
+          try {
+            const result = await invoiceService.settleInvoice(created._id, {
+              method: effectivePaymentMethod,
+              transactionId: transactionId.trim() || undefined,
+              clientRequestId: walletService.newRequestId(),
+            });
+            addToast(result.message || `Tax Invoice ${result.invoiceId} issued.`, "success");
+          } catch (settleErr) {
+            addToast(
+              describePaymentFailure(settleErr, {
+                fallback: "The payment could not be recorded.",
+                documentNote: `Receipt ${created._id} was created and is still payable — settle it from the Receipts tab.`,
+              }),
+              "error"
+            );
+          }
+        } else {
+          const docLabel = isOrderCreationMode ? "Order" : (effectiveDocType === "receipt" ? "Receipt" : "Price Quote");
+          addToast(
+            effectiveDocType === "quote"
+              ? "Price Quote generated successfully!"
+              : `${docLabel} created — payment pending. Record it from the Receipts tab when it arrives.`,
+            "success"
+          );
+        }
       }
       setIsCreateModalOpen(false);
       setEditInvoiceId(null);
@@ -385,17 +633,27 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
       setNewCustPinCode("");
       setPaymentMethod("COD");
       setPaymentStatus("Pending");
+      setPaymentTiming("now");
       setTransactionId("");
       setInvoiceNotes("");
-      setSalesperson("");
+      setSalesperson(defaultSalesperson);
       setDropshipDetails({});
       setIncludeDropshipDetails(true);
 
       if (options?.onSuccess) {
         options.onSuccess();
       }
-    } catch (err: any) {
-      addToast(err.message || "Failed to save document", "error");
+    } catch (err) {
+      /**
+       * Through the same describer as the payment failures, mainly so a Mongoose message
+       * cannot reach the user. A model error that escapes a route reads as
+       * "Order validation failed: paymentMethod: `Business Wallet` is not a valid enum
+       * value" — accurate, and meaningless to a salesperson.
+       */
+      addToast(
+        describePaymentFailure(err, { fallback: "The document could not be saved. Please try again." }),
+        "error"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -479,6 +737,11 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
     setPaymentMethod,
     paymentStatus,
     setPaymentStatus,
+    paymentTiming,
+    setPaymentTiming,
+    // Derived, and what the form must render — see the notes on each above.
+    isPayNow,
+    effectivePaymentMethod,
     transactionId,
     setTransactionId,
     salesperson,

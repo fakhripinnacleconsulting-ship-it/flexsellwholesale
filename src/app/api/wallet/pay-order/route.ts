@@ -8,6 +8,8 @@ import { resolveActor } from "@/lib/orderHistory";
 import { toPaise, toRupees } from "@/lib/money";
 import { InsufficientBalanceError } from "@/lib/walletLedger";
 import { reserveWalletFunds, captureWalletFunds, releaseWalletFunds, refundWalletOrder } from "@/lib/walletCheckout";
+import { settleOrderDocuments } from "@/lib/orderSettlement";
+import { revalidateAdminDashboard } from "@/lib/revalidate";
 import type { WalletActor } from "@/types/wallet";
 
 export const dynamic = "force-dynamic";
@@ -101,7 +103,9 @@ export async function POST(request: NextRequest) {
           {
             message: err.message,
             code: "INSUFFICIENT_BALANCE",
-            requiredAmount: toRupees(amountPaise),
+            requiredAmount: err.requiredAmount ?? toRupees(amountPaise),
+            availableAmount: err.availableAmount,
+            shortfallAmount: err.shortfallAmount,
           },
           { status: 409 }
         );
@@ -143,6 +147,36 @@ export async function POST(request: NextRequest) {
 
       if (!updatedOrder) {
         throw new Error("Order was updated by another process, or is no longer eligible for payment.");
+      }
+
+      /**
+       * Issue the Tax Invoice.
+       *
+       * **The inner `catch` is load-bearing — do not merge it into the enclosing one.** The
+       * enclosing `catch` refunds the capture, which is right for a failure to mark the order
+       * paid and badly wrong here: the money has legitimately paid the order, and the order
+       * now says so. Letting a document write reach that handler would hand back a completed
+       * payment over a paperwork failure. Swallow it, log it, and let the invoice be
+       * reissued.
+       *
+       * Without this call the order was paid while its receipt stayed `pending` — which is
+       * exactly what left a "Mark Paid" button on /admin/invoices for money already taken.
+       */
+      try {
+        await settleOrderDocuments({
+          orderId,
+          method: "Wallet",
+          transactionId: captured.transactionId,
+          walletTransactionId: captured.transactionId,
+          walletType: "store",
+          actor,
+        });
+        revalidateAdminDashboard();
+      } catch (docErr) {
+        console.error(
+          `[Wallet] Order ${orderId} is paid but its tax invoice could not be issued:`,
+          docErr
+        );
       }
 
       return NextResponse.json(

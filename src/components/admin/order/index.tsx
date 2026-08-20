@@ -6,12 +6,11 @@ import { Plus, Info, X, Download } from "lucide-react";
 import { useOrderStore, Order, ShipmentDetails } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
-import { orderService } from "@/services/orderService";
-import * as walletService from "@/services/walletService";
+import { collectOrderPaymentOnline } from "@/lib/razorpayCollect";
+import { describePaymentFailure } from "@/lib/paymentErrors";
 import { OrdersListTable } from "./OrdersListTable";
 import { OrderDetailPanel } from "./OrderDetailPanel";
 import { FulfillmentForm } from "./FulfillmentForm";
-import { CreateOrderModal } from "./CreateOrderModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
@@ -97,30 +96,22 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   }, [activeOrderTab, originFilter]);
 
   // Create Order from Quote Modal States
-  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = React.useState(false);
-  const [initialQuoteId, setInitialQuoteId] = React.useState<string | null>(null);
 
   // Shipment fulfillment states
   const [isFulfilling, setIsFulfilling] = React.useState(false);
 
   // Dispatch payment flow states
   const [isDispatchPayModalOpen, setIsDispatchPayModalOpen] = React.useState(false);
-  const [dispatchPayMethod, setDispatchPayMethod] = React.useState<"Bank Transfer" | "UPI" | "Razorpay" | "COD">("Bank Transfer");
+  /**
+   * Offline methods, plus the gateway — which is *run*, not recorded.
+   *
+   * A wallet is absent: debiting a balance needs the wallet routes, which read it and write a
+   * ledger entry, and naming one here would mark the order paid against untouched money.
+   */
+  const [dispatchPayMethod, setDispatchPayMethod] = React.useState<"Bank Transfer" | "UPI" | "COD" | "Razorpay">("Razorpay");
   const [dispatchPayAmount, setDispatchPayAmount] = React.useState("");
   const [dispatchTxnId, setDispatchTxnId] = React.useState("");
 
-
-  // URL listener for auto-open quote conversion
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const qId = params.get("confirmQuoteId");
-      if (qId) {
-        setInitialQuoteId(qId);
-        setIsCreateOrderModalOpen(true);
-      }
-    }
-  }, [addToast]);
 
   const activeSelectedOrder = React.useMemo(() => {
     if (!selectedOrder) return null;
@@ -163,7 +154,8 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     // 2. Payment is pending: open the custom payment modal
     setDispatchPayAmount(String(activeSelectedOrder.amount));
     setDispatchTxnId("");
-    setDispatchPayMethod("Bank Transfer");
+    // The gateway first: it is the one method that both takes the money and proves it.
+    setDispatchPayMethod("Razorpay");
     setIsDispatchPayModalOpen(true);
   };
 
@@ -208,6 +200,37 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
 
   const handleRecordDispatchPayment = async () => {
     if (!activeSelectedOrder) return;
+
+    /**
+     * The gateway is run, not recorded.
+     *
+     * It charges the order's own stored total — which is also why the amount box is hidden
+     * for it: there is nothing here to type that could change what gets charged.
+     * `/api/razorpay/verify` settles it and issues the Tax Invoice on a verified signature.
+     */
+    if (dispatchPayMethod === "Razorpay") {
+      try {
+        const outcome = await collectOrderPaymentOnline({
+          orderId: activeSelectedOrder._id,
+          customerName: activeSelectedOrder.customerName,
+          customerEmail: activeSelectedOrder.shippingAddress?.email,
+          customerPhone: activeSelectedOrder.shippingAddress?.phone,
+          description: `Payment for order ${activeSelectedOrder._id}`,
+        });
+        if (outcome.status === "paid") {
+          addToast("Payment received. The Tax Invoice has been issued.", "success");
+          setIsDispatchPayModalOpen(false);
+          setIsFulfilling(true);
+          initializeOrders({ startDate: startDate || undefined, endDate: endDate || undefined });
+        } else {
+          addToast("Payment cancelled — the order is unchanged and still payable.", "info");
+        }
+      } catch (err: any) {
+        addToast(describePaymentFailure(err), "error");
+      }
+      return;
+    }
+
     if (!dispatchPayAmount.trim()) {
       addToast("Please enter the amount received.", "error");
       return;
@@ -225,83 +248,16 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     try {
       await updateOrderStatus(activeSelectedOrder._id, "Processing", {
         paymentStatus: "Paid",
-        paymentMethod: dispatchPayMethod,
-        transactionId: dispatchPayMethod === "COD" ? (dispatchTxnId.trim() || "CASH") : dispatchTxnId.trim(),
+        paymentMethod: dispatchPayMethod === "COD" ? "Cash" : dispatchPayMethod,
+        // No invented reference for cash. `"CASH"` looked like a receipt number in the ledger
+        // and reconciled against nothing — the cash book is the record.
+        transactionId: dispatchTxnId.trim() || undefined,
       });
       addToast(`Payment of ₹${amount} received and recorded successfully!`, "success");
       setIsDispatchPayModalOpen(false);
       setIsFulfilling(true);
     } catch (err: any) {
       addToast(err.message || "Failed to update payment status.", "error");
-    }
-  };
-
-  const handleConfirmOrder = async (payload: {
-    quoteId: string;
-    salesperson?: string;
-    paymentOption: "now" | "later";
-    paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD" | "Store Wallet" | "Business Wallet";
-    transactionId?: string;
-    shippingAddress?: any;
-  }) => {
-    try {
-      const walletType =
-        payload.paymentMethod === "Store Wallet" ? "store"
-        : payload.paymentMethod === "Business Wallet" ? "business"
-        : undefined;
-      const isWallet = payload.paymentOption === "now" && Boolean(walletType);
-
-      /**
-       * A wallet order is created Pending and settled by the wallet route.
-       *
-       * Writing `paymentStatus: "Paid"` with a wallet method here marked the order settled
-       * without any balance being read or debited — the same hole the receipt pay modal had.
-       */
-      const paymentDetails = {
-        paymentMethod: payload.paymentOption === "later" ? "COD" : isWallet ? "Wallet" : payload.paymentMethod,
-        paymentStatus: payload.paymentOption === "later" || isWallet ? "Pending" : "Paid",
-        transactionId: payload.paymentOption === "later" || isWallet ? undefined : payload.transactionId,
-      };
-
-      const qId = payload.quoteId;
-      const response = await orderService.createOrder(
-        [],
-        0,
-        payload.shippingAddress || {} as any,
-        paymentDetails as any,
-        undefined,
-        undefined,
-        qId,
-        payload.salesperson
-      );
-
-      if (isWallet) {
-        const customerId = (response as any)?.customerId;
-        if (!customerId) {
-          throw new Error("This quote has no linked customer account, so no wallet can be charged.");
-        }
-        // Throws on a short balance — the order stays Pending and can be retried or paid
-        // another way, rather than being marked Paid against money that never moved.
-        await walletService.adminPayOrder({
-          orderId: response._id,
-          customerId: String(customerId),
-          walletType: walletType!,
-          clientRequestId: walletService.newRequestId(),
-        });
-      }
-
-      addToast("Quote converted and Order created successfully!", "success");
-      setIsCreateOrderModalOpen(false);
-      setInitialQuoteId(null);
-
-      // Refresh order list
-      initializeOrders({
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-      });
-    } catch (err: any) {
-      addToast(err.message || "Failed to convert quote to order.", "error");
-      throw err;
     }
   };
 
@@ -313,7 +269,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             {activeOrderTab === "ALL" ? "All Orders Manager" : `${activeOrderTab} Orders Manager`}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Manage dispatch statuses, track logistical fulfillment, and convert approved price quotes.
+            Manage dispatch statuses, track logistical fulfillment, and record order payments.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -435,16 +391,6 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
         />
       </div>
 
-      <CreateOrderModal
-        isOpen={isCreateOrderModalOpen}
-        onClose={() => {
-          setIsCreateOrderModalOpen(false);
-          setInitialQuoteId(null);
-        }}
-        onConfirmOrder={handleConfirmOrder}
-        initialQuoteId={initialQuoteId}
-      />
-
       <InvoiceCreateModal
         {...invoiceForm}
         isOpen={invoiceForm.isCreateModalOpen}
@@ -498,18 +444,24 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
               </div>
 
               <div className="space-y-3 pt-4 border-t">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Amount Received (₹) *</label>
-                  <Input
-                    type="number"
-                    value={dispatchPayAmount}
-                    onChange={(e) => setDispatchPayAmount(e.target.value)}
-                    placeholder="e.g. 5000"
-                    required
-                    className="text-xs"
-                  />
-                </div>
-                
+                {/*
+                  Hidden for the gateway: it charges the order's stored total, so an editable
+                  amount here would suggest a control that does not exist.
+                */}
+                {dispatchPayMethod !== "Razorpay" && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amount Received (₹) *</label>
+                    <Input
+                      type="number"
+                      value={dispatchPayAmount}
+                      onChange={(e) => setDispatchPayAmount(e.target.value)}
+                      placeholder="e.g. 5000"
+                      required
+                      className="text-xs"
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Payment Method</label>
                   <select
@@ -517,27 +469,52 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
                     onChange={(e) => setDispatchPayMethod(e.target.value as any)}
                     className="bg-background text-foreground text-xs w-full px-2.5 py-2 border rounded-md cursor-pointer"
                   >
-                    <option value="Bank Transfer">Bank Transfer</option>
+                    {/*
+                      Razorpay runs the real gateway against this order. The rest are payments
+                      already collected offline, which staff attest to with a reference.
+
+                      Wallets are absent: debiting a balance needs the wallet routes, which
+                      read it and write a ledger entry — naming one here would mark the order
+                      paid against untouched money. The server refuses both that and a
+                      hand-recorded Razorpay.
+                    */}
+                    <option value="Razorpay">Online (Razorpay) — card / netbanking / UPI</option>
+                    <option value="Bank Transfer">Bank Transfer / NEFT</option>
                     <option value="UPI">UPI</option>
-                    <option value="Razorpay">Razorpay</option>
                     <option value="COD">Cash (COD)</option>
-                    <option value="Store Wallet">Store Wallet</option>
-                    <option value="Business Wallet">Business Wallet</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                    {dispatchPayMethod === "COD" ? "Transaction reference ID (Optional)" : "Transaction reference ID *"}
-                  </label>
-                  <Input
-                    value={dispatchTxnId}
-                    onChange={(e) => setDispatchTxnId(e.target.value)}
-                    placeholder={dispatchPayMethod === "COD" ? "e.g. CASH (or leave blank)" : "e.g. TXN100293847"}
-                    required={dispatchPayMethod !== "COD"}
-                    className="text-xs font-mono"
-                  />
-                </div>
+                {dispatchPayMethod === "Razorpay" ? (
+                  <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                      Razorpay opens for {formatPrice(Number(activeSelectedOrder?.amount) || 0)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Charged at the order&apos;s own stored total. The Tax Invoice is issued
+                      once the signature verifies — nothing to type.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                      {dispatchPayMethod === "COD" ? "Cash receipt no. (optional)" : "Transaction reference / UTR *"}
+                    </label>
+                    <Input
+                      value={dispatchTxnId}
+                      onChange={(e) => setDispatchTxnId(e.target.value)}
+                      placeholder={dispatchPayMethod === "COD" ? "e.g. receipt book no. 0142" : "e.g. UTR100293847"}
+                      required={dispatchPayMethod !== "COD"}
+                      className="text-xs font-mono"
+                    />
+                    {dispatchPayMethod === "COD" && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Cash reconciles against the cash book — leave blank rather than
+                        inventing a reference.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

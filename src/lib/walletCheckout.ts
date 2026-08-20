@@ -56,7 +56,18 @@ export async function reserveWalletFunds(params: {
       { new: true, session }
     );
 
-    if (!reserved) throw new InsufficientBalanceError(walletType);
+    /**
+     * The reservation lost its guard, so the balance is short (or the wallet was frozen
+     * between the read and this write). `wallet.availableBalance` is the figure that was
+     * read a moment ago, which is what makes it possible to tell the user *how much* short
+     * they are instead of just that they are.
+     */
+    if (!reserved) {
+      throw new InsufficientBalanceError(walletType, {
+        availablePaise: Number(wallet.availableBalance) || 0,
+        requiredPaise: amountPaise,
+      });
+    }
 
     const [hold] = await WalletTransaction.create(
       [

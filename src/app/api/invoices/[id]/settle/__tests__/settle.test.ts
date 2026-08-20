@@ -41,7 +41,12 @@ const mockFindByIdAndUpdate = vi.fn();
 vi.mock("@/models/Invoice", () => ({
   default: {
     findById: (id: string) => ({ lean: () => mockFindById(id) }),
-    findOne: (q: any) => ({ select: () => ({ lean: () => mockFindOne(q) }) }),
+    // Both shapes: the route pre-checks with `.select().lean()`, and the shared settlement
+    // library re-checks with a bare `.lean()`.
+    findOne: (q: any) => ({
+      select: () => ({ lean: () => mockFindOne(q) }),
+      lean: () => mockFindOne(q),
+    }),
     create: (...a: any[]) => mockCreate(...a),
     findByIdAndUpdate: (...a: any[]) => mockFindByIdAndUpdate(...a),
   },
@@ -179,10 +184,39 @@ describe("POST /api/invoices/[id]/settle", () => {
   });
 
   describe("guards", () => {
-    it("rejects a non-wallet payment with no transaction reference", async () => {
-      const res = await call({ method: "Cash", transactionId: "   ", clientRequestId: "req-6" });
+    it("rejects a bank-rail payment with no transaction reference", async () => {
+      const res = await call({ method: "UPI", transactionId: "   ", clientRequestId: "req-6" });
       expect(res.status).toBe(400);
       expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Cash has no reference to give.
+     *
+     * This route used to invent `CASH-HAND-${Date.now()}` when the field was blank, and the
+     * fix for that made a reference mandatory for every non-wallet method — which just moved
+     * the fabrication to whoever had to type "CASH-1" to get past the form. Cash reconciles
+     * against the cash book.
+     */
+    it("settles a cash payment with no reference, and stores none", async () => {
+      const res = await call({ method: "Cash", transactionId: "   ", clientRequestId: "req-6b" });
+
+      expect(res.status).toBe(201);
+      const created = mockCreate.mock.calls[0][0];
+      expect(created.transactionId).toBeUndefined();
+    });
+
+    /**
+     * A gateway payment either carries a verified signature or it did not happen. The pay
+     * modal used to offer "Razorpay Gateway" beside a free-text reference box, so any string
+     * turned a receipt into a paid Tax Invoice with no money moved.
+     */
+    it("refuses a hand-recorded gateway payment", async () => {
+      const res = await call({ method: "Razorpay", transactionId: "pay_faked123", clientRequestId: "req-6c" });
+
+      expect(res.status).toBe(400);
+      expect(mockCreate).not.toHaveBeenCalled();
+      expect(mockReserve).not.toHaveBeenCalled();
     });
 
     it("refuses to settle a receipt that is already paid", async () => {

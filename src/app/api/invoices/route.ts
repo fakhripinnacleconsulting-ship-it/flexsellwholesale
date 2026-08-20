@@ -12,6 +12,7 @@ import { actorLabel, buildHistoryEvent } from "@/lib/orderHistory";
 import type { HistoryActor } from "@/types";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
+import { issueTaxInvoiceForReceipt, orderPaymentMethodFor, walletTypeForMethod, type StoredReceipt } from "@/lib/orderSettlement";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { revalidateProductStock } from "@/lib/revalidate";
 import { escapeRegex } from "@/lib/utils";
@@ -364,17 +365,27 @@ export async function POST(request: Request) {
       
       const hasPerm = (module: string, action: string = "create") => perms.includes(module) || perms.includes(`${module}:${action}`);
 
-      if (isOrder) {
+      /**
+       * A prepaid Tax Invoice is posted as a receipt with `isOrder`, so without this it
+       * would be gated on an *orders* permission — quietly taking Tax Invoice creation away
+       * from a manager holding `invoices_invoice`. The order is a consequence of issuing the
+       * invoice, not a separate act, so the invoice permission governs.
+       */
+      if (body.docIntent === "invoice") {
+        if (!hasPerm("invoices_invoice")) {
+          return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
+      } else if (isOrder) {
         // Resolve target order permission based on customerType parameter (which drives orderType)
         let targetPerm = "orders_b2b";
         if (body.customerType === "Dropshipping") targetPerm = "orders_dropshipping";
         else if (body.customerType === "B2C") targetPerm = "orders_b2c";
-        
+
         // Fallback mapping for legacy dropship permission name
         if (targetPerm === "orders_dropshipping" && hasPerm("orders_dropship")) {
            targetPerm = "orders_dropship";
         }
-        
+
         if (!hasPerm(targetPerm)) {
           return NextResponse.json({ message: `Forbidden: Missing ${targetPerm} permission` }, { status: 403 });
         }
@@ -514,6 +525,18 @@ export async function POST(request: Request) {
       };
     }
 
+    /**
+     * A receipt is always born `pending`, even when the money is already in hand.
+     *
+     * Recording `paymentStatus: "Paid"` here used to write a `Paid` order alongside a
+     * receipt left at `pending` — the same split that made `/admin/invoices` offer "Mark
+     * Paid" for money already collected. The receipt is created pending and settled a few
+     * lines below through the shared settlement library, which is what issues the `INV-`
+     * Tax Invoice the payment is entitled to.
+     */
+    const isPrepaidReceipt = type === "receipt" && paymentStatus === "Paid";
+    const initialStatus = isPrepaidReceipt ? "pending" : status || defaultStatus;
+
     const newInvoice = await InvoiceModel.create({
       _id: invoiceId,
       type,
@@ -534,14 +557,14 @@ export async function POST(request: Request) {
       },
       shippingAddress,
       paymentMethod,
-      paymentStatus,
-      transactionId,
+      paymentStatus: isPrepaidReceipt ? "Pending" : paymentStatus,
+      transactionId: isPrepaidReceipt ? undefined : transactionId,
       sellerInfo,
       notes,
       generatedAt,
       generatedBy: isStaff ? payload.email : "system",
       createdBy: resolvedCreatedBy,
-      status: status || defaultStatus,
+      status: initialStatus,
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,
       dropshipDetails,
@@ -579,8 +602,25 @@ export async function POST(request: Request) {
           hsnSlabs: [],
         },
         shippingAddress: shippingAddress,
-        paymentMethod: paymentMethod || "Bank Transfer",
-        paymentStatus: paymentStatus || "Paid",
+        /**
+         * Translated, not copied.
+         *
+         * The document keeps "Business Wallet"; `Order.paymentMethod` is a closed enum that
+         * has no such member, so copying it across failed validation outright — "Order
+         * validation failed: paymentMethod: `Business Wallet` is not a valid enum value" —
+         * and the whole creation 500'd. The order stores `"Wallet"` and names the wallet in
+         * `walletType`, which is what that field is for.
+         */
+        paymentMethod: orderPaymentMethodFor(paymentMethod) || "Bank Transfer",
+        walletType: walletTypeForMethod(paymentMethod),
+        /**
+         * Pending unless the caller says otherwise, and always pending for a receipt whose
+         * payment is about to be settled properly below.
+         *
+         * The fallback here used to be `"Paid"`, so a document created without an explicit
+         * payment status produced an order that claimed to be settled against nothing.
+         */
+        paymentStatus: isPrepaidReceipt ? "Pending" : paymentStatus || "Pending",
         status: "Processing",
         statusClass: "bg-blue-100 text-blue-700",
         invoiceId: invoiceId,
@@ -723,7 +763,49 @@ export async function POST(request: Request) {
       revalidateProductStock();
     }
 
-    return NextResponse.json(newInvoice, { status: 201 });
+    /**
+     * The money was already collected outside the app (cash, UPI, a bank transfer staff have
+     * confirmed), so record it properly rather than stamping "Paid" on the documents.
+     *
+     * `issueTaxInvoiceForReceipt` mints the `INV-` Tax Invoice, marks the receipt paid and
+     * links the two, then brings the order in line. Deliberately after the stock deduction:
+     * that block deletes the receipt and its order when a line cannot be reserved, and an
+     * issued Tax Invoice must never outlive the receipt it was issued for.
+     *
+     * Wallet methods never reach here — they are rejected further up and must go through
+     * `/api/invoices/[id]/settle`, the only path that actually debits a balance.
+     */
+    if (isPrepaidReceipt) {
+      const storedReceipt = (await InvoiceModel.findById(invoiceId).lean()) as StoredReceipt | null;
+      if (storedReceipt) {
+        const settled = await issueTaxInvoiceForReceipt({
+          receipt: storedReceipt,
+          method: paymentMethod,
+          transactionId: String(transactionId || "").trim(),
+          actor: {
+            role: resolvedCreatedBy?.role,
+            name: resolvedCreatedBy?.name,
+            userId: resolvedCreatedBy?.userId,
+          },
+        });
+        // The caller asked for a paid document; hand back the Tax Invoice, not the receipt.
+        return NextResponse.json(settled.invoice, { status: 201 });
+      }
+    }
+
+    /**
+     * The linked order id has to be on the response.
+     *
+     * `newInvoice` is the document as it was *created*, and the order is linked to it a few
+     * lines later with a separate `findByIdAndUpdate` — so the object returned here carried
+     * no `orderId`. A caller that needs to act on the order next, like the create form
+     * starting a gateway payment against it, had nothing to act on.
+     */
+    const created = (newInvoice as unknown as { toObject?: () => Record<string, unknown> }).toObject
+      ? (newInvoice as unknown as { toObject: () => Record<string, unknown> }).toObject()
+      : ({ ...(newInvoice as unknown as Record<string, unknown>) });
+
+    return NextResponse.json({ ...created, orderId: linkedOrderId }, { status: 201 });
   } catch (error: any) {
     console.error("Invoice creation error:", error);
     return NextResponse.json(

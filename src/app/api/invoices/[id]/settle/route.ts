@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
-import Order from "@/models/Order";
 import Manager from "@/models/Manager";
 import { requireAuth } from "@/lib/authGuard";
 import { requireWalletSpendAccess } from "@/lib/walletGuard";
 import { rateLimit } from "@/lib/rateLimit";
-import { generateNextId } from "@/lib/idGeneratorServer";
-import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { toPaise, toRupees } from "@/lib/money";
 import { InsufficientBalanceError } from "@/lib/walletLedger";
 import { reserveWalletFunds, captureWalletFunds, refundWalletOrder } from "@/lib/walletCheckout";
+import { issueTaxInvoiceForReceipt, type StoredReceipt } from "@/lib/orderSettlement";
 import { resolveActor } from "@/lib/orderHistory";
 import type { WalletActor } from "@/types/wallet";
 
@@ -35,6 +33,11 @@ export const dynamic = "force-dynamic";
  *
  * So: money moves first and through the wallet engine, then a **separate** `INV-` document is
  * created and the receipt is retained, marked paid, and linked to it.
+ *
+ * That last sequence now lives in `lib/orderSettlement.ts` and is shared with the wallet and
+ * Razorpay routes, which each used to get it wrong in their own way. This route keeps what is
+ * genuinely its own: the authorisation, the wallet spend guard, the money movement, and the
+ * receipt pre-checks that turn a bad request into a specific status code.
  */
 
 const WALLET_METHOD_TO_TYPE: Record<string, "store" | "business"> = {
@@ -42,25 +45,27 @@ const WALLET_METHOD_TO_TYPE: Record<string, "store" | "business"> = {
   "Business Wallet": "business",
 };
 
-const NON_WALLET_METHODS = ["Cash", "UPI", "Bank Transfer", "Razorpay", "NEFT/RTGS", "Cheque"];
+/**
+ * Methods a human may record by hand.
+ *
+ * **Razorpay is deliberately absent.** A gateway payment is not something staff can attest
+ * to — it either carries a verified signature or it did not happen. Accepting it here let
+ * anyone type a plausible-looking payment id and turn a receipt into a paid Tax Invoice with
+ * no money moved and nothing to verify against. The gateway settles itself through
+ * `/api/razorpay/verify` and the webhook, both of which call `settleOrderDocuments` directly
+ * and never pass through this route, so nothing legitimate is lost by refusing it.
+ */
+const NON_WALLET_METHODS = ["Cash", "UPI", "Bank Transfer", "NEFT/RTGS", "Cheque"];
 
 /**
- * The stored receipt, as this route needs to read it.
+ * Methods that carry a reference the payment can be reconciled against.
  *
- * A partial shape rather than the full `Invoice`: the remaining fields are copied verbatim
- * onto the invoice without being inspected, so naming them here would only invite drift.
+ * Cash is not one of them. A note handed over the counter has no UTR, so demanding one just
+ * moves the fabrication from the code to the person — this route used to invent
+ * `CASH-HAND-${Date.now()}` itself, and a hand-typed "CASH-1" is the same unreconcilable
+ * string with a different author. The cash book is the record for cash.
  */
-interface StoredReceipt {
-  _id: string;
-  type: string;
-  status?: string;
-  amount?: number;
-  customerId?: string;
-  orderId?: string;
-  notes?: string;
-  settledByInvoiceId?: string;
-  [key: string]: unknown;
-}
+const METHODS_REQUIRING_REFERENCE = ["UPI", "Bank Transfer", "NEFT/RTGS", "Cheque"];
 
 export async function POST(
   request: Request,
@@ -92,15 +97,13 @@ export async function POST(
     }
 
     /**
-     * A reference is mandatory for every non-wallet method.
-     *
-     * The pay modal used to invent one (`CASH-HAND-${Date.now().toString().slice(-4)}`) when
-     * the field was left blank, which is worse than no reference: it looks like a real
-     * receipt number in the ledger and reconciles against nothing.
+     * A reference is mandatory only where one actually exists — see
+     * METHODS_REQUIRING_REFERENCE. A wallet is exempt because the ledger entry is the
+     * reference, and cash because there is nothing to quote.
      */
-    if (!isWallet && !String(transactionId || "").trim()) {
+    if (METHODS_REQUIRING_REFERENCE.includes(method) && !String(transactionId || "").trim()) {
       return NextResponse.json(
-        { message: "A transaction reference (UTR, receipt no. or payment id) is required." },
+        { message: `A transaction reference (UTR or receipt no.) is required for ${method}.` },
         { status: 400 }
       );
     }
@@ -135,8 +138,22 @@ export async function POST(
         return NextResponse.json({ message: "Forbidden: Account inactive or not found" }, { status: 403 });
       }
       const perms = managerDoc.permissions || [];
-      // Exact action match — a `:read` grant must not authorise collecting money.
-      if (!perms.includes("invoices_receipt") && !perms.includes("invoices_receipt:update")) {
+      /**
+       * Exact action match — a `:read` grant must not authorise collecting money.
+       *
+       * `invoices_invoice` is accepted alongside the receipt grant because settling a receipt
+       * *is* issuing a Tax Invoice, and the prepaid Tax Invoice flow in the create modal ends
+       * here. Without it a manager could create the receipt that flow posts and then be
+       * refused the settlement that gives it its `INV-` number.
+       *
+       * The wallet grant is checked separately further down and is not implied by either.
+       */
+      const canSettle =
+        perms.includes("invoices_receipt") ||
+        perms.includes("invoices_receipt:update") ||
+        perms.includes("invoices_invoice") ||
+        perms.includes("invoices_invoice:create");
+      if (!canSettle) {
         return NextResponse.json(
           { message: "Forbidden: Insufficient permissions to record a payment" },
           { status: 403 }
@@ -220,12 +237,20 @@ export async function POST(
         });
       } catch (err) {
         if (err instanceof InsufficientBalanceError) {
-          // Name the shortfall. "Insufficient balance" only tells someone to go and look.
+          /**
+           * Name the shortfall. "Insufficient balance" only tells someone to go and look.
+           *
+           * `err.message` now carries the figures, and they are repeated as fields so the UI
+           * can format them itself rather than parsing the sentence.
+           */
           return NextResponse.json(
             {
               message: err.message,
               code: "INSUFFICIENT_BALANCE",
-              requiredAmount: toRupees(amountPaise),
+              walletType,
+              requiredAmount: err.requiredAmount ?? toRupees(amountPaise),
+              availableAmount: err.availableAmount,
+              shortfallAmount: err.shortfallAmount,
             },
             { status: 409 }
           );
@@ -247,75 +272,19 @@ export async function POST(
       settlementTransactionId = captured.transactionId;
     }
 
-    // 3. Issue the invoice, retain the receipt, sync the order.
-    const invoiceId = await generateNextId("invoice");
-    const now = new Date();
-    // The invoice carries the receipt's content, minus the fields it must mint fresh.
-    const receiptFields: Record<string, unknown> = { ...receipt };
-    for (const key of ["_id", "createdAt", "updatedAt", "sourceReceiptId", "settledByInvoiceId"]) {
-      delete receiptFields[key];
-    }
-
-    const invoice = await InvoiceModel.create({
-      ...receiptFields,
-      _id: invoiceId,
-      type: "invoice",
-      status: "paid",
-      paymentStatus: "Paid",
-      paymentMethod: method,
-      transactionId: settlementTransactionId,
+    // 3. Issue the invoice, retain the receipt, sync the order — the shared sequence.
+    const { invoiceId, invoice } = await issueTaxInvoiceForReceipt({
+      receipt,
+      method,
+      // Empty for a cash payment, which carries no reference — store nothing rather than an
+      // empty string masquerading as one.
+      transactionId: settlementTransactionId || undefined,
       walletTransactionId: capturedTxId,
       walletType: capturedWalletType,
-      // The link that makes double-settlement impossible: unique sparse index.
-      sourceReceiptId: id,
-      settledByInvoiceId: undefined,
-      notes: notes !== undefined ? notes : receipt.notes,
-      generatedAt: formatDateIST(now),
-      issuedAt: now,
-      // Mongoose cannot narrow a spread of the stored receipt against the schema type. The
-      // spread fields are the receipt's own, already validated when it was created; the
-      // fields that matter here are the explicit ones above.
-    } as never);
-
-    await InvoiceModel.findByIdAndUpdate(id, {
-      $set: {
-        status: "paid",
-        paymentStatus: "Paid",
-        paymentMethod: method,
-        transactionId: settlementTransactionId,
-        walletTransactionId: capturedTxId,
-        walletType: capturedWalletType,
-        settledByInvoiceId: invoiceId,
-      },
+      walletAmount: capturedTxId ? toRupees(amountPaise) : undefined,
+      notes,
+      actor: resolveActor(payload),
     });
-
-    if (receipt.orderId) {
-      await Order.findByIdAndUpdate(receipt.orderId, {
-        $set: {
-          paymentStatus: "Paid",
-          paymentMethod: isWallet ? "Wallet" : method === "Cash" ? "Cash" : method,
-          transactionId: settlementTransactionId,
-          ...(capturedTxId ? { walletTransactionId: capturedTxId, walletAmount: toRupees(amountPaise) } : {}),
-          ...(capturedWalletType ? { walletType: capturedWalletType } : {}),
-          invoiceId,
-        },
-        $push: {
-          history: {
-            $each: [
-              {
-                status: "Payment Received",
-                at: now,
-                timestamp: formatDateTimeIST(now),
-                customerNote: "Payment received. Your tax invoice is available.",
-                internalNote: `Receipt ${id} settled via ${method}; invoice ${invoiceId} issued.`,
-                actor: resolveActor(payload),
-              },
-            ],
-            $position: 0,
-          },
-        },
-      });
-    }
 
     return NextResponse.json(
       {

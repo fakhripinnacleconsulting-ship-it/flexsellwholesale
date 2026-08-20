@@ -53,7 +53,7 @@ export type SettleResult =
   | { status: "cancelled"; orderId: string };
 
 /**
- * Marks an order paid and promotes its receipt to a tax invoice.
+ * Marks an order paid and issues the Tax Invoice for its receipt.
  *
  * Idempotent: a second call for an already-paid order is a no-op, so the webhook and the
  * browser callback racing each other cannot double-apply or double-notify.
@@ -67,7 +67,7 @@ export async function settleOrderPayment(params: {
 }): Promise<SettleResult> {
   const dbConnect = (await import("@/lib/dbConnect")).default;
   const Order = (await import("@/models/Order")).default;
-  const InvoiceModel = (await import("@/models/Invoice")).default;
+  const { settleOrderDocuments } = await import("@/lib/orderSettlement");
 
   await dbConnect();
 
@@ -108,14 +108,32 @@ export async function settleOrderPayment(params: {
   });
   await order.save();
 
-  // A pending receipt becomes a tax invoice once payment clears.
-  const linkedInvoice = await InvoiceModel.findOne({ orderId: order._id }) as any;
-  if (linkedInvoice) {
-    linkedInvoice.type = "invoice";
-    linkedInvoice.status = "paid";
-    linkedInvoice.paymentStatus = "Paid";
-    linkedInvoice.transactionId = params.razorpayPaymentId;
-    await linkedInvoice.save();
+  /**
+   * Issue the Tax Invoice for the receipt this order was placed against.
+   *
+   * This used to flip `type` on the receipt in place — `linkedInvoice.type = "invoice"`.
+   * `Invoice._id` is an assigned String that MongoDB will not change, so every Tax Invoice
+   * that produced kept its receipt number (`RCP-2026-000NN`) and the `INV-` counter never
+   * advanced. GST Rule 46(b) requires a serial unique to the invoice series.
+   *
+   * `settleOrderDocuments` mints a real `INV-` document and retains the receipt as the
+   * record of what was collected. It is idempotent, which matters here more than anywhere:
+   * the webhook and the browser callback routinely race each other.
+   *
+   * A failure to write the paperwork must not fail the settlement — the payment is captured
+   * and the order is already marked paid. Log it and let the invoice be reissued.
+   */
+  try {
+    await settleOrderDocuments({
+      orderId: order._id as string,
+      method: "Razorpay",
+      transactionId: params.razorpayPaymentId,
+    });
+  } catch (err) {
+    console.error(
+      `[Razorpay] Order ${order._id} is paid but its tax invoice could not be issued (via ${params.source}):`,
+      err
+    );
   }
 
   return { status: "settled", orderId: order._id as string };

@@ -10,6 +10,7 @@ import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { isPriceAllowed } from "@/lib/priceTierHelper";
 import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
 import { buildHistoryEvent, SYSTEM_ACTOR } from "@/lib/orderHistory";
+import { issueTaxInvoiceForReceipt, orderPaymentMethodFor, walletTypeForMethod, type StoredReceipt } from "@/lib/orderSettlement";
 import { rateLimit } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 import { formatDateIST } from "@/lib/datetime";
@@ -205,6 +206,35 @@ export async function POST(request: Request) {
     const invoiceId = await generateNextId("receipt");
     const orderId = await generateNextId("order");
 
+    /**
+     * A dropshipping order paid up front still gets the full paper trail: a `REC-` receipt
+     * for what was collected and a separate `INV-` Tax Invoice issued against it.
+     *
+     * Two families of method are refused as hand-recorded prepayments:
+     *   - **Wallets**, because a balance can only be debited by `/api/invoices/[id]/settle`,
+     *     which reads a session this public-portal flow does not carry in the buyer's name.
+     *   - **Razorpay**, because a gateway payment cannot be attested to. It either carries a
+     *     verified signature or it did not happen, and the gateway settles itself through
+     *     `/api/razorpay/verify` and the webhook.
+     *
+     * Either one falls through to a pending order, which is the honest outcome.
+     */
+    const HAND_RECORDABLE = !["Store Wallet", "Business Wallet", "Wallet", "Razorpay"].includes(
+      paymentMethod
+    );
+    const isPrepaid = paymentStatus === "Paid" && HAND_RECORDABLE;
+
+    /**
+     * The status the documents are actually written with.
+     *
+     * Derived once, and never the caller's word for it: a request naming Razorpay or a wallet
+     * with `paymentStatus: "Paid"` used to be written straight through, producing a paid order
+     * and a paid receipt with nothing behind either. Anything that is not hand-recordable
+     * starts Pending and is settled by the path that can prove it — the gateway callback, or
+     * the wallet routes.
+     */
+    const effectivePaymentStatus = paymentStatus === "Paid" && !HAND_RECORDABLE ? "Pending" : paymentStatus;
+
     const generatedAt = formatDateIST(new Date());
 
     const orderDate = formatDateIST(new Date());
@@ -284,14 +314,22 @@ export async function POST(request: Request) {
       },
       shippingAddress,
       paymentMethod,
-      paymentStatus,
-      transactionId: transactionId || undefined,
+      /**
+       * The receipt is always born pending, even for a prepaid dropshipping order.
+       *
+       * Writing `status: "paid"` here produced a paid receipt with no Tax Invoice behind it:
+       * the `INV-` counter never advanced and the customer had no compliant document for
+       * money they had already handed over. The payment is recorded below through the shared
+       * settlement library, which mints the `INV-` and links the two.
+       */
+      paymentStatus: isPrepaid ? "Pending" : effectivePaymentStatus,
+      transactionId: isPrepaid ? undefined : transactionId || undefined,
       sellerInfo,
       notes,
       generatedAt,
       generatedBy: "website-public",
       createdBy: resolvedCreatedBy,
-      status: paymentStatus === "Paid" ? "paid" : "pending",
+      status: "pending",
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,
       dropshipDetails,
@@ -317,8 +355,12 @@ export async function POST(request: Request) {
         hsnSlabs: [],
       },
       shippingAddress,
-      paymentMethod: paymentMethod || "COD",
-      paymentStatus: paymentStatus || "Pending",
+      // Translated to the order enum — the document keeps its own wording. See
+      // `orderPaymentMethodFor`.
+      paymentMethod: orderPaymentMethodFor(paymentMethod) || "COD",
+      walletType: walletTypeForMethod(paymentMethod),
+      // Pending until the settlement below records the payment and issues the Tax Invoice.
+      paymentStatus: isPrepaid ? "Pending" : effectivePaymentStatus || "Pending",
       status: "Processing",
       statusClass: "bg-blue-100 text-blue-700",
       invoiceId,
@@ -391,10 +433,30 @@ export async function POST(request: Request) {
       revalidateProductStock();
     }
 
+    // Record the prepayment and issue the Tax Invoice, after the stock has been taken.
+    let taxInvoiceId: string | undefined;
+    if (isPrepaid) {
+      const storedReceipt = (await InvoiceModel.findById(invoiceId).lean()) as StoredReceipt | null;
+      if (storedReceipt) {
+        const settled = await issueTaxInvoiceForReceipt({
+          receipt: storedReceipt,
+          method: paymentMethod,
+          transactionId: String(transactionId || "").trim() || undefined,
+          actor: {
+            role: resolvedCreatedBy?.role,
+            name: resolvedCreatedBy?.name,
+            userId: resolvedCreatedBy?.userId,
+          },
+        });
+        taxInvoiceId = settled.invoiceId;
+      }
+    }
+
     return NextResponse.json({
       message: "Dropshipping order created successfully",
       orderId: (newOrder as any)._id || orderId,
-      invoiceId,
+      invoiceId: taxInvoiceId || invoiceId,
+      receiptId: invoiceId,
       amount: (newOrder as any).amount || amount,
       status: (newOrder as any).status || "Processing",
     }, { status: 201 });

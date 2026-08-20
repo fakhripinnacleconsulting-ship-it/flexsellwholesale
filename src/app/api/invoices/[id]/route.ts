@@ -111,6 +111,26 @@ export async function PUT(
     }
 
     /**
+     * A settled receipt is frozen.
+     *
+     * It is retained as the record of a payment that a live `INV-` Tax Invoice was issued
+     * against, so voiding or re-editing it would contradict a document that cannot itself be
+     * edited. Cancel the sale by voiding the Tax Invoice, not the evidence behind it.
+     */
+    if (
+      existingDoc.type === "receipt" &&
+      (existingDoc.settledByInvoiceId || existingDoc.status === "paid") &&
+      !(Object.keys(body).length === 1 && body.isArchived !== undefined)
+    ) {
+      return NextResponse.json(
+        {
+          message: `This receipt was settled${existingDoc.settledByInvoiceId ? ` by Tax Invoice ${existingDoc.settledByInvoiceId}` : ""} and can no longer be changed. Void the Tax Invoice instead.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    /**
      * 1. INVOICE IMMUTABILITY RULES
      *
      * An allowlist, not a blocklist. The blocklist this replaces named nine fields and so
@@ -228,7 +248,26 @@ export async function DELETE(
     // 2. CONVERTED QUOTES CANNOT BE DELETED
     if (invoice.type === "quote" && invoice.status === "converted") {
       return NextResponse.json(
-        { message: "Converted quotes cannot be deleted." }, 
+        { message: "Converted quotes cannot be deleted." },
+        { status: 400 }
+      );
+    }
+
+    /**
+     * 3. A SETTLED RECEIPT CANNOT BE DELETED
+     *
+     * Settlement stopped mutating the receipt into the invoice and started issuing a separate
+     * `INV-` that points back at it, which means the receipt now survives — as the record of
+     * what was actually collected. Deleting it would strip the audit trail from a live Tax
+     * Invoice and orphan the `sourceReceiptId` that makes double-settlement impossible.
+     *
+     * Only settled receipts are protected; an unpaid one is still just a draft demand.
+     */
+    if (invoice.type === "receipt" && (invoice.settledByInvoiceId || invoice.status === "paid")) {
+      return NextResponse.json(
+        {
+          message: `This receipt was settled${invoice.settledByInvoiceId ? ` by Tax Invoice ${invoice.settledByInvoiceId}` : ""} and is the record of that payment, so it cannot be deleted.`,
+        },
         { status: 400 }
       );
     }

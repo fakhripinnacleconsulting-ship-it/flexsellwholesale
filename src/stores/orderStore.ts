@@ -50,7 +50,7 @@ export const useOrderStore = create<OrderStoreState>()((set) => ({
   createOrder: async (items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, charges) => {
     set({ isLoading: true, error: null });
     try {
-      const newOrder = await orderService.createOrder(items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, undefined, undefined, charges);
+      const newOrder = await orderService.createOrder(items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, undefined, charges);
       set((state) => ({
         orders: [newOrder, ...state.orders],
         isLoading: false

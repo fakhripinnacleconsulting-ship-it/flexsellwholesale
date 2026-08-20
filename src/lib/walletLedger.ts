@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Wallet from "@/models/Wallet";
 import WalletTransaction from "@/models/WalletTransaction";
 import { nextCounterValue } from "./idGeneratorServer";
+import { toRupees } from "./money";
 import {
   WALLET_COUNTERS,
   WALLET_RECEIPT_PREFIX,
@@ -53,16 +54,55 @@ export function isCreditType(type: WalletTransactionType): boolean {
  * Thrown when a debit cannot proceed. Carries a 409 rather than a 500 because it is a
  * legitimate business outcome, not a fault — the caller should show it, not log it.
  */
+/**
+ * The balance would not cover the payment.
+ *
+ * Carries the numbers when the caller knows them, because "Insufficient Business Wallet
+ * Balance" tells someone only that they must go and look it up. Several routes already
+ * *claimed* in their comments to "name the shortfall" while passing this message straight
+ * through — a customer ₹2,300 short can act on that figure; the bare noun phrase they
+ * actually saw is a dead end.
+ */
 export class InsufficientBalanceError extends Error {
   readonly status = 409;
-  constructor(walletType: WalletType) {
+  /** Rupees, for the caller to put in a response body. Undefined when not known at throw time. */
+  readonly availableAmount?: number;
+  readonly requiredAmount?: number;
+  readonly shortfallAmount?: number;
+
+  constructor(walletType: WalletType, balances?: { availablePaise: number; requiredPaise: number }) {
+    const label = walletType === "business" ? "Business Wallet" : "Store Wallet";
+
+    // Computed before `super`, which TypeScript requires to be the first root-level
+    // statement here because the class declares initialised properties.
+    const figures = balances
+      ? {
+          available: toRupees(balances.availablePaise),
+          required: toRupees(balances.requiredPaise),
+          shortfall: toRupees(Math.max(0, balances.requiredPaise - balances.availablePaise)),
+        }
+      : null;
+
     super(
-      walletType === "business"
-        ? "Insufficient Business Wallet Balance"
-        : "Insufficient Store Wallet Balance"
+      figures
+        ? `${label} is short by ${formatRupees(figures.shortfall)}. ` +
+            `It holds ${formatRupees(figures.available)} against a total of ${formatRupees(figures.required)}.`
+        : `Insufficient ${label} Balance`
     );
+
+    if (figures) {
+      this.availableAmount = figures.available;
+      this.requiredAmount = figures.required;
+      this.shortfallAmount = figures.shortfall;
+    }
+
     this.name = "InsufficientBalanceError";
   }
+}
+
+/** Plain rupee formatting for error text. The UI formats its own; this is for the message. */
+function formatRupees(rupees: number): string {
+  return `₹${rupees.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export class WalletNotActiveError extends Error {

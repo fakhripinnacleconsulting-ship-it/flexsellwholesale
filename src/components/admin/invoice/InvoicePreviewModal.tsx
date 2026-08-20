@@ -143,10 +143,17 @@ export function InvoicePreviewModal({
                 onChange={(e) => onUpdateStatus(e.target.value)}
                 className="bg-background text-foreground text-xs font-semibold px-2 py-1.5 border rounded-md cursor-pointer"
               >
+                {/*
+                  A quote's whole lifecycle, and it ends here — a quote is a price estimate,
+                  never a step towards an order. "Converted to Order" is gone; the status
+                  itself survives only on rows created before that flow was removed.
+                */}
                 <option value="draft">Draft</option>
                 <option value="sent">Sent to Buyer</option>
                 <option value="finalized">Finalized</option>
-                <option value="converted">Converted to Order</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="expired">Expired</option>
               </select>
             )}
 

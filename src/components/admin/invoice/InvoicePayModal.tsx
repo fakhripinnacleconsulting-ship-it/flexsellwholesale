@@ -6,12 +6,27 @@ import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
 import { X, AlertCircle } from "lucide-react";
 
-export type PayOnlineMethod = "UPI" | "Razorpay" | "Bank Transfer" | "Store Wallet" | "Business Wallet";
+/**
+ * How the money is taken.
+ *
+ * `Razorpay` is the odd one out and deliberately so: it is **not** recorded by hand. Choosing
+ * it opens Razorpay Checkout against the receipt's linked order and the payment only counts
+ * once `/api/razorpay/verify` re-computes the signature — which is also why
+ * `/api/invoices/[id]/settle` refuses the method outright. Everything else here is money
+ * already collected, which staff attest to with a reference.
+ */
+export type PayOnlineMethod = "UPI" | "Bank Transfer" | "Razorpay" | "Store Wallet" | "Business Wallet";
 
 interface InvoicePayModalProps {
   isOpen: boolean;
   onClose: () => void;
   payInvoiceId: string | null;
+  /**
+   * The order this receipt was raised against, when it has one.
+   *
+   * Only the gateway needs it: Razorpay charges an order, and a standalone receipt has none.
+   */
+  linkedOrderId?: string | null;
   /** The receipt total. The server settles against its own stored copy; this is for the UI guard. */
   payAmount: number;
   paymentType: "cash" | "online";
@@ -30,6 +45,7 @@ export function InvoicePayModal({
   isOpen,
   onClose,
   payInvoiceId,
+  linkedOrderId,
   payAmount,
   paymentType,
   setPaymentType,
@@ -45,6 +61,7 @@ export function InvoicePayModal({
   if (!isOpen) return null;
 
   const isWallet = paymentType === "online" && (onlineMethod === "Store Wallet" || onlineMethod === "Business Wallet");
+  const isGateway = paymentType === "online" && onlineMethod === "Razorpay";
   const selectedBalance = onlineMethod === "Business Wallet" ? businessWalletBalance : walletBalance;
 
   /**
@@ -57,12 +74,25 @@ export function InvoicePayModal({
   const walletCovers = !isWallet || selectedBalance >= payAmount;
   const shortfall = isWallet && !walletCovers ? payAmount - selectedBalance : 0;
 
-  // A reference is mandatory for everything except a wallet, where the ledger entry is the
-  // reference. The modal used to invent one when the field was blank.
-  const needsReference = !isWallet;
+  /**
+   * A reference is asked for only where one exists.
+   *
+   * A wallet is exempt — the ledger entry *is* the reference. So is cash: a note handed over
+   * the counter has no UTR, and demanding one only moves the fabrication from the code to the
+   * person. This modal used to invent `CASH-HAND-${Date.now()}` itself; a hand-typed
+   * "CASH-1" is the same unreconcilable string with a different author. And the gateway
+   * produces its own payment id, which is why it must never be typed.
+   */
+  const needsReference = !isWallet && !isGateway && paymentType !== "cash";
   const referenceMissing = needsReference && !txnId.trim();
 
-  const canConfirm = walletCovers && !referenceMissing && !isSubmitting;
+  /**
+   * A gateway payment charges the linked order, so a receipt with no order behind it has
+   * nothing to charge. Blocked here rather than failing after the modal opens.
+   */
+  const gatewayUnavailable = isGateway && !linkedOrderId;
+
+  const canConfirm = walletCovers && !referenceMissing && !gatewayUnavailable && !isSubmitting;
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -121,10 +151,41 @@ export function InvoicePayModal({
               >
                 <option value="UPI">UPI / VPA Scan</option>
                 <option value="Bank Transfer">Direct Bank Wire / NEFT</option>
-                <option value="Razorpay">Razorpay Gateway</option>
+                <option value="Razorpay">Razorpay Gateway — card / netbanking / UPI</option>
                 <option value="Store Wallet">Store Wallet — {formatPrice(walletBalance)} available</option>
                 <option value="Business Wallet">Business Wallet — {formatPrice(businessWalletBalance)} available</option>
               </select>
+            </div>
+          )}
+
+          {isGateway && (
+            <div
+              className={`flex items-start gap-2 p-3 rounded-md border text-sm ${
+                gatewayUnavailable
+                  ? "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900"
+                  : "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900"
+              }`}
+            >
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                {gatewayUnavailable ? (
+                  <>
+                    <p className="font-semibold">This receipt has no linked order.</p>
+                    <p className="text-xs opacity-90 mt-0.5">
+                      The gateway charges an order, so there is nothing to charge here. Collect
+                      the payment another way.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold">Razorpay opens for {formatPrice(payAmount)}.</p>
+                    <p className="text-xs opacity-90 mt-0.5">
+                      Charged against order {linkedOrderId} at its own stored total. The Tax
+                      Invoice is issued once the signature verifies — no reference to type.
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -141,22 +202,38 @@ export function InvoicePayModal({
             </div>
           )}
 
-          {needsReference && (
+          {needsReference ? (
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                Transaction Ref / UTR / Receipt No. <span className="text-destructive">*</span>
+                Transaction Ref / UTR <span className="text-destructive">*</span>
               </label>
               <Input
-                placeholder={paymentType === "cash" ? "e.g. CASH-HAND-102" : "e.g. UTR984712034"}
+                placeholder="e.g. UTR984712034"
                 value={txnId}
                 onChange={(e) => setTxnId(e.target.value)}
                 className="text-sm font-mono"
               />
               <p className="text-[11px] text-muted-foreground mt-1">
-                Required — this is what the payment reconciles against.
+                Required — this is what the payment reconciles against on the bank statement.
               </p>
             </div>
-          )}
+          ) : paymentType === "cash" ? (
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                Cash Receipt No. <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                placeholder="e.g. receipt book no. 0142"
+                value={txnId}
+                onChange={(e) => setTxnId(e.target.value)}
+                className="text-sm font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Only if you issued a physical receipt. Cash reconciles against the cash book,
+                not a reference number — leave it blank rather than inventing one.
+              </p>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" size="sm" onClick={onClose} className="cursor-pointer" disabled={isSubmitting}>
@@ -168,7 +245,13 @@ export function InvoicePayModal({
               disabled={!canConfirm}
               className="font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Recording…" : "Confirm Payment & Issue Invoice"}
+              {isSubmitting
+                ? isGateway
+                  ? "Opening gateway…"
+                  : "Recording…"
+                : isGateway
+                ? "Continue to Razorpay"
+                : "Confirm Payment & Issue Invoice"}
             </Button>
           </div>
         </div>

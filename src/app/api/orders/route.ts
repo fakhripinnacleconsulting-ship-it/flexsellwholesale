@@ -13,7 +13,7 @@ import Coupon from "@/models/Coupon";
 import { requireAuth } from "@/lib/authGuard";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
-import { generateNextId, nextCounterValue } from "@/lib/idGeneratorServer";
+import { generateNextId } from "@/lib/idGeneratorServer";
 import { orderSchema } from "@/lib/validators";
 import { ZodError } from "zod";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
@@ -94,30 +94,21 @@ async function resolveOrderCreatedBy(doc: any) {
 }
 
 /**
- * Allocates the next invoice/receipt number for the current year.
+ * Allocates the next invoice/receipt number.
  *
- * Backed by an atomic counter rather than "read the highest existing id and add one" —
- * two checkouts landing together both read the same highest id, both derived the same
- * number, and the second lost its invoice to a duplicate-key error mid-transaction.
+ * Delegates to the application-wide generator rather than minting its own series. This used
+ * to run a private per-year counter producing `INV-2026-00001` / `RCP-2026-00001`, while
+ * `/api/invoices`, `/api/invoices/[id]/settle` and the whole admin UI produced `INV-01001` /
+ * `REC-01001` through `generateNextId`. Two parallel series for the same statutory document
+ * type is not a numbering scheme, and it made the `INV-` counter meaningless: a customer
+ * checkout and a settled receipt could each claim to be "the next" tax invoice.
  *
- * The counter is seeded from the existing documents the first time a given
- * prefix/year is used, so numbering continues rather than restarting at 1.
+ * Both were already atomic counters, so nothing about concurrency changes here — only which
+ * counter is asked. Documents already carrying `INV-2026-…` / `RCP-2026-…` keep their
+ * numbers; the two series simply stop growing.
  */
 async function generateInvoiceId(type: "invoice" | "receipt", _session?: any): Promise<string> {
-  const prefix = type === "invoice" ? "INV" : "RCP";
-  const year = new Date().getFullYear();
-
-  const seq = await nextCounterValue(`counter_doc_${prefix}_${year}`, async () => {
-    const lastDoc = await InvoiceModel.findOne({ _id: new RegExp(`^${prefix}-${year}-`) })
-      .sort({ _id: -1 })
-      .select("_id")
-      .lean() as any;
-    if (!lastDoc) return 0;
-    const lastSeq = parseInt((lastDoc._id as string).split("-")[2], 10);
-    return isNaN(lastSeq) ? 0 : lastSeq;
-  });
-
-  return `${prefix}-${year}-${String(seq).padStart(5, "0")}`;
+  return generateNextId(type);
 }
 
 async function getSellerInfo() {
@@ -352,94 +343,35 @@ export async function POST(request: Request) {
     await dbConnect();
     const body = await request.json();
 
-    // If quoteId is provided, populate items, amount, and shippingAddress from the quote to
-    // satisfy Zod and build the order.
+    /**
+     * Quotations are standalone price estimates and cannot become orders.
+     *
+     * This used to be the conversion entry point: given a `quoteId` it copied the quote's
+     * lines and total onto the order and **skipped both the per-item price check and the
+     * order-total check**, on the grounds that a quoted total is admin-negotiated. That
+     * carve-out is the reason this rejection is a hard 400 rather than a quiet ignore — a
+     * request carrying a `quoteId` was asking for an unverified price, and silently pricing
+     * it another way would be worse than refusing.
+     *
+     * `Order.quoteId` and its unique index stay in the schema: orders created by the old
+     * flow still carry one and must keep resolving.
+     */
     if (body.quoteId) {
-      const quote = await InvoiceModel.findById(body.quoteId).lean() as any;
-      if (!quote) {
-        return NextResponse.json({ message: "Quote not found" }, { status: 404 });
-      }
-      if (quote.status === "converted") {
-        return NextResponse.json({ message: "This quote has already been converted to an order." }, { status: 400 });
-      }
-
-      // A quote conversion skips the per-item price check and the order-total check further
-      // down, because those totals are admin-negotiated. That carve-out is only safe if the
-      // caller actually owns the quote — otherwise any buyer could name someone else's quote
-      // id and buy at an arbitrary price.
-      if (payload.role !== "admin" && payload.role !== "manager") {
-        const quoteEmail = (quote.customerEmail || "").toLowerCase();
-        if (!quoteEmail || quoteEmail !== payload.email.toLowerCase()) {
-          return NextResponse.json({ message: "This quote does not belong to your account." }, { status: 403 });
-        }
-      }
-
-      const normalizedItems = (quote.items || []).map((i: any, idx: number) => {
-        const pId = typeof i.product === "object" ? (i.product?._id || i.productId || `PROD-${idx}`) : (i.productId || (typeof i.product === "string" ? i.product : `PROD-${idx}`));
-        const pTitle = typeof i.product === "object" ? (i.product?.title || i.product?.name || "Wholesale Product") : (i.productTitle || i.name || i.title || "Wholesale Product");
-        return {
-          id: i.id || i._id || `item-${idx}-${Date.now()}`,
-          productId: pId,
-          product: {
-            _id: pId,
-            title: pTitle,
-            categoryId: i.product?.categoryId || i.categoryId || "cat-default",
-            gstRate: i.product?.gstRate || i.gstRate || 18,
-            priceIncludesGst: i.product?.priceIncludesGst ?? true,
-          },
-          selectedVariants: i.selectedVariants || i.variants || {},
-          quantity: Number(i.quantity || 1),
-          pricePerUnit: Number(i.pricePerUnit || i.price || 0)
-        };
-      });
-
-      // Always take lines and total from the stored quote, never from the request. The
-      // price/total verification below is deliberately skipped for quote conversions, so
-      // letting the client override these would hand it a blank cheque.
-      body.items = normalizedItems;
-      body.amount = Number(quote.amount || 0);
-
-      const isInputAddrValid = body.shippingAddress && body.shippingAddress.address && body.shippingAddress.email;
-      body.shippingAddress = isInputAddrValid ? body.shippingAddress : (quote.shippingAddress || {
-        firstName: quote.customerName ? quote.customerName.split(" ")[0] : "Valued",
-        lastName: quote.customerName ? quote.customerName.split(" ").slice(1).join(" ") || "Buyer" : "Buyer",
-        email: quote.customerEmail || "customer@example.com",
-        company: quote.customerCompany || "",
-        address: "Wholesale Dock Facility Address",
-        city: "Mumbai",
-        state: "Maharashtra",
-        pinCode: "400001",
-        phone: "9876543210",
-        gstin: quote.customerGstin || ""
-      });
-
-      body.couponCode = body.couponCode || quote.couponCode;
-      body.couponDiscount = body.couponDiscount || quote.couponDiscount;
-      body.salesperson = body.salesperson || quote.salesperson;
+      return NextResponse.json(
+        {
+          message:
+            "Quotations are standalone price estimates and cannot be converted into orders.",
+          code: "QUOTE_CONVERSION_REMOVED",
+        },
+        { status: 400 }
+      );
     }
 
     // Validate order request with Zod
     const validatedData = orderSchema.parse(body);
-    const { items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, packagingCharge, shippingCharge, quoteId, salesperson } = validatedData;
+    const { items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, packagingCharge, shippingCharge, salesperson } = validatedData;
 
     // Validations passed, process checkout
-
-    // Idempotency Check: if quoteId is provided, check if Order already exists
-    if (quoteId) {
-      const existingOrder = await Order.findOne({ quoteId }).lean();
-      if (existingOrder) {
-        return NextResponse.json(existingOrder, { status: 200 });
-      }
-
-      // Check if quote has already been converted
-      const quote = await InvoiceModel.findById(quoteId).lean() as any;
-      if (!quote) {
-        return NextResponse.json({ message: "Quote not found" }, { status: 404 });
-      }
-      if (quote.status === "converted") {
-        return NextResponse.json({ message: "This quote has already been converted to an order." }, { status: 400 });
-      }
-    }
 
     // Re-verify coupon validity and discount on backend for security
     let dbCoupon = null;
@@ -508,14 +440,6 @@ export async function POST(request: Request) {
       // standalone (non-replica-set) MongoDB, so per-attempt state has to be reset here
       // rather than carried over from the aborted attempt.
       couponClaimed = false;
-
-      // Re-verify idempotency check inside transaction
-      if (quoteId) {
-        const existingOrder = await Order.findOne({ quoteId }).session(session || null).lean();
-        if (existingOrder) {
-          return existingOrder;
-        }
-      }
 
       // Fetch customer doc to determine customerTypes for price verification & orderType resolution
       const customerDoc = await Customer.findOne({ email: shippingAddress.email.toLowerCase() }).session(session || null).lean() as any;
@@ -593,16 +517,21 @@ export async function POST(request: Request) {
            * trusted, so a shopper cannot reach a rate they are not entitled to by editing a
            * field.
            */
-          if (!quoteId) {
-            const verdict = isPriceAllowed(item.pricePerUnit, sv, customerTypes, item.quantity);
-            if (!verdict.ok) {
-              throw new Error(
-                `Price verification failed for product "${dbProduct.title}". ` +
-                  `Got ₹${item.pricePerUnit}; this account may pay ${verdict.allowed
-                    .map((p) => `₹${p}`)
-                    .join(" or ")}.`
-              );
-            }
+          /**
+           * Unconditional now. This used to be skipped whenever the request carried a
+           * `quoteId`, because a quoted line price is admin-negotiated — which meant the one
+           * request shape that bypassed price verification entirely was also the one a buyer
+           * could aim at someone else's quote. Quotes no longer become orders, so every line
+           * on every order is verified.
+           */
+          const verdict = isPriceAllowed(item.pricePerUnit, sv, customerTypes, item.quantity);
+          if (!verdict.ok) {
+            throw new Error(
+              `Price verification failed for product "${dbProduct.title}". ` +
+                `Got ₹${item.pricePerUnit}; this account may pay ${verdict.allowed
+                  .map((p) => `₹${p}`)
+                  .join(" or ")}.`
+            );
           }
 
           const updateResult = await Product.updateOne(
@@ -691,8 +620,10 @@ export async function POST(request: Request) {
       // Recompute the total from server-verified item prices. Per-item prices are already
       // re-verified above, but without this the client still controls the top-level
       // `amount` — and that is what gets charged and invoiced.
-      // Quote conversions are exempt: those totals are admin-negotiated, same carve-out
-      // the per-item price check uses.
+      //
+      // No exemption any more. Quote conversions used to be waved through here as
+      // admin-negotiated totals; with conversion removed, every order is charged the figure
+      // the server computed.
       const expectedTotal = computeExpectedOrderTotal({
         taxDetails,
         shippingCharge: shippingCharge || 0,
@@ -700,14 +631,14 @@ export async function POST(request: Request) {
         couponDiscount: couponDiscount || 0,
       });
 
-      if (!quoteId && !isOrderTotalAcceptable(expectedTotal, amount)) {
+      if (!isOrderTotalAcceptable(expectedTotal, amount)) {
         throw new Error(
           `Order total mismatch. Expected ₹${expectedTotal.toFixed(2)}, received ₹${Number(amount).toFixed(2)}.`
         );
       }
 
       // Charge the server's figure, not the client's.
-      const chargeableAmount = quoteId ? amount : expectedTotal;
+      const chargeableAmount = expectedTotal;
 
       // Only an admin/manager may declare an order paid at creation time (offline settlement, cash,
       // bank transfer they have confirmed). For everyone else the order starts Pending and
@@ -715,15 +646,28 @@ export async function POST(request: Request) {
       //
       // The previous rule only forced Pending for `paymentMethod === "Razorpay"` outside a
       // quote, so `{"paymentMethod":"COD","paymentStatus":"Paid"}` — or any payload carrying
-      // a quoteId — created a fully paid order without a rupee changing hands.
+      // a quote id — created a fully paid order without a rupee changing hands.
       const isStaff = payload.role === "admin" || payload.role === "manager";
-      const pStatus = isStaff
-        ? (paymentDetails?.paymentStatus || "Pending")
-        : "Pending";
+
+      /**
+       * ...and only for a method they can actually attest to.
+       *
+       * A gateway payment either carries a verified signature or it did not happen, and a
+       * wallet is debited by the wallet routes, which read a balance and write a ledger
+       * entry. Declaring either one paid here would mark an order settled against money that
+       * never moved — the same hole closed in `/api/orders/[id]/status` and
+       * `/api/invoices/[id]/settle`. Both fall through to Pending, which is the honest
+       * outcome: the gateway or the wallet route then settles it for real.
+       */
+      const HAND_RECORDABLE = !["Razorpay", "Wallet", "Store Wallet", "Business Wallet"].includes(
+        paymentDetails?.paymentMethod || ""
+      );
+      const pStatus =
+        isStaff && HAND_RECORDABLE ? (paymentDetails?.paymentStatus || "Pending") : "Pending";
 
       // Same reasoning as pStatus: a buyer-supplied transaction id is unverifiable. The real
       // one is stamped by `settleOrderPayment` once the gateway signature checks out.
-      const pTransactionId = isStaff ? paymentDetails?.transactionId : undefined;
+      const pTransactionId = pStatus === "Paid" ? paymentDetails?.transactionId : undefined;
 
       const docType = pStatus === "Paid" ? "invoice" : "receipt";
       const invoiceId = await generateInvoiceId(docType, session);
@@ -733,8 +677,8 @@ export async function POST(request: Request) {
        *
        * Precedence, strongest first:
        *
-       *   1. **An explicit choice** — `body.orderType`, or the quote's `customerType`.
-       *      Whoever placed the order said what it was; nothing should second-guess that.
+       *   1. **An explicit choice** — `body.orderType`. Whoever placed the order said what
+       *      it was; nothing should second-guess that.
        *   2. The customer's single account type, when they hold exactly one.
        *   3. Only then, a guess from the shipping address.
        *
@@ -749,17 +693,7 @@ export async function POST(request: Request) {
 
       let orderType: "B2B" | "B2C" | "Dropshipping";
 
-      const quoteDoc = quoteId
-        ? ((await InvoiceModel.findById(quoteId).session(session || null).lean()) as unknown as {
-            customerType?: "B2B" | "B2C" | "Dropshipping";
-          } | null)
-        : null;
-
-      const explicitType = isValidOrderType(body.orderType)
-        ? body.orderType
-        : isValidOrderType(quoteDoc?.customerType)
-          ? quoteDoc!.customerType!
-          : null;
+      const explicitType = isValidOrderType(body.orderType) ? body.orderType : null;
 
       if (explicitType) {
         // A buyer may only claim a type their account actually holds. Staff act on the
@@ -777,8 +711,7 @@ export async function POST(request: Request) {
         orderType = "B2C";
       }
 
-      const isSelf = isStaff || !!quoteId;
-      const origin = isSelf ? "self" : "website";
+      const origin = isStaff ? "self" : "website";
 
       let resolvedCreatedBy: any = { role: "System", name: "System" };
       if (payload.role === "admin") {
@@ -863,7 +796,6 @@ export async function POST(request: Request) {
           couponDiscount,
           packagingCharge: packagingCharge || 0,
           shippingCharge: shippingCharge || 0,
-          quoteId,
           salesperson,
           invoiceId,
           orderType,
@@ -920,16 +852,7 @@ export async function POST(request: Request) {
         await invoiceInstance.save({ session });
         createdDoc = invoiceInstance;
 
-        // 5. Convert Quote status to converted
-        if (quoteId) {
-          await InvoiceModel.updateOne(
-            { _id: quoteId } as any,
-            { $set: { status: "converted", orderId } },
-            { session }
-          );
-        }
-
-        // 6. Claim the coupon.
+        // 5. Claim the coupon.
         //
         // The eligibility checks ran before the transaction; re-assert the limits here as
         // update conditions so the claim is atomic. Previously the increment happened after

@@ -45,10 +45,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Only the buyer who owns the order (or an admin) may start a payment for it.
+    /**
+     * The buyer who owns the order, or staff acting on their behalf.
+     *
+     * Managers were excluded, which made "collect payment online" impossible for anyone but
+     * an admin — so the staff-facing forms offered Razorpay beside a free-text reference box
+     * instead, and that is how a hand-typed string came to stand in for a payment. Starting a
+     * payment is not a privileged act in itself: the amount is read from the stored order
+     * below, and nothing is settled until a signature verifies.
+     */
+    const isStaff = payload.role === "admin" || payload.role === "manager";
     const ownsOrder =
       order.customerId === payload.userId || order.shippingAddress?.email?.toLowerCase() === payload.email.toLowerCase();
-    if (payload.role !== "admin" && !ownsOrder) {
+    if (!isStaff && !ownsOrder) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

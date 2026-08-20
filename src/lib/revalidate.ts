@@ -167,6 +167,10 @@ export function revalidateAdminDashboard() {
   try {
     revalidatePath("/admin");
     revalidatePath("/admin/orders");
+    // Settlement changes what /admin/invoices shows — a receipt stops being payable and a
+    // Tax Invoice appears. Note this is only the shell: the manager itself is a client
+    // component that fetches through invoiceStore, so correctness there comes from the data.
+    revalidatePath("/admin/invoices");
   } catch (err) {
     console.error("revalidateAdminDashboard error:", err);
   }

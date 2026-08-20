@@ -13,6 +13,7 @@ import { resolvePrice, resolveMoq } from "@/lib/priceTierHelper";
 import CustomerSearchPicker from "@/components/admin/CustomerSearchPicker";
 import { BarcodeScanner } from "@/components/admin/BarcodeScanner";
 import { useAuthStore } from "@/stores/authStore";
+import { METHODS_REQUIRING_REFERENCE } from "@/hooks/useInvoiceForm";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface InvoiceCreateModalProps {
@@ -66,8 +67,17 @@ interface InvoiceCreateModalProps {
   setItemPrice: (price: number) => void;
   paymentMethod: string;
   setPaymentMethod: (method: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (status: string) => void;
+  /**
+   * When the money changes hands. The form never sets a payment *status* — a status is the
+   * result of a payment, not an input to one.
+   *
+   * Only the setter is taken: `isPayNow` below is the read side, and it already accounts for
+   * a Tax Invoice being prepaid whatever the toggle last held.
+   */
+  setPaymentTiming: (timing: "now" | "later") => void;
+  /** Both derived by `useInvoiceForm`, so the form cannot render a choice it will not honour. */
+  isPayNow: boolean;
+  effectivePaymentMethod: string;
   transactionId: string;
   setTransactionId: (id: string) => void;
   salesperson: string;
@@ -136,8 +146,9 @@ export function InvoiceCreateModal({
   setItemPrice,
   paymentMethod,
   setPaymentMethod,
-  paymentStatus,
-  setPaymentStatus,
+  setPaymentTiming,
+  isPayNow,
+  effectivePaymentMethod,
   transactionId,
   setTransactionId,
   salesperson,
@@ -156,6 +167,17 @@ export function InvoiceCreateModal({
   businessWalletBalance,
   isPublicMode,
 }: InvoiceCreateModalProps & { walletBalance?: number; businessWalletBalance?: number }) {
+  /**
+   * A Tax Invoice is prepaid by definition, so it has no timing to choose — the Pay Later
+   * option is disabled rather than hidden, because seeing why it is unavailable beats
+   * wondering where it went. `isPayNow` itself comes from the hook.
+   */
+  const isTaxInvoice = !isOrderCreationMode && formDocType === "invoice";
+  const isWalletMethod =
+    effectivePaymentMethod === "Store Wallet" || effectivePaymentMethod === "Business Wallet";
+  /** Same list the hook validates against and `/settle` enforces. */
+  const needsReference = METHODS_REQUIRING_REFERENCE.includes(effectivePaymentMethod);
+
   const calculatedShipping = React.useMemo(() => {
     if (!shippingConfig || !formItems || formItems.length === 0) return 0;
     try {
@@ -1191,43 +1213,157 @@ export function InvoiceCreateModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {formDocType !== "quote" && (
                 <>
+                  {/*
+                    When the money changes hands — asked first, because it decides everything
+                    below it.
+
+                    This replaces a "Payment Status" dropdown of Pending / Paid / Failed. That
+                    control asked staff to *declare* a payment instead of taking one, which is
+                    how "Online (Razorpay) + Paid" ended up demanding a hand-typed transaction
+                    reference for money nobody had collected.
+                  */}
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                      Payment
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentTiming("now")}
+                        className={`rounded-md border px-3 py-2.5 text-left transition-colors cursor-pointer ${
+                          isPayNow
+                            ? "border-emerald-500 bg-emerald-500/10"
+                            : "border-border hover:bg-secondary/40"
+                        }`}
+                      >
+                        <span className={`block text-xs font-bold ${isPayNow ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>
+                          Pay Now
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground mt-0.5">
+                          Collect payment and issue the Tax Invoice
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentTiming("later")}
+                        disabled={isTaxInvoice}
+                        title={isTaxInvoice ? "A Tax Invoice is only issued once payment is received." : undefined}
+                        className={`rounded-md border px-3 py-2.5 text-left transition-colors ${
+                          isTaxInvoice
+                            ? "border-border opacity-40 cursor-not-allowed"
+                            : !isPayNow
+                            ? "border-amber-500 bg-amber-500/10 cursor-pointer"
+                            : "border-border hover:bg-secondary/40 cursor-pointer"
+                        }`}
+                      >
+                        <span className={`block text-xs font-bold ${!isPayNow && !isTaxInvoice ? "text-amber-700 dark:text-amber-400" : "text-foreground"}`}>
+                          Pay Later
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground mt-0.5">
+                          COD or credit terms — order stays payable
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Payment Method</label>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                      {isPayNow ? "Paid By" : "Expected Payment Method"}
+                    </label>
                     <select
-                      value={paymentMethod}
+                      value={effectivePaymentMethod}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md cursor-pointer font-semibold"
                     >
-                      <option value="COD">Cash on Delivery (COD)</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Razorpay">Online (Razorpay)</option>
-                      <option value="UPI">UPI</option>
-                      <option value="Store Wallet">Store Wallet (Bal: ₹{walletBalance || 0})</option>
-                      <option value="Business Wallet">Business Wallet (Bal: ₹{businessWalletBalance || 0})</option>
+                      {isPayNow ? (
+                        <>
+                          <option value="Cash">Cash</option>
+                          <option value="UPI">UPI</option>
+                          <option value="Bank Transfer">Bank Transfer / NEFT</option>
+                          {/* Opens the real Razorpay checkout on submit — see the note below. */}
+                          <option value="Razorpay">Online (Razorpay) — card / netbanking / UPI</option>
+                          {/*
+                            Wallets need a staff session to debit, which the public
+                            dropshipping portal does not carry — offering them there would
+                            only produce an order that silently stayed unpaid.
+                          */}
+                          {!isPublicMode && (
+                            <>
+                              <option value="Store Wallet">Store Wallet (Bal: {formatPrice(walletBalance || 0)})</option>
+                              <option value="Business Wallet">Business Wallet (Bal: {formatPrice(businessWalletBalance || 0)})</option>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <option value="COD">Cash on Delivery (COD)</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                          <option value="UPI">UPI</option>
+                          <option value="Razorpay">Online (Razorpay) — customer pays</option>
+                        </>
+                      )}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Payment Status</label>
-                    <select
-                      value={paymentStatus}
-                      onChange={(e) => setPaymentStatus(e.target.value)}
-                      className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md cursor-pointer font-semibold"
-                    >
-                      <option value="Pending">Pending (COD/Transfer)</option>
-                      <option value="Paid">Paid (Completed)</option>
-                      <option value="Failed">Failed (Log Failure)</option>
-                    </select>
-                  </div>
-                  {paymentStatus === "Paid" && paymentMethod !== "Store Wallet" && paymentMethod !== "Business Wallet" && (
-                    <div className="col-span-1 sm:col-span-2">
-                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Transaction Ref / Reference ID *</label>
+
+                  {/*
+                    Asked for only where a reference exists. A wallet's ledger entry *is* the
+                    reference; cash reconciles against the cash book, not a UTR; and a Pay
+                    Later order has nothing to reference yet.
+                  */}
+                  {isPayNow && needsReference ? (
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                        {effectivePaymentMethod} Reference (UTR) *
+                      </label>
                       <Input
                         value={transactionId}
                         onChange={(e) => setTransactionId(e.target.value)}
-                        placeholder="e.g. pay_N1oH5mC17842"
-                        required={paymentStatus === "Paid" && paymentMethod !== "Store Wallet" && paymentMethod !== "Business Wallet"}
+                        placeholder="e.g. UTR 234512789001"
+                        required
                         className="text-sm font-mono"
                       />
+                    </div>
+                  ) : isPayNow && effectivePaymentMethod === "Cash" ? (
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                        Cash Receipt No. <span className="text-muted-foreground font-normal">(optional)</span>
+                      </label>
+                      <Input
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value)}
+                        placeholder="e.g. receipt book no. 0142"
+                        className="text-sm font-mono"
+                      />
+                    </div>
+                  ) : isPayNow && effectivePaymentMethod === "Razorpay" ? (
+                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 self-end">
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                        Razorpay opens for {formatPrice(formGrandTotal + calculatedShipping)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        The gateway charges the order&apos;s own total and the invoice is issued
+                        once the signature verifies — nothing to type.
+                      </p>
+                    </div>
+                  ) : isPayNow ? (
+                    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 self-end">
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                        {formatPrice(formGrandTotal + calculatedShipping)} will be debited now
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        The wallet ledger entry is the reference — nothing to type.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 self-end">
+                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                        Payment pending
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {effectivePaymentMethod === "Razorpay"
+                          ? "The customer pays online from their order page; the invoice is issued automatically."
+                          : "Record it from the Receipts tab when the money arrives."}
+                      </p>
                     </div>
                   )}
                 </>
@@ -1300,8 +1436,16 @@ export function InvoiceCreateModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  {isPayNow ? "Taking payment..." : "Saving..."}
                 </>
+              ) : isPayNow && effectivePaymentMethod === "Razorpay" ? (
+                // The click opens a gateway window — say so, so nobody expects a silent save.
+                "Continue to Razorpay"
+              ) : isPayNow ? (
+                // Names what the click actually does: money moves, then the invoice is issued.
+                isOrderCreationMode ? "Pay Now & Place Order" : "Pay Now & Issue Tax Invoice"
+              ) : isOrderCreationMode ? (
+                "Place Order (Payment Pending)"
               ) : (
                 "Save & Issue Document"
               )}

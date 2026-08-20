@@ -71,10 +71,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    /**
+     * The buyer, or staff who collected the payment on their behalf.
+     *
+     * Managers were excluded here too, so a manager who ran a card at the counter could not
+     * confirm it — the order stayed Pending until the webhook caught up. Staff are trusted
+     * with the callback for the same reason they are trusted to start it: the signature is
+     * what actually authorises the settlement, and it is checked above regardless of role.
+     */
+    const isStaff = auth.payload!.role === "admin" || auth.payload!.role === "manager";
     const ownsOrder =
       target.customerId === auth.payload!.userId ||
       target.shippingAddress?.email?.toLowerCase() === auth.payload!.email.toLowerCase();
-    if (auth.payload!.role !== "admin" && !ownsOrder) {
+    if (!isStaff && !ownsOrder) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
