@@ -17,6 +17,11 @@ interface OrderStoreState {
   total: number;
   page: number;
   totalPages: number;
+  analytics?: {
+    totalAmount: number;
+    pendingCount: number;
+    toDispatchCount: number;
+  };
   isLoading: boolean;
   error: string | null;
   initializeOrders: (params?: OrderListParams) => Promise<void>;
@@ -57,6 +62,7 @@ export const useOrderStore = create<OrderStoreState>()((set) => ({
         total: Array.isArray(data) ? ordersList.length : data.total ?? ordersList.length,
         page: Array.isArray(data) ? 1 : data.page ?? 1,
         totalPages: Array.isArray(data) ? 1 : data.totalPages ?? 1,
+        analytics: Array.isArray(data) ? undefined : data.analytics,
         isLoading: false,
       });
     } catch (err) {

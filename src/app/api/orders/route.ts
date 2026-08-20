@@ -330,10 +330,27 @@ export async function GET(request: Request) {
       const limitNum = parseInt(limit, 10) || 20;
       const skip = (pageNum - 1) * limitNum;
 
-      const [rawOrders, total] = await Promise.all([
+      const [rawOrders, total, analyticsResult] = await Promise.all([
         Order.find(query).select(historyProjection).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
-        Order.countDocuments(query)
+        Order.countDocuments(query),
+        Order.aggregate([
+          { $match: query },
+          {
+            $group: {
+              _id: null,
+              totalAmount: { $sum: "$amount" },
+              pendingCount: {
+                $sum: { $cond: [{ $ne: ["$paymentStatus", "Paid"] }, 1, 0] }
+              },
+              toDispatchCount: {
+                $sum: { $cond: [{ $eq: ["$status", "Processing"] }, 1, 0] }
+              }
+            }
+          }
+        ])
       ]);
+
+      const analytics = analyticsResult[0] || { totalAmount: 0, pendingCount: 0, toDispatchCount: 0 };
 
       const orders = await Promise.all(rawOrders.map((doc) => resolveOrderCreatedBy(doc)));
 
@@ -341,19 +358,39 @@ export async function GET(request: Request) {
         orders,
         total,
         page: pageNum,
-        totalPages: Math.ceil(total / limitNum)
+        totalPages: Math.ceil(total / limitNum),
+        analytics
       });
     }
 
-    const rawOrders = await Order.find(query).select(historyProjection).sort({ createdAt: -1 }).limit(100).lean();
-    const total = await Order.countDocuments(query);
+    const [rawOrders, total, analyticsResult] = await Promise.all([
+      Order.find(query).select(historyProjection).sort({ createdAt: -1 }).limit(100).lean(),
+      Order.countDocuments(query),
+      Order.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: "$amount" },
+            pendingCount: {
+              $sum: { $cond: [{ $ne: ["$paymentStatus", "Paid"] }, 1, 0] }
+            },
+            toDispatchCount: {
+              $sum: { $cond: [{ $eq: ["$status", "Processing"] }, 1, 0] }
+            }
+          }
+        }
+      ])
+    ]);
+    const analytics = analyticsResult[0] || { totalAmount: 0, pendingCount: 0, toDispatchCount: 0 };
     const orders = await Promise.all(rawOrders.map((doc) => resolveOrderCreatedBy(doc)));
     
     return NextResponse.json({
       orders,
       total,
       page: 1,
-      totalPages: Math.ceil(total / 100)
+      totalPages: Math.ceil(total / 100),
+      analytics
     });
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to fetch orders" }, { status: 500 });

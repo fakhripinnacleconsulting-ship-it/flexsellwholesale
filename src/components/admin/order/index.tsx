@@ -23,7 +23,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" | "B2B" | "Dropshipping" | "B2C" }) {
   const searchParams = useSearchParams();
-  const { orders, total, page, totalPages, initializeOrders, updateOrderStatus, shipOrder } = useOrderStore();
+  const { orders, total, page, totalPages, analytics, initializeOrders, updateOrderStatus, shipOrder } = useOrderStore();
   const { addToast } = useToastStore();
   const confirm = useConfirmStore((state) => state.confirm);
   const { hasPermission, isManagerRoute } = usePermissions();
@@ -368,7 +368,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Volume</p>
-              <h3 className="text-lg font-black mt-1 text-foreground">{orders.length}</h3>
+              <h3 className="text-lg font-black mt-1 text-foreground">{total}</h3>
             </div>
             <div className="p-2 rounded-lg bg-primary/5 text-primary text-base">
               📦
@@ -380,7 +380,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Amount</p>
               <h3 className="text-lg font-black mt-1 text-foreground">
-                {formatPrice(orders.reduce((sum, o) => sum + o.amount, 0))}
+                {formatPrice(analytics?.totalAmount || 0)}
               </h3>
             </div>
             <div className="p-2 rounded-lg bg-green-500/5 text-green-600 dark:text-green-400 text-base">
@@ -393,7 +393,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Pending Payment</p>
               <h3 className="text-lg font-black mt-1 text-foreground">
-                {orders.filter(o => o.paymentStatus !== "Paid").length}
+                {analytics?.pendingCount || 0}
               </h3>
             </div>
             <div className="p-2 rounded-lg bg-yellow-500/5 text-yellow-600 dark:text-yellow-400 text-base">
@@ -406,7 +406,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">To Dispatch</p>
               <h3 className="text-lg font-black mt-1 text-foreground">
-                {orders.filter(o => o.status === "Processing").length}
+                {analytics?.toDispatchCount || 0}
               </h3>
             </div>
             <div className="p-2 rounded-lg bg-blue-500/5 text-blue-600 dark:text-blue-400 text-base">
