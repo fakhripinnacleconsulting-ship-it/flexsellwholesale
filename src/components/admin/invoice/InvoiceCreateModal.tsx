@@ -383,6 +383,30 @@ export function InvoiceCreateModal({
     ) || colorVar?.subVariants?.[0];
 
     const effectiveQty = itemQty > 0 ? itemQty : (subVar?.b2bMoq || 1);
+
+    /**
+     * Refuse a line the warehouse cannot supply — unless this is a quote.
+     *
+     * The server has always guarded the decrement and rolled the whole document back, so an
+     * oversell could not be written. What it could not do is tell you before you had filled in
+     * the customer, the address and every other line: the failure arrived at submit, on a form
+     * that then had to be redone. This says it at the moment the line is added, and names what
+     * is actually available so the quantity can be corrected rather than guessed.
+     *
+     * A quote is exempt because it reserves nothing — it is a price estimate, which is exactly
+     * why `/api/invoices` skips stock for `type === "quote"` as well. Quoting for stock that is
+     * on its way is a normal thing to do.
+     */
+    const availableStock = Number(subVar?.stock ?? 0);
+    if (formDocType !== "quote" && availableStock < effectiveQty) {
+      addToast(
+        availableStock <= 0
+          ? `"${currentProduct.title}" (${selectedColor || colorVar?.color || "Default"}) is out of stock.`
+          : `Only ${availableStock} left of "${currentProduct.title}" (${selectedColor || colorVar?.color || "Default"}) — you asked for ${effectiveQty}.`,
+        "warning"
+      );
+      return;
+    }
     const resolvedTierPrice = resolvePrice(subVar, formCustomerType, effectiveQty);
     const finalPrice = itemPrice > 0 ? itemPrice : resolvedTierPrice;
 

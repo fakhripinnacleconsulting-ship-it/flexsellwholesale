@@ -215,6 +215,32 @@ export async function GET(request: Request) {
     const origin = searchParams.get("origin");
     const createdByFilter = searchParams.get("createdBy");
 
+    /**
+     * Status, payment status and search — filtered here rather than in the browser.
+     *
+     * The order table used to apply these three to whatever array it happened to hold, which
+     * was the newest 100 orders. That is only correct while the whole list fits in one
+     * response; once it does not, "Delivered" means "Delivered among the last hundred". Doing
+     * it in the query is what lets the list be paginated at all.
+     */
+    const statusFilter = searchParams.get("status");
+    const paymentStatusFilter = searchParams.get("paymentStatus");
+    const search = searchParams.get("search");
+
+    if (statusFilter) {
+      andConditions.push({ status: statusFilter });
+    }
+
+    if (paymentStatusFilter) {
+      andConditions.push({ paymentStatus: paymentStatusFilter });
+    }
+
+    if (search && search.trim()) {
+      // Order id or customer name — the two things a staff member has in front of them.
+      const term = new RegExp(escapeRegex(search.trim()), "i");
+      andConditions.push({ $or: [{ _id: term }, { customerName: term }] });
+    }
+
     if (createdByFilter && createdByFilter !== "all") {
       if (createdByFilter === "me") {
         andConditions.push({ "createdBy.userId": payload.userId });
@@ -320,8 +346,15 @@ export async function GET(request: Request) {
     }
 
     const rawOrders = await Order.find(query).select(historyProjection).sort({ createdAt: -1 }).limit(100).lean();
+    const total = await Order.countDocuments(query);
     const orders = await Promise.all(rawOrders.map((doc) => resolveOrderCreatedBy(doc)));
-    return NextResponse.json(orders);
+    
+    return NextResponse.json({
+      orders,
+      total,
+      page: 1,
+      totalPages: Math.ceil(total / 100)
+    });
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to fetch orders" }, { status: 500 });
   }

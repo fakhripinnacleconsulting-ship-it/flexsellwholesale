@@ -23,20 +23,17 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" | "B2B" | "Dropshipping" | "B2C" }) {
   const searchParams = useSearchParams();
-  const { orders, initializeOrders, updateOrderStatus, shipOrder } = useOrderStore();
+  const { orders, total, page, totalPages, initializeOrders, updateOrderStatus, shipOrder } = useOrderStore();
   const { addToast } = useToastStore();
   const confirm = useConfirmStore((state) => state.confirm);
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isManagerRoute } = usePermissions();
 
   const invoiceForm = useInvoiceForm({
     onSuccess: () => {
-      // Re-fetch orders after successful creation
-      initializeOrders({
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        orderType: activeOrderTab === "ALL" ? undefined : activeOrderTab,
-        origin: originFilter || undefined,
-      });
+      // Re-fetch through the same builder the list uses, so the refresh keeps the page,
+      // the page size and every filter. Passing a partial set here took the API's
+      // unpaginated branch and collapsed the list back to one page of 100.
+      refetchOrders();
     }
   });
 
@@ -67,6 +64,22 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   });
   const [originFilter, setOriginFilter] = React.useState<"" | "self" | "website">((searchParams.get("origin") as any) || "");
 
+  /**
+   * Paging and the list filters live here, not in the table.
+   *
+   * They are query parameters now, so they belong beside the fetch that sends them. The table
+   * held them while it filtered client-side; leaving them there would mean the component that
+   * owns the request cannot see what it is requesting.
+   */
+  const [currentPage, setCurrentPage] = React.useState(Number(searchParams.get("page")) || 1);
+  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [statusFilter, setStatusFilter] = React.useState(searchParams.get("status") || "");
+  const [paymentStatusFilter, setPaymentStatusFilter] = React.useState(searchParams.get("paymentStatus") || "");
+  // A manager's list defaults to their own orders; an admin sees everyone's.
+  const [createdByFilter, setCreatedByFilter] = React.useState(
+    searchParams.get("createdBy") || (isManagerRoute ? "me" : "all")
+  );
+
   // Sync active filters to URL search parameters
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -82,14 +95,65 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     window.history.replaceState(null, "", newUrl);
   }, [searchTerm, startDate, endDate, originFilter, activeOrderTab]);
 
-  React.useEffect(() => {
+  /**
+   * One fetch, and every filter goes with it.
+   *
+   * This screen used to ask for orders with no page or limit, which took the API's fallback
+   * branch and returned **the newest 100**. The table then filtered and paginated inside that
+   * array, so past the hundredth order the oldest silently fell off the end, the page count
+   * stopped growing, and there was no way to reach them.
+   *
+   * Now the server does the filtering and the paging, so the list is the list.
+   */
+  /**
+   * The one description of "what this list is currently showing".
+   *
+   * Every refetch goes through it — creating an order, recording a dispatch payment, changing
+   * a filter — so none of them can quietly ask for something narrower than the screen.
+   */
+  const refetchOrders = React.useCallback(() => {
     initializeOrders({
+      page: currentPage,
+      limit: itemsPerPage,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       orderType: activeOrderTab === "ALL" ? undefined : activeOrderTab,
       origin: originFilter || undefined,
+      status: statusFilter || undefined,
+      paymentStatus: paymentStatusFilter || undefined,
+      createdBy: createdByFilter !== "all" ? createdByFilter : undefined,
+      search: searchTerm.trim() || undefined,
     });
-  }, [initializeOrders, startDate, endDate, activeOrderTab, originFilter]);
+  }, [
+    initializeOrders,
+    currentPage,
+    itemsPerPage,
+    startDate,
+    endDate,
+    activeOrderTab,
+    originFilter,
+    statusFilter,
+    paymentStatusFilter,
+    createdByFilter,
+    searchTerm,
+  ]);
+
+  // The list is whatever `refetchOrders` describes; this just runs it when that changes.
+  React.useEffect(() => {
+    refetchOrders();
+  }, [refetchOrders]);
+
+  /**
+   * Any filter change returns to page one — done in the setter, not in an effect.
+   *
+   * Page 7 of a 10-row list is an empty page 7 of a 50-row list, and a narrowed filter usually
+   * has fewer pages than the one you were on. Resetting from an effect also meant two requests
+   * per change: one at the old page, then another once the reset landed.
+   */
+  const onFilterChange = <T,>(setter: (v: T) => void) => (value: T) => {
+    setter(value);
+    setCurrentPage(1);
+  };
 
   React.useEffect(() => {
     setSelectedOrder(null);
@@ -105,7 +169,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   /**
    * Offline methods, plus the gateway — which is *run*, not recorded.
    *
-   * A Advance Balance is absent: debiting a balance needs the Advance Balance routes, which read it and write a
+   * A balance is absent: debiting one needs the Advance Balance routes, which read it and write a
    * ledger entry, and naming one here would mark the order paid against untouched money.
    */
   const [dispatchPayMethod, setDispatchPayMethod] = React.useState<"Bank Transfer" | "UPI" | "COD" | "Razorpay">("Razorpay");
@@ -221,7 +285,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
           addToast("Payment received. The Tax Invoice has been issued.", "success");
           setIsDispatchPayModalOpen(false);
           setIsFulfilling(true);
-          initializeOrders({ startDate: startDate || undefined, endDate: endDate || undefined });
+          refetchOrders();
         } else {
           addToast("Payment cancelled — the order is unchanged and still payable.", "info");
         }
@@ -360,7 +424,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveOrderTab(tab.key as any)}
+              onClick={() => onFilterChange(setActiveOrderTab)(tab.key as any)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                 isSelected
                   ? "bg-primary text-primary-foreground shadow-md"
@@ -379,15 +443,27 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
         <OrdersListTable
           orders={orders}
           searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
+          setSearchTerm={onFilterChange(setSearchTerm)}
           startDate={startDate}
-          setStartDate={setStartDate}
+          setStartDate={onFilterChange(setStartDate)}
           endDate={endDate}
-          setEndDate={setEndDate}
+          setEndDate={onFilterChange(setEndDate)}
           selectedOrderId={selectedOrder?._id || null}
           onSelectOrder={(order) => setSelectedOrder(order)}
           originFilter={originFilter}
-          setOriginFilter={setOriginFilter}
+          setOriginFilter={onFilterChange(setOriginFilter)}
+          statusFilter={statusFilter}
+          setStatusFilter={onFilterChange(setStatusFilter)}
+          paymentStatusFilter={paymentStatusFilter}
+          setPaymentStatusFilter={onFilterChange(setPaymentStatusFilter)}
+          createdByFilter={createdByFilter}
+          setCreatedByFilter={onFilterChange(setCreatedByFilter)}
+          currentPage={page}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={onFilterChange(setItemsPerPage)}
+          totalItems={total}
+          totalPages={totalPages}
         />
       </div>
 

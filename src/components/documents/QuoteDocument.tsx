@@ -14,6 +14,7 @@ export interface QuoteDocumentProps {
   showActions?: boolean;
   shippingConfig?: any;
   salesperson?: string;
+  hasMoqWarning?: boolean;
 }
 
 export function QuoteDocument({
@@ -25,6 +26,7 @@ export function QuoteDocument({
   showActions = true,
   shippingConfig,
   salesperson,
+  hasMoqWarning,
 }: QuoteDocumentProps) {
   const shippingCharge = shippingConfig?.b2bFixedCharge ?? 0;
   const grandTotal = taxDetails.baseSubtotal + taxDetails.cgst + taxDetails.sgst + taxDetails.igst + shippingCharge;
@@ -55,6 +57,7 @@ export function QuoteDocument({
       taxBreakdown={taxDetails}
       showActions={showActions}
       salesperson={salesperson}
+      hasMoqWarning={hasMoqWarning}
     />
   );
 }

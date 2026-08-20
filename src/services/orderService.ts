@@ -100,6 +100,16 @@ export interface OrderListParams {
   orderType?: string;
   origin?: string;
   createdBy?: string;
+  /**
+   * Applied in the query, not in the browser.
+   *
+   * The order table used to filter whatever array it held — the newest 100 orders — so
+   * "Delivered" quietly meant "Delivered among the last hundred". See the note in
+   * `/api/orders`.
+   */
+  status?: string;
+  paymentStatus?: string;
+  search?: string;
 }
 
 export const orderService = {
@@ -143,6 +153,9 @@ export const orderService = {
     if (params?.orderType) queryParams.push(`orderType=${params.orderType}`);
     if (params?.origin) queryParams.push(`origin=${params.origin}`);
     if (params?.createdBy) queryParams.push(`createdBy=${encodeURIComponent(params.createdBy)}`);
+    if (params?.status) queryParams.push(`status=${encodeURIComponent(params.status)}`);
+    if (params?.paymentStatus) queryParams.push(`paymentStatus=${encodeURIComponent(params.paymentStatus)}`);
+    if (params?.search) queryParams.push(`search=${encodeURIComponent(params.search)}`);
 
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;

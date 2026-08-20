@@ -57,7 +57,31 @@ export async function GET(request: Request) {
     // the untouched document opt in with ?view=full.
     const isListView = searchParams.get("view") === "list";
 
-    const catalogQuery = Product.find({}).sort({ createdAt: -1 }).limit(UNFILTERED_CATALOG_CAP);
+    /**
+     * Withdrawn products are invisible to the public, and visible to staff who ask.
+     *
+     * This query was `Product.find({})`, so deactivating a product removed it from precisely
+     * nowhere — it stayed on the catalogue and on its own page. The inconsistency was already
+     * half-present: `searchService` filters `isActive: true`, so a withdrawn product vanished
+     * from search while remaining browsable.
+     *
+     * The filter is the **default** rather than something each consumer applies, because a
+     * component that forgets to filter leaks the product; an absent row cannot.
+     *
+     * `includeInactive` exists because deactivating means *withdraw from sale*, not *delete*:
+     * staff still put these on an order, invoice or quote for a back-order or a price already
+     * agreed. It requires a staff session — a request without one is refused rather than
+     * quietly downgraded, so a stale client fails loudly instead of appearing to work.
+     */
+    const wantsInactive = searchParams.get("includeInactive") === "true";
+    if (wantsInactive) {
+      const staffAuth = await requireAdminOrManagerAuth();
+      if (staffAuth.error) return staffAuth.error;
+    }
+
+    const catalogFilter = wantsInactive ? {} : { isActive: { $ne: false } };
+
+    const catalogQuery = Product.find(catalogFilter).sort({ createdAt: -1 }).limit(UNFILTERED_CATALOG_CAP);
     if (isListView) {
       catalogQuery.select(PRODUCT_LIST_EXCLUDED_FIELDS);
     }

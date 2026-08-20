@@ -1,5 +1,5 @@
 import React from "react";
-import { Customer, Invoice, TaxBreakdown } from "@/types";
+import { Customer, Invoice, Product, TaxBreakdown } from "@/types";
 import { INDIAN_STATES } from "@/lib/constants";
 import { customerService } from "@/services/customerService";
 import { shippingService } from "@/services/shippingService";
@@ -136,6 +136,15 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
   const [includeDropshipDetails, setIncludeDropshipDetails] = React.useState(true);
   const [dropshipDetails, setDropshipDetails] = React.useState<any>({});
 
+  /**
+   * The staff catalogue: active products plus the withdrawn ones.
+   *
+   * Held here rather than in `useProductStore` so it cannot be served to the storefront -- see
+   * the fetch below. Falls back to the shared catalogue until it arrives, so the picker is
+   * never empty on first open.
+   */
+  const [staffProducts, setStaffProducts] = React.useState<Product[] | null>(null);
+
   const [storeAdvanceBalance, setStoreAdvanceBalance] = React.useState(0);
   const [businessAdvanceBalance, setBusinessAdvanceBalance] = React.useState(0);
 
@@ -220,6 +229,27 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
     const shouldLoad = isCreateModalOpen || options?.isPublicMode;
     if (shouldLoad) {
       initializeProducts();
+
+      /**
+       * Staff also get the withdrawn products, fetched separately from the shared catalogue.
+       *
+       * `useProductStore` caches — `if (!force && products.length > 0) return` — and the
+       * storefront reads the same store. Putting "include inactive" on it would let whichever
+       * context loaded first decide what the other sees, in either direction: a picker missing
+       * withdrawn products, or a storefront store holding them. A separate fetch costs one
+       * request on opening the modal and cannot bleed across audiences.
+       *
+       * Deactivating a product means *withdraw from sale*, not *delete* — a back-order or a
+       * price already agreed still needs to be invoiceable. The public portal is excluded: it
+       * has no staff session, and `/api/products` refuses the flag without one.
+       */
+      if (!options?.isPublicMode) {
+        apiClient
+          .get<Product[]>("/products?includeInactive=true&view=list")
+          .then((all) => setStaffProducts(Array.isArray(all) ? all : []))
+          .catch((err) => console.error("Failed to load the staff catalogue:", err));
+      }
+
       if (options?.isPublicMode) {
         // Public mode: use unauthenticated customer endpoint
         fetch("/api/customers?public=true&customerType=Dropshipping")
@@ -772,7 +802,8 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
     storeAdvanceBalance,
     businessAdvanceBalance,
     customers,
-    products,
+    // Withdrawn products included for staff; the shared catalogue until that arrives.
+    products: staffProducts ?? products,
     shippingConfig,
     handleSaveInvoice,
     handleEditQuote,

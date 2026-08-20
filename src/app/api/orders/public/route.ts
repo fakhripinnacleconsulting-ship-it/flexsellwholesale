@@ -378,10 +378,32 @@ export async function POST(request: Request) {
 
     revalidateAdminDashboard();
 
-    // Deduct Stock
+    /**
+     * Deduct stock — guarded, and rolled back as a unit.
+     *
+     * This loop used to `$inc` the count with no `stock: { $gte: qty }` condition, no check on
+     * `modifiedCount`, and a `catch` that only logged. The update matched whatever the stock
+     * was, so the decrement **drove the count negative** and nothing reported it: the order was
+     * confirmed, the customer was told it was placed, and the catalogue quietly claimed units
+     * that did not exist.
+     *
+     * `/api/invoices` and `/api/orders` have both guarded this for a while — read and decrement
+     * in one operation, so two concurrent orders for the last unit resolve to exactly one
+     * success — and this route had drifted from them. It now matches: any line that cannot be
+     * reserved rolls back the lines already taken, deletes the documents written above, and
+     * returns 409 rather than confirming an order nobody can fulfil.
+     */
     if (Array.isArray(items)) {
-      for (const item of items) {
-        try {
+      const stockRollbacks: Array<{
+        productId: string;
+        cvColor: string;
+        size?: string;
+        weight?: string;
+        qty: number;
+      }> = [];
+
+      try {
+        for (const item of items) {
           const pId = item.product?._id || item.productId || item.product || item.id;
           if (!pId) continue;
           const dbProduct = await Product.findById(pId);
@@ -404,12 +426,14 @@ export async function POST(request: Request) {
           const qty = Number(item.quantity || item.qty || 1);
           if (qty <= 0) continue;
 
-          await Product.updateOne(
+          const updateResult = await Product.updateOne(
             {
               _id: dbProduct._id,
               "colorVariants.color": cv.color,
               "colorVariants.subVariants": {
-                $elemMatch: { size: sv.size, weight: sv.weight }
+                // The guard makes the read and the decrement one operation, so two concurrent
+                // orders for the last unit resolve to exactly one success.
+                $elemMatch: { size: sv.size, weight: sv.weight, stock: { $gte: qty } }
               }
             },
             {
@@ -425,10 +449,55 @@ export async function POST(request: Request) {
               ]
             }
           );
-        } catch (err) {
-          console.error("Failed to deduct stock during public order creation:", err);
+
+          if (updateResult.modifiedCount === 0) {
+            throw new Error(
+              `Insufficient stock for "${dbProduct.title}" (${cv.color}${sv.size ? ` - ${sv.size}` : ""}).`
+            );
+          }
+
+          stockRollbacks.push({
+            productId: String(dbProduct._id),
+            cvColor: cv.color,
+            size: sv.size,
+            weight: sv.weight,
+            qty,
+          });
         }
+      } catch (stockErr) {
+        for (const rb of stockRollbacks) {
+          await Product.updateOne(
+            {
+              _id: rb.productId,
+              "colorVariants.color": rb.cvColor,
+              "colorVariants.subVariants": { $elemMatch: { size: rb.size, weight: rb.weight } }
+            },
+            {
+              $inc: {
+                "colorVariants.$[cv].subVariants.$[sv].stock": rb.qty,
+                totalStock: rb.qty
+              }
+            },
+            {
+              arrayFilters: [
+                { "cv.color": rb.cvColor },
+                { "sv.size": rb.size, "sv.weight": rb.weight }
+              ]
+            }
+          ).catch((rollbackErr) =>
+            console.error("Failed to roll back stock after a failed public order:", rollbackErr)
+          );
+        }
+
+        // The receipt and its order were written above, so remove them rather than leaving an
+        // order behind that claims stock nobody has.
+        await InvoiceModel.findByIdAndDelete(invoiceId).catch(() => {});
+        await Order.findByIdAndDelete(orderId).catch(() => {});
+
+        revalidateProductStock();
+        return NextResponse.json({ message: (stockErr as Error).message }, { status: 409 });
       }
+
       revalidateProductStock();
     }
 

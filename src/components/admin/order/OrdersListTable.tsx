@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,7 +12,7 @@ import { formatPrice } from "@/lib/utils";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { CreatedByBadge } from "@/components/common/CreatedByBadge";
 import { ShippingLabelDocument } from "@/components/documents/ShippingLabelDocument";
-import { useAuthStore } from "@/stores/authStore";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface OrdersListTableProps {
   orders: Order[];
@@ -26,6 +26,25 @@ interface OrdersListTableProps {
   onSelectOrder: (order: Order) => void;
   originFilter: "" | "self" | "website";
   setOriginFilter: (val: "" | "self" | "website") => void;
+
+  /**
+   * Filters and paging are owned by the parent, because they are query parameters now.
+   *
+   * They used to be local state here, filtering an array the server had already truncated to
+   * 100 rows. The component that issues the request has to be the one that holds them.
+   */
+  statusFilter: string;
+  setStatusFilter: (val: string) => void;
+  paymentStatusFilter: string;
+  setPaymentStatusFilter: (val: string) => void;
+  createdByFilter: string;
+  setCreatedByFilter: (val: string) => void;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  itemsPerPage: number;
+  onItemsPerPageChange: (n: number) => void;
+  totalItems: number;
+  totalPages: number;
 }
 
 export function OrdersListTable({
@@ -40,19 +59,24 @@ export function OrdersListTable({
   onSelectOrder,
   originFilter,
   setOriginFilter,
+  statusFilter,
+  setStatusFilter,
+  paymentStatusFilter,
+  setPaymentStatusFilter,
+  createdByFilter,
+  setCreatedByFilter,
+  currentPage,
+  onPageChange,
+  itemsPerPage,
+  onItemsPerPageChange,
+  totalItems,
+  totalPages,
 }: OrdersListTableProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const basePath = pathname.startsWith("/manager") ? "/manager" : "/admin";
-  const [currentPage, setCurrentPage] = React.useState(Number(searchParams.get("page")) || 1);
   const [selectedLabelOrder, setSelectedLabelOrder] = React.useState<Order | null>(null);
-  const ITEMS_PER_PAGE = 10;
 
-  const { manager } = useAuthStore();
-  const [statusFilter, setStatusFilter] = React.useState<string>(searchParams.get("status") || "");
-  const [paymentStatusFilter, setPaymentStatusFilter] = React.useState<string>(searchParams.get("paymentStatus") || "");
-  const [createdByFilter, setCreatedByFilter] = React.useState<string>(searchParams.get("createdBy") || (basePath === "/manager" ? "me" : "all"));
 
   // Sync internal table filters to URL query string
   React.useEffect(() => {
@@ -68,63 +92,18 @@ export function OrdersListTable({
     window.history.replaceState(null, "", newUrl);
   }, [statusFilter, paymentStatusFilter, createdByFilter, currentPage, basePath]);
 
-  const isInitialMount = React.useRef(true);
-  React.useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, originFilter, statusFilter, paymentStatusFilter, createdByFilter]);
 
-  const filteredOrders = React.useMemo(() => {
-    let result = orders;
-    if (statusFilter) {
-      result = result.filter(o => o.status === statusFilter);
-    }
-    if (paymentStatusFilter) {
-      result = result.filter(o => o.paymentStatus === paymentStatusFilter);
-    }
-    if (createdByFilter && createdByFilter !== "all") {
-      if (createdByFilter === "me") {
-        result = result.filter(o => {
-          if (o.createdBy?.userId) {
-            return o.createdBy.userId === manager?._id || o.createdBy.email === manager?.email;
-          }
-          if (o.createdBy?.name) {
-            return manager?.name && o.createdBy.name.toLowerCase() === manager.name.toLowerCase();
-          }
-          if ((o as any).generatedBy) {
-            const handle = manager?.email ? manager.email.split("@")[0].toLowerCase() : "";
-            const mgrName = manager?.name ? manager.name.toLowerCase() : "";
-            const gen = String((o as any).generatedBy).toLowerCase();
-            return (handle && gen.includes(handle)) || (mgrName && gen.includes(mgrName));
-          }
-          return false;
-        });
-      } else if (createdByFilter.startsWith("role:")) {
-        const targetRole = createdByFilter.replace("role:", "");
-        result = result.filter(o => o.createdBy?.role === targetRole);
-      }
-    }
+  /**
+   * The server already filtered and paged this. The table shows what it was given.
+   *
+   * Both jobs used to happen here, against whatever array had arrived — which was the newest
+   * 100 orders. So "Delivered" meant "Delivered among the last hundred", and page 11 did not
+   * exist however many orders there were. The filters are query parameters now; see the fetch
+   * in AdminOrdersManager.
+   */
+  const paginatedOrders = orders;
 
-    const term = searchTerm.toLowerCase().trim();
-    if (term) {
-      result = result.filter(
-        (o) =>
-          o._id.toLowerCase().includes(term) ||
-          o.customerName.toLowerCase().includes(term)
-      );
-    }
-    return result;
-  }, [orders, searchTerm, statusFilter, paymentStatusFilter, createdByFilter]);
 
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-
-  const paginatedOrders = React.useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredOrders, currentPage]);
 
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
 
@@ -359,29 +338,21 @@ export function OrdersListTable({
             </tbody>
           </table>
         </div>
-        {totalPages > 1 && (
-          <div className="p-4 border-t flex justify-between items-center text-xs">
-            <span className="text-muted-foreground">
-              Showing page {currentPage} of {totalPages}
-            </span>
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              >
-                Next
-              </Button>
-            </div>
+        {/*
+          The shared control, so this list behaves like the customers list — including the
+          page-size dropdown it previously lacked. Rendered whenever there are rows, not only
+          past page one: the size selector is useful on a single page too.
+        */}
+        {totalItems > 0 && (
+          <div className="p-4 border-t">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={onItemsPerPageChange}
+            />
           </div>
         )}
       </CardContent>

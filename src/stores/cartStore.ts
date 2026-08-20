@@ -130,8 +130,11 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const calculatedPrice = resolvePrice(matchedVariant, customer || customerTypes, targetQty);
-        const resolvedTierName = resolvePriceTierName(matchedVariant, customer || customerTypes, targetQty);
+        const effectiveCustomerTypes = customerTypes.filter(t => t !== "Dropshipping");
+        if (effectiveCustomerTypes.length === 0) effectiveCustomerTypes.push("B2C");
+
+        const calculatedPrice = resolvePrice(matchedVariant, effectiveCustomerTypes, targetQty);
+        const resolvedTierName = resolvePriceTierName(matchedVariant, effectiveCustomerTypes, targetQty);
         const itemId = `${product._id}-${variantKey}-${resolvedTierName}`;
 
         set((state) => {
@@ -258,8 +261,11 @@ export const useCartStore = create<CartState>()(
           targetQty = availableStock;
         }
 
-        const newPricePerUnit = resolvePrice(matchedVariant, customer || customerTypes, targetQty);
-        const newPriceTier = resolvePriceTierName(matchedVariant, customer || customerTypes, targetQty);
+        const effectiveCustomerTypes = customerTypes.filter(t => t !== "Dropshipping");
+        if (effectiveCustomerTypes.length === 0) effectiveCustomerTypes.push("B2C");
+
+        const newPricePerUnit = resolvePrice(matchedVariant, effectiveCustomerTypes, targetQty);
+        const newPriceTier = resolvePriceTierName(matchedVariant, effectiveCustomerTypes, targetQty);
 
         if (item.pricePerUnit > newPricePerUnit) {
           useToastStore.getState().addToast(`🎉 Wholesale price unlocked! Unit price upgraded to B2B rate.`, "success");
@@ -395,14 +401,17 @@ export const useCartStore = create<CartState>()(
               (!selectedWeight || s.weight.toLowerCase() === selectedWeight.toLowerCase())
             ) || cv?.subVariants?.[0];
 
+            const effectiveCustomerTypes = customerTypes.filter(t => t !== "Dropshipping");
+            if (effectiveCustomerTypes.length === 0) effectiveCustomerTypes.push("B2C");
+
             // Silent on this path by design: a cart refresh is not a user action, so raising
             // a quantity here should not produce a toast the shopper cannot connect to
             // anything they did. It clamped unconditionally before, which is how a B2C cart
             // could grow on its own between visits.
-            const targetQty = enforceMoq(item.quantity, sv, customer || customerTypes).quantity;
+            const targetQty = enforceMoq(item.quantity, sv, effectiveCustomerTypes).quantity;
 
-            const updatedPrice = sv ? resolvePrice(sv, customer || customerTypes, targetQty) : item.pricePerUnit;
-            const updatedTierName = sv ? resolvePriceTierName(sv, customer || customerTypes, targetQty) : (item.priceTier || "B2C");
+            const updatedPrice = sv ? resolvePrice(sv, effectiveCustomerTypes, targetQty) : item.pricePerUnit;
+            const updatedTierName = sv ? resolvePriceTierName(sv, effectiveCustomerTypes, targetQty) : (item.priceTier || "B2C");
             const variantKey = buildVariantKey(item.selectedVariants);
 
             return {
