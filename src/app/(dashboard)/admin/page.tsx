@@ -3,6 +3,8 @@ import * as React from "react";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
+import Wallet from "@/models/Wallet";
+import { toRupees } from "@/lib/money";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +78,17 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
   let compPendingAmount = 0;
   let compCancelledAmount = 0;
   let compPlacedOrders = 0;
+
+  /**
+   * Customer wallet money the business is holding.
+   *
+   * Deliberately **not** scoped to the dashboard's date range: a balance is a position, not a
+   * flow. "How much customer money do we hold" has one answer, today, regardless of which
+   * period the revenue cards are showing.
+   *
+   * Closed wallets are excluded — their balance is settled and no longer a liability.
+   */
+  let walletTotals = { store: 0, business: 0, held: 0, total: 0, walletCount: 0 };
 
   let revenueTrend: { date: string; revenue: number }[] = [];
   let statusBreakdown: { status: string; count: number }[] = [];
@@ -280,6 +293,34 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
       sku: p.colorVariants?.[0]?.subVariants?.[0]?.sku || "—",
       stock: p.totalStock,
     }));
+
+    /**
+     * Wallet balances, summed by type.
+     *
+     * Wallets store **integer paise**; everything else on this dashboard is rupees, so the
+     * conversion happens here, once, before the numbers leave the server.
+     */
+    const walletAgg = await Wallet.aggregate([
+      { $match: { status: { $ne: "closed" } } },
+      {
+        $group: {
+          _id: "$type",
+          available: { $sum: "$availableBalance" },
+          held: { $sum: "$heldBalance" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    for (const row of walletAgg as { _id: string; available: number; held: number; count: number }[]) {
+      const availableRupees = toRupees(row.available || 0);
+      if (row._id === "store") walletTotals.store = availableRupees;
+      if (row._id === "business") walletTotals.business = availableRupees;
+      walletTotals.held += toRupees(row.held || 0);
+      walletTotals.walletCount += row.count || 0;
+    }
+    // The headline figure: everything the business is holding, spendable or on hold.
+    walletTotals.total = walletTotals.store + walletTotals.business + walletTotals.held;
   } catch (err) {
     console.error("AdminDashboardPage DB fetch notice:", (err as any)?.message || err);
   }
@@ -316,6 +357,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         statusBreakdown,
         topProducts,
         lowStockProducts,
+        walletTotals,
       }}
     />
   );
