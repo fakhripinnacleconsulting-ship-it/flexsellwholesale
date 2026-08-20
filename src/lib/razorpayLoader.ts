@@ -49,7 +49,7 @@ function existingSdk(): RazorpayConstructor | null {
 /**
  * Shared across concurrent callers.
  *
- * Two components can ask at once — a buyer with the wallet dialog open on the checkout page.
+ * Two components can ask at once — a buyer with the Advance Balance dialog open on the checkout page.
  * Without this each would append its own tag and race the other.
  */
 let inFlight: Promise<RazorpayConstructor> | null = null;

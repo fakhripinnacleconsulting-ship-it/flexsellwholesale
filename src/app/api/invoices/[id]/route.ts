@@ -81,7 +81,7 @@ export async function PUT(
     /**
      * 0. PAYMENT SETTLEMENT IS NOT AN UPDATE.
      *
-     * This route used to accept `{ paymentStatus: "Paid", paymentMethod: "Store Wallet" }` and
+     * This route used to accept `{ paymentStatus: "Paid", paymentMethod: "Store Advance Balance" }` and
      * write it straight through — no balance read, no debit, no ledger entry. A customer with
      * ₹0 could have a receipt marked Paid and converted to a Tax Invoice.
      *

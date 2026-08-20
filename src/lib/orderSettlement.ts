@@ -1,4 +1,5 @@
 import InvoiceModel from "@/models/Invoice";
+import { METHOD_TO_WALLET_TYPE } from "@/lib/advanceBalanceConstants";
 import Order from "@/models/Order";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { formatDateIST } from "@/lib/datetime";
@@ -8,12 +9,12 @@ import type { HistoryActor } from "@/types";
 /**
  * Issuing the Tax Invoice once a payment has cleared — the one implementation.
  *
- * Five different code paths can make an order paid (Store Wallet, Business Wallet, the
+ * Five different code paths can make an order paid (Store Advance Balance, Business Advance Balance, the
  * Razorpay callback, the Razorpay webhook, and staff recording cash/UPI/transfer against a
  * receipt), and until this module existed only one of them — `/api/invoices/[id]/settle` —
  * produced the correct paperwork. The others each got it wrong in their own way:
  *
- *   - **The wallet routes issued nothing at all.** They updated `Order` and never imported
+ *   - **The Advance Balance routes issued nothing at all.** They updated `Order` and never imported
  *     `Invoice`, so a wallet-paid order kept a `pending` receipt and `/admin/invoices` went
  *     on offering "Mark Paid" for money that had already been taken.
  *   - **Razorpay flipped `type` on the receipt in place.** `Invoice._id` is an assigned
@@ -61,12 +62,12 @@ export interface IssueInvoiceInput {
   receipt: StoredReceipt;
   /** How the money arrived — "Wallet", "Razorpay", "Cash", "UPI", … */
   method: string;
-  /** Gateway payment id, wallet ledger id, UTR or cheque number. */
+  /** Gateway payment id, Advance Balance ledger id, UTR or cheque number. */
   transactionId?: string;
-  /** The `WalletTransaction` row that paid this, when a wallet paid it. */
+  /** The `AdvanceBalanceTransaction` row that paid this, when a Advance Balance paid it. */
   walletTransactionId?: string;
   walletType?: "store" | "business";
-  /** Rupees taken from the wallet, recorded on the order for reconciliation. */
+  /** Rupees taken from the Advance Balance, recorded on the order for reconciliation. */
   walletAmount?: number;
   /** Overrides the receipt's notes on the issued invoice when provided. */
   notes?: string;
@@ -77,23 +78,33 @@ export interface IssueInvoiceInput {
 /**
  * `Order.paymentMethod` is a closed enum; `Invoice.paymentMethod` is a free string.
  *
- * That difference is deliberate — the document records *which* wallet was charged
- * ("Business Wallet"), while the order stores the method as `"Wallet"` and keeps the wallet
+ * That difference is deliberate — the document records *which* Advance Balance was charged
+ * ("Business Advance Balance"), while the order stores the method as `"Wallet"` and keeps the Advance Balance
  * identity in its own `walletType` field. Writing the document's wording onto the order
  * therefore fails validation outright:
  *
- *     Order validation failed: paymentMethod: `Business Wallet` is not a valid enum value
+ *     Order validation failed: paymentMethod: `Business Advance Balance` is not a valid enum value
  *
  * So every route that creates or updates an order from a document's method must translate it
  * here rather than passing it through.
  */
-export const ORDER_PAYMENT_METHODS = ["Bank Transfer", "Razorpay", "UPI", "COD", "Wallet", "Cash"];
+export const ORDER_PAYMENT_METHODS = [
+  "Bank Transfer",
+  "Razorpay",
+  "UPI",
+  "COD",
+  "Advance Balance",
+  // Legacy, still on every order paid from a balance before the rename.
+  "Wallet",
+  "Cash",
+];
 
-/** The wallet a document-level method names, if it names one. */
+/** The Advance Balance a document-level method names, if it names one. */
 export function walletTypeForMethod(method?: string): "store" | "business" | undefined {
-  if (method === "Store Wallet") return "store";
-  if (method === "Business Wallet") return "business";
-  return undefined;
+  // Through the shared map, which also recognises the pre-rename wording. Matching only the
+  // current strings would leave every document raised as "Store Wallet" unrecognised, and its
+  // order would be written with the raw method instead of "Advance Balance" + walletType.
+  return method ? METHOD_TO_WALLET_TYPE[method] : undefined;
 }
 
 /**
@@ -105,7 +116,9 @@ export function walletTypeForMethod(method?: string): "store" | "business" | und
  * and break the next `save()`.
  */
 export function orderPaymentMethodFor(method?: string, walletType?: "store" | "business"): string | undefined {
-  if (walletType || walletTypeForMethod(method)) return "Wallet";
+  // New orders record "Advance Balance"; the enum still accepts the legacy "Wallet" so the
+  // rows already carrying it keep saving.
+  if (walletType || walletTypeForMethod(method)) return "Advance Balance";
   return method && ORDER_PAYMENT_METHODS.includes(method) ? method : undefined;
 }
 
@@ -238,7 +251,7 @@ export interface SettleDocumentsInput {
  * Settles the paperwork for an order that has just been paid.
  *
  * The order-keyed entry point, for callers that hold an order rather than a receipt: the two
- * wallet routes and both Razorpay paths. An order placed by staff as already-paid has an
+ * Advance Balance routes and both Razorpay paths. An order placed by staff as already-paid has an
  * `INV-` from the start and no receipt at all, which is why `no_receipt` is a normal outcome
  * rather than a failure.
  */

@@ -453,10 +453,10 @@ export const invoiceService = {
    * Records payment against a receipt and issues its Tax Invoice.
    *
    * The only path that may mark a document paid. `updateInvoice` cannot do it any more — the
-   * API rejects payment fields outright — because that route moved no money: a wallet method
+   * API rejects payment fields outright — because that route moved no money: a Advance Balance method
    * was written straight onto the document with no balance check and no ledger entry.
    *
-   * Not available in mock mode, for the same reason wallet writes are not: a mocked
+   * Not available in mock mode, for the same reason Advance Balance writes are not: a mocked
    * settlement teaches the UI that money moved when nothing did.
    *
    * `clientRequestId` must be generated when the pay modal **opens** and kept for the life of

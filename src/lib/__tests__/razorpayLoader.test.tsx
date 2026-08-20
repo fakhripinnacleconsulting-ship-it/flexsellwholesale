@@ -68,7 +68,7 @@ describe("razorpayLoader", () => {
   });
 
   it("shares one in-flight load between concurrent callers", async () => {
-    // Two components can ask at once — the wallet dialog open on the checkout page. Without
+    // Two components can ask at once — the Advance Balance dialog open on the checkout page. Without
     // a shared promise each would append its own tag and race the other.
     const a = loadRazorpayScript();
     const b = loadRazorpayScript();

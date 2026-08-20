@@ -9,20 +9,20 @@ assumes the previous has completed.
 
 ---
 
-## ⚠️ Before anything else — the wallet is running without its indexes
+## ⚠️ Before anything else — the Advance is running without its indexes
 
 `dbConnect` sets `autoIndex: false` in production ([dbConnect.ts:34](src/lib/dbConnect.ts#L34)),
 so indexes exist only when `sync-indexes.mjs` has been run out of band. **If that has not
-happened since the wallet shipped, its unique indexes were never enforcing anything** — and
+happened since the Advance shipped, its unique indexes were never enforcing anything** — and
 the ledger's idempotency *is* those indexes, not an application-level check
-([walletLedger.ts:237](src/lib/walletLedger.ts#L237)):
+([AdvanceLedger.ts:237](src/lib/AdvanceLedger.ts#L237)):
 
 | Missing index | Consequence while absent |
 |---|---|
-| `walletTransactions.paymentId` | A replayed Razorpay webhook **credits the wallet twice** |
-| `walletTransactions.clientRequestId` | A double-clicked form **debits or credits twice** |
-| `walletTransactions.receiptNumber` | Two ledger entries share a receipt number |
-| `wallets.{userId, type}` | A customer gets **two wallets of one type**, balance split across them |
+| `AdvanceTransactions.paymentId` | A replayed Razorpay webhook **credits the Advance twice** |
+| `AdvanceTransactions.clientRequestId` | A double-clicked form **debits or credits twice** |
+| `AdvanceTransactions.receiptNumber` | Two ledger entries share a receipt number |
+| `Advances.{userId, type}` | A customer gets **two Advances of one type**, balance split across them |
 
 This is a live money-correctness risk and it is **independent of any deploy** — it is worth
 fixing before shipping anything else.
@@ -44,7 +44,7 @@ ledger is append-only.
 ## Order of operations
 
 ```bash
-# 0. Readiness check, then indexes. The wallet's idempotency depends on these, and the
+# 0. Readiness check, then indexes. The Advance's idempotency depends on these, and the
 #    unique index on sourceReceiptId is also what stops step 2 double-issuing an invoice.
 node scripts/check-index-readiness.mjs
 node scripts/sync-indexes.mjs
@@ -63,7 +63,7 @@ node scripts/migrate-document-urls.mjs --apply
 node scripts/backfill-order-types.mjs                # dry run → review
 node scripts/backfill-order-types.mjs --apply
 
-# 4. Order history timestamps — pending since the IST work, unrelated to the wallet
+# 4. Order history timestamps — pending since the IST work, unrelated to the Advance
 #    but never run. Without it, legacy history steps have no real instant to render.
 node scripts/migrate-order-timestamps.mjs            # dry run → review
 node scripts/migrate-order-timestamps.mjs --apply
@@ -84,7 +84,7 @@ Creates every index declared in the Mongoose schemas. `dbConnect` sets `autoInde
 production, so new indexes do not appear on their own. Idempotent.
 
 **New in this round:** `invoices.sourceReceiptId` (unique, sparse), `invoices.issuedAt`,
-`invoices.walletTransactionId`.
+`invoices.AdvanceTransactionId`.
 
 ### 2. `migrate-receipt-invoices.mjs`
 Finds every `type: "invoice"` document whose `_id` is outside the `INV-` series — the result of
@@ -100,7 +100,7 @@ For each: issues a correctly-numbered `INV-` sibling, reverts the original to th
 ### 3. `migrate-document-urls.mjs`
 Rewrites `/api/customers/document/<name>?url=<blobUrl>` down to the bare `<blobUrl>`.
 
-Covers `customers.kycDocuments.*`, `wallettransactions.proofUrl`,
+Covers `customers.kycDocuments.*`, `Advancetransactions.proofUrl`,
 `orders.shipmentDetails.uploadShippingLabel`, `orders.dropshipDetails.*`,
 `invoices.dropshipDetails.*`.
 

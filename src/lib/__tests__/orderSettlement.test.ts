@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 /**
  * The regression suite for the settlement paperwork.
  *
- * Two bugs shipped while 355 tests passed, because the wallet engine and the *one* correct
+ * Two bugs shipped while 355 tests passed, because the Advance Balance engine and the *one* correct
  * settlement route were covered and the other four payment paths were not:
  *
- *   - the wallet routes issued no invoice at all, leaving a paid order beside a `pending`
+ *   - the Advance Balance routes issued no invoice at all, leaving a paid order beside a `pending`
  *     receipt and a "Mark Paid" button for money already taken;
  *   - Razorpay flipped `type` on the receipt in place, producing a Tax Invoice that kept its
  *     `RCP-` number because MongoDB will not change an assigned `_id`.
@@ -139,7 +139,7 @@ describe("orderSettlement", () => {
       expect(orderId).toBe("FS-10026");
       expect(update.$set.paymentStatus).toBe("Paid");
       expect(update.$set.invoiceId).toBe("INV-01001");
-      expect(update.$set.paymentMethod).toBe("Wallet");
+      expect(update.$set.paymentMethod).toBe("Advance Balance");
       expect(update.$set.walletType).toBe("business");
       expect(update.$set.walletAmount).toBe(5000);
 

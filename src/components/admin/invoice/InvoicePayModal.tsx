@@ -4,6 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
+import { isAdvanceBalanceMethod, METHOD_TO_WALLET_TYPE } from "@/lib/advanceBalanceConstants";
 import { X, AlertCircle } from "lucide-react";
 
 /**
@@ -15,7 +16,7 @@ import { X, AlertCircle } from "lucide-react";
  * `/api/invoices/[id]/settle` refuses the method outright. Everything else here is money
  * already collected, which staff attest to with a reference.
  */
-export type PayOnlineMethod = "UPI" | "Bank Transfer" | "Razorpay" | "Store Wallet" | "Business Wallet";
+export type PayOnlineMethod = "UPI" | "Bank Transfer" | "Razorpay" | "Store Advance Balance" | "Business Advance Balance";
 
 interface InvoicePayModalProps {
   isOpen: boolean;
@@ -37,8 +38,8 @@ interface InvoicePayModalProps {
   setTxnId: (val: string) => void;
   onConfirmPay: () => void;
   isSubmitting?: boolean;
-  walletBalance?: number;
-  businessWalletBalance?: number;
+  storeAdvanceBalance?: number;
+  businessAdvanceBalance?: number;
 }
 
 export function InvoicePayModal({
@@ -55,29 +56,32 @@ export function InvoicePayModal({
   setTxnId,
   onConfirmPay,
   isSubmitting = false,
-  walletBalance = 0,
-  businessWalletBalance = 0,
+  storeAdvanceBalance = 0,
+  businessAdvanceBalance = 0,
 }: InvoicePayModalProps) {
   if (!isOpen) return null;
 
-  const isWallet = paymentType === "online" && (onlineMethod === "Store Wallet" || onlineMethod === "Business Wallet");
+  // Through the shared helper rather than two literals — duplicating these strings is what
+  // silently broke the balance options in the create-order form.
+  const isWallet = paymentType === "online" && isAdvanceBalanceMethod(onlineMethod);
   const isGateway = paymentType === "online" && onlineMethod === "Razorpay";
-  const selectedBalance = onlineMethod === "Business Wallet" ? businessWalletBalance : walletBalance;
+  const selectedBalance =
+    METHOD_TO_WALLET_TYPE[onlineMethod] === "business" ? businessAdvanceBalance : storeAdvanceBalance;
 
   /**
-   * The wallet must actually cover the receipt.
+   * The Advance Balance must actually cover the receipt.
    *
    * The server refuses a short balance with a 409 regardless — this only stops the request
    * being made at all. Previously the balance was fetched, rendered in the dropdown label,
-   * and then never compared against anything, so a ₹0 wallet looked like a valid choice.
+   * and then never compared against anything, so a ₹0 Advance Balance looked like a valid choice.
    */
-  const walletCovers = !isWallet || selectedBalance >= payAmount;
-  const shortfall = isWallet && !walletCovers ? payAmount - selectedBalance : 0;
+  const advanceBalanceCovers = !isWallet || selectedBalance >= payAmount;
+  const shortfall = isWallet && !advanceBalanceCovers ? payAmount - selectedBalance : 0;
 
   /**
    * A reference is asked for only where one exists.
    *
-   * A wallet is exempt — the ledger entry *is* the reference. So is cash: a note handed over
+   * A Advance Balance is exempt — the ledger entry *is* the reference. So is cash: a note handed over
    * the counter has no UTR, and demanding one only moves the fabrication from the code to the
    * person. This modal used to invent `CASH-HAND-${Date.now()}` itself; a hand-typed
    * "CASH-1" is the same unreconcilable string with a different author. And the gateway
@@ -92,7 +96,7 @@ export function InvoicePayModal({
    */
   const gatewayUnavailable = isGateway && !linkedOrderId;
 
-  const canConfirm = walletCovers && !referenceMissing && !gatewayUnavailable && !isSubmitting;
+  const canConfirm = advanceBalanceCovers && !referenceMissing && !gatewayUnavailable && !isSubmitting;
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -136,7 +140,7 @@ export function InvoicePayModal({
                 }`}
               >
                 <div className="text-sm font-bold">💳 Online / Bank</div>
-                <div className="text-[11px] opacity-80 mt-0.5">UPI, Netbank, Wallet</div>
+                <div className="text-[11px] opacity-80 mt-0.5">UPI, Netbank, Advance Balance</div>
               </button>
             </div>
           </div>
@@ -152,8 +156,8 @@ export function InvoicePayModal({
                 <option value="UPI">UPI / VPA Scan</option>
                 <option value="Bank Transfer">Direct Bank Wire / NEFT</option>
                 <option value="Razorpay">Razorpay Gateway — card / netbanking / UPI</option>
-                <option value="Store Wallet">Store Wallet — {formatPrice(walletBalance)} available</option>
-                <option value="Business Wallet">Business Wallet — {formatPrice(businessWalletBalance)} available</option>
+                <option value="Store Advance Balance">Store Advance Balance — {formatPrice(storeAdvanceBalance)} available</option>
+                <option value="Business Advance Balance">Business Advance Balance — {formatPrice(businessAdvanceBalance)} available</option>
               </select>
             </div>
           )}
@@ -189,7 +193,7 @@ export function InvoicePayModal({
             </div>
           )}
 
-          {isWallet && !walletCovers && (
+          {isWallet && !advanceBalanceCovers && (
             <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md border border-amber-200 dark:border-amber-900">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <div>

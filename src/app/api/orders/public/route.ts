@@ -1,3 +1,4 @@
+import { isAdvanceBalanceMethod } from "@/lib/advanceBalanceConstants";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
@@ -211,7 +212,7 @@ export async function POST(request: Request) {
      * for what was collected and a separate `INV-` Tax Invoice issued against it.
      *
      * Two families of method are refused as hand-recorded prepayments:
-     *   - **Wallets**, because a balance can only be debited by `/api/invoices/[id]/settle`,
+     *   - **advanceBalances**, because a balance can only be debited by `/api/invoices/[id]/settle`,
      *     which reads a session this public-portal flow does not carry in the buyer's name.
      *   - **Razorpay**, because a gateway payment cannot be attested to. It either carries a
      *     verified signature or it did not happen, and the gateway settles itself through
@@ -219,19 +220,17 @@ export async function POST(request: Request) {
      *
      * Either one falls through to a pending order, which is the honest outcome.
      */
-    const HAND_RECORDABLE = !["Store Wallet", "Business Wallet", "Wallet", "Razorpay"].includes(
-      paymentMethod
-    );
+    const HAND_RECORDABLE = !isAdvanceBalanceMethod(paymentMethod) && paymentMethod !== "Razorpay";
     const isPrepaid = paymentStatus === "Paid" && HAND_RECORDABLE;
 
     /**
      * The status the documents are actually written with.
      *
-     * Derived once, and never the caller's word for it: a request naming Razorpay or a wallet
+     * Derived once, and never the caller's word for it: a request naming Razorpay or a Advance Balance
      * with `paymentStatus: "Paid"` used to be written straight through, producing a paid order
      * and a paid receipt with nothing behind either. Anything that is not hand-recordable
      * starts Pending and is settled by the path that can prove it — the gateway callback, or
-     * the wallet routes.
+     * the Advance Balance routes.
      */
     const effectivePaymentStatus = paymentStatus === "Paid" && !HAND_RECORDABLE ? "Pending" : paymentStatus;
 

@@ -205,7 +205,7 @@ export const initialDropshippingCMSData: DropshippingCMSData = {
       {
         stepNumber: 4,
         title: "PAY ONLY FOR ORDERED PRODUCTS",
-        description: "You transfer the order details to FlexSell Wholesale and pay only the wholesale product price + shipping charge using your FlexSell wallet or prepaid balance.",
+        description: "You transfer the order details to FlexSell Wholesale and pay only the wholesale product price + shipping charge using your FlexSell Advance Balance.",
         badge: "STEP 4: ORDER TRANSFER"
       },
       {
@@ -411,7 +411,7 @@ export const initialDropshippingCMSData: DropshippingCMSData = {
       {
         title: "9. CLIENT RESPONSIBILITIES",
         points: [
-          "Maintain sufficient wallet balance or make advance payment for order processing.",
+          "Maintain sufficient Advance Balance or make advance payment for order processing.",
           "Ensure timely payment for all orders to avoid dispatch delays.",
           "Accept applicable product prices, shipping charges, Pick & Pack charges, and GST.",
           "Accept responsibility for all returned (RTO) products.",

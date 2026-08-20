@@ -1,3 +1,4 @@
+import { isAdvanceBalanceMethod } from "@/lib/advanceBalanceConstants";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
@@ -653,15 +654,15 @@ export async function POST(request: Request) {
        * ...and only for a method they can actually attest to.
        *
        * A gateway payment either carries a verified signature or it did not happen, and a
-       * wallet is debited by the wallet routes, which read a balance and write a ledger
+       * Advance Balance is debited by the Advance Balance routes, which read a balance and write a ledger
        * entry. Declaring either one paid here would mark an order settled against money that
        * never moved — the same hole closed in `/api/orders/[id]/status` and
        * `/api/invoices/[id]/settle`. Both fall through to Pending, which is the honest
-       * outcome: the gateway or the wallet route then settles it for real.
+       * outcome: the gateway or the Advance Balance route then settles it for real.
        */
-      const HAND_RECORDABLE = !["Razorpay", "Wallet", "Store Wallet", "Business Wallet"].includes(
-        paymentDetails?.paymentMethod || ""
-      );
+      const HAND_RECORDABLE =
+        !isAdvanceBalanceMethod(paymentDetails?.paymentMethod) &&
+        paymentDetails?.paymentMethod !== "Razorpay";
       const pStatus =
         isStaff && HAND_RECORDABLE ? (paymentDetails?.paymentStatus || "Pending") : "Pending";
 

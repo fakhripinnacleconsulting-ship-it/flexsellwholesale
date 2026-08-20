@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Customer from "@/models/Customer";
 import Order from "@/models/Order";
-import Wallet from "@/models/Wallet";
+import AdvanceBalance from "@/models/AdvanceBalance";
 import Manager from "@/models/Manager";
 import { requireAuth } from "@/lib/authGuard";
 import { toRupees } from "@/lib/money";
@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  *
  *   - *Flows* are scoped to it: customers who joined in the range, revenue and orders placed
  *     in the range.
- *   - *Positions* are not: how many customers exist, what their wallets hold right now, how
+ *   - *Positions* are not: how many customers exist, what their advanceBalances hold right now, how
  *     many are waiting on KYC. A balance has one answer — today — and pretending it belongs to
  *     a period would make it read as "wallet revenue", which it is not.
  *
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
     /**
      * The customers in scope, with the fields the derived metrics need.
      *
-     * Orders and wallets are joined on these ids rather than re-deriving the customer filter
+     * Orders and advanceBalances are joined on these ids rather than re-deriving the customer filter
      * in three separate aggregations. The projection also carries what KYC validation reads —
      * **KYC is not a stored field**. There is no `kycStatus` on the schema; completeness is
      * computed from the customer's type, company, GSTIN and uploaded documents by
@@ -142,7 +142,7 @@ export async function GET(request: Request) {
       if (!verdict.isValid) kycIncomplete += 1;
     }
 
-    const [segmentAgg, newInRange, orderAgg, topCustomerAgg, walletAgg, , dormantCount] =
+    const [segmentAgg, newInRange, orderAgg, topCustomerAgg, advanceBalanceAgg, , dormantCount] =
       await Promise.all([
         // ─── Segment counts (position) ───
         Customer.aggregate([
@@ -206,12 +206,12 @@ export async function GET(request: Request) {
         ]),
 
         /**
-         * ─── Wallet holdings (position — no date filter, by design) ───
+         * ─── Advance Balance holdings (position — no date filter, by design) ───
          *
-         * Grouped **by wallet type**, so the card can show the same Store / Business split as
+         * Grouped **by Advance Balance type**, so the card can show the same Store / Business split as
          * the dashboard rather than a single opaque figure.
          */
-        Wallet.aggregate([
+        AdvanceBalance.aggregate([
           { $match: { status: { $ne: "closed" }, userId: { $in: scopedIds } } },
           {
             $group: {
@@ -274,11 +274,11 @@ export async function GET(request: Request) {
     /**
      * Folded into Store / Business / held.
      *
-     * `customersWithBalance` is a set union across both wallet types, not a sum — one customer
-     * holding money in both wallets is one customer, and adding the per-type counts would
+     * `customersWithBalance` is a set union across both Advance Balance types, not a sum — one customer
+     * holding money in both advanceBalances is one customer, and adding the per-type counts would
      * double them.
      */
-    const walletRows = walletAgg as {
+    const advanceBalanceRows = advanceBalanceAgg as {
       _id: string;
       available?: number;
       held?: number;
@@ -286,13 +286,13 @@ export async function GET(request: Request) {
       customers?: string[];
     }[];
 
-    const walletTotals = { store: 0, business: 0, held: 0, lowBalanceWallets: 0 };
+    const advanceBalanceTotals = { store: 0, business: 0, held: 0, lowBalanceAccounts: 0 };
     const fundedCustomerIds = new Set<string>();
-    for (const row of walletRows) {
-      if (row._id === "store") walletTotals.store = row.available || 0;
-      if (row._id === "business") walletTotals.business = row.available || 0;
-      walletTotals.held += row.held || 0;
-      walletTotals.lowBalanceWallets += row.lowBalance || 0;
+    for (const row of advanceBalanceRows) {
+      if (row._id === "store") advanceBalanceTotals.store = row.available || 0;
+      if (row._id === "business") advanceBalanceTotals.business = row.available || 0;
+      advanceBalanceTotals.held += row.held || 0;
+      advanceBalanceTotals.lowBalanceAccounts += row.lowBalance || 0;
       for (const id of row.customers || []) fundedCustomerIds.add(String(id));
     }
 
@@ -309,14 +309,14 @@ export async function GET(request: Request) {
           total: scopedIds.length,
           ...segments,
         },
-        wallet: {
+        advanceBalance: {
           // The headline: everything held for these customers, spendable or reserved.
-          total: toRupees(walletTotals.store + walletTotals.business + walletTotals.held),
-          store: toRupees(walletTotals.store),
-          business: toRupees(walletTotals.business),
-          held: toRupees(walletTotals.held),
+          total: toRupees(advanceBalanceTotals.store + advanceBalanceTotals.business + advanceBalanceTotals.held),
+          store: toRupees(advanceBalanceTotals.store),
+          business: toRupees(advanceBalanceTotals.business),
+          held: toRupees(advanceBalanceTotals.held),
           customersWithBalance: fundedCustomerIds.size,
-          lowBalanceWallets: walletTotals.lowBalanceWallets,
+          lowBalanceAccounts: advanceBalanceTotals.lowBalanceAccounts,
         },
         actionNeeded: {
           upgradesPending,

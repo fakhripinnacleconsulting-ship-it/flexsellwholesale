@@ -3,14 +3,15 @@ import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
 import Manager from "@/models/Manager";
 import { requireAuth } from "@/lib/authGuard";
-import { requireWalletSpendAccess } from "@/lib/walletGuard";
+import { requireAdvanceBalanceSpendAccess } from "@/lib/advanceBalanceGuard";
 import { rateLimit } from "@/lib/rateLimit";
 import { toPaise, toRupees } from "@/lib/money";
-import { InsufficientBalanceError } from "@/lib/walletLedger";
-import { reserveWalletFunds, captureWalletFunds, refundWalletOrder } from "@/lib/walletCheckout";
+import { InsufficientBalanceError } from "@/lib/advanceBalanceLedger";
+import { reserveAdvanceBalanceFunds, captureAdvanceBalanceFunds, refundAdvanceBalanceOrder } from "@/lib/advanceBalanceCheckout";
 import { issueTaxInvoiceForReceipt, type StoredReceipt } from "@/lib/orderSettlement";
+import { METHOD_TO_WALLET_TYPE } from "@/lib/advanceBalanceConstants";
 import { resolveActor } from "@/lib/orderHistory";
-import type { WalletActor } from "@/types/wallet";
+import type { AdvanceBalanceActor } from "@/types/advanceBalance";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,8 @@ export const dynamic = "force-dynamic";
  * `INV-` number.** Both rules exist because of the same two bugs:
  *
  *   1. `PUT /api/invoices/[id]` used to accept `{ paymentStatus: "Paid", paymentMethod:
- *      "Store Wallet" }` and write it through untouched. No balance was read and no ledger
- *      entry was written, so a customer with ₹0 could have a receipt marked Paid. The wallet
+ *      "Store Advance Balance" }` and write it through untouched. No balance was read and no ledger
+ *      entry was written, so a customer with ₹0 could have a receipt marked Paid. The Advance Balance
  *      dropdown in the UI was purely decorative.
  *
  *   2. The same route converted the receipt by flipping `type` on the existing document.
@@ -31,19 +32,21 @@ export const dynamic = "force-dynamic";
  *      never advanced — GST Rule 46(b) requires a consecutive serial unique to the invoice
  *      series, which that design made impossible.
  *
- * So: money moves first and through the wallet engine, then a **separate** `INV-` document is
+ * So: money moves first and through the Advance Balance engine, then a **separate** `INV-` document is
  * created and the receipt is retained, marked paid, and linked to it.
  *
- * That last sequence now lives in `lib/orderSettlement.ts` and is shared with the wallet and
+ * That last sequence now lives in `lib/orderSettlement.ts` and is shared with the Advance Balance and
  * Razorpay routes, which each used to get it wrong in their own way. This route keeps what is
- * genuinely its own: the authorisation, the wallet spend guard, the money movement, and the
+ * genuinely its own: the authorisation, the Advance Balance spend guard, the money movement, and the
  * receipt pre-checks that turn a bad request into a specific status code.
  */
 
-const WALLET_METHOD_TO_TYPE: Record<string, "store" | "business"> = {
-  "Store Wallet": "store",
-  "Business Wallet": "business",
-};
+/**
+ * Accepts the current wording and the wording it replaced — see METHOD_TO_WALLET_TYPE.
+ * A receipt raised before the rename still names `"Store Advance Balance"`, and refusing it here would
+ * make those receipts unsettleable.
+ */
+const WALLET_METHOD_TO_TYPE = METHOD_TO_WALLET_TYPE;
 
 /**
  * Methods a human may record by hand.
@@ -73,7 +76,7 @@ export async function POST(
 ) {
   let capturedTxId: string | undefined;
   let capturedWalletType: "store" | "business" | undefined;
-  let walletActor: WalletActor | undefined;
+  let advanceBalanceActor: AdvanceBalanceActor | undefined;
 
   try {
     const { id } = await params;
@@ -98,7 +101,7 @@ export async function POST(
 
     /**
      * A reference is mandatory only where one actually exists — see
-     * METHODS_REQUIRING_REFERENCE. A wallet is exempt because the ledger entry is the
+     * METHODS_REQUIRING_REFERENCE. A Advance Balance is exempt because the ledger entry is the
      * reference, and cash because there is nothing to quote.
      */
     if (METHODS_REQUIRING_REFERENCE.includes(method) && !String(transactionId || "").trim()) {
@@ -146,7 +149,7 @@ export async function POST(
        * here. Without it a manager could create the receipt that flow posts and then be
        * refused the settlement that gives it its `INV-` number.
        *
-       * The wallet grant is checked separately further down and is not implied by either.
+       * The Advance Balance grant is checked separately further down and is not implied by either.
        */
       const canSettle =
         perms.includes("invoices_receipt") ||
@@ -194,7 +197,7 @@ export async function POST(
 
     /**
      * The amount comes from the stored receipt, never from the request — the same protection
-     * the Razorpay and wallet checkout paths already rely on.
+     * the Razorpay and Advance Balance checkout paths already rely on.
      */
     const amountPaise = toPaise(Number(receipt.amount) || 0);
     if (amountPaise <= 0) {
@@ -208,30 +211,30 @@ export async function POST(
       const customerId = receipt.customerId ? String(receipt.customerId) : "";
       if (!customerId) {
         return NextResponse.json(
-          { message: "This receipt is not linked to a customer account, so no wallet can be charged." },
+          { message: "This receipt is not linked to a customer account, so no Advance Balance can be charged." },
           { status: 400 }
         );
       }
 
       /**
-       * A document permission never implies a wallet permission.
+       * A document permission never implies a Advance Balance permission.
        *
        * `invoices_receipt:update` authorises issuing the invoice; spending someone's balance
        * needs the exact `wallet_store` / `wallet_business` grant, checked separately here.
        * The permission is derived from the method, so the request body cannot select it.
        */
-      const walletAuth = await requireWalletSpendAccess(walletType);
-      if (walletAuth.error) return walletAuth.error;
-      walletActor = walletAuth.actor;
+      const advanceBalanceAuth = await requireAdvanceBalanceSpendAccess(walletType);
+      if (advanceBalanceAuth.error) return advanceBalanceAuth.error;
+      advanceBalanceActor = advanceBalanceAuth.actor;
       capturedWalletType = walletType;
 
       let hold;
       try {
-        hold = await reserveWalletFunds({
+        hold = await reserveAdvanceBalanceFunds({
           userId: customerId,
           walletType,
           amountPaise,
-          actor: walletActor,
+          actor: advanceBalanceActor,
           clientRequestId,
           orderLabel: `Receipt ${id}`,
         });
@@ -258,7 +261,7 @@ export async function POST(
         throw err;
       }
 
-      const captured = await captureWalletFunds({ holdId: hold.holdId, orderId: receipt.orderId || id });
+      const captured = await captureAdvanceBalanceFunds({ holdId: hold.holdId, orderId: receipt.orderId || id });
       if (!captured) {
         // The hold was released underneath us — almost certainly the sweeper. Nothing was
         // taken, so ask for a retry rather than reporting a payment that did not happen.
@@ -298,21 +301,21 @@ export async function POST(
     );
   } catch (error: unknown) {
     /**
-     * The wallet was charged but the invoice could not be issued — the one case where the
+     * The Advance Balance was charged but the invoice could not be issued — the one case where the
      * customer would otherwise be poorer with nothing to show for it. Return the money and
      * let them retry; a duplicated payment is far worse than a repeated settlement.
      *
-     * Mirrors the compensation in /api/wallet/pay-order deliberately: one shape, one place
+     * Mirrors the compensation in /api/advance-balance/pay-order deliberately: one shape, one place
      * to reason about, so the two cannot drift.
      */
-    if (capturedTxId && walletActor) {
-      await refundWalletOrder({
+    if (capturedTxId && advanceBalanceActor) {
+      await refundAdvanceBalanceOrder({
         walletTransactionId: capturedTxId,
         orderId: "settlement-failed",
-        actor: walletActor,
+        actor: advanceBalanceActor,
         reason: "invoice_issue_failed",
       }).catch((refundErr) =>
-        console.error("[Settle] Failed to refund wallet after a failed invoice issue:", refundErr)
+        console.error("[Settle] Failed to refund Advance Balance after a failed invoice issue:", refundErr)
       );
     }
 

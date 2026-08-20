@@ -25,7 +25,7 @@ interface AccordionProps {
  *
  * Content stays mounted and is hidden with `hidden` rather than being unmounted, so
  * collapsing a section does not throw away its loaded data and re-fetch it on the next
- * open — which on a wallet would mean re-running an aggregation every time someone glances
+ * open — which on a Advance Balance would mean re-running an aggregation every time someone glances
  * away.
  *
  * The header is a real `<button>` so it works with the keyboard and announces its state;

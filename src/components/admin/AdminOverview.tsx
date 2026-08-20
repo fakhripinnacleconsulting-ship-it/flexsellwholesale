@@ -23,7 +23,7 @@ import {
   CheckCircle2,
   Clock,
   Zap,
-  Wallet as WalletIcon,
+  Wallet as AdvanceBalanceIcon,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -58,7 +58,7 @@ interface DashboardData {
   topProducts: { title: string; sku: string; unitsSold: number }[];
   lowStockProducts: { title: string; sku: string; stock: number }[];
   /** Balances held right now — a position, not a flow, so no date range applies. */
-  walletTotals: { store: number; business: number; held: number; total: number; walletCount: number };
+  advanceBalanceTotals: { store: number; business: number; held: number; total: number; advanceBalanceCount: number };
 }
 
 interface AdminOverviewProps {
@@ -92,7 +92,7 @@ export function AdminOverview({ dbData }: AdminOverviewProps) {
     placedOrders,
     activeCargoLines,
     lowStockAlerts,
-    walletTotals,
+    advanceBalanceTotals,
     compTotalRevenue = 0,
     compNetSales = 0,
     compPaidAmount = 0,
@@ -618,40 +618,40 @@ export function AdminOverview({ dbData }: AdminOverviewProps) {
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div>
             <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Customer Wallet Balance
+              Customer Advance Balance
             </CardTitle>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Money held across {walletTotals.walletCount} active wallet{walletTotals.walletCount === 1 ? "" : "s"} — not tied to the date range
+              Money held across {advanceBalanceTotals.advanceBalanceCount} active Advance Balance{advanceBalanceTotals.advanceBalanceCount === 1 ? "" : "s"} — not tied to the date range
             </p>
           </div>
           <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400">
-            <WalletIcon className="h-4 w-4" />
+            <AdvanceBalanceIcon className="h-4 w-4" />
           </div>
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
-            {formatPrice(walletTotals.total)}
+            {formatPrice(advanceBalanceTotals.total)}
           </div>
 
           {/*
             Two breakdowns, then the held amount as a *note* rather than a third column.
-            Held is not a third wallet — it is part of the two above, temporarily reserved.
+            Held is not a third Advance Balance — it is part of the two above, temporarily reserved.
             Giving it equal visual weight invited reading the three as a sum of the total.
           */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Store Wallet</p>
-              <p className="text-xl font-bold font-mono text-foreground mt-0.5">{formatPrice(walletTotals.store)}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Store Advance Balance</p>
+              <p className="text-xl font-bold font-mono text-foreground mt-0.5">{formatPrice(advanceBalanceTotals.store)}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Business Wallet</p>
-              <p className="text-xl font-bold font-mono text-foreground mt-0.5">{formatPrice(walletTotals.business)}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Business Advance Balance</p>
+              <p className="text-xl font-bold font-mono text-foreground mt-0.5">{formatPrice(advanceBalanceTotals.business)}</p>
             </div>
           </div>
 
           <div className="mt-3 rounded-md bg-amber-500/5 border border-amber-500/20 px-3 py-2">
             <p className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
-              {formatPrice(walletTotals.held)} on hold
+              {formatPrice(advanceBalanceTotals.held)} on hold
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
               Reserved by in-flight checkouts — included in the total above

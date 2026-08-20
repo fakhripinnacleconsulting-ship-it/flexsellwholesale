@@ -13,7 +13,7 @@ import { formatPrice } from "@/lib/utils";
 import { ArrowLeft, User, ShoppingBag, CreditCard, Mail, Phone, MapPin, Building, ShieldAlert, CheckCircle2, Truck, Clock, Store, FileText, ExternalLink, ArrowUpCircle, XCircle } from "lucide-react";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
-import { StaffWalletPanel } from "@/components/wallet/StaffWalletPanel";
+import { StaffAdvanceBalancePanel } from "@/components/advance-balance/StaffAdvanceBalancePanel";
 
 interface CustomerDetailProps {
   customerId: string;
@@ -347,9 +347,9 @@ export function CustomerDetail({ customerId }: CustomerDetailProps) {
           )}
         </div>
 
-        {/* Right Side: wallets, then order history */}
+        {/* Right Side: advanceBalances, then order history */}
         <div className="lg:col-span-2 space-y-6">
-          <StaffWalletPanel
+          <StaffAdvanceBalancePanel
             userId={customerId}
             customerName={customer.name}
             isAdmin={isAdminView}

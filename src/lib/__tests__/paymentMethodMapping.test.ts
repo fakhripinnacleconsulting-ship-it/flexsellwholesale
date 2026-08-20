@@ -5,33 +5,36 @@ vi.mock("@/models/Order", () => ({ default: {} }));
 vi.mock("@/lib/idGeneratorServer", () => ({ generateNextId: vi.fn() }));
 
 import { orderPaymentMethodFor, walletTypeForMethod, ORDER_PAYMENT_METHODS } from "@/lib/orderSettlement";
-import { InsufficientBalanceError } from "@/lib/walletLedger";
+import { InsufficientBalanceError } from "@/lib/advanceBalanceLedger";
 
 /**
  * `Invoice.paymentMethod` is a free string; `Order.paymentMethod` is a closed enum.
  *
  * Copying the document's wording onto the order therefore fails validation outright, and it
- * did — creating an order paid from a Business Wallet died with
+ * did — creating an order paid from a Business Advance Balance died with
  *
- *     Order validation failed: paymentMethod: `Business Wallet` is not a valid enum value
+ *     Order validation failed: paymentMethod: `Business Advance Balance` is not a valid enum value
  *
  * which surfaced to the user as a raw Mongoose string. The order stores `"Wallet"` and keeps
- * the wallet identity in `walletType`.
+ * the Advance Balance identity in `walletType`.
  */
 describe("payment method mapping", () => {
   describe("wallets", () => {
     it.each([
+      ["Store Advance Balance", "store"],
+      ["Business Advance Balance", "business"],
+      // Pre-rename wording, still on every document raised before the change.
       ["Store Wallet", "store"],
       ["Business Wallet", "business"],
-    ] as const)("maps %s onto the order enum, keeping the wallet in walletType", (method, expectedType) => {
-      expect(orderPaymentMethodFor(method)).toBe("Wallet");
+    ] as const)("maps %s onto the order enum, keeping the Advance Balance in walletType", (method, expectedType) => {
+      expect(orderPaymentMethodFor(method)).toBe("Advance Balance");
       expect(walletTypeForMethod(method)).toBe(expectedType);
       // The thing that broke: the document's wording is not a valid order method.
       expect(ORDER_PAYMENT_METHODS).not.toContain(method);
     });
 
     it("keeps an explicit walletType even when the method is already 'Wallet'", () => {
-      expect(orderPaymentMethodFor("Wallet", "business")).toBe("Wallet");
+      expect(orderPaymentMethodFor("Wallet", "business")).toBe("Advance Balance");
     });
   });
 
@@ -56,7 +59,7 @@ describe("payment method mapping", () => {
 });
 
 /**
- * "Insufficient Business Wallet Balance" tells someone only that they must go and look it up.
+ * "Insufficient Business Advance Balance Balance" tells someone only that they must go and look it up.
  * Several routes claimed in their comments to "name the shortfall" while passing that bare
  * phrase straight through.
  */
@@ -70,7 +73,7 @@ describe("InsufficientBalanceError", () => {
     expect(err.shortfallAmount).toBe(2300);
     expect(err.availableAmount).toBe(2500);
     expect(err.requiredAmount).toBe(4800);
-    expect(err.message).toContain("Business Wallet");
+    expect(err.message).toContain("Business Advance Balance");
     expect(err.message).toContain("2,300");
   });
 
@@ -81,7 +84,7 @@ describe("InsufficientBalanceError", () => {
 
   it("falls back to the plain phrasing when no balances are supplied", () => {
     const err = new InsufficientBalanceError("store");
-    expect(err.message).toBe("Insufficient Store Wallet Balance");
+    expect(err.message).toBe("Store Advance Balance does not have enough funds");
     expect(err.shortfallAmount).toBeUndefined();
   });
 

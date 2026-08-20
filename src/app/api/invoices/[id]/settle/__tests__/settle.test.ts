@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 /**
  * The regression suite for the two bugs this endpoint exists to fix.
  *
- * Both shipped while 293 tests passed, because the wallet *engine* was covered and its
+ * Both shipped while 293 tests passed, because the Advance Balance *engine* was covered and its
  * *callers* were not. These tests exercise the caller.
  */
 
@@ -16,17 +16,17 @@ vi.mock("@/lib/authGuard", () => ({
 }));
 
 const mockSpendAccess = vi.fn();
-vi.mock("@/lib/walletGuard", () => ({
-  requireWalletSpendAccess: (...a: any[]) => mockSpendAccess(...a),
+vi.mock("@/lib/advanceBalanceGuard", () => ({
+  requireAdvanceBalanceSpendAccess: (...a: any[]) => mockSpendAccess(...a),
 }));
 
 const mockReserve = vi.fn();
 const mockCapture = vi.fn();
 const mockRefund = vi.fn();
-vi.mock("@/lib/walletCheckout", () => ({
-  reserveWalletFunds: (...a: any[]) => mockReserve(...a),
-  captureWalletFunds: (...a: any[]) => mockCapture(...a),
-  refundWalletOrder: (...a: any[]) => mockRefund(...a),
+vi.mock("@/lib/advanceBalanceCheckout", () => ({
+  reserveAdvanceBalanceFunds: (...a: any[]) => mockReserve(...a),
+  captureAdvanceBalanceFunds: (...a: any[]) => mockCapture(...a),
+  refundAdvanceBalanceOrder: (...a: any[]) => mockRefund(...a),
 }));
 
 const mockGenerateNextId = vi.fn();
@@ -62,7 +62,7 @@ vi.mock("@/models/Manager", () => ({
 }));
 
 import { POST } from "../route";
-import { InsufficientBalanceError } from "@/lib/walletLedger";
+import { InsufficientBalanceError } from "@/lib/advanceBalanceLedger";
 
 const RECEIPT = {
   _id: "REC-01001",
@@ -105,8 +105,8 @@ describe("POST /api/invoices/[id]/settle", () => {
     });
   });
 
-  describe("the zero-balance wallet bug", () => {
-    it("refuses a wallet payment the balance cannot cover, and changes nothing", async () => {
+  describe("the zero-balance Advance Balance bug", () => {
+    it("refuses a Advance Balance payment the balance cannot cover, and changes nothing", async () => {
       mockReserve.mockRejectedValue(new InsufficientBalanceError("store"));
 
       const res = await call({ method: "Store Wallet", clientRequestId: "req-1" });
@@ -122,7 +122,7 @@ describe("POST /api/invoices/[id]/settle", () => {
       expect(mockGenerateNextId).not.toHaveBeenCalled();
     });
 
-    it("debits the wallet before issuing the invoice", async () => {
+    it("debits the Advance Balance before issuing the invoice", async () => {
       mockReserve.mockResolvedValue({ holdId: "HOLD-1", walletId: "W-1" });
       mockCapture.mockResolvedValue({ transactionId: "WTX-1", balancePaise: 100000 });
 
@@ -141,9 +141,9 @@ describe("POST /api/invoices/[id]/settle", () => {
       expect(mockCapture).toHaveBeenCalledWith({ holdId: "HOLD-1", orderId: "FS-10026" });
     });
 
-    it("requires the exact wallet permission, not just a document permission", async () => {
+    it("requires the exact Advance Balance permission, not just a document permission", async () => {
       mockSpendAccess.mockResolvedValue({
-        error: new Response(JSON.stringify({ message: "Forbidden: Wallet permission required" }), {
+        error: new Response(JSON.stringify({ message: "Forbidden: AdvanceBalance permission required" }), {
           status: 403,
         }),
       });

@@ -12,7 +12,7 @@ import { shippingService } from "@/services/shippingService";
 import { invoiceService } from "@/services/invoiceService";
 import { collectOrderPaymentOnline } from "@/lib/razorpayCollect";
 import { describePaymentFailure } from "@/lib/paymentErrors";
-import * as walletService from "@/services/walletService";
+import * as advanceBalanceService from "@/services/advanceBalanceService";
 import { Customer, Invoice, TaxBreakdown } from "@/types";
 import { INDIAN_STATES } from "@/lib/constants";
 
@@ -124,8 +124,8 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
    */
   const [payRequestId, setPayRequestId] = React.useState<string>("");
 
-  const [walletBalance, setWalletBalance] = React.useState(0);
-  const [businessWalletBalance, setBusinessWalletBalance] = React.useState(0);
+  const [storeAdvanceBalance, setStoreAdvanceBalance] = React.useState(0);
+  const [businessAdvanceBalance, setBusinessAdvanceBalance] = React.useState(0);
 
   // Data fetching
   const loadData = React.useCallback(async () => {
@@ -214,23 +214,23 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
     setTxnId("");
     setPaymentType("cash");
     setOnlineMethod("UPI");
-    setPayRequestId(walletService.newRequestId());
+    setPayRequestId(advanceBalanceService.newRequestId());
 
     const custId = inv.customerId || (inv as any).customer?._id || (inv as any).customer;
     if (custId) {
-      walletService
-        .getWallets(String(custId))
+      advanceBalanceService
+        .getAdvanceBalances(String(custId))
         .then((res) => {
-          setWalletBalance(res.store?.availableBalance || 0);
-          setBusinessWalletBalance(res.business?.availableBalance || 0);
+          setStoreAdvanceBalance(res.store?.availableBalance || 0);
+          setBusinessAdvanceBalance(res.business?.availableBalance || 0);
         })
         .catch(() => {
-          setWalletBalance(0);
-          setBusinessWalletBalance(0);
+          setStoreAdvanceBalance(0);
+          setBusinessAdvanceBalance(0);
         });
     } else {
-      setWalletBalance(0);
-      setBusinessWalletBalance(0);
+      setStoreAdvanceBalance(0);
+      setBusinessAdvanceBalance(0);
     }
 
     setIsPayModalOpen(true);
@@ -239,8 +239,8 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
   /**
    * Records the payment through the settle endpoint.
    *
-   * This used to call `updateInvoice({ paymentStatus: "Paid", paymentMethod: "Store Wallet",
-   * type: "invoice" })`. That marked the document paid without ever calling the wallet, so a
+   * This used to call `updateInvoice({ paymentStatus: "Paid", paymentMethod: "Store Advance Balance",
+   * type: "invoice" })`. That marked the document paid without ever calling the Advance Balance, so a
    * customer with ₹0 was settled in full, and it flipped `type` in place so the resulting Tax
    * Invoice kept its `REC-` number. `/settle` moves the money first and issues a real `INV-`
    * document; a short balance comes back as a 409 and nothing changes.
@@ -421,8 +421,8 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
         setTxnId={setTxnId}
         onConfirmPay={handleConfirmPay}
         isSubmitting={isPaySubmitting}
-        walletBalance={walletBalance}
-        businessWalletBalance={businessWalletBalance}
+        storeAdvanceBalance={storeAdvanceBalance}
+        businessAdvanceBalance={businessAdvanceBalance}
       />
 
       <InvoicePreviewModal

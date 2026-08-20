@@ -1,11 +1,11 @@
 import { toISTDateKey, formatDateIST } from "./datetime";
 
 /**
- * Date ranges for wallet statements and breakdowns.
+ * Date ranges for Advance Balance statements and breakdowns.
  *
  * Built around the **Indian financial year** (1 April – 31 March) rather than the calendar
  * year, because that is the window a business owner and their accountant actually work in —
- * a wallet statement is filed against an FY, not against January to December.
+ * a Advance Balance statement is filed against an FY, not against January to December.
  *
  * All boundaries are computed in local time and sent as ISO strings; the server widens the
  * closing day to 23:59:59 so a range ending "31 March" includes that day's transactions

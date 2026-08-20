@@ -307,7 +307,7 @@ export function AdminCustomersManager({ initialType = "" }: { initialType?: "B2B
         A manager reaches this same component at /manager/customers, where the figures would
         describe the whole customer base rather than the manager's own work — a different
         question from the one the rest of their portal answers, and one that hands them a
-        business-wide revenue and wallet position they are not otherwise shown.
+        business-wide revenue and Advance Balance position they are not otherwise shown.
 
         Collapsible because it is context, not the task: the table is what someone came here
         for. It stays mounted when collapsed, so re-opening does not re-run the aggregation.

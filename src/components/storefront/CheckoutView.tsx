@@ -20,7 +20,7 @@ import { OrderSummary } from "./checkout/OrderSummary";
 import { CouponInput } from "./checkout/CouponInput";
 import { Card } from "@/components/ui/Card";
 import { openRazorpayCheckout } from "@/lib/razorpayLoader";
-import * as walletService from "@/services/walletService";
+import * as advanceBalanceService from "@/services/advanceBalanceService";
 import type { CheckoutPaymentMethod } from "@/components/storefront/checkout/PaymentSection";
 import { SuggestedProductsCarousel } from "./SuggestedProductsCarousel";
 import { trackBeginCheckout, trackPurchase } from "@/lib/gtm";
@@ -64,10 +64,10 @@ export function CheckoutView() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const [paymentMethod, setPaymentMethod] = React.useState<CheckoutPaymentMethod>("Razorpay");
-  // Store Wallet balance in rupees, or null while unknown / not applicable.
-  const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
-  // Business Wallet balance in rupees, or null while unknown / not applicable.
-  const [businessWalletBalance, setBusinessWalletBalance] = React.useState<number | null>(null);
+  // Store Advance Balance balance in rupees, or null while unknown / not applicable.
+  const [storeAdvanceBalance, setStoreAdvanceBalance] = React.useState<number | null>(null);
+  // Business Advance Balance balance in rupees, or null while unknown / not applicable.
+  const [businessAdvanceBalance, setBusinessAdvanceBalance] = React.useState<number | null>(null);
   const [enableCod, setEnableCod] = React.useState(true);
   const [enableOnlinePayment, setEnableOnlinePayment] = React.useState(true);
   const [isPaying, setIsPaying] = React.useState(false);
@@ -88,7 +88,7 @@ export function CheckoutView() {
    * The payable total, at component scope.
    *
    * The submit handler computes this again from the same helpers; it is duplicated here
-   * because the wallet option has to compare against the *final* figure. Comparing against
+   * because the Advance Balance option has to compare against the *final* figure. Comparing against
    * the pre-shipping total would show "covers this order" and then fail at payment once
    * shipping pushed it over — the worst possible moment to discover a shortfall.
    */
@@ -238,34 +238,34 @@ export function CheckoutView() {
   }, [setBuyerState, router]);
 
   /**
-   * Loads the Wallet balances so the options can show what is actually available.
+   * Loads the Advance Balance balances so the options can show what is actually available.
    * Runs whenever selectedCustomerId changes (for admins) or on mount (for customers).
    */
   React.useEffect(() => {
-    const fetchWalletBalance = async () => {
+    const fetchAdvanceBalance = async () => {
       try {
         // If we are an admin and haven't selected a customer yet, we can't fetch their wallet.
         // Wait, if we are admin but no delegated customer is selected, we just don't have a balance to show yet.
         const userIdToFetch = (currentUser?.role === "admin" || currentUser?.role === "manager") ? selectedCustomerId : undefined;
         
         if ((currentUser?.role === "admin" || currentUser?.role === "manager") && !userIdToFetch) {
-          setWalletBalance(null);
-          setBusinessWalletBalance(null);
+          setStoreAdvanceBalance(null);
+          setBusinessAdvanceBalance(null);
           return;
         }
 
-        const wallets = await walletService.getWallets(userIdToFetch);
-        setWalletBalance(wallets.store?.availableBalance ?? null);
-        setBusinessWalletBalance(wallets.business?.availableBalance ?? null);
+        const advanceBalances = await advanceBalanceService.getAdvanceBalances(userIdToFetch);
+        setStoreAdvanceBalance(advanceBalances.store?.availableBalance ?? null);
+        setBusinessAdvanceBalance(advanceBalances.business?.availableBalance ?? null);
       } catch {
-        setWalletBalance(null);
-        setBusinessWalletBalance(null);
+        setStoreAdvanceBalance(null);
+        setBusinessAdvanceBalance(null);
       }
     };
     
     // Only fetch if we know who the user is
     if (currentUser) {
-      fetchWalletBalance();
+      fetchAdvanceBalance();
     }
   }, [currentUser, selectedCustomerId]);
 
@@ -539,28 +539,28 @@ export function CheckoutView() {
       return;
     }
 
-    if (paymentMethod === "Wallet" || paymentMethod === "BusinessWallet") {
+    if (paymentMethod === "Wallet" || paymentMethod === "BusinessAdvanceBalance") {
       setIsSubmitting(true);
 
       // Minted once per submit attempt so a retried request settles as one payment. The
       // ledger is append-only, so a duplicated debit can only be undone by a reversal the
       // customer would also see.
-      const clientRequestId = walletService.newRequestId();
+      const clientRequestId = advanceBalanceService.newRequestId();
       const isAdminOrManager = currentUser?.role === "admin" || currentUser?.role === "manager";
-      const targetWalletType = paymentMethod === "BusinessWallet" ? "business" : "store";
+      const targetWalletType = paymentMethod === "BusinessAdvanceBalance" ? "business" : "store";
 
       try {
         // Order first, then pay — the same ordering the Razorpay path uses. The order is
-        // what binds the payment to a server-computed price, and the wallet route reads the
+        // what binds the payment to a server-computed price, and the Advance Balance route reads the
         // amount from it rather than from this page.
         const orderId = await createOrder(
           items,
           amountToPay,
           shippingAddress,
-          // Both wallets are the "Wallet" method; which one paid is recorded server-side as
+          // Both advanceBalances are the "Wallet" method; which one paid is recorded server-side as
           // `walletType` when the debit succeeds. Encoding it into the method string here
           // (both branches of the ternary this replaces returned "Wallet") lost the
-          // distinction entirely and left a failed Business Wallet payment un-retryable.
+          // distinction entirely and left a failed Business Advance Balance payment un-retryable.
           { paymentMethod: "Wallet", paymentStatus: "Pending" },
           appliedCoupon?.couponCode || undefined,
           couponDiscount || undefined,
@@ -571,14 +571,14 @@ export function CheckoutView() {
 
         if (isAdminOrManager) {
           if (!selectedCustomerId) throw new Error("Please select a customer first.");
-          await walletService.adminPayOrder({
+          await advanceBalanceService.adminPayOrder({
             orderId,
             customerId: selectedCustomerId,
             walletType: targetWalletType,
             clientRequestId
           });
         } else {
-          await walletService.payOrderFromWallet({ orderId, clientRequestId });
+          await advanceBalanceService.payOrderFromAdvanceBalance({ orderId, clientRequestId });
         }
 
         trackPurchase({ _id: orderId, amount: amountToPay, items });
@@ -586,10 +586,10 @@ export function CheckoutView() {
         router.push(`/order-confirmation/${orderId}`);
       } catch (err) {
         // The order exists but is unpaid. Releasing it returns the stock immediately rather
-        // than waiting for the daily reaper, and nothing has left the wallet — the hold is
+        // than waiting for the daily reaper, and nothing has left the Advance Balance — the hold is
         // rolled back server-side on any failure.
         addToast(
-          err instanceof Error ? err.message : "Could not pay from your wallet. Please try again.",
+          err instanceof Error ? err.message : "Could not pay from your Advance Balance. Please try again.",
           "error"
         );
         setIsSubmitting(false);
@@ -666,8 +666,8 @@ export function CheckoutView() {
             setPaymentMethod={setPaymentMethod}
             enableCod={enableCod}
             enableOnlinePayment={enableOnlinePayment}
-            walletBalance={walletBalance}
-            businessWalletBalance={businessWalletBalance}
+            storeAdvanceBalance={storeAdvanceBalance}
+            businessAdvanceBalance={businessAdvanceBalance}
             isAdmin={currentUser?.role === "admin" || currentUser?.role === "manager"}
             orderTotal={payableTotal}
           />

@@ -62,7 +62,7 @@ export function AnimatedCounter({ value, duration = 1800, className }: AnimatedC
     /**
      * Honour a reduced-motion preference by showing the final figure immediately.
      *
-     * Counting up is decorative everywhere it is used, and on a wallet balance it is worse
+     * Counting up is decorative everywhere it is used, and on a Advance Balance balance it is worse
      * than decorative: someone who has asked for less motion should not have to watch a
      * number they came to read climb towards itself.
      */

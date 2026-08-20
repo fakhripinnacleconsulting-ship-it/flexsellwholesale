@@ -5,10 +5,10 @@ import { formatPrice } from "@/lib/utils";
  * Turning a failed payment into something the person in front of the screen can act on.
  *
  * Every payment surface used to do `err.message || "Could not record the payment"`, which
- * produced toasts like **"Insufficient Business Wallet Balance"** — true, and useless: it
+ * produced toasts like **"Insufficient Business Advance Balance Balance"** — true, and useless: it
  * does not say by how much, and it does not say what happened to the order that was just
  * created. Several also surfaced raw server text such as *"Order validation failed:
- * paymentMethod: `Business Wallet` is not a valid enum value"*, which means nothing to a
+ * paymentMethod: `Business Advance Balance` is not a valid enum value"*, which means nothing to a
  * salesperson.
  *
  * The server sends the numbers (`shortfallAmount`, `availableAmount`, `requiredAmount`) on
@@ -63,16 +63,16 @@ export function describePaymentFailure(
   const parts: string[] = [];
 
   if (info.code === "INSUFFICIENT_BALANCE") {
-    const wallet = info.walletType === "business" ? "Business Wallet" : "Store Wallet";
+    const balanceLabel = info.walletType === "business" ? "Business Advance Balance" : "Store Advance Balance";
     if (typeof info.shortfallAmount === "number" && typeof info.availableAmount === "number") {
       parts.push(
-        `${wallet} is short by ${formatPrice(info.shortfallAmount)} — ` +
+        `${balanceLabel} is short by ${formatPrice(info.shortfallAmount)} — ` +
           `it holds ${formatPrice(info.availableAmount)} of the ${formatPrice(info.requiredAmount ?? 0)} needed.`
       );
-      parts.push("Add funds to the wallet, or choose another payment method.");
+      parts.push("Add funds to the Advance Balance, or choose another payment method.");
     } else {
-      parts.push(messageOf(err, `${wallet} does not have enough balance for this payment.`));
-      parts.push("Add funds to the wallet, or choose another payment method.");
+      parts.push(messageOf(err, `${balanceLabel} does not have enough balance for this payment.`));
+      parts.push("Add funds to the Advance Balance, or choose another payment method.");
     }
   } else if (info.code === "USE_SETTLE_ENDPOINT" || info.code === "USE_WALLET_ROUTE") {
     parts.push("This payment has to be recorded through the payment action so the money actually moves.");

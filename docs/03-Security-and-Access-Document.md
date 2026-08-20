@@ -38,7 +38,7 @@
 
 | Asset | Impact if compromised |
 |---|---|
-| **Customer wallet balances** | Direct financial loss; unrecoverable once spent |
+| **Customer Advance balances** | Direct financial loss; unrecoverable once spent |
 | **KYC documents** (Aadhaar, PAN, cheque, GST) | Identity theft; regulatory exposure in India |
 | **Admin sessions** | Total compromise — money creation, data deletion |
 | **Payment credentials** | Fraudulent transactions |
@@ -72,16 +72,16 @@ STRIDE, scoped to this application.
 | # | Threat | Vector | Control | State |
 |---|---|---|---|---|
 | **T-01** | *Spoofing* — forge an admin session | Guess or derive the JWT secret | HTTP-only cookie, signed | ⚠️ `JWT_SECRET` falls back to a committed value — SEC-03 |
-| **T-02** | *Spoofing* — act as another customer | Pass someone else's `userId` | Ownership checked server-side | ✅ (was broken on wallet reads — BUG-01, fixed) |
+| **T-02** | *Spoofing* — act as another customer | Pass someone else's `userId` | Ownership checked server-side | ✅ (was broken on Advance reads — BUG-01, fixed) |
 | **T-03** | *Tampering* — pay less than the price | Alter the amount in the request | Amount always read from a stored record | ✅ |
 | **T-04** | *Tampering* — settle with a cheaper signature | Replay a different Razorpay order | Order id minted server-side and bound to the record | ✅ |
-| **T-05** | *Tampering* — overdraw a wallet | Two simultaneous debits | Conditional atomic update | ✅ |
+| **T-05** | *Tampering* — overdraw a Advance | Two simultaneous debits | Conditional atomic update | ✅ |
 | **T-06** | *Repudiation* — deny an action | Staff dispute an expense | Immutable actor, IP, IST timestamp | ✅ |
 | **T-07** | *Information disclosure* — read KYC documents | Guess a blob URL | — | ❌ Public blobs, enumerable filenames — SEC-02 |
-| **T-08** | *Information disclosure* — read another wallet | Enumerate `userId` | Ownership check | ✅ |
+| **T-08** | *Information disclosure* — read another Advance | Enumerate `userId` | Ownership check | ✅ |
 | **T-09** | *Denial of service* — credential stuffing | Automated sign-in attempts | Rate limit + lockout | ✅ |
 | **T-10** | *Denial of service* — storage exhaustion | Mass anonymous uploads | IP rate limit only | ⚠️ No auth — SEC-01 |
-| **T-11** | *Elevation* — manager acts as admin | Call an admin route directly | `requireWalletAdmin`, DB-backed permission reads | ✅ |
+| **T-11** | *Elevation* — manager acts as admin | Call an admin route directly | `requireAdvanceAdmin`, DB-backed permission reads | ✅ |
 | **T-12** | *Elevation* — use a revoked permission | Keep using an old token | DB re-read per request | ⚠️ Three handlers trust the token — SEC-07 |
 | **T-13** | *Elevation* — XSS to admin session | Store a payload in CMS content | Sanitised on render | ❌ One unsanitised path — SEC-06 |
 | **T-14** | *Tampering* — CSRF a state change | Cross-site form post | Double-submit cookie | ⚠️ Disabled by `TEST_MODE` — SEC-04 |
@@ -91,7 +91,7 @@ STRIDE, scoped to this application.
 | **T-18** | *Information disclosure* — silence a victim's alerts | Overwrite their notification preferences | — | ❌ Unauthenticated — SEC-05 |
 
 **T-18 deserves emphasis.** Turning off a target's `security` and `payments` notifications is a
-*preparatory* step: the wallet's entire detective-control design assumes those emails arrive.
+*preparatory* step: the Advance's entire detective-control design assumes those emails arrive.
 
 ---
 
@@ -130,7 +130,7 @@ permission for up to 24 hours. The correct pattern re-reads the `Manager` docume
 | Reset tokens | Single-use, expiring |
 | Timing-safe comparison | CSRF tokens, payment signatures |
 
-Wallet admin re-authentication reuses **the same lockout fields**, so an attacker gains nothing
+Advance admin re-authentication reuses **the same lockout fields**, so an attacker gains nothing
 by attacking that surface instead of the front door.
 
 ---
@@ -149,7 +149,7 @@ invoices_invoice · invoices_quote · invoices_receipt
 inquiries_{wholesale,dropshipping,support,franchise,general}
 ops_upgrades · ops_hsn · ops_shipping · ops_coupons
 content_reviews · content_cms · system_settings
-wallet_store · wallet_business
+Advance_store · Advance_business
 ```
 
 Each supports `:create`, `:read`, `:update`, `:delete`, and a bare grant implies all four.
@@ -157,11 +157,11 @@ Each supports `:create`, `:read`, `:update`, `:delete`, and a bare grant implies
 ### 4.2 Not scoped to individuals
 
 **No `assignedCustomers` relationship exists.** `customers_b2b` means *all* B2B customers;
-`wallet_business` means *any* customer's Business Wallet.
+`Advance_business` means *any* customer's Business Advance.
 
-Accepted, and stated in the granting UI as an amber warning under each wallet checkbox:
+Accepted, and stated in the granting UI as an amber warning under each Advance checkbox:
 
-> *"Lets this manager spend from ANY customer's Business Wallet. No amount limit."*
+> *"Lets this manager spend from ANY customer's Business Advance. No amount limit."*
 
 An admin must not grant it believing it is narrower than it is.
 
@@ -176,17 +176,17 @@ Correct for CRUD.
 if (hasPerm("ops_shipping") || hasPerm("orders")) allowed = true;
 ```
 
-**The wallet guard deliberately does not inherit this.** Only the exact permission for the
-wallet being written grants access — no widening, no wildcard, no fallback. A regression test
+**The Advance guard deliberately does not inherit this.** Only the exact permission for the
+Advance being written grants access — no widening, no wildcard, no fallback. A regression test
 pins it: a manager holding both `ops_shipping` and `orders` receives 403.
 
 ### 4.4 Permission chosen from the resource
 
 ```ts
-const auth = await requireWalletSpendAccess(walletType);   // from the wallet being written
+const auth = await requireAdvanceSpendAccess(AdvanceType);   // from the Advance being written
 ```
 
-Never from the request body. A `wallet_business` holder cannot reach a Store Wallet by changing
+Never from the request body. A `Advance_business` holder cannot reach a Store Advance by changing
 one field.
 
 ### 4.5 Access matrix
@@ -198,14 +198,14 @@ one field.
 | Place an order | ❌ | ✅ own | ✅ for others | ✅ |
 | Cancel an order | ❌ | ✅ own, pre-fulfilment | ✅ scoped | ✅ |
 | Dispatch | ❌ | ❌ | ✅ scoped | ✅ |
-| Read own wallet | ❌ | ✅ | — | ✅ any |
-| Top up own wallet | ❌ | ✅ | ❌ | ❌ |
-| Pay an order from wallet | ❌ | ✅ own | ✅ | ✅ |
+| Read own Advance | ❌ | ✅ | — | ✅ any |
+| Top up own Advance | ❌ | ✅ | ❌ | ❌ |
+| Pay an order from Advance | ❌ | ✅ own | ✅ | ✅ |
 | Record an expense | ❌ | ❌ | ✅ *no cap* | ✅ |
 | Offline / cash credit | ❌ | ❌ | ❌ | ✅ + password |
-| Transfer between wallets | ❌ | ❌ | ❌ | ✅ + password |
+| Transfer between Advances | ❌ | ❌ | ❌ | ✅ + password |
 | Reverse an entry | ❌ | ❌ | ❌ | ✅ + password |
-| Freeze / close a wallet | ❌ | ❌ | ❌ | ✅ + password |
+| Freeze / close a Advance | ❌ | ❌ | ❌ | ✅ + password |
 | Approve an upgrade | ❌ | ❌ | ✅ with `ops_upgrades` | ✅ |
 | Manage managers | ❌ | ❌ | ❌ | ✅ |
 
@@ -232,7 +232,7 @@ external system verifying it — those are not delegable at all.
 | Concurrent overdraw | Conditional atomic update |
 | Gateway captures a different amount | Rejected in **both** directions — a larger capture is a mismatch, not a bonus |
 | Edit a balance directly | One writer module; nightly reconciliation |
-| Spend from a frozen wallet | `status: "active"` in every conditional update |
+| Spend from a frozen Advance | `status: "active"` in every conditional update |
 | Reverse twice | Claim conditional on `status: "success"` |
 | Refund a cancelled order twice | Same claim, plus the cancellation's own exclusivity |
 
@@ -326,7 +326,7 @@ Any content can be uploaded by declaring `image/png`.
 |---|---|---|---|---|
 | Passwords | Secret | bcrypt | TLS | Never returned |
 | **KYC documents** | **PII — high** | **Plain, public URL** | TLS | **Anyone with the URL** |
-| Wallet proofs and bills | Confidential | Plain, public URL | TLS | Anyone with the URL |
+| Advance proofs and bills | Confidential | Plain, public URL | TLS | Anyone with the URL |
 | Customer PII | Confidential | Plain | TLS | Owner + staff |
 | Payment ids | Confidential | Plain | TLS | Owner + staff |
 | Staff IPs | Internal | Plain | TLS | Admin only |
@@ -357,7 +357,7 @@ Currently unbounded. Nothing is purged.
 
 | Data | Recommended | Note |
 |---|---|---|
-| Wallet ledger | **Indefinite** | Financial record; closure retains history by design |
+| Advance ledger | **Indefinite** | Financial record; closure retains history by design |
 | Orders and invoices | 8 years | Indian tax retention |
 | KYC documents | While the account is active + statutory period | Deletion needs a defined trigger |
 | OTP records | 24 hours | Should be TTL-indexed |
@@ -400,8 +400,8 @@ Recorded so nobody assumes these are oversights.
 ### AR-01 — No spend caps, approvals or per-customer scoping
 
 **Decision:** staff act immediately.
-**Exposure:** any manager with a wallet permission can spend any amount from any customer's
-wallet without approval.
+**Exposure:** any manager with a Advance permission can spend any amount from any customer's
+Advance without approval.
 **Mitigation:** six detective controls (§5, §8). Two are load-bearing and must never become
 optional — the customer notification is the only thing that surfaces a wrong spend, and the
 bill is the only thing separating a real expense from an invented one.
@@ -414,20 +414,20 @@ bill is the only thing separating a real expense from an invented one.
 **Mitigation:** disclosed above the amount field and acknowledged by checkbox on **every**
 top-up, versioned and stored on the transaction itself.
 
-### AR-03 — Business Wallet fundable before KYC
+### AR-03 — Business Advance fundable before KYC
 
 **Decision:** money in without KYC; spending requires approval.
 **Exposure:** a customer can fund an account that is never approved, and the balance is
 non-refundable — money stranded through inaction alone.
 **Mitigation:** a blocking warning above the amount field, a separate acknowledgement, KYC
-status shown on the wallet page, and a reminder after ~7 days.
+status shown on the Advance page, and a reminder after ~7 days.
 **This is the only place in the product where a customer can lose money by doing nothing.**
 
 ### AR-04 — Admins share the customer collection
 
 **Decision:** deferred.
 **Exposure:** fail-open `$ne: "admin"` filters.
-**Mitigation:** wallet routes reject `role === "admin"` explicitly.
+**Mitigation:** Advance routes reject `role === "admin"` explicitly.
 
 ---
 
@@ -482,16 +482,16 @@ Severity ratings are indicative, for prioritisation — not a formal CVSS assess
 | Intra-state CGST+SGST, inter-state IGST | ✅ |
 | Sequential invoice numbering | ✅ Atomic counters |
 | Customer GSTIN captured for B2B | ✅ |
-| GST treatment of wallet top-up vs spend | ⚠️ Awaiting the accountant |
+| GST treatment of Advance top-up vs spend | ⚠️ Awaiting the accountant |
 
 ### 11.2 RBI prepaid instruments
 
 A **closed system PPI** — issued by an entity for buying goods and services **from that entity
 only**, with no cash withdrawal and no third-party payments — generally does not require RBI
-authorisation. The **Store Wallet fits this comfortably**: it buys FlexSell goods, cannot be
+authorisation. The **Store Advance fits this comfortably**: it buys FlexSell goods, cannot be
 withdrawn, and cannot pay a third party.
 
-The **Business Wallet needs examination.** If its balance pays government fees or advertising
+The **Business Advance needs examination.** If its balance pays government fees or advertising
 platforms on the customer's behalf, that reads less like closed-loop prepayment and more like
 handling money as an agent. The usual clean structure is for FlexSell to charge a **service fee
 for its own work** and discharge third-party costs from its own funds.
@@ -526,7 +526,7 @@ whichever structure is chosen.**
 
 | Signal | Means |
 |---|---|
-| `DRIFT DETECTED` in logs | A balance disagrees with its ledger — **stop wallet writes** |
+| `DRIFT DETECTED` in logs | A balance disagrees with its ledger — **stop Advance writes** |
 | Unique-index violations rising | Repeated duplicate attempts — possible replay attack |
 | `SECURITY_ALERT` events | Permission denials |
 | Offline credit volume spike | Possible internal fraud |
@@ -534,8 +534,8 @@ whichever structure is chosen.**
 
 ### 12.2 Playbooks
 
-**Suspected wallet compromise**
-1. Freeze the affected wallets (`PATCH /api/wallet/status`) — blocks all movement, preserves history
+**Suspected Advance compromise**
+1. Freeze the affected Advances (`PATCH /api/Advance/status`) — blocks all movement, preserves history
 2. Pull the ledger for the period; every entry names its author and IP
 3. Reverse fraudulent entries — never edit
 4. Rotate the acting staff account's credentials, or suspend it
@@ -549,7 +549,7 @@ whichever structure is chosen.**
 
 **Reconciliation drift**
 1. Do not auto-correct
-2. Identify the wallet and the period from the alert
+2. Identify the Advance and the period from the alert
 3. Replay the ledger — `balanceBefore` and `balanceAfter` on every entry make this exact
 4. Find the write path that skipped the ledger; fix the cause
 5. Correct with an audited `ADJUSTMENT` naming the incident
@@ -583,9 +583,9 @@ whichever structure is chosen.**
 - [ ] Razorpay webhook subscribed to `payment.captured`
 - [ ] `npm run typecheck && npm run test && npm run build` all pass
 
-**Before the wallet goes live**
+**Before the Advance goes live**
 
-- [ ] Wallet permissions granted to as few managers as possible
+- [ ] Advance permissions granted to as few managers as possible
 - [ ] Reconciliation alert routed somewhere a human reads daily
 - [ ] Offline-credit digest recipient confirmed
 - [ ] One real ₹500 top-up completed and reconciled

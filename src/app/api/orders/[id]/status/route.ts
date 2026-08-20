@@ -1,3 +1,4 @@
+import { isAdvanceBalanceMethod } from "@/lib/advanceBalanceConstants";
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
@@ -53,14 +54,14 @@ export async function PUT(
       }
 
       /**
-       * A wallet is debited by the wallet routes, which read a balance and write a ledger
+       * A Advance Balance is debited by the Advance Balance routes, which read a balance and write a ledger
        * entry. Naming it here would mark the order paid against money still in the wallet.
        */
-      if (["Wallet", "Store Wallet", "Business Wallet"].includes(paymentMethod)) {
+      if (isAdvanceBalanceMethod(paymentMethod)) {
         return NextResponse.json(
           {
             message:
-              "A wallet payment must go through the wallet action so the balance is actually debited.",
+              "An Advance Balance payment must go through the payment action so the balance is actually debited.",
             code: "USE_WALLET_ROUTE",
           },
           { status: 400 }

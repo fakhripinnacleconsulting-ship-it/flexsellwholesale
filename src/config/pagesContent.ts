@@ -57,7 +57,7 @@ export const pagesContent = {
         },
         {
           heading: "2. Transit Defect Claims",
-          text: "A continuous, uncut video showing the opening of the parcel package is mandatory to process shipping transit damage claims. Approved claims receive wallet top-up credits."
+          text: "A continuous, uncut video showing the opening of the parcel package is mandatory to process shipping transit damage claims. Approved claims receive Advance Balance top-up credits."
         }
       ]
     }

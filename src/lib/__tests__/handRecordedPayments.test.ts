@@ -9,7 +9,7 @@ import { describe, it, expect } from "vitest";
  *
  *   - **Razorpay** was accepted with a hand-typed reference, so any plausible-looking string
  *     settled an order with no money moved and no signature to check.
- *   - **A wallet** was accepted the same way, marking an order paid against a balance that
+ *   - **A Advance Balance** was accepted the same way, marking an order paid against a balance that
  *     was never read, let alone debited.
  *
  * The lists live in the routes, so this suite pins the rule itself rather than importing an

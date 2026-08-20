@@ -3,7 +3,7 @@ import * as React from "react";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
-import Wallet from "@/models/Wallet";
+import AdvanceBalance from "@/models/AdvanceBalance";
 import { toRupees } from "@/lib/money";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 
@@ -80,15 +80,15 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
   let compPlacedOrders = 0;
 
   /**
-   * Customer wallet money the business is holding.
+   * Customer Advance Balance money the business is holding.
    *
    * Deliberately **not** scoped to the dashboard's date range: a balance is a position, not a
    * flow. "How much customer money do we hold" has one answer, today, regardless of which
    * period the revenue cards are showing.
    *
-   * Closed wallets are excluded — their balance is settled and no longer a liability.
+   * Closed advanceBalances are excluded — their balance is settled and no longer a liability.
    */
-  let walletTotals = { store: 0, business: 0, held: 0, total: 0, walletCount: 0 };
+  let advanceBalanceTotals = { store: 0, business: 0, held: 0, total: 0, advanceBalanceCount: 0 };
 
   let revenueTrend: { date: string; revenue: number }[] = [];
   let statusBreakdown: { status: string; count: number }[] = [];
@@ -295,12 +295,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
     }));
 
     /**
-     * Wallet balances, summed by type.
+     * Advance Balance balances, summed by type.
      *
-     * Wallets store **integer paise**; everything else on this dashboard is rupees, so the
+     * advanceBalances store **integer paise**; everything else on this dashboard is rupees, so the
      * conversion happens here, once, before the numbers leave the server.
      */
-    const walletAgg = await Wallet.aggregate([
+    const advanceBalanceAgg = await AdvanceBalance.aggregate([
       { $match: { status: { $ne: "closed" } } },
       {
         $group: {
@@ -312,15 +312,15 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
       },
     ]);
 
-    for (const row of walletAgg as { _id: string; available: number; held: number; count: number }[]) {
+    for (const row of advanceBalanceAgg as { _id: string; available: number; held: number; count: number }[]) {
       const availableRupees = toRupees(row.available || 0);
-      if (row._id === "store") walletTotals.store = availableRupees;
-      if (row._id === "business") walletTotals.business = availableRupees;
-      walletTotals.held += toRupees(row.held || 0);
-      walletTotals.walletCount += row.count || 0;
+      if (row._id === "store") advanceBalanceTotals.store = availableRupees;
+      if (row._id === "business") advanceBalanceTotals.business = availableRupees;
+      advanceBalanceTotals.held += toRupees(row.held || 0);
+      advanceBalanceTotals.advanceBalanceCount += row.count || 0;
     }
     // The headline figure: everything the business is holding, spendable or on hold.
-    walletTotals.total = walletTotals.store + walletTotals.business + walletTotals.held;
+    advanceBalanceTotals.total = advanceBalanceTotals.store + advanceBalanceTotals.business + advanceBalanceTotals.held;
   } catch (err) {
     console.error("AdminDashboardPage DB fetch notice:", (err as any)?.message || err);
   }
@@ -357,7 +357,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         statusBreakdown,
         topProducts,
         lowStockProducts,
-        walletTotals,
+        advanceBalanceTotals,
       }}
     />
   );

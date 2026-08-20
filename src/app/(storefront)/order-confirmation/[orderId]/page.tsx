@@ -18,7 +18,7 @@ import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
 import { useAuthStore } from "@/stores/authStore";
-import * as walletService from "@/services/walletService";
+import * as advanceBalanceService from "@/services/advanceBalanceService";
 
 export default function OrderConfirmationPage() {
   const params = useParams();
@@ -81,29 +81,29 @@ export default function OrderConfirmationPage() {
 
     if (order.paymentMethod === "Wallet") {
       try {
-        const clientRequestId = walletService.newRequestId();
+        const clientRequestId = advanceBalanceService.newRequestId();
         const isAdminOrManager = currentUser?.role === "admin" || currentUser?.role === "manager";
 
         if (isAdminOrManager) {
           const customerId = (order.customerId || (order as any).customer?._id || (order as any).customer || "") as string;
           if (!customerId) throw new Error("This order has no linked customer account to charge.");
-          await walletService.adminPayOrder({
+          await advanceBalanceService.adminPayOrder({
             orderId: order._id,
             customerId,
-            // Which wallet was chosen is recorded on the order itself. Reading it back from
-            // the payment method could never work — both wallets store "Wallet" there.
+            // Which Advance Balance was chosen is recorded on the order itself. Reading it back from
+            // the payment method could never work — both advanceBalances store "Wallet" there.
             walletType: order.walletType === "business" ? "business" : "store",
             clientRequestId
           });
         } else {
-          await walletService.payOrderFromWallet({ orderId: order._id, clientRequestId });
+          await advanceBalanceService.payOrderFromAdvanceBalance({ orderId: order._id, clientRequestId });
         }
 
-        addToast("Payment received from wallet. Thank you!", "success");
+        addToast("Payment received from your Advance Balance. Thank you!", "success");
         setOrder(await orderService.getOrderById(order._id));
       } catch (err: unknown) {
         addToast(
-          err instanceof Error ? err.message : "Could not complete wallet payment.",
+          err instanceof Error ? err.message : "Could not complete the Advance Balance payment.",
           "error"
         );
       } finally {

@@ -8,9 +8,10 @@ import { useProductStore } from "@/stores/productStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
 import { invoiceService } from "@/services/invoiceService";
-import * as walletService from "@/services/walletService";
+import * as advanceBalanceService from "@/services/advanceBalanceService";
 import { collectOrderPaymentOnline } from "@/lib/razorpayCollect";
 import { describePaymentFailure } from "@/lib/paymentErrors";
+import { ADVANCE_BALANCE_METHODS } from "@/lib/advanceBalanceConstants";
 import { apiClient } from "@/lib/apiClient";
 
 interface UseInvoiceFormOptions {
@@ -26,14 +27,22 @@ interface UseInvoiceFormOptions {
  * Checkout against the order that was just created, and the payment is only recorded once
  * `/api/razorpay/verify` re-computes the signature. What is not allowed — anywhere — is
  * typing a payment id into a box and calling that a payment.
+ *
+ * The two balance entries come from the shared constants rather than literals typed here.
+ * They were duplicated as `"Store Wallet"` / `"Business Wallet"`, and when the UI copy was
+ * renamed the `<option value>` in the modal moved to "Store Advance Balance" while this list
+ * did not. Nothing failed loudly: `effectivePaymentMethod` fell back to a string no option
+ * carried, so the select rendered its first entry (Cash) and **selecting either balance did
+ * nothing at all** — the value bounced straight back on every attempt. One source of truth
+ * removes the possibility rather than fixing this instance of it.
  */
 export const PAY_NOW_METHODS = [
   "Cash",
   "UPI",
   "Bank Transfer",
   "Razorpay",
-  "Store Wallet",
-  "Business Wallet",
+  ADVANCE_BALANCE_METHODS.store,
+  ADVANCE_BALANCE_METHODS.business,
 ];
 
 /** Methods that leave the order payable. */
@@ -46,7 +55,7 @@ export const GATEWAY_METHOD = "Razorpay";
  * Methods that carry a reference worth capturing.
  *
  * Cash is absent on purpose: it reconciles against the cash book, not a UTR, so requiring one
- * just produces unreconcilable strings. Wallets are absent because their ledger entry is the
+ * just produces unreconcilable strings. Balances are absent because their ledger entry is the
  * reference. Mirrors the same list in `/api/invoices/[id]/settle`, which enforces it.
  */
 export const METHODS_REQUIRING_REFERENCE = ["UPI", "Bank Transfer", "NEFT/RTGS", "Cheque"];
@@ -127,8 +136,8 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
   const [includeDropshipDetails, setIncludeDropshipDetails] = React.useState(true);
   const [dropshipDetails, setDropshipDetails] = React.useState<any>({});
 
-  const [walletBalance, setWalletBalance] = React.useState(0);
-  const [businessWalletBalance, setBusinessWalletBalance] = React.useState(0);
+  const [storeAdvanceBalance, setStoreAdvanceBalance] = React.useState(0);
+  const [businessAdvanceBalance, setBusinessAdvanceBalance] = React.useState(0);
 
   React.useEffect(() => {
     shippingService.getConfig()
@@ -154,19 +163,19 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
 
       // Through the service, not a raw apiClient call — the rule in AGENTS.md, and it is
       // the only place that knows the mock-mode fallback.
-      walletService
-        .getWallets(selectedCustomerId)
+      advanceBalanceService
+        .getAdvanceBalances(selectedCustomerId)
         .then((res) => {
-          setWalletBalance(res.store?.availableBalance || 0);
-          setBusinessWalletBalance(res.business?.availableBalance || 0);
+          setStoreAdvanceBalance(res.store?.availableBalance || 0);
+          setBusinessAdvanceBalance(res.business?.availableBalance || 0);
         })
         .catch(() => {
-          setWalletBalance(0);
-          setBusinessWalletBalance(0);
+          setStoreAdvanceBalance(0);
+          setBusinessAdvanceBalance(0);
         });
     } else {
-      setWalletBalance(0);
-      setBusinessWalletBalance(0);
+      setStoreAdvanceBalance(0);
+      setBusinessAdvanceBalance(0);
     }
   }, [selectedCustomerId, customerMode, customers]);
 
@@ -186,19 +195,19 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
   /**
    * What Pay Now falls back to when the current method belongs to the other mode.
    *
-   * The Business Wallet for staff — it is how admins and managers settle a customer's order
+   * The Business Advance Balance for staff — it is how admins and managers settle a customer's order
    * at the counter, so it is the common case and should not need selecting. **Not** in the
-   * public dropshipping portal, which hides both wallets: debiting a balance needs a staff
+   * public dropshipping portal, which hides both advanceBalances: debiting a balance needs a staff
    * session against the document, which that flow does not carry. Defaulting to a hidden
    * option there would bind the select to a value it cannot show and post a method the route
    * refuses, leaving the order silently unpaid.
    */
-  const payNowDefaultMethod = options?.isPublicMode ? "Cash" : "Business Wallet";
+  const payNowDefaultMethod = options?.isPublicMode ? "Cash" : ADVANCE_BALANCE_METHODS.business;
 
   /**
    * The method, corrected for the timing.
    *
-   * COD cannot be a payment taken now, and a wallet cannot be a promise to pay later. Rather
+   * COD cannot be a payment taken now, and a Advance Balance cannot be a promise to pay later. Rather
    * than an effect rewriting `paymentMethod` whenever the timing flips — which briefly leaves
    * the two disagreeing — the invalid combination simply never resolves to itself. The select
    * below is bound to this value, so what the user sees is what gets posted.
@@ -320,7 +329,7 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
     /**
      * A bank-rail payment has to name itself, or it reconciles against nothing.
      *
-     * Cash and wallets are exempt: a wallet's ledger entry *is* the reference, and a note
+     * Cash and advanceBalances are exempt: a wallet's ledger entry *is* the reference, and a note
      * handed over the counter has no UTR — demanding one only moves the fabrication from the
      * code to the person typing "CASH-1".
      */
@@ -417,7 +426,7 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
        * Everything payable is posted as a **receipt**, then settled if the money is being
        * collected now.
        *
-       * `/api/invoices` cannot issue an `INV-` for a wallet payment — it has no way to debit
+       * `/api/invoices` cannot issue an `INV-` for a Advance Balance payment — it has no way to debit
        * a balance — and issuing one directly would skip the receipt that records what was
        * actually collected. Create-then-settle produces both documents, correctly numbered,
        * through the audited money path.
@@ -586,7 +595,7 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
           /**
            * Take the payment and issue the Tax Invoice.
            *
-           * If this fails — most often a wallet short of the total, which comes back as a
+           * If this fails — most often a Advance Balance short of the total, which comes back as a
            * 409 naming the shortfall — the receipt and its pending order remain and can be
            * settled later from the Receipts tab. Say so, rather than leaving the user
            * thinking nothing was created.
@@ -595,7 +604,7 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
             const result = await invoiceService.settleInvoice(created._id, {
               method: effectivePaymentMethod,
               transactionId: transactionId.trim() || undefined,
-              clientRequestId: walletService.newRequestId(),
+              clientRequestId: advanceBalanceService.newRequestId(),
             });
             addToast(result.message || `Tax Invoice ${result.invoiceId} issued.`, "success");
           } catch (settleErr) {
@@ -647,7 +656,7 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
       /**
        * Through the same describer as the payment failures, mainly so a Mongoose message
        * cannot reach the user. A model error that escapes a route reads as
-       * "Order validation failed: paymentMethod: `Business Wallet` is not a valid enum
+       * "Order validation failed: paymentMethod: `Business Advance Balance` is not a valid enum
        * value" — accurate, and meaningless to a salesperson.
        */
       addToast(
@@ -760,8 +769,8 @@ export function useInvoiceForm(options?: UseInvoiceFormOptions) {
     setIncludeDropshipDetails,
     dropshipDetails,
     setDropshipDetails,
-    walletBalance,
-    businessWalletBalance,
+    storeAdvanceBalance,
+    businessAdvanceBalance,
     customers,
     products,
     shippingConfig,

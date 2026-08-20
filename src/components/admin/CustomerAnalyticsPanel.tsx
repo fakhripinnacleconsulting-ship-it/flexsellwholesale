@@ -9,7 +9,7 @@ import { apiClient } from "@/lib/apiClient";
 import {
   Users,
   TrendingUp,
-  Wallet as WalletIcon,
+  Wallet as AdvanceBalanceIcon,
   AlertTriangle,
   Loader2,
   RefreshCw,
@@ -26,9 +26,9 @@ import {
  *  1. **It follows the page's customer-type filter**, so the numbers always describe the list
  *     underneath them.
  *  2. **Only some of it moves with the date range.** Revenue and new signups are flows and
- *     belong to a period; customer counts, wallet balances and outstanding work are positions
+ *     belong to a period; customer counts, Advance Balance balances and outstanding work are positions
  *     that are simply true right now. Each card carries a scope chip saying which it is —
- *     without that, a wallet balance sitting under a "This Week" filter reads as income.
+ *     without that, a Advance Balance balance sitting under a "This Week" filter reads as income.
  *  3. **Nothing is presented as a total that is not one.** A customer can hold several types,
  *     so the type figures are *overlapping memberships*, not slices of the customer count —
  *     showing them as a breakdown under a total made them look like broken arithmetic
@@ -41,13 +41,13 @@ export type AnalyticsRange = "week" | "month" | "year" | "3m" | "all" | "custom"
 interface CustomerAnalytics {
   scope: { customerType: string; startDate: string; endDate: string };
   segments: { total: number; B2B: number; B2C: number; Dropshipping: number };
-  wallet: {
+  advanceBalance: {
     total: number;
     store: number;
     business: number;
     held: number;
     customersWithBalance: number;
-    lowBalanceWallets: number;
+    lowBalanceAccounts: number;
   };
   actionNeeded: {
     upgradesPending: number;
@@ -78,7 +78,7 @@ const RANGE_LABELS: { key: AnalyticsRange; label: string }[] = [
 /**
  * The scope chip for a figure the date range does not move.
  *
- * A customer count, a wallet balance and an outstanding-KYC count are true right now; only
+ * A customer count, a Advance Balance balance and an outstanding-KYC count are true right now; only
  * revenue and new signups belong to a period. Saying so on the card is what lets both live
  * in one grid without the balance being read as the period's income.
  */
@@ -216,7 +216,7 @@ export function CustomerAnalyticsPanel({ customerType }: { customerType: string 
           {/*
             One grid, not two sections.
 
-            The split into "Current Position" / "Selected Period" existed to stop a wallet
+            The split into "Current Position" / "Selected Period" existed to stop a Advance Balance
             balance being read as period income. That is still a real risk, so the distinction
             has not been dropped — it moved onto each card as a scope chip, which says the same
             thing where the number actually is instead of in a heading someone has to scroll
@@ -254,41 +254,41 @@ export function CustomerAnalyticsPanel({ customerType }: { customerType: string 
               </CardContent>
             </Card>
 
-            {/* Wallet — total highlighted, Store + Business breakdown, held as a note */}
+            {/* Advance Balance — total highlighted, Store + Business breakdown, held as a note */}
             <Card className="border-emerald-500/30">
               <CardContent className="p-5">
                 <StatHeader
-                  icon={<WalletIcon className="h-4 w-4" />}
+                  icon={<AdvanceBalanceIcon className="h-4 w-4" />}
                   tone="emerald"
-                  label="Wallet Balance Held"
+                  label="Advance Balance Held"
                   scope={LIVE_SCOPE}
                 />
                 <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
-                  {formatPrice(data.wallet.total)}
+                  {formatPrice(data.advanceBalance.total)}
                 </p>
 
                 <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                      Store Wallet
+                      Store Advance Balance
                     </p>
                     <p className="text-base font-bold font-mono text-foreground mt-0.5">
-                      {formatPrice(data.wallet.store)}
+                      {formatPrice(data.advanceBalance.store)}
                     </p>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-                      Business Wallet
+                      Business Advance Balance
                     </p>
                     <p className="text-base font-bold font-mono text-foreground mt-0.5">
-                      {formatPrice(data.wallet.business)}
+                      {formatPrice(data.advanceBalance.business)}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-3 rounded-md bg-amber-500/5 border border-amber-500/20 px-2.5 py-2">
                   <p className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
-                    {formatPrice(data.wallet.held)} on hold
+                    {formatPrice(data.advanceBalance.held)} on hold
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
                     Reserved by in-flight checkouts — included in the total above
@@ -296,10 +296,10 @@ export function CustomerAnalyticsPanel({ customerType }: { customerType: string 
                 </div>
 
                 <p className="text-[10px] text-muted-foreground mt-2.5">
-                  {data.wallet.customersWithBalance} customer
-                  {data.wallet.customersWithBalance === 1 ? "" : "s"} hold a balance
-                  {data.wallet.lowBalanceWallets > 0
-                    ? ` · ${data.wallet.lowBalanceWallets} wallet${data.wallet.lowBalanceWallets === 1 ? "" : "s"} running low`
+                  {data.advanceBalance.customersWithBalance} customer
+                  {data.advanceBalance.customersWithBalance === 1 ? "" : "s"} hold a balance
+                  {data.advanceBalance.lowBalanceAccounts > 0
+                    ? ` · ${data.advanceBalance.lowBalanceAccounts} Advance Balance${data.advanceBalance.lowBalanceAccounts === 1 ? "" : "s"} running low`
                     : ""}
                 </p>
               </CardContent>
@@ -420,7 +420,7 @@ const TONES: Record<string, string> = {
  *
  * `scope` replaces the section headings this panel used to be split by. Some figures move
  * with the date range and some are true right now whatever it says; without that stated on
- * the card, a wallet balance sitting under a "This Week" filter reads as a week's income.
+ * the card, a Advance Balance balance sitting under a "This Week" filter reads as a week's income.
  */
 function StatHeader({
   icon,

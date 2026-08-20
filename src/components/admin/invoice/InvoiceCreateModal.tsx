@@ -14,6 +14,7 @@ import CustomerSearchPicker from "@/components/admin/CustomerSearchPicker";
 import { BarcodeScanner } from "@/components/admin/BarcodeScanner";
 import { useAuthStore } from "@/stores/authStore";
 import { METHODS_REQUIRING_REFERENCE } from "@/hooks/useInvoiceForm";
+import { isAdvanceBalanceMethod } from "@/lib/advanceBalanceConstants";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface InvoiceCreateModalProps {
@@ -163,18 +164,19 @@ export function InvoiceCreateModal({
   setIncludeDropshipDetails,
   dropshipDetails,
   setDropshipDetails,
-  walletBalance,
-  businessWalletBalance,
+  storeAdvanceBalance,
+  businessAdvanceBalance,
   isPublicMode,
-}: InvoiceCreateModalProps & { walletBalance?: number; businessWalletBalance?: number }) {
+}: InvoiceCreateModalProps & { storeAdvanceBalance?: number; businessAdvanceBalance?: number }) {
   /**
    * A Tax Invoice is prepaid by definition, so it has no timing to choose — the Pay Later
    * option is disabled rather than hidden, because seeing why it is unavailable beats
    * wondering where it went. `isPayNow` itself comes from the hook.
    */
   const isTaxInvoice = !isOrderCreationMode && formDocType === "invoice";
-  const isWalletMethod =
-    effectivePaymentMethod === "Store Wallet" || effectivePaymentMethod === "Business Wallet";
+  // Through the shared helper, which also recognises the pre-rename wording — the same
+  // duplication of these two strings is what silently broke the balance options once already.
+  const isWalletMethod = isAdvanceBalanceMethod(effectivePaymentMethod);
   /** Same list the hook validates against and `/settle` enforces. */
   const needsReference = METHODS_REQUIRING_REFERENCE.includes(effectivePaymentMethod);
 
@@ -1283,14 +1285,14 @@ export function InvoiceCreateModal({
                           {/* Opens the real Razorpay checkout on submit — see the note below. */}
                           <option value="Razorpay">Online (Razorpay) — card / netbanking / UPI</option>
                           {/*
-                            Wallets need a staff session to debit, which the public
+                            advanceBalances need a staff session to debit, which the public
                             dropshipping portal does not carry — offering them there would
                             only produce an order that silently stayed unpaid.
                           */}
                           {!isPublicMode && (
                             <>
-                              <option value="Store Wallet">Store Wallet (Bal: {formatPrice(walletBalance || 0)})</option>
-                              <option value="Business Wallet">Business Wallet (Bal: {formatPrice(businessWalletBalance || 0)})</option>
+                              <option value="Store Advance Balance">Store Advance Balance (Bal: {formatPrice(storeAdvanceBalance || 0)})</option>
+                              <option value="Business Advance Balance">Business Advance Balance (Bal: {formatPrice(businessAdvanceBalance || 0)})</option>
                             </>
                           )}
                         </>
@@ -1351,7 +1353,7 @@ export function InvoiceCreateModal({
                         {formatPrice(formGrandTotal + calculatedShipping)} will be debited now
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        The wallet ledger entry is the reference — nothing to type.
+                        The Advance Balance ledger entry is the reference — nothing to type.
                       </p>
                     </div>
                   ) : (

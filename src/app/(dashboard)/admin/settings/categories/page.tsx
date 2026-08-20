@@ -41,7 +41,7 @@ export default function ExpenseCategoriesPage() {
     setIsLoading(true);
     setError("");
     try {
-      const data = await apiClient.get<Category[]>("/wallet/categories?includeInactive=1");
+      const data = await apiClient.get<Category[]>("/advance-balance/categories?includeInactive=1");
       setCategories(data);
     } catch (err: any) {
       setError(err.message || "Failed to load categories");
@@ -58,7 +58,7 @@ export default function ExpenseCategoriesPage() {
     }
     
     try {
-      const created = await apiClient.post<Category>("/wallet/categories", {
+      const created = await apiClient.post<Category>("/advance-balance/categories", {
         key: newKey,
         label: newLabel,
         colour: newColour,
@@ -90,7 +90,7 @@ export default function ExpenseCategoriesPage() {
     }
 
     try {
-      const updated = await apiClient.patch<Category>("/wallet/categories", {
+      const updated = await apiClient.patch<Category>("/advance-balance/categories", {
         key,
         label: editLabel,
         colour: editColour,
@@ -108,7 +108,7 @@ export default function ExpenseCategoriesPage() {
 
   const toggleActiveStatus = async (cat: Category) => {
     try {
-      const updated = await apiClient.patch<Category>("/wallet/categories", {
+      const updated = await apiClient.patch<Category>("/advance-balance/categories", {
         key: cat.key,
         isActive: !cat.isActive,
       });
@@ -125,7 +125,7 @@ export default function ExpenseCategoriesPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Expense Categories</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage categories used for grouping wallet expenses.
+            Manage categories used for grouping Advance Balance expenses.
           </p>
         </div>
         <button 

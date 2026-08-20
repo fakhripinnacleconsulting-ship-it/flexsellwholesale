@@ -322,8 +322,8 @@ export default function AdminSettingsPage() {
               </div>
               <div className="flex items-center justify-between pt-2">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Enable Online Wallet Recharge</label>
-                  <p className="text-xs text-muted-foreground">Allow customers to top-up their B2B wallet directly via Payment Gateway.</p>
+                  <label className="text-sm font-medium">Enable Online Advance Balance Top-up</label>
+                  <p className="text-xs text-muted-foreground">Allow customers to top up their B2B Advance Balance directly via Payment Gateway.</p>
                 </div>
                 <input
                   type="checkbox"

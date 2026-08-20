@@ -105,7 +105,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   /**
    * Offline methods, plus the gateway — which is *run*, not recorded.
    *
-   * A wallet is absent: debiting a balance needs the wallet routes, which read it and write a
+   * A Advance Balance is absent: debiting a balance needs the Advance Balance routes, which read it and write a
    * ledger entry, and naming one here would mark the order paid against untouched money.
    */
   const [dispatchPayMethod, setDispatchPayMethod] = React.useState<"Bank Transfer" | "UPI" | "COD" | "Razorpay">("Razorpay");
@@ -473,7 +473,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
                       Razorpay runs the real gateway against this order. The rest are payments
                       already collected offline, which staff attest to with a reference.
 
-                      Wallets are absent: debiting a balance needs the wallet routes, which
+                      advanceBalances are absent: debiting a balance needs the Advance Balance routes, which
                       read it and write a ledger entry — naming one here would mark the order
                       paid against untouched money. The server refuses both that and a
                       hand-recorded Razorpay.

@@ -51,7 +51,7 @@ entitlement is resolved rather than assigned.
 ### 1.3 In scope
 
 Catalogue, multi-tier pricing, cart and checkout, GST-compliant invoicing, order fulfilment,
-dropshipping, prepaid wallets, customer accounts with KYC, a permission-scoped staff role,
+dropshipping, prepaid Advances, customer accounts with KYC, a permission-scoped staff role,
 CMS-driven content, and operational tooling (coupons, reviews, inquiries, shipping, HSN,
 analytics).
 
@@ -91,7 +91,7 @@ no FlexSell branding on the shipment.
 ### P4 — Operations manager (staff)
 
 Runs day-to-day operations within the permissions an admin grants. Processes orders, answers
-inquiries, records business expenses against customer wallets.
+inquiries, records business expenses against customer Advances.
 
 **Needs:** to act without waiting for approval. **Frustrated by:** permission walls mid-task.
 
@@ -174,11 +174,11 @@ that hides activity.
 | FR-INV-05 | Only the quote's owner may convert it | Must |
 | FR-INV-06 | Documents are printable and downloadable as PDF | Must |
 
-### 4.5 Wallets — `FR-WAL`
+### 4.5 Advances — `FR-WAL`
 
 | ID | Requirement | Priority |
 |---|---|---|
-| FR-WAL-01 | Two wallets per customer: Store (all) and Business (B2B/Dropshipping) | Must |
+| FR-WAL-01 | Two Advances per customer: Store (all) and Business (B2B/Dropshipping) | Must |
 | FR-WAL-02 | Every movement creates a ledger entry with a unique receipt number | Must |
 | FR-WAL-03 | Entries are never edited or deleted; corrections are reversals referencing the original | Must |
 | FR-WAL-04 | Every staff-created entry names its author, **visible to the customer** | Must |
@@ -187,14 +187,14 @@ that hides activity.
 | FR-WAL-07 | Cheques are recorded as pending until cleared | Must |
 | FR-WAL-08 | Staff record expenses against an admin-managed category; managers must attach a bill | Must |
 | FR-WAL-09 | Spend is grouped by category over any date range | Must |
-| FR-WAL-10 | Store Wallet is a checkout payment method; the shortfall is named when short | Must |
-| FR-WAL-11 | Cancelling a wallet-paid order refunds into the wallet it was paid from | Must |
+| FR-WAL-10 | Store Advance is a checkout payment method; the shortfall is named when short | Must |
+| FR-WAL-11 | Cancelling a Advance-paid order refunds into the Advance it was paid from | Must |
 | FR-WAL-12 | Transfers are Store → Business only, admin only, and irreversible | Must |
 | FR-WAL-13 | Balance is non-refundable, disclosed and acknowledged **on every top-up** | Must |
-| FR-WAL-14 | Business Wallet may be funded before KYC, but not spent until approved | Must |
+| FR-WAL-14 | Business Advance may be funded before KYC, but not spent until approved | Must |
 | FR-WAL-15 | Passbook shows opening and closing balances and exports to CSV | Must |
 | FR-WAL-16 | Balances reconcile against the ledger nightly; drift alerts, never auto-corrects | Must |
-| FR-WAL-17 | Admins may freeze or close a wallet with a recorded reason; history is retained | Must |
+| FR-WAL-17 | Admins may freeze or close a Advance with a recorded reason; history is retained | Must |
 
 ### 4.6 Accounts — `FR-ACC`
 
@@ -214,7 +214,7 @@ that hides activity.
 | FR-STAFF-01 | Managers hold a permission list granted by an admin | Must |
 | FR-STAFF-02 | Manager sign-in requires OTP | Must |
 | FR-STAFF-03 | Suspending a manager revokes access | Must |
-| FR-STAFF-04 | Managers may spend wallets; only admins may create, return or move money | Must |
+| FR-STAFF-04 | Managers may spend Advances; only admins may create, return or move money | Must |
 | FR-STAFF-05 | Actions above ₹50,000 require the admin's password again | Must |
 | FR-STAFF-06 | Permission scope is stated in the granting UI where it is broader than it looks | Must |
 
@@ -247,12 +247,12 @@ that hides activity.
 - And out-of-stock sub-variants are disabled with the reason shown
 - When I add to cart, then every quantity is added in one action
 
-### US-02 — Buyer pays from the Store Wallet
-> **As** a customer with a balance, **I want** to pay from my wallet, **so that** I skip the
+### US-02 — Buyer pays from the Store Advance
+> **As** a customer with a balance, **I want** to pay from my Advance, **so that** I skip the
 > payment gateway.
 
 **Acceptance**
-- Given a positive Store Wallet balance, when I reach Payment Method, then Store Wallet appears
+- Given a positive Store Advance balance, when I reach Payment Method, then Store Advance appears
   with the balance shown
 - Given the balance is below the total **including shipping**, then the option is disabled and
   names the shortfall (*"₹2,300 short"*) with an Add money link
@@ -265,7 +265,7 @@ that hides activity.
 > it to my accountant.
 
 **Acceptance**
-- Given expenses exist, when I open the wallet, then I see a category breakdown with amounts
+- Given expenses exist, when I open the Advance, then I see a category breakdown with amounts
   and percentages
 - And I can change the period, including a custom range
 - And the default period is the current Indian financial year
@@ -275,10 +275,10 @@ that hides activity.
 
 ### US-04 — Manager records a business expense
 > **As** an operations manager, **I want** to record an expense against a customer's Business
-> Wallet, **so that** their statement stays accurate.
+> Advance, **so that** their statement stays accurate.
 
 **Acceptance**
-- Given `wallet_business`, when I open a customer, then I see the Wallets panel
+- Given `Advance_business`, when I open a customer, then I see the Advances panel
 - When I record an expense without a bill, then it is rejected
 - When I confirm, then the dialog names the amount and the customer
 - And the entry shows **my name** in the customer's passbook
@@ -301,15 +301,15 @@ that hides activity.
 - And the credit appears in the offline register with my name and IP
 - And the customer is notified
 
-### US-06 — Customer cancels a wallet-paid order
+### US-06 — Customer cancels a Advance-paid order
 > **As** a customer, **I want** my money back when I cancel, **so that** I can order again.
 
 **Acceptance**
-- Given a wallet-paid order before fulfilment, when I cancel, then the balance is restored
+- Given a Advance-paid order before fulfilment, when I cancel, then the balance is restored
 - And the passbook shows a REFUND entry referencing the original debit
 - And stock is returned
 - And cancelling twice refunds **once**
-- And a Business-Wallet-funded order refunds to the Business Wallet, never the Store Wallet
+- And a Business-Advance-funded order refunds to the Business Advance, never the Store Advance
 
 ### US-07 — Reseller places a dropship order
 > **As** a reseller, **I want** to enter my customer's address, **so that** the parcel ships
@@ -344,12 +344,12 @@ Rules a new engineer would otherwise get wrong.
 | BR-01 | Price is resolved, never stored on the cart | A customer upgraded mid-session must immediately see the new price |
 | BR-02 | Order is created before payment starts | The order binds the payment to a server-computed price; paying first leaves the gateway nothing to settle |
 | BR-03 | Stock is reserved at order creation | Which is why abandoned orders must be reaped |
-| BR-04 | Wallet money is reserved, then captured | Debiting before the order exists can leave a customer poorer with nothing to show |
+| BR-04 | Advance money is reserved, then captured | Debiting before the order exists can leave a customer poorer with nothing to show |
 | BR-05 | All timestamps are IST, formatted in one module | A UTC timestamp on an Indian invoice is wrong by 5½ hours |
-| BR-06 | Wallet money is paise; the rest of the app is rupees | Float rupees drift; conversion happens once, at the API edge |
+| BR-06 | Advance money is paise; the rest of the app is rupees | Float rupees drift; conversion happens once, at the API edge |
 | BR-07 | Delivery locks fulfilment | Amending a delivered shipment rewrites history rather than correcting a live mistake |
 | BR-08 | The financial year starts 1 April | 31 March 2026 belongs to FY 2025-26 |
-| BR-09 | Business Wallet money never returns to the Store Wallet | It is services-only and non-refundable; a return path would undo both |
+| BR-09 | Business Advance money never returns to the Store Advance | It is services-only and non-refundable; a return path would undo both |
 | BR-10 | Reconciliation reports, never repairs | An auto-fix hides the bug that caused the drift |
 | BR-11 | Deactivating a category blocks new spend but preserves old rows | Otherwise past statements break |
 | BR-12 | Actor identity always comes from the session | A client-supplied name is a forged signature |
@@ -364,7 +364,7 @@ Rules a new engineer would otherwise get wrong.
 |---|---|---|
 | NFR-P-01 | Product page LCP | < 2.5s on 4G |
 | NFR-P-02 | Product page interactive after a card click | < 1s (route prefetched on intent) |
-| NFR-P-03 | Wallet page interactive | < 2s |
+| NFR-P-03 | Advance page interactive | < 2s |
 | NFR-P-04 | Lighthouse Performance, mobile and desktop | 100 |
 | NFR-P-05 | Aggregations computed in the database | No client-side summation |
 | NFR-P-06 | Lists paginated server-side | 50 rows per page |
@@ -375,7 +375,7 @@ Rules a new engineer would otherwise get wrong.
 |---|---|
 | NFR-R-01 | A lost payment webhook must not require the customer to contact support |
 | NFR-R-02 | Money operations are idempotent in both directions |
-| NFR-R-03 | Concurrent debits can never overdraw a wallet |
+| NFR-R-03 | Concurrent debits can never overdraw a Advance |
 | NFR-R-04 | A half-committed transfer must be impossible |
 | NFR-R-05 | Balances reconcile against the ledger nightly, with an alert on drift |
 
@@ -417,7 +417,7 @@ Rules a new engineer would otherwise get wrong.
 | NFR-L-01 | GST-compliant tax invoices with HSN detail |
 | NFR-L-02 | Non-refundable balance disclosed before every payment |
 | NFR-L-03 | Immutable audit trail for every staff money action |
-| NFR-L-04 | Wallet structure confirmed against RBI prepaid-instrument guidance *(open — §11)* |
+| NFR-L-04 | Advance structure confirmed against RBI prepaid-instrument guidance *(open — §11)* |
 
 ---
 
@@ -425,9 +425,9 @@ Rules a new engineer would otherwise get wrong.
 
 | Not built | Reason |
 |---|---|
-| GST invoices for wallet service expenses | Which categories are a taxable supply is the accountant's answer; a wrong document that looks official is worse than none |
-| Wallet withdrawal to a bank | Balance is non-refundable by design |
-| Split payment (wallet + gateway) | Deferred — FS-401 |
+| GST invoices for Advance service expenses | Which categories are a taxable supply is the accountant's answer; a wrong document that looks official is worse than none |
+| Advance withdrawal to a bank | Balance is non-refundable by design |
+| Split payment (Advance + gateway) | Deferred — FS-401 |
 | Customer approval before staff spend | Declined for speed; plumbing exists if reversed — FS-402 |
 | Manager spend caps | Declined; cheapest future narrowing — FS-403 |
 | Per-customer manager scoping | The relationship does not exist in the data model — FS-404 |
@@ -443,10 +443,10 @@ Rules a new engineer would otherwise get wrong.
 |---|---|---|
 | Ledger integrity | 0 drift events | Nightly reconciliation |
 | Duplicate money movements | 0 | Unique index violations logged |
-| Wallet support tickets | < 1% of transactions | Support inbox |
+| Advance support tickets | < 1% of transactions | Support inbox |
 | "Where did my money go" answered without support | 100% | Breakdown + passbook usage |
 | Stuck top-ups resolved without contact | > 95% | Sweeper credit rate |
-| Checkout completion, wallet vs gateway | Wallet ≥ gateway | Funnel |
+| Checkout completion, Advance vs gateway | Advance ≥ gateway | Funnel |
 | Lighthouse Performance / Accessibility | 100 / 100 | CI |
 
 ---
@@ -456,7 +456,7 @@ Rules a new engineer would otherwise get wrong.
 | Dependency | Used for | Failure behaviour |
 |---|---|---|
 | MongoDB Atlas | Primary store | Hard failure |
-| Razorpay | Payments and webhooks | Payments unavailable; wallet balances still spendable |
+| Razorpay | Payments and webhooks | Payments unavailable; Advance balances still spendable |
 | Vercel Blob | File storage | Falls back to local disk, then base64 |
 | Upstash Redis | Rate limiting | Limiting disabled, app continues |
 | SMTP (Nodemailer) | Email | Logged and swallowed — never blocks a transaction |
@@ -471,9 +471,9 @@ Rules a new engineer would otherwise get wrong.
 | Decision | Owner | Blocks | Detail |
 |---|---|---|---|
 | Which expense categories are a taxable supply | Chartered accountant | GST invoicing for services | Determines the document each category emits |
-| Business Wallet structure | Legal counsel | Launch | Service fee for FlexSell's own work, or a pass-through of third-party costs — invoiced very differently, and the second reading carries RBI weight |
+| Business Advance structure | Legal counsel | Launch | Service fee for FlexSell's own work, or a pass-through of third-party costs — invoiced very differently, and the second reading carries RBI weight |
 | Banner copy | Designer | Launch | *Full Control Always Yours* is not true as built — there is no customer approval. *Full Transparency Always Yours* is |
-| Leftover balance on wallet closure | Business owner | — | Currently case-by-case with a mandatory recorded reason |
+| Leftover balance on Advance closure | Business owner | — | Currently case-by-case with a mandatory recorded reason |
 | Cheque clearing period | Chartered accountant | — | How long before a pending cheque credit is confirmed |
 
 ---
@@ -488,8 +488,8 @@ Rules a new engineer would otherwise get wrong.
 | **MOQ** | Minimum order quantity, per sub-variant, B2B only |
 | **HSN** | Harmonised System Nomenclature — the code determining the GST rate |
 | **CGST / SGST / IGST** | Central, state and integrated GST. First two intra-state, the third inter-state |
-| **Store Wallet** | Prepaid balance for goods and services |
-| **Business Wallet** | Prepaid balance for services only, spent by staff on the customer's behalf |
+| **Store Advance** | Prepaid balance for goods and services |
+| **Business Advance** | Prepaid balance for services only, spent by staff on the customer's behalf |
 | **Ledger entry** | One immutable money record with before and after balances |
 | **Reversal** | The only way to undo an entry — a new opposing entry referencing the original |
 | **Hold** | Money reserved for an in-flight checkout; captured on success, released on failure |

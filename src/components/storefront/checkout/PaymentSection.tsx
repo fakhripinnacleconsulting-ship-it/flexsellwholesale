@@ -1,19 +1,19 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { formatPrice } from "@/lib/utils";
-import { Wallet, CreditCard, Banknote, CheckCircle2, AlertCircle } from "lucide-react";
+import { Wallet as AdvanceBalanceIcon, CreditCard, Banknote, CheckCircle2, AlertCircle } from "lucide-react";
 
-export type CheckoutPaymentMethod = "Razorpay" | "COD" | "Wallet" | "BusinessWallet";
+export type CheckoutPaymentMethod = "Razorpay" | "COD" | "Wallet" | "BusinessAdvanceBalance";
 
 interface PaymentSectionProps {
   paymentMethod: CheckoutPaymentMethod;
   setPaymentMethod: (val: CheckoutPaymentMethod) => void;
   enableCod?: boolean;
   enableOnlinePayment?: boolean;
-  /** Store Wallet balance in rupees, or null when the customer has no usable wallet. */
-  walletBalance?: number | null;
-  /** Business Wallet balance in rupees, or null when not eligible. */
-  businessWalletBalance?: number | null;
+  /** Store Advance Balance balance in rupees, or null when the customer has no usable wallet. */
+  storeAdvanceBalance?: number | null;
+  /** Business Advance Balance balance in rupees, or null when not eligible. */
+  businessAdvanceBalance?: number | null;
   /** Whether the current user is an admin/manager checking out for a customer. */
   isAdmin?: boolean;
   /** Order total, so a short balance can name the shortfall instead of just refusing. */
@@ -25,18 +25,18 @@ export function PaymentSection({
   setPaymentMethod,
   enableCod = true,
   enableOnlinePayment = true,
-  walletBalance = null,
-  businessWalletBalance = null,
+  storeAdvanceBalance = null,
+  businessAdvanceBalance = null,
   isAdmin = false,
   orderTotal = 0,
 }: PaymentSectionProps) {
-  const hasStoreWallet = walletBalance !== null && walletBalance > 0;
-  const storeWalletCovers = hasStoreWallet && walletBalance >= orderTotal;
-  const storeShortfall = hasStoreWallet && !storeWalletCovers ? orderTotal - walletBalance : 0;
+  const hasStoreWallet = storeAdvanceBalance !== null && storeAdvanceBalance > 0;
+  const storeAdvanceBalanceCovers = hasStoreWallet && storeAdvanceBalance >= orderTotal;
+  const storeShortfall = hasStoreWallet && !storeAdvanceBalanceCovers ? orderTotal - storeAdvanceBalance : 0;
 
-  const hasBusinessWallet = isAdmin && businessWalletBalance !== null && businessWalletBalance > 0;
-  const businessWalletCovers = hasBusinessWallet && businessWalletBalance >= orderTotal;
-  const businessShortfall = hasBusinessWallet && !businessWalletCovers ? orderTotal - businessWalletBalance : 0;
+  const hasBusinessWallet = isAdmin && businessAdvanceBalance !== null && businessAdvanceBalance > 0;
+  const businessAdvanceBalanceCovers = hasBusinessWallet && businessAdvanceBalance >= orderTotal;
+  const businessShortfall = hasBusinessWallet && !businessAdvanceBalanceCovers ? orderTotal - businessAdvanceBalance : 0;
 
   return (
     <>
@@ -52,31 +52,31 @@ export function PaymentSection({
           {hasStoreWallet && (
             <div
               className={`relative overflow-hidden rounded-xl border p-5 transition-all duration-300 ease-out group ${
-                !storeWalletCovers
+                !storeAdvanceBalanceCovers
                   ? "bg-secondary/20 border-border opacity-70"
                   : paymentMethod === "Wallet"
                     ? "bg-primary/5 border-primary shadow-[0_0_15px_rgba(var(--primary),0.15)] -translate-y-0.5"
                     : "bg-white/40 dark:bg-white/5 border-border hover:bg-secondary/30 hover:border-primary/40 cursor-pointer hover:-translate-y-0.5"
               }`}
-              onClick={() => storeWalletCovers && setPaymentMethod("Wallet")}
+              onClick={() => storeAdvanceBalanceCovers && setPaymentMethod("Wallet")}
             >
-              {paymentMethod === "Wallet" && storeWalletCovers && (
+              {paymentMethod === "Wallet" && storeAdvanceBalanceCovers && (
                 <div className="absolute top-4 right-4 text-primary animate-in zoom-in duration-200">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               )}
               <div className="flex items-start gap-4">
                 <div className={`p-2 rounded-lg ${paymentMethod === 'Wallet' ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
-                  <Wallet className="w-6 h-6" />
+                  <AdvanceBalanceIcon className="w-6 h-6" />
                 </div>
                 <div className="flex-1 pr-6">
                   <div className="font-semibold text-foreground text-base cursor-pointer block flex items-center gap-2">
-                    Store Wallet 
+                    Store Advance Balance 
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                      {formatPrice(walletBalance)} available
+                      {formatPrice(storeAdvanceBalance)} available
                     </span>
                   </div>
-                  {storeWalletCovers ? (
+                  {storeAdvanceBalanceCovers ? (
                     <p className="text-sm text-muted-foreground mt-1">
                       Pay instantly from {isAdmin ? "the customer's" : "your"} prepaid store balance. No payment gateway needed.
                     </p>
@@ -89,12 +89,12 @@ export function PaymentSection({
                       <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
                         <div 
                           className="bg-primary h-full rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(100, (walletBalance / orderTotal) * 100)}%` }}
+                          style={{ width: `${Math.min(100, (storeAdvanceBalance / orderTotal) * 100)}%` }}
                         />
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        <a href="/client/wallet" className="font-semibold text-primary hover:underline">Add money</a>{" "}
-                        to use {isAdmin ? "this" : "your"} wallet, or choose another method below.
+                        <a href="/client/advance-balance" className="font-semibold text-primary hover:underline">Add money</a>{" "}
+                        to use {isAdmin ? "this" : "your"} Advance Balance, or choose another method below.
                       </p>
                     </div>
                   )}
@@ -106,31 +106,31 @@ export function PaymentSection({
           {hasBusinessWallet && (
             <div
               className={`relative overflow-hidden rounded-xl border p-5 transition-all duration-300 ease-out group ${
-                !businessWalletCovers
+                !businessAdvanceBalanceCovers
                   ? "bg-secondary/20 border-border opacity-70"
-                  : paymentMethod === "BusinessWallet"
+                  : paymentMethod === "BusinessAdvanceBalance"
                     ? "bg-primary/5 border-primary shadow-[0_0_15px_rgba(var(--primary),0.15)] -translate-y-0.5"
                     : "bg-white/40 dark:bg-white/5 border-border hover:bg-secondary/30 hover:border-primary/40 cursor-pointer hover:-translate-y-0.5"
               }`}
-              onClick={() => businessWalletCovers && setPaymentMethod("BusinessWallet")}
+              onClick={() => businessAdvanceBalanceCovers && setPaymentMethod("BusinessAdvanceBalance")}
             >
-              {paymentMethod === "BusinessWallet" && businessWalletCovers && (
+              {paymentMethod === "BusinessAdvanceBalance" && businessAdvanceBalanceCovers && (
                 <div className="absolute top-4 right-4 text-primary animate-in zoom-in duration-200">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               )}
               <div className="flex items-start gap-4">
-                <div className={`p-2 rounded-lg ${paymentMethod === 'BusinessWallet' ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
-                  <Wallet className="w-6 h-6" />
+                <div className={`p-2 rounded-lg ${paymentMethod === 'BusinessAdvanceBalance' ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+                  <AdvanceBalanceIcon className="w-6 h-6" />
                 </div>
                 <div className="flex-1 pr-6">
                   <div className="font-semibold text-foreground text-base cursor-pointer block flex items-center gap-2">
-                    Business Wallet (Admin Only)
+                    Business Advance Balance (Admin Only)
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                      {formatPrice(businessWalletBalance)} available
+                      {formatPrice(businessAdvanceBalance)} available
                     </span>
                   </div>
-                  {businessWalletCovers ? (
+                  {businessAdvanceBalanceCovers ? (
                     <p className="text-sm text-muted-foreground mt-1">
                       Pay instantly from the customer's B2B credit line or business balance.
                     </p>
@@ -143,7 +143,7 @@ export function PaymentSection({
                       <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
                         <div 
                           className="bg-primary h-full rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(100, (businessWalletBalance / orderTotal) * 100)}%` }}
+                          style={{ width: `${Math.min(100, (businessAdvanceBalance / orderTotal) * 100)}%` }}
                         />
                       </div>
                     </div>

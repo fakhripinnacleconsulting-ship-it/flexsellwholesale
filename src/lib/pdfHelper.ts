@@ -2,14 +2,14 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatFullIST } from "@/lib/datetime";
 import { formatPrice } from "@/lib/utils";
-import type { WalletTransactionView } from "@/types/wallet";
+import type { AdvanceBalanceTransactionView } from "@/types/advanceBalance";
 
 const pdfFormatPrice = (amount: number) => `Rs. ${amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export async function downloadStatementPdf(
-  transactions: WalletTransactionView[],
+  transactions: AdvanceBalanceTransactionView[],
   customerName: string,
-  walletLabel: string,
+  advanceBalanceLabelText: string,
   dateRangeLabel: string
 ) {
   const doc = new jsPDF();
@@ -38,7 +38,7 @@ export async function downloadStatementPdf(
   
   doc.setFontSize(11);
   doc.text(`Customer: ${customerName}`, 14, startY + 8);
-  doc.text(`Wallet: ${walletLabel}`, 14, startY + 14);
+  doc.text(`Advance Balance: ${advanceBalanceLabelText}`, 14, startY + 14);
   doc.text(`Period: ${dateRangeLabel}`, 14, startY + 20);
   
 
@@ -78,5 +78,5 @@ export async function downloadStatementPdf(
     },
   });
 
-  doc.save(`Wallet_Statement_${customerName.replace(/\s+/g, "_")}.pdf`);
+  doc.save(`Advance_Balance_Statement_${customerName.replace(/\s+/g, "_")}.pdf`);
 }

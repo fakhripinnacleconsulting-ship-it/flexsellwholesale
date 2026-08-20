@@ -19,7 +19,7 @@ Every ticket carries: context, the change, and acceptance criteria that can be v
 | Epic | Tickets | Theme |
 |---|---|---|
 | [E1 — Security remediation](#e1--security-remediation) | 8 | Close the audit findings |
-| [E2 — Complete the wallet](#e2--complete-the-wallet) | 7 | Finish what W-1…W-16 started |
+| [E2 — Complete the Advance](#e2--complete-the-Advance) | 7 | Finish what W-1…W-16 started |
 | [E3 — Structural debt](#e3--structural-debt) | 5 | Stop repeat-cause bugs |
 | [E4 — Catalogue and commerce](#e4--catalogue-and-commerce) | 7 | Core product gaps |
 | [E5 — Operations](#e5--operations) | 8 | Staff tooling |
@@ -35,12 +35,12 @@ behaviour.
 | Area | What changed | Reference |
 |---|---|---|
 | **Receipt → invoice** | Settlement moved to `POST /api/invoices/[id]/settle` — the only route that may mark a document paid or mint an `INV-` number. A paid receipt now issues a **separate** invoice document instead of having its `type` flipped in place, which had left every tax invoice carrying its `REC-` number (GST Rule 46(b)) | [settle route](src/app/api/invoices/[id]/settle/route.ts) |
-| **Wallet settlement** | A wallet payment now reserves → captures through the ledger. A short balance returns **409** and nothing changes; previously the UI dropdown was decorative and a ₹0 wallet settled in full | same |
-| **Wallet authorisation** | `admin-pay-order` uses `requireWalletSpendAccess`; a bare role check had let any manager spend any customer's balance | [admin-pay-order](src/app/api/wallet/admin-pay-order/route.ts) |
+| **Advance settlement** | A Advance payment now reserves → captures through the ledger. A short balance returns **409** and nothing changes; previously the UI dropdown was decorative and a ₹0 Advance settled in full | same |
+| **Advance authorisation** | `admin-pay-order` uses `requireAdvanceSpendAccess`; a bare role check had let any manager spend any customer's balance | [admin-pay-order](src/app/api/Advance/admin-pay-order/route.ts) |
 | **File storage** | One provider-agnostic layer, two asset classes, client-side compression, direct URLs in the database, deletion, orphan sweep | ADR §7A |
 | **Document proxy** | Authenticated, ownership-checked, `?url=` ignored (SEC-09) | [legacy route](src/app/api/customers/document/[filename]/route.ts) |
 | **Statement period** | `formatRangePeriod()` — a downloaded statement states its own dates instead of "This month" | [dateRange.ts](src/lib/dateRange.ts) |
-| **Spend breakdown** | Store → Business transfers now appear in "Where your money went". ⚠️ **Total Spent rises** for wallets with transfers — announce it | [breakdown route](src/app/api/wallet/breakdown/route.ts) |
+| **Spend breakdown** | Store → Business transfers now appear in "Where your money went". ⚠️ **Total Spent rises** for Advances with transfers — announce it | [breakdown route](src/app/api/Advance/breakdown/route.ts) |
 | **MOQ** | Applies to verified B2B only, decided in one helper (`enforceMoq`). Three cart clamp sites had disagreed; two ignored the customer's type entirely | [priceTierHelper.ts](src/lib/priceTierHelper.ts) |
 | **Order categorisation** | `orderType` is the authority. The customer dashboard had inferred it from price tiers and claimed *any non-B2B COD order* as Dropshipping | [ClientOrdersView.tsx](src/components/storefront/ClientOrdersView.tsx) |
 | **Timestamps** | Documents render `issuedAt`, not `new Date(generatedAt)` — a date-only string that parsed to midnight, so every manager document row read 12:00 AM. `formatDateTimeIST` now warns in development when handed one | [datetime.ts](src/lib/datetime.ts) |
@@ -115,7 +115,7 @@ const isTestMode = process.env.TEST_MODE === "true" && process.env.NODE_ENV !== 
 and body. Anyone can read or overwrite anyone's preferences.
 
 Worse than it looks: silencing a target's `security` and `payments` notifications is a
-**preparatory step** — the wallet's entire detective-control design assumes those emails arrive.
+**preparatory step** — the Advance's entire detective-control design assumes those emails arrive.
 
 **Acceptance**
 - Unauthenticated request → 401
@@ -129,7 +129,7 @@ Worse than it looks: silencing a target's `security` and `payments` notification
 **P1 · S · Backend**
 
 `/api/customers/upload-document` has **no auth** and is CSRF-exempt. The MIME check is not a
-control — `file.type` is supplied by the client, not sniffed. Now also used for wallet payment
+control — `file.type` is supplied by the client, not sniffed. Now also used for Advance payment
 proofs and expense bills.
 
 **Acceptance**
@@ -143,7 +143,7 @@ proofs and expense bills.
 ### FS-106 · Make KYC documents private
 **P1 · M · Backend**
 
-**The most serious open finding.** Aadhaar, PAN, cancelled cheques, GST certificates and wallet
+**The most serious open finding.** Aadhaar, PAN, cancelled cheques, GST certificates and Advance
 proofs are all stored with `access: "public"`. Anyone holding the URL retrieves them with no
 session, and `kyc-${Date.now()}-${originalName}` is millisecond-precision — enumerable, with
 guessable filenames.
@@ -184,21 +184,21 @@ this correctly two imports away.
 
 ---
 
-# E2 — Complete the wallet
+# E2 — Complete the Advance
 
 ### FS-201 · Offline credit register screen
 **P1 · M · Frontend**
 
-`/api/wallet/offline-register` returns the data; nothing renders it. This is the report that
-makes cash credits reviewable **together** — credits visible only inside individual wallets
-will never be reviewed as a set, and a pattern across customers is exactly what one wallet
+`/api/Advance/offline-register` returns the data; nothing renders it. This is the report that
+makes cash credits reviewable **together** — credits visible only inside individual Advances
+will never be reviewed as a set, and a pattern across customers is exactly what one Advance
 cannot show.
 
 **Acceptance**
-- A page at `/admin/wallets/offline-register`
+- A page at `/admin/Advances/offline-register`
 - Date range (reuse `DateRangePicker`) and filter by admin
 - Totals per admin per source
-- Table: date, customer, wallet, source, amount, reference, proof link, recorded by, IP
+- Table: date, customer, Advance, source, amount, reference, proof link, recorded by, IP
 - CSV export
 - Admin-only; a manager receives 403
 
@@ -221,7 +221,7 @@ The API supports add, rename and deactivate; there is no UI.
 ### FS-203 · Open a receipt from the passbook
 **P1 · S · Frontend**
 
-`WalletReceiptDocument` renders correctly but nothing opens it.
+`AdvanceReceiptDocument` renders correctly but nothing opens it.
 
 **Acceptance**
 - A receipt action on every passbook row
@@ -231,16 +231,16 @@ The API supports add, rename and deactivate; there is no UI.
 
 ---
 
-### FS-204 · Replace native dialogs in the wallet
+### FS-204 · Replace native dialogs in the Advance
 **P1 · S · Frontend**
 
-`StaffWalletPanel` uses `window.prompt` for the transfer amount, the admin password and the
+`StaffAdvancePanel` uses `window.prompt` for the transfer amount, the admin password and the
 freeze reason. Two consecutive native prompts for an **irreversible** transfer is poor.
 
 **Acceptance**
 - Transfer and freeze use proper dialogs matching `AddFundsOfflineDialog`
 - The password field is inline in the same dialog, never a second prompt
-- No native dialog remains in `src/components/wallet/`
+- No native dialog remains in `src/components/Advance/`
 
 ---
 
@@ -252,7 +252,7 @@ CSV ships; PDF is what a customer files.
 **Acceptance**
 - Reuses `pdfPrintHelper` — no new library
 - Print styles drop the donut and navigation
-- Header repeats customer, wallet and range on every page
+- Header repeats customer, Advance and range on every page
 - Footer carries page numbers and the non-refundable notice
 
 ---
@@ -294,7 +294,7 @@ Blocked on cron capacity — Vercel Hobby allows two daily jobs and both are use
 `customers/[id]`, `inquiries` and `orders` exist twice. `customers/[id]` is ~400 lines
 duplicated almost word for word.
 
-Not theoretical: during the wallet release the panel was added to the admin copy and **did not
+Not theoretical: during the Advance release the panel was added to the admin copy and **did not
 appear for managers**; the same happened again with the KYC visibility change. Two misses in
 one release.
 
@@ -311,9 +311,9 @@ one release.
 
 Admins are `Customer` documents with `role: "admin"`. Three queries carry
 `role: { $ne: "admin" }` as a **fail-open** workaround. Admins also carry `customerTypes`,
-which technically makes them wallet-eligible.
+which technically makes them Advance-eligible.
 
-Migration is safe: `createdBy` on orders, invoices and wallet transactions is **denormalised**,
+Migration is safe: `createdBy` on orders, invoices and Advance transactions is **denormalised**,
 not a reference, so moving the document breaks no history **provided `_id` is preserved**.
 
 **Acceptance**
@@ -345,15 +345,15 @@ documented; nothing proves it does here.
 ### FS-304 · Route smoke tests
 **P2 · S · Backend**
 
-BUG-01 — the customer wallet returning 403 to its own owner — happened because
-`requireWalletRead` compared `payload.userId` against an empty string. It was the one guard
+BUG-01 — the customer Advance returning 403 to its own owner — happened because
+`requireAdvanceRead` compared `payload.userId` against an empty string. It was the one guard
 with no coverage.
 
 Regression tests now exist, but **no test asserts a route's happy path end to end**. A guard
 can be correct in isolation and still be called wrongly.
 
 **Acceptance**
-- A smoke test per wallet route: signed-in customer, no query parameters, expect 200
+- A smoke test per Advance route: signed-in customer, no query parameters, expect 200
 - Extended to order and invoice routes
 - Runs in CI
 
@@ -368,23 +368,23 @@ Nothing is purged. OTP records, login history and stock logs accumulate indefini
 - Retention agreed per collection (see Security §7.3)
 - TTL indexes on OTP records
 - Bounded arrays for login history
-- Wallet ledger explicitly **exempt** — it is a financial record
+- Advance ledger explicitly **exempt** — it is a financial record
 
 ---
 
 # E4 — Catalogue and commerce
 
-### FS-401 · Wallet + gateway split payment
+### FS-401 · Advance + gateway split payment
 **P2 · M · Full-stack**
 
-Today the wallet must cover the whole order. A customer ₹500 short cannot use their ₹4,500.
+Today the Advance must cover the whole order. A customer ₹500 short cannot use their ₹4,500.
 
 **Acceptance**
-- Checkout offers "pay ₹4,500 from wallet, ₹500 by card"
-- Wallet portion reserved before the gateway is invoked
+- Checkout offers "pay ₹4,500 from Advance, ₹500 by card"
+- Advance portion reserved before the gateway is invoked
 - Both capture or neither
 - **If Razorpay fails after the hold, the hold is released**
-- `Order.paymentMethod` uses the existing `"Wallet+Razorpay"` value
+- `Order.paymentMethod` uses the existing `"Advance+Razorpay"` value
 
 ---
 
@@ -396,7 +396,7 @@ status enum.
 
 **Acceptance**
 - Staff raise a consent instead of spending directly
-- The customer sees it on the wallet page and approves or declines
+- The customer sees it on the Advance page and approves or declines
 - Spend fires on approval only
 - A **hybrid** is preferred: standing authorisation up to a ceiling, explicit approval above it
 
@@ -418,8 +418,8 @@ The cheapest single narrowing of the current exposure — a route change, not a 
 ### FS-404 · Per-customer manager scoping
 **P3 · L · Full-stack**
 
-`wallet_business` is an all-customers permission because no `assignedCustomers` relationship
-exists. Adding one is useful well beyond wallets.
+`Advance_business` is an all-customers permission because no `assignedCustomers` relationship
+exists. Adding one is useful well beyond Advances.
 
 **Acceptance**
 - `assignedCustomers[]` on `Manager`
@@ -488,10 +488,10 @@ rather than "could not load".
 
 ---
 
-### FS-503 · Server-render the wallet page
+### FS-503 · Server-render the Advance page
 **P3 · S · Frontend**
 
-The wallet renders a skeleton then fetches. Correct for cache safety, but a visible loading step
+The Advance renders a skeleton then fetches. Correct for cache safety, but a visible loading step
 every visit.
 
 **Acceptance**
@@ -508,7 +508,7 @@ Six calls add noise to the function logs you read when something is wrong.
 
 **Acceptance**
 - Removed or promoted to `console.warn`/`console.error` where they carry meaning
-- Wallet logging conventions unchanged
+- Advance logging conventions unchanged
 
 ---
 
@@ -537,7 +537,7 @@ Enabling optimisation first would let arbitrary hosts through the image proxy.
 
 ---
 
-### FS-507 · Lighthouse pass on the wallet
+### FS-507 · Lighthouse pass on the Advance
 **P2 · S · Frontend**
 
 **Acceptance**
@@ -562,14 +562,14 @@ Enabling optimisation first would let arbitrary hosts through the image proxy.
 
 # E6 — Quality and polish
 
-### FS-601 · Wallet receipt in the transaction email
+### FS-601 · Advance receipt in the transaction email
 **P3 · S · Backend**
 
 Expense emails describe the transaction but do not attach the receipt.
 
 ---
 
-### FS-602 · Bulk wallet operations
+### FS-602 · Bulk Advance operations
 **P3 · M · Full-stack**
 
 Recording the same expense across many customers (an annual filing fee) is one at a time.
@@ -582,7 +582,7 @@ Recording the same expense across many customers (an annual filing fee) is one a
 
 ---
 
-### FS-603 · Wallet balance in the customer list
+### FS-603 · Advance balance in the customer list
 **P3 · S · Frontend**
 
 Staff must open each customer to see a balance.
@@ -618,7 +618,7 @@ Staff must open each customer to see a balance.
 ### FS-606 · Accessibility audit of the storefront
 **P2 · M · Frontend**
 
-The wallet was built to the standard; older storefront screens were not audited.
+The Advance was built to the standard; older storefront screens were not audited.
 
 **Acceptance**
 - Every storefront page reaches Lighthouse Accessibility 100
@@ -643,7 +643,7 @@ The pre-deployment checklist exists in two documents but there is no single runb
 ```
 Sprint 0   FS-101 102 103 104              one afternoon — four critical one-liners
            FS-105 106 107 108              the rest of the security work
-Sprint 1   FS-201 202 203 204              finish the wallet
+Sprint 1   FS-201 202 203 204              finish the Advance
 Sprint 2   FS-301 304                      stop the duplication bugs
            FS-501 502                      UI consistency
 Sprint 3   FS-401                          the most requested product gap
@@ -660,8 +660,8 @@ for a sprint boundary.
 
 | Blocks | Owner | Question |
 |---|---|---|
-| GST invoicing for wallet services | Chartered accountant | Which expense categories are a taxable supply? |
-| Launch | Legal counsel | Business Wallet: service fee, or third-party pass-through? |
+| GST invoicing for Advance services | Chartered accountant | Which expense categories are a taxable supply? |
+| Launch | Legal counsel | Business Advance: service fee, or third-party pass-through? |
 | Launch | Designer | *Full Control Always Yours* is not true as built — *Full Transparency Always Yours* is |
 | Closure policy | Business owner | Leftover balance on closure — currently case-by-case with a mandatory reason |
 | Cheque clearing | Chartered accountant | How long before a pending cheque credit is confirmed? |

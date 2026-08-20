@@ -41,7 +41,7 @@ export function DropshippingBusinessSection({ data }: DropshippingBusinessSectio
     { icon: "package", title: "Zero Stock Investment", desc: "No upfront money needed. Sell 5,000+ items stored in our central Bhopal facility.", badge: "Zero Risk" },
     { icon: "trending-up", title: "High Retail Profits", desc: "Get special dropshipping prices so you earn strong profit margins on every customer order.", badge: "Good Profits" },
     { icon: "zap", title: "24-48 Hr Fast Packing", desc: "Parcels shipped directly to your customer with your store brand label. No FlexSell name inside.", badge: "White-Label Box" },
-    { icon: "shield", title: "Easy Wallet & Order Sync", desc: "Easily sync items, add wallet funds, and get tracking numbers instantly.", badge: "Auto Sync" }
+    { icon: "shield", title: "Easy Advance Balance & Order Sync", desc: "Easily sync items, top up your Advance Balance, and get tracking numbers instantly.", badge: "Auto Sync" }
   ];
 
   const cards = data?.cards && data.cards.length > 0 ? data.cards : defaultCards;

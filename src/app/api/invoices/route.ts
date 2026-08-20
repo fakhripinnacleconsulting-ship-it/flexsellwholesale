@@ -1,3 +1,4 @@
+import { isAdvanceBalanceMethod } from "@/lib/advanceBalanceConstants";
 import { formatDateIST } from "@/lib/datetime";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
@@ -326,17 +327,16 @@ export async function POST(request: Request) {
     /**
      * A document cannot be born Paid from a wallet.
      *
-     * The create form offers Store/Business Wallet as a payment method. Choosing one and
+     * The create form offers Store/Business Advance Balance as a payment method. Choosing one and
      * setting the status to Paid used to write exactly that — a settled document, with no
-     * balance read and no ledger entry behind it. Wallet money moves in one place only
+     * balance read and no ledger entry behind it. Advance Balance money moves in one place only
      * (POST /api/invoices/[id]/settle), so the document is created Pending and settled after.
      */
-    const WALLET_METHODS = ["Store Wallet", "Business Wallet", "Wallet"];
-    if (WALLET_METHODS.includes(paymentMethod) && paymentStatus === "Paid") {
+    if (isAdvanceBalanceMethod(paymentMethod) && paymentStatus === "Paid") {
       return NextResponse.json(
         {
           message:
-            "A wallet-paid document cannot be created as Paid. Create it first, then record the wallet payment so the balance is actually debited.",
+            "An Advance Balance document cannot be created as Paid. Create it first, then record the payment so the balance is actually debited.",
           code: "USE_SETTLE_ENDPOINT",
         },
         { status: 400 }
@@ -345,7 +345,7 @@ export async function POST(request: Request) {
 
     // Every other settled document must name how the money arrived. Without this a receipt
     // can be marked Paid with no reference at all, which is unreconcilable against a bank
-    // statement and indistinguishable from the wallet bug above.
+    // statement and indistinguishable from the Advance Balance bug above.
     if (paymentStatus === "Paid" && type !== "quote" && !String(transactionId || "").trim()) {
       return NextResponse.json(
         { message: "A transaction reference is required when recording a document as Paid." },
@@ -605,10 +605,10 @@ export async function POST(request: Request) {
         /**
          * Translated, not copied.
          *
-         * The document keeps "Business Wallet"; `Order.paymentMethod` is a closed enum that
+         * The document keeps "Business Advance Balance"; `Order.paymentMethod` is a closed enum that
          * has no such member, so copying it across failed validation outright — "Order
-         * validation failed: paymentMethod: `Business Wallet` is not a valid enum value" —
-         * and the whole creation 500'd. The order stores `"Wallet"` and names the wallet in
+         * validation failed: paymentMethod: `Business Advance Balance` is not a valid enum value" —
+         * and the whole creation 500'd. The order stores `"Wallet"` and names the Advance Balance in
          * `walletType`, which is what that field is for.
          */
         paymentMethod: orderPaymentMethodFor(paymentMethod) || "Bank Transfer",
@@ -772,7 +772,7 @@ export async function POST(request: Request) {
      * that block deletes the receipt and its order when a line cannot be reserved, and an
      * issued Tax Invoice must never outlive the receipt it was issued for.
      *
-     * Wallet methods never reach here — they are rejected further up and must go through
+     * Advance Balance methods never reach here — they are rejected further up and must go through
      * `/api/invoices/[id]/settle`, the only path that actually debits a balance.
      */
     if (isPrepaidReceipt) {

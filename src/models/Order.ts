@@ -110,14 +110,26 @@ const OrderSchema = new Schema<OrderType & Document>(
       hsnSlabs: [{ type: Schema.Types.Mixed }],
     },
     history: [HistoryEventSchema],
-    paymentMethod: { type: String, enum: ["Bank Transfer", "Razorpay", "UPI", "COD", "Wallet", "Cash"] },
+    /**
+     * `"Wallet"` is retained alongside `"Advance Balance"` as a **legacy value**.
+     *
+     * It is written on every order ever paid from a balance. Dropping it from the enum would
+     * make each of those fail validation the next time the document is saved — which happens
+     * on any status change, shipment or settlement — so historical orders would become
+     * unshippable. New orders are written with `"Advance Balance"`; the backfill script
+     * converts the old ones when convenient, and nothing breaks if it never runs.
+     */
+    paymentMethod: {
+      type: String,
+      enum: ["Bank Transfer", "Razorpay", "UPI", "COD", "Advance Balance", "Wallet", "Cash"],
+    },
     // Set when this order was paid from a wallet. The ledger entry is the record of the
     // money; these three fields let the order link back to it without a lookup.
     walletTransactionId: { type: String, index: true, sparse: true },
     walletAmount: { type: Number },
-    // Which of the two wallets paid. Kept beside the method rather than folded into it —
-    // collapsing both wallets to the single string "Wallet" is what left a failed Business
-    // Wallet payment with no way to identify itself on retry.
+    // Which of the two advanceBalances paid. Kept beside the method rather than folded into it —
+    // collapsing both advanceBalances to the single string "Wallet" is what left a failed Business
+    // Advance Balance payment with no way to identify itself on retry.
     walletType: { type: String, enum: ["store", "business"] },
     paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed"], default: "Pending" },
     transactionId: { type: String },

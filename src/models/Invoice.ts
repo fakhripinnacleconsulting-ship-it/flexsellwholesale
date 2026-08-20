@@ -98,9 +98,9 @@ const InvoiceSchema = new Schema<InvoiceType & Document>(
     settledByInvoiceId: { type: String },
 
     /**
-     * The ledger row that paid this document, when a wallet paid it.
+     * The ledger row that paid this document, when a Advance Balance paid it.
      *
-     * Without this a wallet-settled invoice has no pointer into WalletTransaction, so it can
+     * Without this a wallet-settled invoice has no pointer into AdvanceBalanceTransaction, so it can
      * neither be reconciled nor reversed.
      */
     walletTransactionId: { type: String },
