@@ -49,6 +49,26 @@ export function FooterTab({ footer, setFooter, isSaving, onSave }: FooterTabProp
             onChange={(e) => setFooter({ ...footer, contactPhone: e.target.value })}
             className="text-xs"
           />
+        <div className="space-y-1 sm:col-span-2 border-t pt-3">
+          <label className="text-xs font-bold uppercase text-muted-foreground">Payment Methods Banner Image URL (Single Image)</label>
+          <Input
+            placeholder="e.g. /images/payment-methods.svg or custom CDN image URL"
+            value={footer.paymentImage || footer.paymentBannerUrl || ""}
+            onChange={(e) => setFooter({ ...footer, paymentImage: e.target.value, paymentBannerUrl: e.target.value })}
+            className="text-xs"
+          />
+          <p className="text-[11px] text-muted-foreground">URL of the single combined payment methods banner image. If empty, defaults to standard VISA, MasterCard, G Pay, UPI, & COD banner.</p>
+
+          {(footer.paymentImage || footer.paymentBannerUrl || "/images/payment-methods.svg") && (
+            <div className="mt-2 p-2 bg-white rounded-lg border border-slate-200 inline-block">
+              <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Live Image Preview:</p>
+              <img
+                src={footer.paymentImage || footer.paymentBannerUrl || "/images/payment-methods.svg"}
+                alt="Payment Methods Banner Preview"
+                className="h-10 w-auto max-w-[400px] object-contain"
+              />
+            </div>
+          )}
         </div>
       </div>
       <Button onClick={() => onSave("footer", footer)} disabled={isSaving} className="font-bold text-xs">
