@@ -5,17 +5,20 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle, Printer, ArrowRight, ShoppingBag, MapPin, ClipboardList, ShieldCheck, CreditCard } from "lucide-react";
-import { useRazorpay } from "react-razorpay";
+import { openRazorpayCheckout } from "@/lib/razorpayLoader";
 import { apiClient } from "@/lib/apiClient";
 import { useToastStore } from "@/stores/toastStore";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { orderService } from "@/services/orderService";
+import { invoiceService } from "@/services/invoiceService";
 import { Order } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
 import { triggerPrintWithTitle } from "@/lib/pdfPrintHelper";
 import { buildSellerInfo } from "@/lib/buildSellerInfo";
+import { useAuthStore } from "@/stores/authStore";
+import * as advanceBalanceService from "@/services/advanceBalanceService";
 
 export default function OrderConfirmationPage() {
   const params = useParams();
@@ -28,8 +31,8 @@ export default function OrderConfirmationPage() {
   const [cmsData, setCmsData] = React.useState<any>(null);
   const [invoice, setInvoice] = React.useState<any>(null);
   const [paying, setPaying] = React.useState(false);
-  const { Razorpay } = useRazorpay();
   const { addToast } = useToastStore();
+  const currentUser = useAuthStore((state: any) => state.customer);
 
   React.useEffect(() => {
     if (!orderId) return;
@@ -53,14 +56,16 @@ export default function OrderConfirmationPage() {
       .then(data => setCmsData(data))
       .catch(err => console.error("Failed to load CMS data:", err));
 
-    // Fetch original invoice matching this order ID
-    fetch(`/api/invoices?orderId=${orderId}`)
-      .then(res => res.json())
-      .then(data => {
-        const invs = Array.isArray(data) ? data : data.invoices || [];
-        if (invs.length > 0) {
-          setInvoice(invs[0]);
-        }
+    /**
+     * Through the service, which knows that a settled order has **two** documents — the
+     * retained `REC-` receipt and the `INV-` Tax Invoice issued against it — and returns the
+     * invoice. The raw fetch this replaces took `[0]` of the list, so a buyer could be shown
+     * a pending receipt for an order they had already paid.
+     */
+    invoiceService
+      .getInvoiceByOrderId(orderId)
+      .then((doc) => {
+        if (doc) setInvoice(doc);
       })
       .catch(err => console.error("Failed to load invoice:", err));
   }, [orderId]);
@@ -68,11 +73,45 @@ export default function OrderConfirmationPage() {
   // An order can legitimately sit here unpaid — an admin-converted Razorpay quote, or a
   // checkout whose stock release failed. Without this the buyer has no way to pay it.
   const needsPayment =
-    !!order && order.paymentMethod === "Razorpay" && order.paymentStatus !== "Paid" && order.status !== "Cancelled";
+    !!order && ["Razorpay", "Wallet"].includes(order.paymentMethod || "") && order.paymentStatus !== "Paid" && order.status !== "Cancelled";
 
   const handleCompletePayment = async () => {
     if (!order || paying) return;
     setPaying(true);
+
+    if (order.paymentMethod === "Wallet") {
+      try {
+        const clientRequestId = advanceBalanceService.newRequestId();
+        const isAdminOrManager = currentUser?.role === "admin" || currentUser?.role === "manager";
+
+        if (isAdminOrManager) {
+          const customerId = (order.customerId || (order as any).customer?._id || (order as any).customer || "") as string;
+          if (!customerId) throw new Error("This order has no linked customer account to charge.");
+          await advanceBalanceService.adminPayOrder({
+            orderId: order._id,
+            customerId,
+            // Which Advance Balance was chosen is recorded on the order itself. Reading it back from
+            // the payment method could never work — both advanceBalances store "Wallet" there.
+            walletType: order.walletType === "business" ? "business" : "store",
+            clientRequestId
+          });
+        } else {
+          await advanceBalanceService.payOrderFromAdvanceBalance({ orderId: order._id, clientRequestId });
+        }
+
+        addToast("Payment received from your Advance Balance. Thank you!", "success");
+        setOrder(await orderService.getOrderById(order._id));
+      } catch (err: unknown) {
+        addToast(
+          err instanceof Error ? err.message : "Could not complete the Advance Balance payment.",
+          "error"
+        );
+      } finally {
+        setPaying(false);
+      }
+      return;
+    }
+
     try {
       // Amount is read from the stored order server-side; nothing here can influence it.
       const init = await apiClient.post<{ orderId?: string; amount?: number; currency?: string; error?: string }>(
@@ -80,7 +119,7 @@ export default function OrderConfirmationPage() {
       );
       if (!init.orderId) throw new Error(init.error || "Failed to initialize payment gateway");
 
-      const rzp = new (Razorpay as any)({
+      await openRazorpayCheckout({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
         amount: String(init.amount),
         currency: init.currency || "INR",
@@ -115,13 +154,16 @@ export default function OrderConfirmationPage() {
           contact: order.shippingAddress.phone,
         },
         theme: { color: "#10b981" },
+      } as Record<string, unknown>, {
+        onPaymentFailed: (r) => {
+          const failure = r as { error?: { description?: string } };
+          setPaying(false);
+          addToast(`Payment failed: ${failure.error?.description || "Payment was not completed."}`, "error");
+        },
       });
-      rzp.on("payment.failed", (r: any) => {
-        setPaying(false);
-        addToast(`Payment failed: ${r.error?.description || "Payment was not completed."}`, "error");
-      });
-      rzp.open();
     } catch (err: unknown) {
+      // Nothing to unwind here — unlike checkout, this order already exists and stays as it
+      // was. The buyer can simply press the button again.
       addToast(err instanceof Error ? err.message : "Could not start payment gateway", "error");
       setPaying(false);
     }

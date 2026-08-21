@@ -6,7 +6,7 @@
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/wallet/maintenance",
+      "path": "/api/advance-balance/maintenance",
       "schedule": "30 20 * * *"
     }
   ]

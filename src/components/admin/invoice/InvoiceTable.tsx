@@ -4,7 +4,7 @@ import { formatDateTimeIST } from "@/lib/datetime";
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Eye, Edit, Trash2, Check, RefreshCw, Loader2, ShoppingBag } from "lucide-react";
+import { Eye, Edit, Trash2, Check, RefreshCw, Loader2 } from "lucide-react";
 import { Invoice } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -21,9 +21,19 @@ interface InvoiceTableProps {
   onViewInvoice: (inv: Invoice) => void;
   onPayInvoice: (inv: Invoice) => void;
   onEditQuote: (inv: Invoice) => void;
-  onConvertQuote?: (inv: Invoice) => void;
   onVoidInvoice: (id: string) => void;
   onDeleteInvoice: (id: string) => void;
+}
+
+/**
+ * A receipt that has already been settled into a Tax Invoice.
+ *
+ * Settlement retains the receipt rather than converting it, so these now sit permanently in
+ * the Receipts tab as the record of what was collected. They are read-only: the API refuses
+ * to void, edit or delete them.
+ */
+function isSettledReceipt(inv: Invoice): boolean {
+  return inv.type === "receipt" && (Boolean(inv.settledByInvoiceId) || inv.status === "paid");
 }
 
 export function InvoiceTable({
@@ -36,7 +46,6 @@ export function InvoiceTable({
   onViewInvoice,
   onPayInvoice,
   onEditQuote,
-  onConvertQuote,
   onVoidInvoice,
   onDeleteInvoice,
 }: InvoiceTableProps) {
@@ -120,7 +129,13 @@ export function InvoiceTable({
                       </span>
                     </td>
                     <td className="p-4 text-muted-foreground">
-                      {formatDateTimeIST(new Date(inv.generatedAt))}
+                      {/*
+                        `generatedAt` is a display string ("18 Aug 2026") with no time in it,
+                        so wrapping it in `new Date()` produced midnight and every row on the
+                        manager's Documents pages read 12:00 AM. `issuedAt` is the real
+                        instant; `createdAt` covers documents written before it existed.
+                      */}
+                      {formatDateTimeIST(inv.issuedAt ?? inv.createdAt ?? inv.generatedAt)}
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -134,29 +149,22 @@ export function InvoiceTable({
                           <Eye className="h-4 w-4" />
                         </Button>
 
+                        {/*
+                          A quote is a standalone price estimate — there is no "Convert to
+                          Order" action, here or anywhere. `status !== "converted"` still
+                          guards editing: quotes converted before that flow was removed are
+                          locked against edits by the API and must stay locked in the UI.
+                        */}
                         {inv.type === "quote" && inv.status !== "converted" && hasPermission(`invoices_${activeTab}` as any, "update") && (
-                          <>
-                            {onConvertQuote && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onConvertQuote(inv)}
-                                title="Convert to Order"
-                                className="h-8 text-xs font-semibold px-2 cursor-pointer bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
-                              >
-                                <ShoppingBag className="h-3.5 w-3.5 mr-1" /> Convert
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onEditQuote(inv)}
-                              title="Edit Quote Items & Quantities"
-                              className="h-8 w-8 p-0 cursor-pointer text-blue-600 hover:text-blue-700"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEditQuote(inv)}
+                            title="Edit Quote Items & Quantities"
+                            className="h-8 w-8 p-0 cursor-pointer text-blue-600 hover:text-blue-700"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                         )}
 
                         {inv.type === "receipt" && inv.status === "pending" && hasPermission(`invoices_${activeTab}` as any, "update") && (
@@ -171,7 +179,13 @@ export function InvoiceTable({
                           </Button>
                         )}
 
-                        {inv.status !== "void" && inv.type !== "quote" && hasPermission(`invoices_${activeTab}` as any, "update") && (
+                        {/*
+                          A settled receipt is frozen: it is the record of a payment that a
+                          live Tax Invoice was issued against, and the API refuses to void or
+                          delete it. Hiding the actions keeps the table from offering
+                          something that can only fail.
+                        */}
+                        {inv.status !== "void" && inv.type !== "quote" && !isSettledReceipt(inv) && hasPermission(`invoices_${activeTab}` as any, "update") && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -183,7 +197,7 @@ export function InvoiceTable({
                           </Button>
                         )}
 
-                        {inv.type !== "invoice" && hasPermission(`invoices_${activeTab}` as any, "delete") && (
+                        {inv.type !== "invoice" && !isSettledReceipt(inv) && hasPermission(`invoices_${activeTab}` as any, "delete") && (
                           <Button
                             variant="ghost"
                             size="sm"

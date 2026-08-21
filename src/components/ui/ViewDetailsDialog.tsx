@@ -72,7 +72,7 @@ export function ViewDetailsDialog({ isOpen, onClose, title, data, footer }: View
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
-            className="relative w-full max-w-lg bg-card text-card-foreground shadow-2xl rounded-xl border border-border overflow-hidden z-10 flex flex-col max-h-[85vh]"
+            className="relative w-full max-w-lg bg-card text-card-foreground shadow-2xl rounded-xl border border-border overflow-hidden z-10 flex flex-col max-h-[85dvh]"
           >
             <div className="flex justify-between items-center px-6 py-4 border-b border-border bg-secondary/20">
               <h2 className="text-lg font-bold tracking-tight">{title}</h2>

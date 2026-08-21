@@ -162,8 +162,9 @@ export function PublicCreateOrderView({ initialSalesperson }: PublicCreateOrderV
       setItemPrice={invoiceForm.setItemPrice}
       paymentMethod={invoiceForm.paymentMethod}
       setPaymentMethod={invoiceForm.setPaymentMethod}
-      paymentStatus={invoiceForm.paymentStatus}
-      setPaymentStatus={invoiceForm.setPaymentStatus}
+      setPaymentTiming={invoiceForm.setPaymentTiming}
+      isPayNow={invoiceForm.isPayNow}
+      effectivePaymentMethod={invoiceForm.effectivePaymentMethod}
       transactionId={invoiceForm.transactionId}
       setTransactionId={invoiceForm.setTransactionId}
       salesperson={invoiceForm.salesperson}

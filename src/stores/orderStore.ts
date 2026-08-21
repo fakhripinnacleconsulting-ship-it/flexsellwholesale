@@ -7,6 +7,21 @@ export type { Order, ShipmentDetails, OrderListParams };
 
 interface OrderStoreState {
   orders: Order[];
+  /**
+   * Server-side paging, populated only when the caller asks for a page.
+   *
+   * `initializeOrders()` with no page/limit keeps its old behaviour — the newest 100 —
+   * because nine call sites depend on it for aggregates rather than for a list. Only the
+   * order manager sends page/limit, and only it reads these.
+   */
+  total: number;
+  page: number;
+  totalPages: number;
+  analytics?: {
+    totalAmount: number;
+    pendingCount: number;
+    toDispatchCount: number;
+  };
   isLoading: boolean;
   error: string | null;
   initializeOrders: (params?: OrderListParams) => Promise<void>;
@@ -30,6 +45,9 @@ interface OrderStoreState {
 
 export const useOrderStore = create<OrderStoreState>()((set) => ({
   orders: [],
+  total: 0,
+  page: 1,
+  totalPages: 1,
   isLoading: false,
   error: null,
 
@@ -38,7 +56,15 @@ export const useOrderStore = create<OrderStoreState>()((set) => ({
     try {
       const data = await orderService.getOrders(params) as any;
       const ordersList = Array.isArray(data) ? data : data.orders || [];
-      set({ orders: ordersList, isLoading: false });
+      // An array response is the unpaginated branch; the object carries the paging.
+      set({
+        orders: ordersList,
+        total: Array.isArray(data) ? ordersList.length : data.total ?? ordersList.length,
+        page: Array.isArray(data) ? 1 : data.page ?? 1,
+        totalPages: Array.isArray(data) ? 1 : data.totalPages ?? 1,
+        analytics: Array.isArray(data) ? undefined : data.analytics,
+        isLoading: false,
+      });
     } catch (err) {
       set({
         error: handleApiError(err, "Failed to load orders"),
@@ -50,7 +76,7 @@ export const useOrderStore = create<OrderStoreState>()((set) => ({
   createOrder: async (items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, charges) => {
     set({ isLoading: true, error: null });
     try {
-      const newOrder = await orderService.createOrder(items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, undefined, undefined, charges);
+      const newOrder = await orderService.createOrder(items, amount, shippingAddress, paymentDetails, couponCode, couponDiscount, undefined, charges);
       set((state) => ({
         orders: [newOrder, ...state.orders],
         isLoading: false

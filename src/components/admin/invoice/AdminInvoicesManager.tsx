@@ -9,7 +9,10 @@ import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { customerService } from "@/services/customerService";
 import { shippingService } from "@/services/shippingService";
-import { orderService } from "@/services/orderService";
+import { invoiceService } from "@/services/invoiceService";
+import { collectOrderPaymentOnline } from "@/lib/razorpayCollect";
+import { describePaymentFailure } from "@/lib/paymentErrors";
+import * as advanceBalanceService from "@/services/advanceBalanceService";
 import { Customer, Invoice, TaxBreakdown } from "@/types";
 import { INDIAN_STATES } from "@/lib/constants";
 
@@ -21,7 +24,7 @@ import { useInvoiceForm } from "@/hooks/useInvoiceForm";
 import { InvoiceTable } from "@/components/admin/invoice/InvoiceTable";
 import { CompanyInformationTab, CompanyInfoData } from "@/components/admin/invoice/CompanyInformationTab";
 import { InvoiceCreateModal } from "@/components/admin/invoice/InvoiceCreateModal";
-import { InvoicePayModal } from "@/components/admin/invoice/InvoicePayModal";
+import { InvoicePayModal, PayOnlineMethod } from "@/components/admin/invoice/InvoicePayModal";
 import { InvoicePreviewModal } from "@/components/admin/invoice/InvoicePreviewModal";
 
 import { usePermissions } from "@/hooks/usePermissions";
@@ -104,10 +107,25 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
   // Pay Modal State
   const [isPayModalOpen, setIsPayModalOpen] = React.useState(false);
   const [payInvoiceId, setPayInvoiceId] = React.useState<string | null>(null);
-  const [payInvoiceType, setPayInvoiceType] = React.useState<"invoice" | "receipt" | "quote">("receipt");
+  /** The order behind the receipt being paid — the gateway charges an order, not a document. */
+  const [payOrderId, setPayOrderId] = React.useState<string | null>(null);
+  const [payCustomer, setPayCustomer] = React.useState<{ name?: string; email?: string; phone?: string }>({});
   const [paymentType, setPaymentType] = React.useState<"cash" | "online">("cash");
-  const [onlineMethod, setOnlineMethod] = React.useState<"UPI" | "Razorpay" | "Bank Transfer">("UPI");
+  const [onlineMethod, setOnlineMethod] = React.useState<PayOnlineMethod>("UPI");
   const [txnId, setTxnId] = React.useState("");
+  const [payAmount, setPayAmount] = React.useState(0);
+  const [isPaySubmitting, setIsPaySubmitting] = React.useState(false);
+  /**
+   * Minted when the modal opens, not when it submits.
+   *
+   * That is what makes a double-click settle once: every retry of this one intent carries
+   * the same key, and the ledger is append-only so a duplicate debit could only be undone
+   * by an admin reversal the customer would also see.
+   */
+  const [payRequestId, setPayRequestId] = React.useState<string>("");
+
+  const [storeAdvanceBalance, setStoreAdvanceBalance] = React.useState(0);
+  const [businessAdvanceBalance, setBusinessAdvanceBalance] = React.useState(0);
 
   // Data fetching
   const loadData = React.useCallback(async () => {
@@ -186,100 +204,115 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
 
   const handlePayInvoice = (inv: Invoice) => {
     setPayInvoiceId(inv._id);
-    setPayInvoiceType(inv.type);
+    setPayOrderId(inv.orderId || null);
+    setPayCustomer({
+      name: inv.customerName,
+      email: inv.customerEmail,
+      phone: inv.shippingAddress?.phone,
+    });
+    setPayAmount(Number(inv.amount) || 0);
     setTxnId("");
     setPaymentType("cash");
     setOnlineMethod("UPI");
+    setPayRequestId(advanceBalanceService.newRequestId());
+
+    const custId = inv.customerId || (inv as any).customer?._id || (inv as any).customer;
+    if (custId) {
+      advanceBalanceService
+        .getAdvanceBalances(String(custId))
+        .then((res) => {
+          setStoreAdvanceBalance(res.store?.availableBalance || 0);
+          setBusinessAdvanceBalance(res.business?.availableBalance || 0);
+        })
+        .catch(() => {
+          setStoreAdvanceBalance(0);
+          setBusinessAdvanceBalance(0);
+        });
+    } else {
+      setStoreAdvanceBalance(0);
+      setBusinessAdvanceBalance(0);
+    }
+
     setIsPayModalOpen(true);
   };
 
+  /**
+   * Records the payment through the settle endpoint.
+   *
+   * This used to call `updateInvoice({ paymentStatus: "Paid", paymentMethod: "Store Advance Balance",
+   * type: "invoice" })`. That marked the document paid without ever calling the Advance Balance, so a
+   * customer with ₹0 was settled in full, and it flipped `type` in place so the resulting Tax
+   * Invoice kept its `REC-` number. `/settle` moves the money first and issues a real `INV-`
+   * document; a short balance comes back as a 409 and nothing changes.
+   */
   const handleConfirmPay = async () => {
-    if (!payInvoiceId) return;
-    const finalTxnId = paymentType === "cash"
-      ? (txnId || `CASH-HAND-${Date.now().toString().slice(-4)}`)
-      : (txnId || `${onlineMethod.toUpperCase()}-${Date.now().toString().slice(-6)}`);
+    if (!payInvoiceId || isPaySubmitting) return;
 
-    try {
-      await updateInvoice(payInvoiceId, {
-        paymentStatus: "Paid",
-        paymentMethod: paymentType === "cash" ? "Cash" : onlineMethod,
-        transactionId: finalTxnId,
-        type: "invoice"
-      } as any);
-      setIsPayModalOpen(false);
-      addToast(`Payment recorded for document ${payInvoiceId}!`, "success");
-      loadData();
-    } catch (err: any) {
-      addToast(err.message || "Failed to update status to paid", "error");
-    }
-  };
+    const method = paymentType === "cash" ? "Cash" : onlineMethod;
+    setIsPaySubmitting(true);
 
-  const handleConvertQuoteToOrder = async (quote: Invoice) => {
-    try {
-      invoiceForm.setIsSubmitting(true);
-
-      const normalizedItems = (quote.items || []).map((i: any, idx: number) => {
-        const pId = typeof i.product === "object" ? (i.product?._id || i.productId || `PROD-${idx}`) : (i.productId || (typeof i.product === "string" ? i.product : `PROD-${idx}`));
-        const pTitle = typeof i.product === "object" ? (i.product?.title || i.product?.name || "Wholesale Product") : (i.productTitle || i.name || i.title || "Wholesale Product");
-        return {
-          id: i.id || i._id || `item-${idx}-${Date.now()}`,
-          productId: pId,
-          product: {
-            _id: pId,
-            title: pTitle,
-            categoryId: i.product?.categoryId || i.categoryId || "cat-default",
-            gstRate: i.product?.gstRate || i.gstRate || 18,
-            priceIncludesGst: i.product?.priceIncludesGst ?? true,
-          },
-          selectedVariants: i.selectedVariants || i.variants || {},
-          quantity: Number(i.quantity || 1),
-          pricePerUnit: Number(i.pricePerUnit || i.price || 0)
-        };
-      });
-
-      const shippingAddress = quote.shippingAddress || {
-        firstName: quote.customerName ? quote.customerName.split(" ")[0] : "Client",
-        lastName: quote.customerName ? quote.customerName.split(" ").slice(1).join(" ") || "Buyer" : "Buyer",
-        email: quote.customerEmail || "customer@example.com",
-        company: (quote as any).customerCompany || (quote.shippingAddress as any)?.company || "",
-        address: "Wholesale Dock Facility Address",
-        city: "Mumbai",
-        state: "Maharashtra",
-        pinCode: "400001",
-        phone: "9876543210",
-        gstin: quote.customerGstin || ""
-      };
-
-      const newOrder = await orderService.createOrder(
-        normalizedItems as any,
-        quote.amount,
-        shippingAddress as any,
-        {
-          paymentMethod: quote.paymentMethod || "Bank Transfer",
-          paymentStatus: "Pending"
-        },
-        quote.couponCode,
-        quote.couponDiscount,
-        quote._id,
-        quote.salesperson
-      );
-
-      addToast(`Quote ${quote._id} converted & Order ${newOrder._id} created successfully!`, "success");
-      setSelectedInvoice(null);
-      loadData();
-    } catch (err: any) {
-      addToast(err.message || "Failed to convert quote to order", "error");
-    } finally {
-      invoiceForm.setIsSubmitting(false);
-    }
-  };
-
-  const handleUpdateQuoteStatus = async (newStatus: string) => {
-    if (!selectedInvoice) return;
-    if (newStatus === "converted") {
-      await handleConvertQuoteToOrder(selectedInvoice);
+    /**
+     * Razorpay is collected, not recorded.
+     *
+     * `/settle` records money already in hand, so it refuses the gateway outright. The
+     * gateway runs here against the receipt's linked order and settles through
+     * `/api/razorpay/verify`, which issues the `INV-` on a verified signature — the same
+     * path the storefront checkout uses.
+     */
+    if (method === "Razorpay") {
+      if (!payOrderId) {
+        addToast("This receipt has no linked order, so the gateway has nothing to charge.", "error");
+        setIsPaySubmitting(false);
+        return;
+      }
+      try {
+        const outcome = await collectOrderPaymentOnline({
+          orderId: payOrderId,
+          customerName: payCustomer.name,
+          customerEmail: payCustomer.email,
+          customerPhone: payCustomer.phone,
+          description: `Payment for receipt ${payInvoiceId}`,
+        });
+        if (outcome.status === "paid") {
+          setIsPayModalOpen(false);
+          addToast(`Payment received. Tax Invoice issued for ${payInvoiceId}.`, "success");
+          loadData();
+        } else {
+          addToast("Payment cancelled — the receipt is unchanged and still payable.", "info");
+        }
+      } catch (err: any) {
+        addToast(describePaymentFailure(err), "error");
+      } finally {
+        setIsPaySubmitting(false);
+      }
       return;
     }
+
+    try {
+      const result = await invoiceService.settleInvoice(payInvoiceId, {
+        method,
+        transactionId: txnId.trim() || undefined,
+        clientRequestId: payRequestId,
+      });
+      setIsPayModalOpen(false);
+      addToast(result.message || `Tax Invoice ${result.invoiceId} issued.`, "success");
+      loadData();
+    } catch (err: any) {
+      addToast(describePaymentFailure(err, { fallback: "The payment could not be recorded." }), "error");
+    } finally {
+      setIsPaySubmitting(false);
+    }
+  };
+
+  /**
+   * Quotes are standalone price estimates.
+   *
+   * The conversion handler that used to live here rebuilt the quote's lines and posted them
+   * to `orderService.createOrder`, then marked the quote `converted`. Quotations no longer
+   * become orders, receipts or invoices at all, so the status a user picks is just a status.
+   */
+  const handleUpdateQuoteStatus = async (newStatus: string) => {
+    if (!selectedInvoice) return;
     try {
       await updateInvoice(selectedInvoice._id, { status: newStatus } as any);
       setSelectedInvoice(prev => prev ? ({ ...prev, status: newStatus as any }) : null);
@@ -360,7 +393,6 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
             onViewInvoice={setSelectedInvoice}
             onPayInvoice={handlePayInvoice}
             onEditQuote={invoiceForm.handleEditQuote}
-            onConvertQuote={handleConvertQuoteToOrder}
             onVoidInvoice={handleVoidInvoice}
             onDeleteInvoice={handleDeleteInvoice}
           />
@@ -379,7 +411,8 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
         isOpen={isPayModalOpen}
         onClose={() => setIsPayModalOpen(false)}
         payInvoiceId={payInvoiceId}
-        payInvoiceType={payInvoiceType}
+        linkedOrderId={payOrderId}
+        payAmount={payAmount}
         paymentType={paymentType}
         setPaymentType={setPaymentType}
         onlineMethod={onlineMethod}
@@ -387,6 +420,9 @@ export function AdminInvoicesManager({ initialTab = "quote" }: { initialTab?: "i
         txnId={txnId}
         setTxnId={setTxnId}
         onConfirmPay={handleConfirmPay}
+        isSubmitting={isPaySubmitting}
+        storeAdvanceBalance={storeAdvanceBalance}
+        businessAdvanceBalance={businessAdvanceBalance}
       />
 
       <InvoicePreviewModal

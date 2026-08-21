@@ -47,19 +47,57 @@ export function resolveCustomerTier(customerTypes?: string[]): PriceTier {
   return "B2C";
 }
 
+/**
+ * The minimum order quantity that applies to this buyer.
+ *
+ * **A minimum order quantity is a B2B wholesale term and belongs to B2B alone.** The array
+ * branch used to read `includes("B2B") || includes("Dropshipping")`, which forced the
+ * wholesale MOQ onto every Dropshipping account — and because the object branch checked only
+ * B2B, the same customer got a different answer depending on which shape the caller happened
+ * to pass. All three shapes now agree.
+ *
+ * Returns 1 — "no minimum" — for everyone else, so callers can clamp unconditionally against
+ * the result without needing their own role test.
+ */
 export function resolveMoq(sv?: SubVariant, tierOrTypes?: PriceTier | string[] | any): number {
   if (!sv) return 1;
 
+  const moq = sv.b2bMoq || 1;
+
   if (typeof tierOrTypes === "object" && tierOrTypes !== null && !Array.isArray(tierOrTypes)) {
+    // Admins order on a customer's behalf at that customer's terms, not their own.
     if (tierOrTypes.role === "admin") return 1;
-    return isB2bVerified(tierOrTypes) ? (sv.b2bMoq || 1) : 1;
+    return isPureB2B(tierOrTypes.customerTypes) ? moq : 1;
   }
 
   if (Array.isArray(tierOrTypes)) {
-    return (tierOrTypes.includes("B2B") || tierOrTypes.includes("Dropshipping")) ? (sv.b2bMoq || 1) : 1;
+    return isPureB2B(tierOrTypes) ? moq : 1;
   }
 
-  return tierOrTypes === "B2B" ? (sv.b2bMoq || 1) : 1;
+  return tierOrTypes === "B2B" ? moq : 1;
+}
+
+/**
+ * The quantity this buyer must actually order, given what they asked for.
+ *
+ * The single place the MOQ decision is made. `cartStore` previously clamped at three
+ * different sites and only one of them checked whether the customer was pure B2B, so adding
+ * a single unit as a B2C shopper silently became "minimum 50" with a toast reading
+ * "MOQ required for B2B orders".
+ *
+ * Returns the requested quantity unchanged whenever no minimum applies, and reports whether
+ * it raised anything so the caller can decide whether to say so.
+ */
+export function enforceMoq(
+  requested: number,
+  sv?: SubVariant,
+  customerOrTypes?: PriceTier | string[] | any
+): { quantity: number; wasRaised: boolean; moq: number } {
+  const moq = resolveMoq(sv, customerOrTypes);
+  if (moq <= 1 || requested >= moq) {
+    return { quantity: requested, wasRaised: false, moq };
+  }
+  return { quantity: moq, wasRaised: true, moq };
 }
 
 /**
@@ -112,6 +150,68 @@ export function resolvePrice(
   }
 
   return sv.b2cPrice;
+}
+
+/**
+ * Every price this buyer is permitted to pay for this line.
+ *
+ * `resolvePrice` answers a different question — "what should we *show* this customer" — and
+ * returns exactly one number: the best rate they qualify for. The order route used that single
+ * answer as the *only* acceptable price, so a B2B customer buying a single unit at the retail
+ * rate was rejected for paying **too much**:
+ *
+ *     Price verification failed … Expected ₹499, got ₹650.
+ *
+ * Paying more than you must is not fraud. Verification needs the *set*, not the best entry.
+ *
+ * Note what this deliberately does **not** consult: `item.priceTier`. That field arrives from
+ * the browser, and branching on it would put an entitlement re-check inside each branch —
+ * three places to get right instead of one. Membership of a server-computed set needs no
+ * client input at all.
+ *
+ * MRP is absent on purpose: it is the strikethrough reference, never a rate anything is sold at.
+ */
+export function allowedPrices(
+  sv?: SubVariant,
+  customerOrTypes?: PriceTier | string[] | any,
+  quantity: number = 1
+): number[] {
+  if (!sv) return [];
+
+  const { isVerified, isDropshipper } = resolveEntitlement(customerOrTypes);
+  const b2bMoq = sv.b2bMoq || 1;
+
+  // Retail is open to everyone, including B2B and Dropshipping accounts.
+  const prices: Array<number | undefined> = [sv.b2cPrice];
+
+  // Wholesale needs entitlement *and* the minimum quantity — the same two conditions
+  // resolvePrice applies, so the cart and the check cannot disagree about who qualifies.
+  if (isVerified && quantity >= b2bMoq) prices.push(sv.b2bPrice);
+
+  if (isDropshipper) prices.push(sv.dropshippingPrice);
+
+  return prices.filter((p): p is number => typeof p === "number" && p > 0);
+}
+
+/**
+ * Whether a submitted unit price is one this buyer may pay.
+ *
+ * Uses the same ₹0.05 tolerance the previous single-price check used, which absorbs the
+ * rounding that happens when a price crosses the wire as a float.
+ */
+export function isPriceAllowed(
+  submitted: number,
+  sv?: SubVariant,
+  customerOrTypes?: PriceTier | string[] | any,
+  quantity: number = 1
+): { ok: true } | { ok: false; allowed: number[] } {
+  const allowed = allowedPrices(sv, customerOrTypes, quantity);
+
+  // No priced variant at all — nothing to verify against, so nothing to reject on.
+  if (allowed.length === 0) return { ok: true };
+
+  const matches = allowed.some((price) => Math.abs(price - submitted) <= 0.05);
+  return matches ? { ok: true } : { ok: false, allowed };
 }
 
 export function resolvePriceTierName(

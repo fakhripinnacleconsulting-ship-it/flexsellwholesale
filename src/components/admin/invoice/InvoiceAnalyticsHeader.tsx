@@ -14,8 +14,10 @@ export function InvoiceAnalyticsHeader({ activeTab, invoices }: InvoiceAnalytics
   if (activeTab === "company_info") return null;
 
   const totalValue = invoices.reduce((sum, i) => sum + (i.amount || 0), 0);
-  const convertedOrPaidCount = activeTab === "quote" 
-    ? invoices.filter(i => i.status === "converted").length 
+  // A quote's successful outcome is `accepted`. `converted` is folded in for quotes created
+  // before conversion was removed — counting only that would have read 0 for every new quote.
+  const acceptedOrPaidCount = activeTab === "quote"
+    ? invoices.filter(i => i.status === "accepted" || i.status === "converted").length
     : invoices.filter(i => i.status === "paid").length;
   const draftOrVoidCount = activeTab === "quote"
     ? invoices.filter(i => ["draft", "sent", "finalized"].includes(i.status)).length
@@ -57,10 +59,10 @@ export function InvoiceAnalyticsHeader({ activeTab, invoices }: InvoiceAnalytics
         <CardContent className="p-4 flex items-center justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-              {activeTab === "quote" ? "Converted" : activeTab === "receipt" ? "Paid Receipts" : "Paid Invoices"}
+              {activeTab === "quote" ? "Accepted" : activeTab === "receipt" ? "Paid Receipts" : "Paid Invoices"}
             </p>
             <h3 className="text-lg font-black mt-1 text-foreground">
-              {convertedOrPaidCount}
+              {acceptedOrPaidCount}
             </h3>
           </div>
           <div className="p-2 rounded-lg bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 text-base">

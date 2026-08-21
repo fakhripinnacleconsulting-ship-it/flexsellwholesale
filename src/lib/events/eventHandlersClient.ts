@@ -136,7 +136,7 @@ export function handleClientMockEvent(event: SystemEventPayload): void {
 
       case "COUPON_LIVE":
         notifTitle = `New Promo Coupon Live: ${data?.code || "DISCOUNT"}`;
-        notifMessage = `Use promo code "${data?.code}" to get ${data?.discountType === "percentage" ? `${data?.discountValue}% OFF` : `₹${data?.discountValue} FLAT OFF`} on your wholesale purchase!`;
+        notifMessage = `Use promo code "${data?.code}" to get ${data?.discountType === "percentage" ? `${data?.discountValue}% OFF` : `₹${data?.discountValue} FLAT OFF`} on your purchase!`;
         notifType = "success";
         deepLink = "/products";
         break;

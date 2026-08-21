@@ -54,7 +54,7 @@ const DEFAULT_POLICIES: Record<string, PolicyData> = {
   return: {
     title: "Bulk Return & Refund Policies",
     lastUpdated: "2026-07-27",
-    content: `<h3>1. Zero Unsold Returns</h3><p>Because we run at minimal margins, we do not accept returns for unsold goods or change-of-mind situations. All wholesale sales are final.</p><h3>2. Transit Defect Claims</h3><p>A continuous, uncut video showing the opening of the parcel package is mandatory to process shipping transit damage claims. Approved claims receive wallet top-up credits.</p>`,
+    content: `<h3>1. Zero Unsold Returns</h3><p>Because we run at minimal margins, we do not accept returns for unsold goods or change-of-mind situations. All wholesale sales are final.</p><h3>2. Transit Defect Claims</h3><p>A continuous, uncut video showing the opening of the parcel package is mandatory to process shipping transit damage claims. Approved claims are credited to your Advance Balance.</p>`,
   },
 };
 

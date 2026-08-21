@@ -1,5 +1,6 @@
 "use client";
 import { formatDateIST, toISTDateKey } from "@/lib/datetime";
+import { uploadWithCompression } from "@/lib/uploadHelper";
 
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -63,23 +64,10 @@ export function FulfillmentForm({
     if (!file) return;
     setIsUploadingLabel(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const headers: Record<string, string> = {};
-      if (typeof document !== "undefined") {
-        const matches = document.cookie.match(/csrf_token=([^;]+)/);
-        if (matches && matches[1]) {
-          headers["X-CSRF-Token"] = matches[1];
-        }
-      }
-      const res = await fetch("/api/customers/upload-document", {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to upload shipping label");
-      if (data.url) setUploadShippingLabel(data.url);
+      // A shipping label carries the customer's name and address, so it is private and
+      // served behind an ownership check rather than from a public CDN URL.
+      const uploaded = await uploadWithCompression(file, { kind: "dropship" });
+      if (uploaded.url) setUploadShippingLabel(uploaded.url);
     } catch (err: any) {
       addToast(err.message || "Failed to upload shipping label", "error");
     } finally {

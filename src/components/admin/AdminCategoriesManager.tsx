@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { uploadFileAndGetUrl } from "@/lib/uploadHelper";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -152,20 +153,9 @@ export function AdminCategoriesManager({ initialCategories }: AdminCategoriesMan
     addToast("Uploading category image...", "info");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to upload image");
-      }
-
-      const { url } = await res.json();
+      // Compressed in the browser before it is sent — a category image is served on every
+      // storefront visit, so its stored size is what the bandwidth bill is made of.
+      const url = await uploadFileAndGetUrl(file, "image");
       setImage(url);
       addToast("Category image uploaded successfully.", "success");
     } catch (err: unknown) {

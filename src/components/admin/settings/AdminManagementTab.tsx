@@ -333,7 +333,7 @@ export function AdminManagementTab() {
       {/* CREATE ADMIN MODAL */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-background border border-border rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-background border border-border rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90dvh]">
             <div className="flex items-center justify-between p-4 border-b border-border bg-secondary/30">
               <div className="flex items-center gap-2">
                 <UserPlus className="h-5 w-5 text-primary" />
@@ -454,7 +454,7 @@ export function AdminManagementTab() {
       {/* EDIT ADMIN MODAL */}
       {isEditModalOpen && selectedAdmin && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-background border border-border rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-background border border-border rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90dvh]">
             <div className="flex items-center justify-between p-4 border-b border-border bg-secondary/30">
               <div className="flex items-center gap-2">
                 <Edit className="h-5 w-5 text-primary" />

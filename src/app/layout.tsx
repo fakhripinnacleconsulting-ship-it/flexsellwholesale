@@ -67,6 +67,15 @@ export default function RootLayout({
         <link rel="icon" href="/Favicon.png" type="image/png" sizes="any" />
         <link rel="shortcut icon" href="/Favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/Favicon.png" />
+        {/*
+          Warms DNS and TLS for Razorpay Checkout without fetching it.
+
+          The script itself is loaded on demand by lib/razorpayLoader.ts, which awaits it
+          before constructing — so preloading it globally would pull ~100 KB on every page for
+          every visitor, most of whom never reach a payment, and buy nothing the await does not
+          already guarantee. A preconnect costs a few bytes and makes that eventual fetch fast.
+        */}
+        <link rel="preconnect" href="https://checkout.razorpay.com" />
         <meta name="theme-color" content="#059669" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

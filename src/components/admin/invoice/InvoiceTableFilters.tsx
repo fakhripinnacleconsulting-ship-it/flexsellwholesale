@@ -73,12 +73,21 @@ export function InvoiceTableFilters({
               <option value="draft">Draft</option>
               <option value="sent">Sent</option>
               <option value="finalized">Finalized</option>
-              <option value="converted">Converted to Order</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+              <option value="expired">Expired</option>
             </>
           )}
           {activeTab === "receipt" && (
             <>
               <option value="pending">Pending Payment</option>
+              {/*
+                A settled receipt is retained rather than converted, so paid receipts now live
+                here permanently — they are the record of what was collected, alongside the
+                `INV-` Tax Invoice issued against them. Without this option there was no way
+                to list them.
+              */}
+              <option value="paid">Paid (Settled)</option>
               <option value="failed">Payment Failed</option>
             </>
           )}

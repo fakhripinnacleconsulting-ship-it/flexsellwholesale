@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { resolveRange, describeRange, financialYearLabel } from "../dateRange";
+import {
+  resolveRange,
+  describeRange,
+  formatRangePeriod,
+  financialYearLabel,
+  RANGE_PRESETS,
+} from "../dateRange";
 
 /**
  * Date ranges anchor on the **Indian financial year** (1 April – 31 March), so the boundary
@@ -131,5 +137,44 @@ describe("describeRange", () => {
   it("describes an unbounded range as all time", () => {
     expect(describeRange(resolveRange("all"))).toBe("All time");
     expect(describeRange(resolveRange("custom", {}))).toBe("All time");
+  });
+});
+
+/**
+ * B-1 regression.
+ *
+ * The PDF statement used describeRange for its Period line, so a statement downloaded with
+ * "This month" selected was headed "This month" — meaningless once the file is in a folder,
+ * and it disagreed with the CSV export of the very same statement, which had always printed
+ * the real dates.
+ */
+describe("formatRangePeriod", () => {
+  it("prints concrete dates for a preset, never the preset's label", () => {
+    at("2026-08-15T10:00:00");
+    const period = formatRangePeriod(resolveRange("this_month"));
+
+    expect(period).not.toBe("This month");
+    expect(period).toMatch(/^\d{2} \w{3} 2026 to \d{2} \w{3} 2026$/);
+  });
+
+  it("never returns any preset label", () => {
+    at("2026-08-15T10:00:00");
+    const labels = RANGE_PRESETS.map((p) => p.label);
+
+    for (const preset of RANGE_PRESETS) {
+      if (preset.key === "all" || preset.key === "custom") continue;
+      const period = formatRangePeriod(resolveRange(preset.key));
+      expect(labels).not.toContain(period);
+    }
+  });
+
+  it("prints concrete dates for a custom range", () => {
+    const range = resolveRange("custom", { from: "2026-04-01", to: "2026-06-30" });
+    expect(formatRangePeriod(range)).toBe("01 Apr 2026 to 30 Jun 2026");
+  });
+
+  it("says All time only when the range is genuinely unbounded", () => {
+    expect(formatRangePeriod(resolveRange("all"))).toBe("All time");
+    expect(formatRangePeriod(resolveRange("custom", {}))).toBe("All time");
   });
 });

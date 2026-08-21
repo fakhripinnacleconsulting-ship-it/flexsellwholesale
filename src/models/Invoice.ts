@@ -85,9 +85,40 @@ const InvoiceSchema = new Schema<InvoiceType & Document>(
     paymentMethod: { type: String },
     paymentStatus: { type: String },
     transactionId: { type: String },
+
+    /**
+     * Settlement links, in both directions.
+     *
+     * A paid receipt is no longer mutated into an invoice — `_id` is an assigned String and
+     * MongoDB will not change it, so that produced Tax Invoices numbered `REC-…`. Settlement
+     * now issues a separate `INV-` document and the two point at each other, which also
+     * keeps the receipt available as the audit record of what was collected.
+     */
+    sourceReceiptId: { type: String },
+    settledByInvoiceId: { type: String },
+
+    /**
+     * The ledger row that paid this document, when a Advance Balance paid it.
+     *
+     * Without this a wallet-settled invoice has no pointer into AdvanceBalanceTransaction, so it can
+     * neither be reconciled nor reversed.
+     */
+    walletTransactionId: { type: String },
+    walletType: { type: String, enum: ["store", "business"] },
+
     sellerInfo: { type: SellerInfoSchema, required: true },
     notes: { type: String },
+    // Display string, in IST. `issuedAt` below is the sortable instant — this stays because
+    // it is what the printed document shows.
     generatedAt: { type: String, required: true },
+    /**
+     * The instant the document was issued.
+     *
+     * `generatedAt` is a formatted string, so date-range queries and reporting had to fall
+     * back to `createdAt` — which is the row's creation time, not the document's issue date.
+     * They differ for anything backfilled or migrated.
+     */
+    issuedAt: { type: Date, default: Date.now },
     generatedBy: { type: String, required: true, default: "system" },
     createdBy: {
       name: { type: String },
@@ -137,9 +168,20 @@ InvoiceSchema.index({ customerId: 1 });
 InvoiceSchema.index({ status: 1 });
 InvoiceSchema.index({ isArchived: 1 });
 InvoiceSchema.index({ createdAt: -1 });
+InvoiceSchema.index({ issuedAt: -1 });
 InvoiceSchema.index({ customerType: 1 });
 InvoiceSchema.index({ "createdBy.userId": 1 });
 InvoiceSchema.index({ "createdBy.role": 1 });
+
+/**
+ * One invoice per receipt, enforced by the database.
+ *
+ * The application-level duplicate check this backs up only fired when the receipt had a
+ * linked `orderId`, so a standalone receipt could be settled twice by two concurrent
+ * requests. A unique index cannot be raced.
+ */
+InvoiceSchema.index({ sourceReceiptId: 1 }, { unique: true, sparse: true });
+InvoiceSchema.index({ walletTransactionId: 1 }, { sparse: true });
 
 if (mongoose.models.Invoice) {
   mongoose.deleteModel("Invoice");

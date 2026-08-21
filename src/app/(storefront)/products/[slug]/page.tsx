@@ -8,6 +8,20 @@ import { constructMetadata, generateProductSchema, generateBreadcrumbSchema, gen
 export const revalidate = 86400; // 24h safety net; freshness comes from on-demand revalidation (lib/revalidate.ts)
 
 /**
+ * Room for a cold on-demand render.
+ *
+ * A product added after the last deploy is not in `generateStaticParams`, so its first visitor
+ * triggers generation: cold function, fresh Atlas connection, the product query and the
+ * related-products query, then an ISR write. Measured at ~4.8s in production for the cheapest
+ * possible miss. Under the platform default that render was being killed part-way, which is
+ * what produced "A server error occurred" on every newly added product.
+ *
+ * This does not make the render faster — the warm-up in /api/products and the Suspense split
+ * below do that. It stops a render that was going to succeed from being cut off.
+ */
+export const maxDuration = 60;
+
+/**
  * Pre-build the most-visited product pages so crawler and user traffic lands on a warm
  * cache instead of triggering an on-demand render (each of which is an ISR write).
  *

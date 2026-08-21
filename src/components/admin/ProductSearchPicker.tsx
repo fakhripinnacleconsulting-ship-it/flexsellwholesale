@@ -59,7 +59,7 @@ export function ProductSearchPicker({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card w-full max-w-2xl rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[85vh] text-foreground">
+      <div className="bg-card w-full max-w-2xl rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[85dvh] text-foreground">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
           <h3 className="font-bold text-lg">{title}</h3>

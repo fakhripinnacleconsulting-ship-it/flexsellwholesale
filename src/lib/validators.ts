@@ -112,7 +112,15 @@ export const orderSchema = z.object({
   }),
   status: z.enum(["Processing", "Shipped", "Delivered", "Cancelled"]).optional(),
   paymentDetails: z.object({
-    paymentMethod: z.enum(["Bank Transfer", "Razorpay", "UPI", "COD"]),
+    /**
+     * Must stay in step with the `paymentMethod` enum on the Order model.
+     *
+     * "Wallet" was missing, so every Advance Balance checkout failed Zod validation before it reached
+     * the Advance Balance at all — the order was never created and the buyer saw a generic 500.
+     * A Advance Balance order is always created `Pending` here and moved to `Paid` by
+     * /api/advance-balance/pay-order once the debit succeeds; the method alone never settles anything.
+     */
+    paymentMethod: z.enum(["Bank Transfer", "Razorpay", "UPI", "COD", "Wallet", "Cash"]),
     paymentStatus: z.enum(["Pending", "Paid", "Failed"]),
     transactionId: z.string().optional(),
   }).optional(),
@@ -122,6 +130,14 @@ export const orderSchema = z.object({
   shippingCharge: z.number().optional(),
   quoteId: z.string().optional(),
   salesperson: z.string().optional(),
+  /**
+   * The category the caller is explicitly placing this order under.
+   *
+   * Optional, and never trusted on its own — the route validates it against the customer's
+   * own `customerTypes` before honouring it. It exists so an explicit choice outranks
+   * guessing the category from whether a GSTIN happened to be on the shipping address.
+   */
+  orderType: z.enum(["B2B", "B2C", "Dropshipping"]).optional(),
 });
 
 // Product validation schema

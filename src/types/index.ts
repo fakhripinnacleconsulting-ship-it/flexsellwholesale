@@ -216,9 +216,11 @@ export interface Order extends BaseDocument {
   transactionId?: string;
   /** Razorpay order handle minted for this order; used to bind payment verification. */
   razorpayOrderId?: string;
-  /** Set when this order was paid from a wallet — links back to the ledger entry. */
+  /** Set when this order was paid from a Advance Balance — links back to the ledger entry. */
   walletTransactionId?: string;
   walletAmount?: number;
+  /** Which Advance Balance paid, when `paymentMethod` is "Wallet". */
+  walletType?: "store" | "business";
   invoiceId?: string;
   quoteId?: string;
   salesperson?: string;
@@ -306,9 +308,19 @@ export interface Invoice extends BaseDocument {
   paymentMethod?: string;
   paymentStatus?: string;
   transactionId?: string;
+  /** On an invoice: the receipt it settled. Unique — one invoice per receipt. */
+  sourceReceiptId?: string;
+  /** On a receipt: the invoice issued when it was paid. */
+  settledByInvoiceId?: string;
+  /** The AdvanceBalanceTransaction that paid this document, when a Advance Balance paid it. */
+  walletTransactionId?: string;
+  walletType?: "store" | "business";
   sellerInfo: SellerInfo;
   notes?: string;
+  /** Display string in IST. Use `issuedAt` for sorting and range queries. */
   generatedAt: string;
+  /** The sortable issue instant. */
+  issuedAt?: string;
   generatedBy: string;
   createdBy?: CreatedByInfo;
   salesperson?: string;
@@ -502,5 +514,5 @@ export interface Collection extends BaseDocument {
   seoKeywords?: string;
 }
 
-// Wallet domain types.
-export * from "./wallet";
+// Advance Balance domain types.
+export * from "./advanceBalance";

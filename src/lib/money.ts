@@ -1,9 +1,9 @@
 /**
  * The only place rupees become paise and back.
  *
- * The wallet stores integer paise; the rest of the codebase stores rupees. That mismatch
+ * The Advance Balance stores integer paise; the rest of the codebase stores rupees. That mismatch
  * produces a x100 bug the moment two components each do their own conversion, so every
- * conversion in the wallet goes through here and every paise-valued variable carries the
+ * conversion in the Advance Balance goes through here and every paise-valued variable carries the
  * `Paise` suffix — a reviewer must be able to see the unit without opening another file.
  */
 

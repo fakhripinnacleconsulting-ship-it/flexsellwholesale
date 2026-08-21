@@ -45,7 +45,7 @@ src/app/
 │   ├── dropshipping  quote  create-order  search  wishlist
 │   └── system-diagnostics
 ├── (dashboard)/
-│   ├── client/          12 pages  — orders, wallet, addresses, profile, reviews…
+│   ├── client/          12 pages  — orders, Advance, addresses, profile, reviews…
 │   ├── admin/           26 pages  — full control
 │   └── manager/         29 pages  — permission-scoped
 └── api/                 88 route handlers
@@ -78,7 +78,7 @@ ships a dark theme and a literal breaks it.
 | `--ring` | `#10b981` | `#10b981` | Focus ring |
 | `--radius` | `0.5rem` | — | Corner radius |
 
-The emerald is not arbitrary: it matches the Business Wallet banner artwork, so product and
+The emerald is not arbitrary: it matches the Business Advance banner artwork, so product and
 marketing share one identity.
 
 **Semantic colour is separate from the accent.** Success uses `--primary`, danger
@@ -134,7 +134,7 @@ collapse and double in ways that are hard to trace.
 | `storefront/` | 45 | Catalogue, cart, checkout, product detail, hero, search |
 | `ui/` | 21 | The primitives above |
 | `dropshipping/` | 10 | The Dropshipping Hub |
-| `wallet/` | 9 | Balance card, breakdown, passbook, dialogs, staff panel, receipt |
+| `Advance/` | 9 | Balance card, breakdown, passbook, dialogs, staff panel, receipt |
 | `layout/` | 8 | Header, footer, sidebars, mega menu |
 | `managers/` | 5 | `PermissionGuard`, manager shells |
 | `documents/` | 3 | Printable invoice, receipt, shipping label |
@@ -146,25 +146,25 @@ collapse and double in ways that are hard to trace.
 
 The contracts a new engineer will actually need.
 
-### `WalletBalanceCard`
+### `AdvanceBalanceCard`
 
 ```ts
 {
   type: "store" | "business";
-  wallet: WalletView | null;      // null renders ₹0, not an error
+  Advance: AdvanceView | null;      // null renders ₹0, not an error
   actions?: React.ReactNode;      // e.g. the Add Money button
   notice?: React.ReactNode;       // e.g. the KYC banner
 }
 ```
 
-A `null` wallet is *not* an error — lazy creation means the document may simply not exist yet,
+A `null` Advance is *not* an error — lazy creation means the document may simply not exist yet,
 so it renders ₹0 in the same layout.
 
-### `WalletPassbook`
+### `AdvancePassbook`
 
 ```ts
 {
-  data: WalletStatementPage | null;
+  data: AdvanceStatementPage | null;
   isLoading?: boolean;
   error?: string | null;          // rendered distinctly — never as an empty table
   onPageChange?: (page: number) => void;
@@ -175,11 +175,11 @@ so it renders ₹0 in the same layout.
 }
 ```
 
-### `WalletBreakdown`
+### `AdvanceBreakdown`
 
 ```ts
 {
-  data: WalletBreakdown | null;
+  data: AdvanceBreakdown | null;
   isLoading?: boolean;
   error?: string | null;
   onSelectCategory?: (key: string) => void;
@@ -231,7 +231,7 @@ confirmAction({
 });
 ```
 
-**Title convention:** `"Add ₹50,000 to Sharma Traders' Business Wallet?"` — *"Are you sure?"*
+**Title convention:** `"Add ₹50,000 to Sharma Traders' Business Advance?"` — *"Are you sure?"*
 prevents nothing; the wrong subject is the likelier mistake.
 
 ---
@@ -277,7 +277,7 @@ the failure is silent until a token rotates.
 
 ### Mock mode
 
-`isMockMode` gives services a `localStorage` fallback for offline development. **The wallet
+`isMockMode` gives services a `localStorage` fallback for offline development. **The Advance
 service departs from this deliberately: reads may be faked, writes always throw.**
 
 > A mocked top-up that reports success teaches the interface that money moved when nothing did,
@@ -305,10 +305,10 @@ React.useEffect(() => {
 | Storefront listings | ISR, revalidated on write | Mostly static |
 | Cart, checkout | Client | Per-session |
 | Dashboards | Client against `no-store` | Never cacheable |
-| **Wallet** | `force-dynamic` + `no-store` | One customer seeing another's balance is the worst possible bug |
+| **Advance** | `force-dynamic` + `no-store` | One customer seeing another's balance is the worst possible bug |
 
 Every data route has a `loading.tsx` **shaped like its content** — the product page shows a
-gallery-and-panel skeleton, the wallet shows balance blocks. Never a centred spinner: it tells
+gallery-and-panel skeleton, the Advance shows balance blocks. Never a centred spinner: it tells
 the reader nothing and makes real content jump when it arrives.
 
 ---
@@ -332,7 +332,7 @@ Every data surface handles all four. For money they must never be confusable.
 ```
 
 **A failed balance fetch must never render as ₹0.** A customer has to be able to tell "could
-not load" from "your money is gone". The wallet page keeps `summaryError` separate from
+not load" from "your money is gone". The Advance page keeps `summaryError` separate from
 `summary === null` for exactly this reason.
 
 ---
@@ -406,8 +406,8 @@ in the same dialog — never a second prompt.
 
 State the irreversibility in the message, not just the title:
 
-> *"This cannot be reversed. Business Wallet balance can only be spent on services and can
-> never move back to the Store Wallet or be withdrawn."*
+> *"This cannot be reversed. Business Advance balance can only be spent on services and can
+> never move back to the Store Advance or be withdrawn."*
 
 ### Double-submit protection
 
@@ -510,12 +510,12 @@ inherently interactive; storefront pages degrade to readable static content).
 
 | Issue | Impact | Ticket |
 |---|---|---|
-| `window.alert` / `prompt` in `ConfirmOrderStep`, `FulfillmentForm`, `StaffWalletPanel` | Blocks the tab, unstyleable, reads as a browser warning | FS-204, FS-501 |
+| `window.alert` / `prompt` in `ConfirmOrderStep`, `FulfillmentForm`, `StaffAdvancePanel` | Blocks the tab, unstyleable, reads as a browser warning | FS-204, FS-501 |
 | Admin and manager pages duplicated | ~400 lines duplicated; two missed updates in one release | FS-301 |
-| Wallet receipt not reachable from the passbook | The document renders; nothing opens it | FS-203 |
+| Advance receipt not reachable from the passbook | The document renders; nothing opens it | FS-203 |
 | No screen for expense categories | API-only | FS-202 |
 | No screen for the offline-credit register | API-only — and it is what makes cash credits reviewable **together** | FS-201 |
-| Wallet page fetches client-side | Correct for cache safety, but shows a loading step every visit | FS-503 |
+| Advance page fetches client-side | Correct for cache safety, but shows a loading step every visit | FS-503 |
 | Empty vs error inconsistent on older admin screens | A failed load reads as "no data" | FS-502 |
 | Active category filter shown only as a Clear button | Minor confusion | FS-505 |
 

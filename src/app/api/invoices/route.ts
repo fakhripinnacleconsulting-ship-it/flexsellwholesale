@@ -1,3 +1,4 @@
+import { isAdvanceBalanceMethod } from "@/lib/advanceBalanceConstants";
 import { formatDateIST } from "@/lib/datetime";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
@@ -12,6 +13,7 @@ import { actorLabel, buildHistoryEvent } from "@/lib/orderHistory";
 import type { HistoryActor } from "@/types";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { computeOrderTaxDetails, resolveSellerState } from "@/lib/orderTotals";
+import { issueTaxInvoiceForReceipt, orderPaymentMethodFor, walletTypeForMethod, type StoredReceipt } from "@/lib/orderSettlement";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
 import { revalidateProductStock } from "@/lib/revalidate";
 import { escapeRegex } from "@/lib/utils";
@@ -95,78 +97,6 @@ async function generateInvoiceId(type: "invoice" | "receipt" | "quote"): Promise
   return generateNextId(type);
 }
 
-async function syncMissingInvoicesForOrders() {
-  try {
-    // Find all orders that do not have an invoiceId or whose invoiceId doesn't exist
-    const orders = await Order.find({
-      $or: [
-        { invoiceId: { $exists: false } },
-        { invoiceId: "" },
-        { invoiceId: null }
-      ]
-    }).lean();
-
-    if (orders.length === 0) return;
-
-    const sellerInfo = await getSellerInfo();
-    const sellerState = resolveSellerState(sellerInfo.address);
-
-    for (const order of orders as any[]) {
-      // Check if an invoice document already exists for this orderId (to prevent duplicates)
-      const existingDoc = await InvoiceModel.findOne({ orderId: order._id }).select("_id").lean();
-      if (existingDoc) {
-        // Just link it
-        await Order.findByIdAndUpdate(order._id, { invoiceId: (existingDoc as any)._id });
-        continue;
-      }
-
-      // Generate invoice/receipt
-      const pStatus = order.paymentStatus || "Pending";
-      const docType = pStatus === "Paid" ? "invoice" : "receipt";
-      
-      const taxDetails = computeOrderTaxDetails(order.items, order.shippingAddress.state, sellerState);
-      const invoiceId = await generateInvoiceId(docType);
-      
-      // Parse generated date from order.date or fallback to current date
-      let parsedDate = order.date;
-      if (!parsedDate || parsedDate === "N/A") {
-        parsedDate = formatDateIST(new Date());
-      }
-
-      const customerDoc = await Customer.findOne({ email: order.shippingAddress.email.toLowerCase() }).select("_id customerTypes").lean() as any;
-      const customerId = customerDoc?._id ? String(customerDoc._id) : "legacy-sync";
-      const resolvedCustomerType = customerDoc?.customerTypes?.[0] || (order.shippingAddress.company || order.shippingAddress.gstin ? "B2B" : "B2C");
-
-      await InvoiceModel.create({
-        _id: invoiceId,
-        type: docType,
-        orderId: order._id,
-        customerId,
-        customerName: order.customerName,
-        customerEmail: order.shippingAddress.email.toLowerCase(),
-        customerGstin: order.shippingAddress.gstin || "",
-        items: order.items as any,
-        amount: order.amount,
-        taxDetails,
-        shippingAddress: order.shippingAddress as any,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: pStatus,
-        transactionId: order.transactionId,
-        sellerInfo,
-        generatedAt: parsedDate,
-        generatedBy: "system",
-        status: docType === "invoice" ? "paid" : "pending",
-        customerType: resolvedCustomerType,
-      } as any);
-
-      // Update order
-      await Order.findByIdAndUpdate(order._id, { invoiceId });
-    }
-  } catch (err) {
-    console.error("Failed to sync missing invoices for orders:", err);
-  }
-}
-
 export async function GET(request: Request) {
   try {
     const auth = await requireAuth();
@@ -174,8 +104,9 @@ export async function GET(request: Request) {
     const payload = auth.payload!;
 
     await dbConnect();
-    // Removed syncMissingInvoicesForOrders() to prevent auto-recreation of deleted receipts 
-    // and to improve performance. Migration should be handled manually if needed.
+    // No backfill runs on read. The 70-line syncMissingInvoicesForOrders() that used to sit
+    // above was already dead code — its call site was removed to stop it recreating deleted
+    // receipts. A backfill belongs in scripts/, not on the hot path of every list request.
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
@@ -393,9 +324,38 @@ export async function POST(request: Request) {
       isOrder,
     } = body;
 
+    /**
+     * A document cannot be born Paid from a wallet.
+     *
+     * The create form offers Store/Business Advance Balance as a payment method. Choosing one and
+     * setting the status to Paid used to write exactly that — a settled document, with no
+     * balance read and no ledger entry behind it. Advance Balance money moves in one place only
+     * (POST /api/invoices/[id]/settle), so the document is created Pending and settled after.
+     */
+    if (isAdvanceBalanceMethod(paymentMethod) && paymentStatus === "Paid") {
+      return NextResponse.json(
+        {
+          message:
+            "An Advance Balance document cannot be created as Paid. Create it first, then record the payment so the balance is actually debited.",
+          code: "USE_SETTLE_ENDPOINT",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Every other settled document must name how the money arrived. Without this a receipt
+    // can be marked Paid with no reference at all, which is unreconcilable against a bank
+    // statement and indistinguishable from the Advance Balance bug above.
+    if (paymentStatus === "Paid" && type !== "quote" && !String(transactionId || "").trim()) {
+      return NextResponse.json(
+        { message: "A transaction reference is required when recording a document as Paid." },
+        { status: 400 }
+      );
+    }
+
     if (payload.role === "manager") {
       let perms = (payload as any).permissions || [];
-      
+
       // Fetch latest permissions from DB to avoid stale JWT issues
       const { default: Manager } = await import("@/models/Manager");
       const managerDoc = await Manager.findById(payload.userId).lean() as any;
@@ -405,17 +365,27 @@ export async function POST(request: Request) {
       
       const hasPerm = (module: string, action: string = "create") => perms.includes(module) || perms.includes(`${module}:${action}`);
 
-      if (isOrder) {
+      /**
+       * A prepaid Tax Invoice is posted as a receipt with `isOrder`, so without this it
+       * would be gated on an *orders* permission — quietly taking Tax Invoice creation away
+       * from a manager holding `invoices_invoice`. The order is a consequence of issuing the
+       * invoice, not a separate act, so the invoice permission governs.
+       */
+      if (body.docIntent === "invoice") {
+        if (!hasPerm("invoices_invoice")) {
+          return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
+      } else if (isOrder) {
         // Resolve target order permission based on customerType parameter (which drives orderType)
         let targetPerm = "orders_b2b";
         if (body.customerType === "Dropshipping") targetPerm = "orders_dropshipping";
         else if (body.customerType === "B2C") targetPerm = "orders_b2c";
-        
+
         // Fallback mapping for legacy dropship permission name
         if (targetPerm === "orders_dropshipping" && hasPerm("orders_dropship")) {
            targetPerm = "orders_dropship";
         }
-        
+
         if (!hasPerm(targetPerm)) {
           return NextResponse.json({ message: `Forbidden: Missing ${targetPerm} permission` }, { status: 403 });
         }
@@ -555,6 +525,18 @@ export async function POST(request: Request) {
       };
     }
 
+    /**
+     * A receipt is always born `pending`, even when the money is already in hand.
+     *
+     * Recording `paymentStatus: "Paid"` here used to write a `Paid` order alongside a
+     * receipt left at `pending` — the same split that made `/admin/invoices` offer "Mark
+     * Paid" for money already collected. The receipt is created pending and settled a few
+     * lines below through the shared settlement library, which is what issues the `INV-`
+     * Tax Invoice the payment is entitled to.
+     */
+    const isPrepaidReceipt = type === "receipt" && paymentStatus === "Paid";
+    const initialStatus = isPrepaidReceipt ? "pending" : status || defaultStatus;
+
     const newInvoice = await InvoiceModel.create({
       _id: invoiceId,
       type,
@@ -575,14 +557,14 @@ export async function POST(request: Request) {
       },
       shippingAddress,
       paymentMethod,
-      paymentStatus,
-      transactionId,
+      paymentStatus: isPrepaidReceipt ? "Pending" : paymentStatus,
+      transactionId: isPrepaidReceipt ? undefined : transactionId,
       sellerInfo,
       notes,
       generatedAt,
       generatedBy: isStaff ? payload.email : "system",
       createdBy: resolvedCreatedBy,
-      status: status || defaultStatus,
+      status: initialStatus,
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,
       dropshipDetails,
@@ -620,8 +602,25 @@ export async function POST(request: Request) {
           hsnSlabs: [],
         },
         shippingAddress: shippingAddress,
-        paymentMethod: paymentMethod || "Bank Transfer",
-        paymentStatus: paymentStatus || "Paid",
+        /**
+         * Translated, not copied.
+         *
+         * The document keeps "Business Advance Balance"; `Order.paymentMethod` is a closed enum that
+         * has no such member, so copying it across failed validation outright — "Order
+         * validation failed: paymentMethod: `Business Advance Balance` is not a valid enum value" —
+         * and the whole creation 500'd. The order stores `"Wallet"` and names the Advance Balance in
+         * `walletType`, which is what that field is for.
+         */
+        paymentMethod: orderPaymentMethodFor(paymentMethod) || "Bank Transfer",
+        walletType: walletTypeForMethod(paymentMethod),
+        /**
+         * Pending unless the caller says otherwise, and always pending for a receipt whose
+         * payment is about to be settled properly below.
+         *
+         * The fallback here used to be `"Paid"`, so a document created without an explicit
+         * payment status produced an order that claimed to be settled against nothing.
+         */
+        paymentStatus: isPrepaidReceipt ? "Pending" : paymentStatus || "Pending",
         status: "Processing",
         statusClass: "bg-blue-100 text-blue-700",
         invoiceId: invoiceId,
@@ -650,10 +649,23 @@ export async function POST(request: Request) {
       await Order.findByIdAndUpdate(linkedOrderId, { invoiceId });
     }
 
-    // Deduct stock for ordered items when an Admin creates a Receipt or Invoice (not a quote)
+    /**
+     * Deduct stock for a Receipt or Invoice (never a quote).
+     *
+     * Each iteration used to be wrapped in `try { } catch { console.error }`, so a failure on
+     * item 3 of 5 left items 1-2 deducted and still returned the document as created. The
+     * `$elemMatch` also had no `stock: { $gte: qty }` guard, so an oversell drove the count
+     * negative instead of being refused — the order route has enforced both for a while and
+     * this path had drifted from it.
+     *
+     * Now: every line is guarded, and any failure rolls back the lines already taken before
+     * the error is surfaced.
+     */
     if (type !== "quote" && Array.isArray(items)) {
-      for (const item of items) {
-        try {
+      const stockRollbacks: Array<{ productId: string; cvColor: string; size?: string; weight?: string; qty: number }> = [];
+
+      try {
+        for (const item of items) {
           const pId = item.product?._id || item.productId || item.product || item.id;
           if (!pId) continue;
           const dbProduct = await Product.findById(pId);
@@ -676,12 +688,14 @@ export async function POST(request: Request) {
           const qty = Number(item.quantity || item.qty || 1);
           if (qty <= 0) continue;
 
-          await Product.updateOne(
+          const updateResult = await Product.updateOne(
             {
               _id: dbProduct._id,
               "colorVariants.color": cv.color,
               "colorVariants.subVariants": {
-                $elemMatch: { size: sv.size, weight: sv.weight }
+                // The stock guard makes the read and the decrement one operation, so two
+                // concurrent documents for the last unit resolve to exactly one success.
+                $elemMatch: { size: sv.size, weight: sv.weight, stock: { $gte: qty } }
               }
             },
             {
@@ -697,14 +711,101 @@ export async function POST(request: Request) {
               ]
             }
           );
-        } catch (err) {
-          console.error("Failed to deduct stock during admin document creation:", err);
+
+          if (updateResult.modifiedCount === 0) {
+            throw new Error(
+              `Insufficient stock for "${dbProduct.title}" (${cv.color}${sv.size ? ` - ${sv.size}` : ""}).`
+            );
+          }
+
+          stockRollbacks.push({
+            productId: String(dbProduct._id),
+            cvColor: cv.color,
+            size: sv.size,
+            weight: sv.weight,
+            qty,
+          });
         }
+      } catch (stockErr) {
+        for (const rb of stockRollbacks) {
+          await Product.updateOne(
+            {
+              _id: rb.productId,
+              "colorVariants.color": rb.cvColor,
+              "colorVariants.subVariants": { $elemMatch: { size: rb.size, weight: rb.weight } }
+            },
+            {
+              $inc: {
+                "colorVariants.$[cv].subVariants.$[sv].stock": rb.qty,
+                totalStock: rb.qty
+              }
+            },
+            {
+              arrayFilters: [
+                { "cv.color": rb.cvColor },
+                { "sv.size": rb.size, "sv.weight": rb.weight }
+              ]
+            }
+          ).catch((rollbackErr) =>
+            console.error("Failed to roll back stock after a failed document creation:", rollbackErr)
+          );
+        }
+
+        // The document and its order were already written above, so remove them rather than
+        // leaving a document behind that claims stock nobody has.
+        await InvoiceModel.findByIdAndDelete(invoiceId).catch(() => {});
+        if (linkedOrderId) await Order.findByIdAndDelete(linkedOrderId).catch(() => {});
+
+        revalidateProductStock();
+        return NextResponse.json({ message: (stockErr as Error).message }, { status: 409 });
       }
+
       revalidateProductStock();
     }
 
-    return NextResponse.json(newInvoice, { status: 201 });
+    /**
+     * The money was already collected outside the app (cash, UPI, a bank transfer staff have
+     * confirmed), so record it properly rather than stamping "Paid" on the documents.
+     *
+     * `issueTaxInvoiceForReceipt` mints the `INV-` Tax Invoice, marks the receipt paid and
+     * links the two, then brings the order in line. Deliberately after the stock deduction:
+     * that block deletes the receipt and its order when a line cannot be reserved, and an
+     * issued Tax Invoice must never outlive the receipt it was issued for.
+     *
+     * Advance Balance methods never reach here — they are rejected further up and must go through
+     * `/api/invoices/[id]/settle`, the only path that actually debits a balance.
+     */
+    if (isPrepaidReceipt) {
+      const storedReceipt = (await InvoiceModel.findById(invoiceId).lean()) as StoredReceipt | null;
+      if (storedReceipt) {
+        const settled = await issueTaxInvoiceForReceipt({
+          receipt: storedReceipt,
+          method: paymentMethod,
+          transactionId: String(transactionId || "").trim(),
+          actor: {
+            role: resolvedCreatedBy?.role,
+            name: resolvedCreatedBy?.name,
+            userId: resolvedCreatedBy?.userId,
+          },
+        });
+        // The caller asked for a paid document; hand back the Tax Invoice, not the receipt.
+        return NextResponse.json(settled.invoice, { status: 201 });
+      }
+    }
+
+    /**
+     * The linked order id has to be on the response.
+     *
+     * `newInvoice` is the document as it was *created*, and the order is linked to it a few
+     * lines later with a separate `findByIdAndUpdate` — so the object returned here carried
+     * no `orderId`. A caller that needs to act on the order next, like the create form
+     * starting a gateway payment against it, had nothing to act on.
+     */
+    const created = (newInvoice as unknown as { toObject?: () => Record<string, unknown> }).toObject
+      ? (newInvoice as unknown as { toObject: () => Record<string, unknown> }).toObject()
+      : ({ ...(newInvoice as unknown as Record<string, unknown>) });
+
+    return NextResponse.json({ ...created, orderId: linkedOrderId }, { status: 201 });
   } catch (error: any) {
     console.error("Invoice creation error:", error);
     return NextResponse.json(

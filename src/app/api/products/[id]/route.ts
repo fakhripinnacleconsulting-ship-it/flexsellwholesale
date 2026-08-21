@@ -61,7 +61,10 @@ export async function PUT(
       return NextResponse.json({ message: "Product not found" }, { status: 404 });
     }
     
-    revalidateProducts();
+    // The id is what purges this product's own page. Without it only the listings were
+    // purged, so an edit showed up instantly on the catalogue and took up to 24 hours to
+    // appear on the product's own page.
+    await revalidateProducts(id);
     return NextResponse.json(updatedProduct);
   } catch (error: unknown) {
     if (error instanceof ZodError) {
@@ -94,7 +97,7 @@ export async function DELETE(
       Customer.updateMany({ wishlist: id }, { $pull: { wishlist: id } }),
     ]);
 
-    revalidateProducts();
+    await revalidateProducts(id);
     return NextResponse.json({ message: "Product deleted successfully" });
   } catch (error: unknown) {
     return NextResponse.json({ message: (error as any).message || "Failed to delete product" }, { status: 500 });

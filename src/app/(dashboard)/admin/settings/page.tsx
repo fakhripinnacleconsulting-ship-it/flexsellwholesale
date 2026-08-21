@@ -57,11 +57,13 @@ export default function AdminSettingsPage() {
   const [footerSettings, setFooterSettings] = React.useState<{
     socialLinks: { id: string; name: string; url: string; iconUrl?: string }[];
     paymentBadges: { id: string; name: string; iconUrl?: string }[];
+    paymentBannerUrl?: string;
     footerColumns: { id: string; title: string; links: { label: string; url: string }[] }[];
     showTopCategories: boolean;
   }>({
     socialLinks: [],
     paymentBadges: [],
+    paymentBannerUrl: "",
     footerColumns: [
       {
         id: "default-col-1",
@@ -322,8 +324,8 @@ export default function AdminSettingsPage() {
               </div>
               <div className="flex items-center justify-between pt-2">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Enable Online Wallet Recharge</label>
-                  <p className="text-xs text-muted-foreground">Allow customers to top-up their B2B wallet directly via Payment Gateway.</p>
+                  <label className="text-sm font-medium">Enable Online Advance Balance Top-up</label>
+                  <p className="text-xs text-muted-foreground">Allow customers to top up their B2B Advance Balance directly via Payment Gateway.</p>
                 </div>
                 <input
                   type="checkbox"
@@ -407,9 +409,31 @@ export default function AdminSettingsPage() {
                           {/* Sequence Counter Input */}
                           <td className="py-3.5 px-4 align-middle">
                             <Input
-                              type="number"
-                              value={row.startCount}
-                              onChange={(e) => handleUpdateIdFormatRow(row.key, "startCount", Number(e.target.value) || 1)}
+                              type="text"
+                              value={String(row.startCount).padStart(row.padLength || 1, "0")}
+                              onChange={(e) => {
+                                const rawVal = e.target.value.replace(/\D/g, "");
+                                if (rawVal === "") {
+                                  // Temporarily allow 0/0 while typing
+                                  setIdFormatsList((prev) => prev.map((item) => item.key === row.key ? { ...item, startCount: 0, padLength: 0 } : item));
+                                  return;
+                                }
+                                const pad = rawVal.length;
+                                const num = parseInt(rawVal, 10);
+                                setIdFormatsList((prev) =>
+                                  prev.map((item) => {
+                                    if (item.key === row.key) {
+                                      return { ...item, startCount: num, padLength: pad };
+                                    }
+                                    return item;
+                                  })
+                                );
+                              }}
+                              onBlur={() => {
+                                if (row.startCount === 0) {
+                                  setIdFormatsList((prev) => prev.map((item) => item.key === row.key ? { ...item, startCount: 1, padLength: Math.max(1, row.padLength) } : item));
+                                }
+                              }}
                               className="h-8.5 font-mono text-xs w-32 bg-background font-semibold"
                             />
                           </td>
@@ -483,14 +507,28 @@ export default function AdminSettingsPage() {
               <Button size="sm" onClick={() => setFooterSettings({...footerSettings, paymentBadges: [...footerSettings.paymentBadges, {id: Date.now().toString(), name: '', iconUrl: ''}]})}><Plus className="h-4 w-4 mr-2" /> Add Badge</Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              {footerSettings.paymentBadges.map((badge, idx) => (
-                <div key={badge.id} className="flex gap-2 items-center bg-secondary/20 p-3 rounded-lg border">
-                  <Input placeholder="Badge Name (e.g. UPI)" value={badge.name} onChange={(e) => { const n = [...footerSettings.paymentBadges]; n[idx].name = e.target.value; setFooterSettings({...footerSettings, paymentBadges: n}); }} className="flex-1" />
-                  <Input placeholder="Icon URL (optional image/svg)" value={badge.iconUrl} onChange={(e) => { const n = [...footerSettings.paymentBadges]; n[idx].iconUrl = e.target.value; setFooterSettings({...footerSettings, paymentBadges: n}); }} className="flex-1" />
-                  <Button variant="ghost" size="icon" onClick={() => { const n = footerSettings.paymentBadges.filter(b => b.id !== badge.id); setFooterSettings({...footerSettings, paymentBadges: n}); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              ))}
-              {footerSettings.paymentBadges.length === 0 && <p className="text-sm text-muted-foreground italic">No payment badges added yet.</p>}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-muted-foreground uppercase">Payment Banner Image URL (Single Image)</label>
+                <Input
+                  placeholder="e.g. /images/payment-methods.svg or custom CDN image URL"
+                  value={footerSettings.paymentBannerUrl || ""}
+                  onChange={(e) => setFooterSettings({ ...footerSettings, paymentBannerUrl: e.target.value })}
+                  className="text-xs"
+                />
+                <p className="text-[11px] text-muted-foreground">If left empty, defaults to standard VISA, MasterCard, G Pay, UPI, & COD combined banner.</p>
+              </div>
+
+              <div className="border-t pt-3 space-y-3">
+                <label className="text-xs font-bold text-muted-foreground uppercase">Custom Individual Badges (Optional Override)</label>
+                {footerSettings.paymentBadges.map((badge, idx) => (
+                  <div key={badge.id} className="flex gap-2 items-center bg-secondary/20 p-3 rounded-lg border">
+                    <Input placeholder="Badge Name (e.g. UPI)" value={badge.name} onChange={(e) => { const n = [...footerSettings.paymentBadges]; n[idx].name = e.target.value; setFooterSettings({...footerSettings, paymentBadges: n}); }} className="flex-1" />
+                    <Input placeholder="Icon URL (optional image/svg)" value={badge.iconUrl} onChange={(e) => { const n = [...footerSettings.paymentBadges]; n[idx].iconUrl = e.target.value; setFooterSettings({...footerSettings, paymentBadges: n}); }} className="flex-1" />
+                    <Button variant="ghost" size="icon" onClick={() => { const n = footerSettings.paymentBadges.filter(b => b.id !== badge.id); setFooterSettings({...footerSettings, paymentBadges: n}); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  </div>
+                ))}
+                {footerSettings.paymentBadges.length === 0 && <p className="text-sm text-muted-foreground italic">No individual payment badges added.</p>}
+              </div>
             </CardContent>
           </Card>
 

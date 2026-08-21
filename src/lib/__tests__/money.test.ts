@@ -6,7 +6,7 @@ import {
   formatPaise,
   formatSignedPaise,
 } from "../money";
-import { MIN_RECHARGE_PAISE, MAX_RECHARGE_PAISE } from "../walletConstants";
+import { MIN_RECHARGE_PAISE, MAX_RECHARGE_PAISE } from "../advanceBalanceConstants";
 
 describe("toPaise", () => {
   it("converts whole rupees", () => {
@@ -103,8 +103,8 @@ describe("formatPaise", () => {
   });
 
   it("formats zero without falling back to a placeholder", () => {
-    // A wallet with no money must read "₹0", never "-" or an empty cell — the customer
-    // has to be able to tell an empty wallet from a failed load.
+    // A Advance Balance with no money must read "₹0", never "-" or an empty cell — the customer
+    // has to be able to tell an empty Advance Balance from a failed load.
     expect(formatPaise(0)).toBe("₹0");
   });
 });

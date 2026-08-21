@@ -65,7 +65,7 @@ npx tsx scripts/sync-indexes.mjs
 ```
 
 Several indexes are **correctness**, not performance. The unique sparse indexes on
-`WalletTransaction.paymentId` and `clientRequestId` are what stop a replayed payment webhook or
+`AdvanceBalanceTransaction.paymentId` and `clientRequestId` are what stop a replayed payment webhook or
 a double-submitted form from moving money twice. Without them the app still runs — it just
 stops being safe.
 
@@ -81,7 +81,7 @@ stops being safe.
 | [Frontend Specification](docs/04-Frontend-Specification-Document.md) | You are writing UI |
 | [Feature Ticket List](docs/05-Feature-Ticket-List.md) | You are picking up work |
 | [Release Report](report.md) | You need the manual test guide or the open security findings |
-| [Wallet Plan](plan.md) | You are working on wallets — decision log and rationale |
+| [Advance Balance Plan](plan.md) | You are working on advance balances — decision log and rationale |
 | [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md) | You are an AI agent working in this repo |
 
 ---
@@ -97,14 +97,14 @@ stops being safe.
 - **Invoicing** — quotes → receipts → GST tax invoices with HSN slab breakdowns.
   CGST + SGST for Madhya Pradesh, IGST elsewhere.
 - **Payments** — Razorpay with server-side signature verification, Cash on Delivery, and the
-  Store Wallet.
+  Store Advance Balance.
 - **Dropshipping Hub** — a separate flow where the order ships to the reseller's customer.
 
-### Wallets
+### Advance Balances
 
 Two prepaid balances per customer:
 
-| | Store Wallet | Business Wallet |
+| | Store Advance Balance | Business Advance Balance |
 |---|---|---|
 | Buys | Products **and** services | Services only (GST filing, ads, trademark) |
 | Customer spends it | Yes, at checkout | No |
@@ -135,7 +135,7 @@ src/
 │   ├── ui/               21 primitives — use these first
 │   ├── admin/            76
 │   ├── storefront/       46
-│   ├── wallet/            9
+│   ├── advance balance/            9
 │   └── …
 ├── lib/                  54 domain modules — guards, ledger, pricing, tax, dates
 ├── models/               22 Mongoose schemas
@@ -157,7 +157,7 @@ These exist because each one has already caused a real bug.
 |---|---|
 | **No `fetch` outside `src/services/`** | The service layer owns CSRF tokens, base URLs and error shape. Bypassing it fails silently until a token rotates |
 | **All dates through `lib/datetime.ts`** | Seven routes once hand-rolled this. One order displayed three different date formats |
-| **Money through `formatPrice`; wallet money in paise** | Float rupees drift. Conversion happens once, at the API edge |
+| **Money through `formatPrice`; advance balance money in paise** | Float rupees drift. Conversion happens once, at the API edge |
 | **No hardcoded colours** | The app ships a dark theme; a literal breaks it |
 | **`ConfirmDialog` / `toastStore`, never `window.alert`** | Native dialogs block the tab and read as browser warnings |
 | **Ledger entries are append-only** | A correction must be visible as a correction, not a rewrite |
@@ -173,9 +173,9 @@ Full checklist: [Frontend Specification §13](docs/04-Frontend-Specification-Doc
 npm run test
 ```
 
-261 tests. The wallet's 93 are the ones to watch — they pin the money guarantees: two
+261 tests. The Advance Balance's 93 are the ones to watch — they pin the money guarantees: two
 concurrent debits resolve to one, a replayed webhook credits once, a manager cannot reach an
-admin route, and a customer cannot read another customer's wallet.
+admin route, and a customer cannot read another customer's advance balance.
 
 There is **no integration test layer**. Concurrency is unit-tested against mocks, which assume
 MongoDB behaves as documented but do not prove it here. Tracked as **FS-303**.
@@ -194,7 +194,7 @@ and three of those fixable in one line each. Start with **FS-101, FS-102, FS-103
 
 | | |
 |---|---|
-| Version | 2.0 — wallet release |
+| Version | 2.0 — advance balance release |
 | Tests | 261 passing |
 | Typecheck | Clean |
 | Environment | Live in production |

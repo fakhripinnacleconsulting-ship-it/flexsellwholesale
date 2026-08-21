@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
 import { generateNextId } from "@/lib/idGeneratorServer";
@@ -57,7 +57,31 @@ export async function GET(request: Request) {
     // the untouched document opt in with ?view=full.
     const isListView = searchParams.get("view") === "list";
 
-    const catalogQuery = Product.find({}).sort({ createdAt: -1 }).limit(UNFILTERED_CATALOG_CAP);
+    /**
+     * Withdrawn products are invisible to the public, and visible to staff who ask.
+     *
+     * This query was `Product.find({})`, so deactivating a product removed it from precisely
+     * nowhere — it stayed on the catalogue and on its own page. The inconsistency was already
+     * half-present: `searchService` filters `isActive: true`, so a withdrawn product vanished
+     * from search while remaining browsable.
+     *
+     * The filter is the **default** rather than something each consumer applies, because a
+     * component that forgets to filter leaks the product; an absent row cannot.
+     *
+     * `includeInactive` exists because deactivating means *withdraw from sale*, not *delete*:
+     * staff still put these on an order, invoice or quote for a back-order or a price already
+     * agreed. It requires a staff session — a request without one is refused rather than
+     * quietly downgraded, so a stale client fails loudly instead of appearing to work.
+     */
+    const wantsInactive = searchParams.get("includeInactive") === "true";
+    if (wantsInactive) {
+      const staffAuth = await requireAdminOrManagerAuth();
+      if (staffAuth.error) return staffAuth.error;
+    }
+
+    const catalogFilter = wantsInactive ? {} : { isActive: { $ne: false } };
+
+    const catalogQuery = Product.find(catalogFilter).sort({ createdAt: -1 }).limit(UNFILTERED_CATALOG_CAP);
     if (isListView) {
       catalogQuery.select(PRODUCT_LIST_EXCLUDED_FIELDS);
     }
@@ -107,7 +131,36 @@ export async function POST(request: Request) {
     }
     
     const newProduct = await Product.create(validatedData);
-    revalidateProducts();
+
+    // Pass the id. Without it the `revalidatePath("/products/<id>")` inside
+    // revalidateProducts is dead code, and the product's own page keeps serving whatever the
+    // cache holds until its 24h window expires — which is why an edited product took a day to
+    // change while its card on the listing updated at once.
+    await revalidateProducts(String(newProduct._id));
+
+    /**
+     * Build the new product's page now, so the first customer to open it does not have to.
+     *
+     * Purging a path does not generate it — it only guarantees the next visitor gets a cache
+     * MISS, and that visitor is the one currently paying a ~5s cold render (and, in
+     * production, seeing a 500 when it overruns).
+     *
+     * `after()` rather than a bare `fetch(...).catch()`: a promise left pending when the
+     * response is sent is cancelled on Vercel, so fire-and-forget never actually connects.
+     * `after` is the primitive for work that must outlive the response.
+     */
+    after(async () => {
+      const base =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+      if (!base) return;
+
+      await fetch(`${base}/products/${newProduct._id}`, { cache: "no-store" }).catch((err) =>
+        // Swallowed on purpose: the admin's save must never fail because a warm-up did.
+        console.warn("[products] page warm-up failed:", (err as Error)?.message)
+      );
+    });
+
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error: unknown) {
     if (error instanceof ZodError) {

@@ -76,20 +76,20 @@ const PERMISSION_GROUPS = [
     permissions: [
       { id: "ops_upgrades", label: "Upgrade Requests" },
       { id: "ops_hsn", label: "HSN Management" },
-      { id: "ops_shipping", label: "Shipping Options" },
+      { id: "ops_shipping", label: "Shipping Charges" },
       { id: "ops_coupons", label: "Coupons" },
       {
-        id: "wallet_store",
-        label: "Store Wallet — Spend",
-        // Wallet permissions are not scoped to "this manager's customers", because that
-        // relationship does not exist in the data model. Saying so here is the whole
+        id: "advance_balance_store",
+        label: "Store Advance Balance — Spend",
+        // Advance Balance permissions are not scoped to "this manager's customers", because
+        // that relationship does not exist in the data model. Saying so here is the whole
         // mitigation: an admin must not grant this believing it is narrower than it is.
-        hint: "Lets this manager spend from ANY customer's Store Wallet. No amount limit.",
+        hint: "Lets this manager spend from ANY customer's Store Advance Balance. No amount limit.",
       },
       {
-        id: "wallet_business",
-        label: "Business Wallet — Spend",
-        hint: "Lets this manager spend from ANY customer's Business Wallet. No amount limit.",
+        id: "advance_balance_business",
+        label: "Business Advance Balance — Spend",
+        hint: "Lets this manager spend from ANY customer's Business Advance Balance. No amount limit.",
       },
     ]
   },

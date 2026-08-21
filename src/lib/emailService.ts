@@ -780,7 +780,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello <strong>${order.customerName || "Valued Customer"}</strong>,</p>
-          <p>Thank you for your order! We have received your wholesale purchase order <strong>#${order._id}</strong>.</p>
+          <p>Thank you for your order! We have received your order <strong>#${order._id}</strong>.</p>
           <p>Total Amount: <strong>₹${Number(order.amount || order.total || 0).toLocaleString("en-IN")}</strong></p>
           <p>Payment Method: <strong>${order.paymentMethod || "N/A"}</strong> | Payment Status: <strong>${order.paymentStatus || "Pending"}</strong></p>
         </div>
@@ -803,7 +803,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello <strong>${customerName}</strong>,</p>
-          <p>Your wholesale purchase order <strong>#${docId}</strong> has been <strong>CANCELLED</strong>.</p>
+          <p>Your  order <strong>#${docId}</strong> has been <strong>CANCELLED</strong>.</p>
           
           <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 14px; border-radius: 4px; margin: 16px 0;">
             <p style="margin: 0; font-size: 13px; color: #991b1b; font-weight: 500;">
@@ -827,7 +827,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello Admin,</p>
-          <p>A new wholesale purchase order has been placed:</p>
+          <p>A new  order has been placed:</p>
           <ul>
             <li><strong>Order ID:</strong> #${order._id}</li>
             <li><strong>Buyer:</strong> ${order.customerName}</li>
@@ -1074,7 +1074,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello <strong>${order.customerName || "Valued Customer"}</strong>,</p>
-          <p>The status for your wholesale purchase order <strong>#${order._id}</strong> is now: <strong>${order.status || "Updated"}</strong>.</p>
+          <p>The status for your order <strong>#${order._id}</strong> is now: <strong>${order.status || "Updated"}</strong>.</p>
           <p>Payment Status: <strong>${order.paymentStatus || "Pending"}</strong> | Total Amount: <strong>₹${Number(order.amount || order.total || 0).toLocaleString("en-IN")}</strong></p>
           ${paymentNotice}
         </div>
@@ -1333,11 +1333,11 @@ export const emailService = {
    * chance to notice a wrong charge — which makes it a fraud control, not a courtesy.
    * It names the person who spent it for the same reason.
    */
-  async sendWalletExpenseEmail(params: {
+  async sendAdvanceBalanceExpenseEmail(params: {
     to: string;
     customerName: string;
     amount: number;
-    walletLabel: string;
+    advanceBalanceLabelText: string;
     category: string;
     description: string;
     spentBy: string;
@@ -1350,11 +1350,11 @@ export const emailService = {
     const bodyHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
         <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h2 style="color: #10b981; margin: 0;">Wallet Expense Recorded</h2>
+          <h2 style="color: #10b981; margin: 0;">Advance Balance Expense Recorded</h2>
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello <strong>${params.customerName}</strong>,</p>
-          <p>An expense has been recorded against your <strong>${params.walletLabel}</strong>.</p>
+          <p>An expense has been recorded against your <strong>${params.advanceBalanceLabelText}</strong>.</p>
 
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;">
             <tr><td style="padding: 8px 0; color: #64748b;">Amount</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 18px;">${money(params.amount)}</td></tr>
@@ -1367,16 +1367,16 @@ export const emailService = {
 
           <p style="font-size: 12px; color: #64748b;">
             Receipt ${params.receiptNumber}. If you did not expect this expense, reply to this
-            email or raise a query from your wallet passbook and we will look into it.
+            email or raise a query from your Advance Balance passbook and we will look into it.
           </p>
         </div>
-        ${renderStandardEmailFooter("Wallet Expense", params.receiptNumber)}
+        ${renderStandardEmailFooter("Advance Balance Expense", params.receiptNumber)}
       </div>
     `;
 
     return this.sendEmail({
       to: params.to,
-      subject: `${money(params.amount)} spent from your ${params.walletLabel} — FlexSell Wholesale`,
+      subject: `${money(params.amount)} spent from your ${params.advanceBalanceLabelText} — FlexSell Wholesale`,
       html: bodyHtml,
       category: "payments",
     });
@@ -1389,11 +1389,11 @@ export const emailService = {
    * per-customer scoping, so this is the only place an owner sees the activity as it
    * happens rather than by opening each wallet.
    */
-  async sendAdminWalletExpenseAlert(params: {
+  async sendAdminAdvanceBalanceExpenseAlert(params: {
     customerName: string;
     customerId: string;
     amount: number;
-    walletLabel: string;
+    advanceBalanceLabelText: string;
     category: string;
     description: string;
     spentBy: string;
@@ -1407,7 +1407,7 @@ export const emailService = {
     const bodyHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
         <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h2 style="color: #10b981; margin: 0;">Wallet Spend Alert</h2>
+          <h2 style="color: #10b981; margin: 0;">Advance Balance Spend Alert</h2>
         </div>
         <div style="padding: 24px; color: #334155;">
           <p>Hello Admin,</p>
@@ -1415,7 +1415,7 @@ export const emailService = {
 
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;">
             <tr><td style="padding: 8px 0; color: #64748b;">Customer</td><td style="padding: 8px 0; text-align: right; font-weight: bold;">${params.customerName} (${params.customerId})</td></tr>
-            <tr><td style="padding: 8px 0; color: #64748b;">Wallet</td><td style="padding: 8px 0; text-align: right;">${params.walletLabel}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Advance Balance</td><td style="padding: 8px 0; text-align: right;">${params.advanceBalanceLabelText}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Amount</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 18px;">${money(params.amount)}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Category</td><td style="padding: 8px 0; text-align: right;">${params.category}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Description</td><td style="padding: 8px 0; text-align: right;">${params.description}</td></tr>
@@ -1423,13 +1423,13 @@ export const emailService = {
             <tr style="border-top: 1px solid #e2e8f0;"><td style="padding: 12px 0 0; color: #64748b;">Balance left</td><td style="padding: 12px 0 0; text-align: right; font-weight: bold;">${money(params.balanceAfter)}</td></tr>
           </table>
         </div>
-        ${renderStandardEmailFooter("Wallet Spend Alert", params.receiptNumber)}
+        ${renderStandardEmailFooter("Advance Balance Spend Alert", params.receiptNumber)}
       </div>
     `;
 
     return this.sendEmail({
       to: this.getAdminEmail(),
-      subject: `[Wallet] ${params.spentBy} spent ${money(params.amount)} for ${params.customerName}`,
+      subject: `[advanceBalance] ${params.spentBy} spent ${money(params.amount)} for ${params.customerName}`,
       html: bodyHtml,
       category: "payments",
     });

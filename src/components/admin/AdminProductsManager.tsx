@@ -94,7 +94,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
 
       // Force refresh of products in store to update UI instantly!
       await initializeProducts(undefined, true);
-      
+
       // Clear Next.js client-side router cache so navigating to storefront shows fresh data
       router.refresh();
     } catch (err: unknown) {
@@ -475,7 +475,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Products</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage B2B inventory lines, custom MOQ, and SEO tags.</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage inventory lines, custom MOQ, and SEO tags.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {hasPermission("catalog_products", "update") && (
@@ -587,7 +587,7 @@ export function AdminProductsManager({ initialProducts, initialCategories }: Adm
       {/* Barcode print modal dialogue */}
       {barcodePrintProduct && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full border-border max-h-[85vh] flex flex-col">
+          <Card className="max-w-2xl w-full border-border max-h-[85dvh] flex flex-col">
             <CardHeader className="border-b">
               <CardTitle className="text-lg flex justify-between items-center">
                 <span>Print Barcodes - {barcodePrintProduct.title}</span>

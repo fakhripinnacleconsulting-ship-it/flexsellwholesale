@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/Product";
+import { requireAdminOrManagerAuth } from "@/lib/authGuard";
 
 /**
  * Fetches a product by its **id or its slug**.
@@ -22,9 +23,24 @@ export async function GET(
     await dbConnect();
     const { slug } = await params;
 
-    // One query, not two: `$or` returns a hit on either field in a single round trip.
+    /**
+     * One query, not two: `$or` returns a hit on either field in a single round trip.
+     *
+     * Filtering the catalogue list alone was not enough — a withdrawn product's own URL still
+     * rendered it, and that URL outlives the listing in bookmarks, search engines and shared
+     * links. `$ne: false` rather than `=== true` so products written before the field existed
+     * stay visible: they were never deactivated, and treating a missing field as "withdrawn"
+     * would empty the catalogue.
+     */
+    const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
+    if (includeInactive) {
+      const staffAuth = await requireAdminOrManagerAuth();
+      if (staffAuth.error) return staffAuth.error;
+    }
+
     const product = await Product.findOne({
       $or: [{ _id: slug }, { slug }],
+      ...(includeInactive ? {} : { isActive: { $ne: false } }),
     } as Record<string, unknown>);
 
     if (!product) {

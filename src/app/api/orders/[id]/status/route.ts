@@ -1,8 +1,9 @@
+import { isAdvanceBalanceMethod } from "@/lib/advanceBalanceConstants";
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
 import Customer from "@/models/Customer";
-import InvoiceModel from "@/models/Invoice";
+import { settleOrderDocuments } from "@/lib/orderSettlement";
 import { requireAuth, verifyManagerOrderAccess } from "@/lib/authGuard";
 import { dispatchWebhook } from "@/lib/webhookDispatcher";
 import { ORDER_STATUS_CLASSES } from "@/lib/constants";
@@ -33,6 +34,50 @@ export async function PUT(
     const access = await verifyManagerOrderAccess(payload, order);
     if (access.error) return access.error;
 
+    if (paymentStatus === "Paid") {
+      /**
+       * A gateway payment cannot be recorded by hand.
+       *
+       * It either carries a verified signature or it did not happen. `/api/razorpay/verify`
+       * and the webhook settle it themselves; accepting it here let anyone mark an order paid
+       * by typing a plausible payment id, with no money moved and nothing to verify against.
+       */
+      if (paymentMethod === "Razorpay") {
+        return NextResponse.json(
+          {
+            message:
+              "An online gateway payment cannot be recorded by hand — the customer pays from their order page and it settles automatically.",
+            code: "GATEWAY_SETTLES_ITSELF",
+          },
+          { status: 400 }
+        );
+      }
+
+      /**
+       * A Advance Balance is debited by the Advance Balance routes, which read a balance and write a ledger
+       * entry. Naming it here would mark the order paid against money still in the wallet.
+       */
+      if (isAdvanceBalanceMethod(paymentMethod)) {
+        return NextResponse.json(
+          {
+            message:
+              "An Advance Balance payment must go through the payment action so the balance is actually debited.",
+            code: "USE_WALLET_ROUTE",
+          },
+          { status: 400 }
+        );
+      }
+
+      // Bank rails reconcile against a reference; cash and COD have none to give.
+      const REFERENCE_REQUIRED = ["UPI", "Bank Transfer", "NEFT/RTGS", "Cheque"];
+      if (REFERENCE_REQUIRED.includes(paymentMethod) && !String(transactionId || "").trim()) {
+        return NextResponse.json(
+          { message: `A transaction reference (UTR or receipt no.) is required for ${paymentMethod}.` },
+          { status: 400 }
+        );
+      }
+    }
+
     // The actor comes from the verified session, never from the request body — otherwise a
     // caller could label their own action as an administrator's.
     const actor = resolveActor(payload, access.manager?.name);
@@ -58,16 +103,38 @@ export async function PUT(
 
     await order.save();
 
-    // Sync Invoice details if payment is updated to Paid
+    /**
+     * Payment recorded on dispatch — issue the Tax Invoice for it.
+     *
+     * This block used to flip `type` on the linked receipt in place:
+     *
+     *     linkedInvoice.type = "invoice"; linkedInvoice.status = "paid";
+     *
+     * `Invoice._id` is an assigned String that MongoDB will not change, so every Tax Invoice
+     * that produced kept its receipt number and the `INV-` counter never advanced — the same
+     * GST Rule 46(b) fault that `/api/invoices/[id]/settle` and the Razorpay path were fixed
+     * for. This was the last copy of it.
+     *
+     * `settleOrderDocuments` mints a real `INV-`, retains the receipt as the record of what
+     * was collected, and links the two. It is idempotent, so re-saving a status on an
+     * already-paid order issues nothing further.
+     *
+     * The paperwork must not fail the status change — the order is saved above and the money
+     * is real. Log and let the invoice be reissued.
+     */
     if (paymentStatus === "Paid") {
-      const linkedInvoice = await InvoiceModel.findOne({ orderId: order._id });
-      if (linkedInvoice) {
-        linkedInvoice.type = "invoice";
-        linkedInvoice.status = "paid";
-        linkedInvoice.paymentStatus = "Paid";
-        if (paymentMethod) linkedInvoice.paymentMethod = paymentMethod;
-        if (transactionId) linkedInvoice.transactionId = transactionId;
-        await linkedInvoice.save();
+      try {
+        await settleOrderDocuments({
+          orderId: String(order._id),
+          method: paymentMethod || order.paymentMethod || "Cash",
+          transactionId: transactionId || undefined,
+          actor,
+        });
+      } catch (docErr) {
+        console.error(
+          `[Orders] Order ${order._id} is marked paid but its tax invoice could not be issued:`,
+          docErr
+        );
       }
     }
 

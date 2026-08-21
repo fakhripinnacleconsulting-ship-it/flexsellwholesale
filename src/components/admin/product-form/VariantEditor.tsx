@@ -109,7 +109,7 @@ export function VariantEditor() {
       {/* Editing Dialog Modal Overlay - Opens Only One Variant At A Time */}
       {editingIdx !== null && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print">
-          <div className={isFullScreen ? "fixed inset-0 bg-background z-50 flex flex-col overflow-hidden animate-in fade-in duration-200" : "bg-background border border-border rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"}>
+          <div className={isFullScreen ? "fixed inset-0 bg-background z-50 flex flex-col overflow-hidden animate-in fade-in duration-200" : "bg-background border border-border rounded-xl shadow-2xl max-w-5xl w-full max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"}>
             {/* Modal Header */}
             <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/15">
               <h3 className="font-extrabold text-sm uppercase text-primary tracking-wider">

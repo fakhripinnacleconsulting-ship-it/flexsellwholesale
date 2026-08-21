@@ -66,7 +66,7 @@ export function ExecutiveKpiCard({ manager, kpis, showTitleBanner = true }: Exec
         {/* KPI 2: Quote Conversion Rate */}
         <Card className="bg-card/70 border shadow-xs p-4 space-y-2">
           <div className="flex justify-between items-center">
-            <p className="text-[10px] uppercase font-bold text-muted-foreground">Quote Conversion Rate</p>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground">Quote Acceptance Rate</p>
             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600">
               <TrendingUp className="h-4 w-4" />
             </div>
@@ -75,7 +75,7 @@ export function ExecutiveKpiCard({ manager, kpis, showTitleBanner = true }: Exec
             {kpis?.quoteConversionRate || 0}%
           </h3>
           <p className="text-[11px] text-muted-foreground flex justify-between">
-            <span>{kpis?.convertedQuotesCount || 0} Converted</span>
+            <span>{kpis?.convertedQuotesCount || 0} Accepted</span>
             <span>{kpis?.totalQuotesCount || 0} Issued Quotes</span>
           </p>
         </Card>

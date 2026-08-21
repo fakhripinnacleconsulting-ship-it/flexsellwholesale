@@ -6,11 +6,11 @@ import { Plus, Info, X, Download } from "lucide-react";
 import { useOrderStore, Order, ShipmentDetails } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
-import { orderService } from "@/services/orderService";
+import { collectOrderPaymentOnline } from "@/lib/razorpayCollect";
+import { describePaymentFailure } from "@/lib/paymentErrors";
 import { OrdersListTable } from "./OrdersListTable";
 import { OrderDetailPanel } from "./OrderDetailPanel";
 import { FulfillmentForm } from "./FulfillmentForm";
-import { CreateOrderModal } from "./CreateOrderModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
@@ -23,20 +23,17 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" | "B2B" | "Dropshipping" | "B2C" }) {
   const searchParams = useSearchParams();
-  const { orders, initializeOrders, updateOrderStatus, shipOrder } = useOrderStore();
+  const { orders, total, page, totalPages, analytics, initializeOrders, updateOrderStatus, shipOrder } = useOrderStore();
   const { addToast } = useToastStore();
   const confirm = useConfirmStore((state) => state.confirm);
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isManagerRoute } = usePermissions();
 
   const invoiceForm = useInvoiceForm({
     onSuccess: () => {
-      // Re-fetch orders after successful creation
-      initializeOrders({
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        orderType: activeOrderTab === "ALL" ? undefined : activeOrderTab,
-        origin: originFilter || undefined,
-      });
+      // Re-fetch through the same builder the list uses, so the refresh keeps the page,
+      // the page size and every filter. Passing a partial set here took the API's
+      // unpaginated branch and collapsed the list back to one page of 100.
+      refetchOrders();
     }
   });
 
@@ -67,6 +64,22 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
   });
   const [originFilter, setOriginFilter] = React.useState<"" | "self" | "website">((searchParams.get("origin") as any) || "");
 
+  /**
+   * Paging and the list filters live here, not in the table.
+   *
+   * They are query parameters now, so they belong beside the fetch that sends them. The table
+   * held them while it filtered client-side; leaving them there would mean the component that
+   * owns the request cannot see what it is requesting.
+   */
+  const [currentPage, setCurrentPage] = React.useState(Number(searchParams.get("page")) || 1);
+  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [statusFilter, setStatusFilter] = React.useState(searchParams.get("status") || "");
+  const [paymentStatusFilter, setPaymentStatusFilter] = React.useState(searchParams.get("paymentStatus") || "");
+  // A manager's list defaults to their own orders; an admin sees everyone's.
+  const [createdByFilter, setCreatedByFilter] = React.useState(
+    searchParams.get("createdBy") || (isManagerRoute ? "me" : "all")
+  );
+
   // Sync active filters to URL search parameters
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -82,44 +95,87 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     window.history.replaceState(null, "", newUrl);
   }, [searchTerm, startDate, endDate, originFilter, activeOrderTab]);
 
-  React.useEffect(() => {
+  /**
+   * One fetch, and every filter goes with it.
+   *
+   * This screen used to ask for orders with no page or limit, which took the API's fallback
+   * branch and returned **the newest 100**. The table then filtered and paginated inside that
+   * array, so past the hundredth order the oldest silently fell off the end, the page count
+   * stopped growing, and there was no way to reach them.
+   *
+   * Now the server does the filtering and the paging, so the list is the list.
+   */
+  /**
+   * The one description of "what this list is currently showing".
+   *
+   * Every refetch goes through it — creating an order, recording a dispatch payment, changing
+   * a filter — so none of them can quietly ask for something narrower than the screen.
+   */
+  const refetchOrders = React.useCallback(() => {
     initializeOrders({
+      page: currentPage,
+      limit: itemsPerPage,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       orderType: activeOrderTab === "ALL" ? undefined : activeOrderTab,
       origin: originFilter || undefined,
+      status: statusFilter || undefined,
+      paymentStatus: paymentStatusFilter || undefined,
+      createdBy: createdByFilter !== "all" ? createdByFilter : undefined,
+      search: searchTerm.trim() || undefined,
     });
-  }, [initializeOrders, startDate, endDate, activeOrderTab, originFilter]);
+  }, [
+    initializeOrders,
+    currentPage,
+    itemsPerPage,
+    startDate,
+    endDate,
+    activeOrderTab,
+    originFilter,
+    statusFilter,
+    paymentStatusFilter,
+    createdByFilter,
+    searchTerm,
+  ]);
+
+  // The list is whatever `refetchOrders` describes; this just runs it when that changes.
+  React.useEffect(() => {
+    refetchOrders();
+  }, [refetchOrders]);
+
+  /**
+   * Any filter change returns to page one — done in the setter, not in an effect.
+   *
+   * Page 7 of a 10-row list is an empty page 7 of a 50-row list, and a narrowed filter usually
+   * has fewer pages than the one you were on. Resetting from an effect also meant two requests
+   * per change: one at the old page, then another once the reset landed.
+   */
+  const onFilterChange = <T,>(setter: (v: T) => void) => (value: T) => {
+    setter(value);
+    setCurrentPage(1);
+  };
 
   React.useEffect(() => {
     setSelectedOrder(null);
   }, [activeOrderTab, originFilter]);
 
   // Create Order from Quote Modal States
-  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = React.useState(false);
-  const [initialQuoteId, setInitialQuoteId] = React.useState<string | null>(null);
 
   // Shipment fulfillment states
   const [isFulfilling, setIsFulfilling] = React.useState(false);
 
   // Dispatch payment flow states
   const [isDispatchPayModalOpen, setIsDispatchPayModalOpen] = React.useState(false);
-  const [dispatchPayMethod, setDispatchPayMethod] = React.useState<"Bank Transfer" | "UPI" | "Razorpay" | "COD">("Bank Transfer");
+  /**
+   * Offline methods, plus the gateway — which is *run*, not recorded.
+   *
+   * A balance is absent: debiting one needs the Advance Balance routes, which read it and write a
+   * ledger entry, and naming one here would mark the order paid against untouched money.
+   */
+  const [dispatchPayMethod, setDispatchPayMethod] = React.useState<"Bank Transfer" | "UPI" | "COD" | "Razorpay">("Razorpay");
   const [dispatchPayAmount, setDispatchPayAmount] = React.useState("");
   const [dispatchTxnId, setDispatchTxnId] = React.useState("");
 
-
-  // URL listener for auto-open quote conversion
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const qId = params.get("confirmQuoteId");
-      if (qId) {
-        setInitialQuoteId(qId);
-        setIsCreateOrderModalOpen(true);
-      }
-    }
-  }, [addToast]);
 
   const activeSelectedOrder = React.useMemo(() => {
     if (!selectedOrder) return null;
@@ -162,7 +218,8 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     // 2. Payment is pending: open the custom payment modal
     setDispatchPayAmount(String(activeSelectedOrder.amount));
     setDispatchTxnId("");
-    setDispatchPayMethod("Bank Transfer");
+    // The gateway first: it is the one method that both takes the money and proves it.
+    setDispatchPayMethod("Razorpay");
     setIsDispatchPayModalOpen(true);
   };
 
@@ -207,6 +264,37 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
 
   const handleRecordDispatchPayment = async () => {
     if (!activeSelectedOrder) return;
+
+    /**
+     * The gateway is run, not recorded.
+     *
+     * It charges the order's own stored total — which is also why the amount box is hidden
+     * for it: there is nothing here to type that could change what gets charged.
+     * `/api/razorpay/verify` settles it and issues the Tax Invoice on a verified signature.
+     */
+    if (dispatchPayMethod === "Razorpay") {
+      try {
+        const outcome = await collectOrderPaymentOnline({
+          orderId: activeSelectedOrder._id,
+          customerName: activeSelectedOrder.customerName,
+          customerEmail: activeSelectedOrder.shippingAddress?.email,
+          customerPhone: activeSelectedOrder.shippingAddress?.phone,
+          description: `Payment for order ${activeSelectedOrder._id}`,
+        });
+        if (outcome.status === "paid") {
+          addToast("Payment received. The Tax Invoice has been issued.", "success");
+          setIsDispatchPayModalOpen(false);
+          setIsFulfilling(true);
+          refetchOrders();
+        } else {
+          addToast("Payment cancelled — the order is unchanged and still payable.", "info");
+        }
+      } catch (err: any) {
+        addToast(describePaymentFailure(err), "error");
+      }
+      return;
+    }
+
     if (!dispatchPayAmount.trim()) {
       addToast("Please enter the amount received.", "error");
       return;
@@ -224,56 +312,16 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
     try {
       await updateOrderStatus(activeSelectedOrder._id, "Processing", {
         paymentStatus: "Paid",
-        paymentMethod: dispatchPayMethod,
-        transactionId: dispatchPayMethod === "COD" ? (dispatchTxnId.trim() || "CASH") : dispatchTxnId.trim(),
+        paymentMethod: dispatchPayMethod === "COD" ? "Cash" : dispatchPayMethod,
+        // No invented reference for cash. `"CASH"` looked like a receipt number in the ledger
+        // and reconciled against nothing — the cash book is the record.
+        transactionId: dispatchTxnId.trim() || undefined,
       });
       addToast(`Payment of ₹${amount} received and recorded successfully!`, "success");
       setIsDispatchPayModalOpen(false);
       setIsFulfilling(true);
     } catch (err: any) {
       addToast(err.message || "Failed to update payment status.", "error");
-    }
-  };
-
-  const handleConfirmOrder = async (payload: {
-    quoteId: string;
-    salesperson?: string;
-    paymentOption: "now" | "later";
-    paymentMethod?: "Bank Transfer" | "Razorpay" | "UPI" | "COD";
-    transactionId?: string;
-    shippingAddress?: any;
-  }) => {
-    try {
-      const paymentDetails = {
-        paymentMethod: payload.paymentOption === "later" ? "COD" : payload.paymentMethod,
-        paymentStatus: payload.paymentOption === "later" ? "Pending" : "Paid",
-        transactionId: payload.paymentOption === "later" ? undefined : payload.transactionId,
-      };
-
-      const qId = payload.quoteId;
-      const response = await orderService.createOrder(
-        [], 
-        0,
-        payload.shippingAddress || {} as any, 
-        paymentDetails as any,
-        undefined,
-        undefined,
-        qId,
-        payload.salesperson
-      );
-
-      addToast("Quote converted and Order created successfully!", "success");
-      setIsCreateOrderModalOpen(false);
-      setInitialQuoteId(null);
-
-      // Refresh order list
-      initializeOrders({
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-      });
-    } catch (err: any) {
-      addToast(err.message || "Failed to convert quote to order.", "error");
-      throw err;
     }
   };
 
@@ -285,7 +333,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             {activeOrderTab === "ALL" ? "All Orders Manager" : `${activeOrderTab} Orders Manager`}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Manage dispatch statuses, track logistical fulfillment, and convert approved price quotes.
+            Manage dispatch statuses, track logistical fulfillment, and record order payments.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -320,7 +368,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Volume</p>
-              <h3 className="text-lg font-black mt-1 text-foreground">{orders.length}</h3>
+              <h3 className="text-lg font-black mt-1 text-foreground">{total}</h3>
             </div>
             <div className="p-2 rounded-lg bg-primary/5 text-primary text-base">
               📦
@@ -332,7 +380,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Amount</p>
               <h3 className="text-lg font-black mt-1 text-foreground">
-                {formatPrice(orders.reduce((sum, o) => sum + o.amount, 0))}
+                {formatPrice(analytics?.totalAmount || 0)}
               </h3>
             </div>
             <div className="p-2 rounded-lg bg-green-500/5 text-green-600 dark:text-green-400 text-base">
@@ -345,7 +393,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Pending Payment</p>
               <h3 className="text-lg font-black mt-1 text-foreground">
-                {orders.filter(o => o.paymentStatus !== "Paid").length}
+                {analytics?.pendingCount || 0}
               </h3>
             </div>
             <div className="p-2 rounded-lg bg-yellow-500/5 text-yellow-600 dark:text-yellow-400 text-base">
@@ -358,7 +406,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">To Dispatch</p>
               <h3 className="text-lg font-black mt-1 text-foreground">
-                {orders.filter(o => o.status === "Processing").length}
+                {analytics?.toDispatchCount || 0}
               </h3>
             </div>
             <div className="p-2 rounded-lg bg-blue-500/5 text-blue-600 dark:text-blue-400 text-base">
@@ -376,7 +424,7 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveOrderTab(tab.key as any)}
+              onClick={() => onFilterChange(setActiveOrderTab)(tab.key as any)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                 isSelected
                   ? "bg-primary text-primary-foreground shadow-md"
@@ -395,27 +443,29 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
         <OrdersListTable
           orders={orders}
           searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
+          setSearchTerm={onFilterChange(setSearchTerm)}
           startDate={startDate}
-          setStartDate={setStartDate}
+          setStartDate={onFilterChange(setStartDate)}
           endDate={endDate}
-          setEndDate={setEndDate}
+          setEndDate={onFilterChange(setEndDate)}
           selectedOrderId={selectedOrder?._id || null}
           onSelectOrder={(order) => setSelectedOrder(order)}
           originFilter={originFilter}
-          setOriginFilter={setOriginFilter}
+          setOriginFilter={onFilterChange(setOriginFilter)}
+          statusFilter={statusFilter}
+          setStatusFilter={onFilterChange(setStatusFilter)}
+          paymentStatusFilter={paymentStatusFilter}
+          setPaymentStatusFilter={onFilterChange(setPaymentStatusFilter)}
+          createdByFilter={createdByFilter}
+          setCreatedByFilter={onFilterChange(setCreatedByFilter)}
+          currentPage={page}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={onFilterChange(setItemsPerPage)}
+          totalItems={total}
+          totalPages={totalPages}
         />
       </div>
-
-      <CreateOrderModal
-        isOpen={isCreateOrderModalOpen}
-        onClose={() => {
-          setIsCreateOrderModalOpen(false);
-          setInitialQuoteId(null);
-        }}
-        onConfirmOrder={handleConfirmOrder}
-        initialQuoteId={initialQuoteId}
-      />
 
       <InvoiceCreateModal
         {...invoiceForm}
@@ -470,18 +520,24 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
               </div>
 
               <div className="space-y-3 pt-4 border-t">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Amount Received (₹) *</label>
-                  <Input
-                    type="number"
-                    value={dispatchPayAmount}
-                    onChange={(e) => setDispatchPayAmount(e.target.value)}
-                    placeholder="e.g. 5000"
-                    required
-                    className="text-xs"
-                  />
-                </div>
-                
+                {/*
+                  Hidden for the gateway: it charges the order's stored total, so an editable
+                  amount here would suggest a control that does not exist.
+                */}
+                {dispatchPayMethod !== "Razorpay" && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Amount Received (₹) *</label>
+                    <Input
+                      type="number"
+                      value={dispatchPayAmount}
+                      onChange={(e) => setDispatchPayAmount(e.target.value)}
+                      placeholder="e.g. 5000"
+                      required
+                      className="text-xs"
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Payment Method</label>
                   <select
@@ -489,25 +545,52 @@ export function AdminOrdersManager({ initialTab = "ALL" }: { initialTab?: "ALL" 
                     onChange={(e) => setDispatchPayMethod(e.target.value as any)}
                     className="bg-background text-foreground text-xs w-full px-2.5 py-2 border rounded-md cursor-pointer"
                   >
-                    <option value="Bank Transfer">Bank Transfer</option>
+                    {/*
+                      Razorpay runs the real gateway against this order. The rest are payments
+                      already collected offline, which staff attest to with a reference.
+
+                      advanceBalances are absent: debiting a balance needs the Advance Balance routes, which
+                      read it and write a ledger entry — naming one here would mark the order
+                      paid against untouched money. The server refuses both that and a
+                      hand-recorded Razorpay.
+                    */}
+                    <option value="Razorpay">Online (Razorpay) — card / netbanking / UPI</option>
+                    <option value="Bank Transfer">Bank Transfer / NEFT</option>
                     <option value="UPI">UPI</option>
-                    <option value="Razorpay">Razorpay</option>
                     <option value="COD">Cash (COD)</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                    {dispatchPayMethod === "COD" ? "Transaction reference ID (Optional)" : "Transaction reference ID *"}
-                  </label>
-                  <Input
-                    value={dispatchTxnId}
-                    onChange={(e) => setDispatchTxnId(e.target.value)}
-                    placeholder={dispatchPayMethod === "COD" ? "e.g. CASH (or leave blank)" : "e.g. TXN100293847"}
-                    required={dispatchPayMethod !== "COD"}
-                    className="text-xs font-mono"
-                  />
-                </div>
+                {dispatchPayMethod === "Razorpay" ? (
+                  <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                      Razorpay opens for {formatPrice(Number(activeSelectedOrder?.amount) || 0)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Charged at the order&apos;s own stored total. The Tax Invoice is issued
+                      once the signature verifies — nothing to type.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                      {dispatchPayMethod === "COD" ? "Cash receipt no. (optional)" : "Transaction reference / UTR *"}
+                    </label>
+                    <Input
+                      value={dispatchTxnId}
+                      onChange={(e) => setDispatchTxnId(e.target.value)}
+                      placeholder={dispatchPayMethod === "COD" ? "e.g. receipt book no. 0142" : "e.g. UTR100293847"}
+                      required={dispatchPayMethod !== "COD"}
+                      className="text-xs font-mono"
+                    />
+                    {dispatchPayMethod === "COD" && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Cash reconciles against the cash book — leave blank rather than
+                        inventing a reference.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

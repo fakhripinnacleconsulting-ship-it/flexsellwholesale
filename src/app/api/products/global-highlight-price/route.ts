@@ -29,7 +29,7 @@ export async function PUT(request: Request) {
     const result = await Product.updateMany({}, { $set: { defaultPriceTier } });
 
     // 3. Clear Next.js Cache so storefront updates instantly
-    revalidateProducts();
+    await revalidateProducts();
 
     return NextResponse.json({
       message: `Successfully set global highlight price to ${defaultPriceTier} and updated ${result.modifiedCount} products.`,

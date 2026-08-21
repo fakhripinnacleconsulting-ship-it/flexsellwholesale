@@ -13,7 +13,7 @@ import { formatPrice } from "@/lib/utils";
 import { ArrowLeft, User, ShoppingBag, CreditCard, Mail, Phone, MapPin, Building, ShieldAlert, CheckCircle2, Truck, Clock, Store, FileText, ExternalLink, ArrowUpCircle, XCircle } from "lucide-react";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
-import { StaffWalletPanel } from "@/components/wallet/StaffWalletPanel";
+import { StaffAdvanceBalancePanel } from "@/components/advance-balance/StaffAdvanceBalancePanel";
 
 interface CustomerDetailProps {
   customerId: string;
@@ -283,8 +283,8 @@ export function CustomerDetail({ customerId }: CustomerDetailProps) {
                     <span
                       key={type}
                       className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${type === "B2C" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          : type === "B2B" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                            : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                        : type === "B2B" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                          : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
                         }`}
                     >
                       {type}
@@ -311,45 +311,45 @@ export function CustomerDetail({ customerId }: CustomerDetailProps) {
 
           {/* KYC Documents Card — wholesale tiers only */}
           {needsKyc && (
-          <Card className="border border-border">
-            <CardHeader className="border-b pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <FileText className="h-4.5 w-4.5 text-primary" /> KYC Verification Documents
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-3">
-              {[
-                { key: "gstCertificate", label: "GST Certificate" },
-                { key: "signaturePhoto", label: "Signature Photo" },
-                { key: "aadharCard", label: "Aadhar Card" },
-                { key: "passportPhoto", label: "Passport Photo" },
-                { key: "panCard", label: "PAN Card" },
-                { key: "chequePhoto", label: "Cancelled Cheque" },
-              ].map((doc) => {
-                const url = kycDocs[doc.key as keyof typeof kycDocs];
-                return (
-                  <div key={doc.key} className="flex items-center justify-between p-2 rounded-md border text-xs bg-secondary/10">
-                    <span className="font-bold text-foreground">{doc.label}</span>
-                    {url ? (
-                      <div className="flex items-center gap-2">
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold text-[11px] flex items-center gap-1">
-                          View <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground italic">Not uploaded</span>
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
+            <Card className="border border-border">
+              <CardHeader className="border-b pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <FileText className="h-4.5 w-4.5 text-primary" /> KYC Verification Documents
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                {[
+                  { key: "gstCertificate", label: "GST Certificate" },
+                  { key: "signaturePhoto", label: "Signature Photo" },
+                  { key: "aadharCard", label: "Aadhar Card" },
+                  { key: "passportPhoto", label: "Passport Photo" },
+                  { key: "panCard", label: "PAN Card" },
+                  { key: "chequePhoto", label: "Cancelled Cheque" },
+                ].map((doc) => {
+                  const url = kycDocs[doc.key as keyof typeof kycDocs];
+                  return (
+                    <div key={doc.key} className="flex items-center justify-between p-2 rounded-md border text-xs bg-secondary/10">
+                      <span className="font-bold text-foreground">{doc.label}</span>
+                      {url ? (
+                        <div className="flex items-center gap-2">
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold text-[11px] flex items-center gap-1">
+                            View <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground italic">Not uploaded</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
           )}
         </div>
 
-        {/* Right Side: wallets, then order history */}
+        {/* Right Side: advanceBalances, then order history */}
         <div className="lg:col-span-2 space-y-6">
-          <StaffWalletPanel
+          <StaffAdvanceBalancePanel
             userId={customerId}
             customerName={customer.name}
             isAdmin={isAdminView}
@@ -376,7 +376,7 @@ export function CustomerDetail({ customerId }: CustomerDetailProps) {
                     {customerOrders.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground italic">
-                          No wholesale purchases logged for this account.
+                          No purchases logged for this account.
                         </td>
                       </tr>
                     ) : (

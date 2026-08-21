@@ -30,12 +30,16 @@ export async function proxy(request: NextRequest) {
 
   // Third-party callbacks cannot carry our CSRF cookie; each of these verifies its own
   // HMAC/token signature instead.
+  //
+  // /api/upload used to be listed here and is not any more: it is an authenticated route
+  // called by our own admin UI through apiClient, which attaches the header like every other
+  // mutating call. Exempting it left an authenticated, rate-limited-only file write reachable
+  // by a cross-site POST.
   const isExcludedCsrf =
     CSRF_EXEMPT_AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`)) ||
     pathname.startsWith("/api/csrf") ||
     pathname.startsWith("/api/system-diagnostics") ||
-    pathname.startsWith("/api/razorpay/webhook") ||
-    pathname.startsWith("/api/upload");
+    pathname.startsWith("/api/razorpay/webhook");
 
   if (isApiRoute && isStateChanging && !isExcludedCsrf) {
     const isTestMode = process.env.TEST_MODE === "true" && process.env.NODE_ENV !== "production";

@@ -49,13 +49,22 @@ function QuoteContent() {
         (!selectedWeight || sv.weight?.toLowerCase() === selectedWeight.toLowerCase())
       ) || activeVariant?.subVariants?.[0];
 
-      const b2bUnitPrice = activeSubVariant ? resolvePrice(activeSubVariant, "B2B") : item.pricePerUnit;
+      let b2bUnitPrice = item.pricePerUnit;
+      let isBelowMoq = false;
+
+      if (activeSubVariant) {
+        b2bUnitPrice = (activeSubVariant.b2bPrice && activeSubVariant.b2bPrice > 0) ? activeSubVariant.b2bPrice : (activeSubVariant.b2cPrice || item.pricePerUnit);
+        if (item.quantity < (activeSubVariant.b2bMoq || 1)) {
+          isBelowMoq = true;
+        }
+      }
 
       return {
         ...item,
         product: liveProduct,
         priceTier: "B2B" as const,
         pricePerUnit: b2bUnitPrice,
+        isBelowMoq,
       };
     });
   }, [items, products]);
@@ -157,12 +166,14 @@ function QuoteContent() {
   };
 
   const quoteId = `Q-${Math.floor(Math.random() * 900000 + 100000)}`;
+  const hasMoqWarning = b2bItems.some((i: any) => i.isBelowMoq);
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 print:bg-white print:py-0 print:px-0">
       <QuoteDocument
         quoteId={quoteId}
         items={b2bItems}
+        hasMoqWarning={hasMoqWarning}
         taxDetails={taxDetails}
         buyerState={buyerState || "Madhya Pradesh"}
         sellerInfo={sellerInfo}

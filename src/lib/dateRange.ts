@@ -1,11 +1,11 @@
-import { toISTDateKey } from "./datetime";
+import { toISTDateKey, formatDateIST } from "./datetime";
 
 /**
- * Date ranges for wallet statements and breakdowns.
+ * Date ranges for Advance Balance statements and breakdowns.
  *
  * Built around the **Indian financial year** (1 April – 31 March) rather than the calendar
  * year, because that is the window a business owner and their accountant actually work in —
- * a wallet statement is filed against an FY, not against January to December.
+ * a Advance Balance statement is filed against an FY, not against January to December.
  *
  * All boundaries are computed in local time and sent as ISO strings; the server widens the
  * closing day to 23:59:59 so a range ending "31 March" includes that day's transactions
@@ -103,7 +103,13 @@ export function resolveRange(key: RangeKey, custom?: { from?: string; to?: strin
   }
 }
 
-/** Human label for the active range, for statement headers and empty states. */
+/**
+ * Human label for the active range — for the **on-screen** chip only.
+ *
+ * "This month" is right beside the dropdown that says "This month", so repeating the dates
+ * there would be noise. It is the wrong answer for anything downloaded: see
+ * `formatRangePeriod` below.
+ */
 export function describeRange(range: DateRange): string {
   if (range.key === "all" || !range.from || !range.to) return "All time";
 
@@ -111,6 +117,21 @@ export function describeRange(range: DateRange): string {
   if (preset && range.key !== "custom") return preset.label;
 
   return `${toISTDateKey(range.from)} to ${toISTDateKey(range.to)}`;
+}
+
+/**
+ * The period line printed on a downloaded statement. **Always concrete dates.**
+ *
+ * `describeRange` was being used for this, so a PDF downloaded with "This month" selected
+ * had "This month" as its Period — meaningless once the file is sitting in a folder three
+ * months later, and it disagreed with the CSV export of the very same statement, which had
+ * always formatted the real dates.
+ *
+ * A statement has to state its own dates. It is read away from the screen that produced it.
+ */
+export function formatRangePeriod(range: DateRange): string {
+  if (range.key === "all" || !range.from || !range.to) return "All time";
+  return `${formatDateIST(range.from)} to ${formatDateIST(range.to)}`;
 }
 
 /** The FY label a range falls in, e.g. "FY 2026-27". Used in export filenames. */

@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { CustomerAnalyticsPanel } from "@/components/admin/CustomerAnalyticsPanel";
+import { Accordion } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { CustomerFormModal } from "@/components/shared/CustomerFormModal";
@@ -14,7 +16,7 @@ import { useOrderStore } from "@/stores/orderStore";
 import { useToastStore } from "@/stores/toastStore";
 import { useConfirmStore } from "@/stores/confirmStore";
 import { formatPrice } from "@/lib/utils";
-import { Plus, Eye, Edit2, Trash2, Building, ShieldAlert, CheckCircle2, Search, Mail } from "lucide-react";
+import { Plus, Eye, Edit2, Trash2, Building, ShieldAlert, CheckCircle2, Search, Mail, BarChart3 } from "lucide-react";
 import { Pagination } from "@/components/ui/Pagination";
 import { validateCustomerKycRequirements, hasUploadedKycDoc } from "@/lib/kycValidationHelper";
 import { useDraggableScroll } from "@/hooks/useDraggableScroll";
@@ -29,7 +31,7 @@ export function AdminCustomersManager({ initialType = "" }: { initialType?: "B2B
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, onDragStart } = useDraggableScroll<HTMLDivElement>();
   const confirmAction = useConfirmStore((state) => state.confirm);
   const { orders, initializeOrders } = useOrderStore();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isManagerRoute } = usePermissions();
   const pathname = usePathname();
   const basePath = pathname?.startsWith("/manager") ? "/manager" : "/admin";
 
@@ -54,6 +56,8 @@ export function AdminCustomersManager({ initialType = "" }: { initialType?: "B2B
   });
 
   const [activeTab, setActiveTab] = React.useState<"B2B" | "B2C" | "Dropshipping" | "B2B_Pending" | "">(initialType);
+  /** Latches on the first open, so the analytics aggregations run once and only on demand. */
+  const [hasOpenedAnalytics, setHasOpenedAnalytics] = React.useState(false);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -296,6 +300,46 @@ export function AdminCustomersManager({ initialType = "" }: { initialType?: "B2B
           )}
         </div>
       </div>
+
+      {/*
+        Analytics above the list, **admin only**.
+
+        A manager reaches this same component at /manager/customers, where the figures would
+        describe the whole customer base rather than the manager's own work — a different
+        question from the one the rest of their portal answers, and one that hands them a
+        business-wide revenue and Advance Balance position they are not otherwise shown.
+
+        Collapsible because it is context, not the task: the table is what someone came here
+        for. It stays mounted when collapsed, so re-opening does not re-run the aggregation.
+        Scoped to the same customer-type filter as the list, so the numbers always describe
+        the rows underneath; its date range is its own, separate from the list's "date joined"
+        filter, which narrows which customers are listed rather than which period is measured.
+      */}
+      {!isManagerRoute && (
+        <Accordion
+          id="customer-analytics"
+          title="Customer Analytics"
+          icon={<BarChart3 className="h-4 w-4 text-primary" />}
+          onToggle={(open) => {
+            if (open) setHasOpenedAnalytics(true);
+          }}
+        >
+          {/*
+            Mounted on first open, and kept mounted after.
+
+            The accordion hides its content rather than unmounting it, which is what stops a
+            collapse from throwing away loaded data — but it also means a panel rendered here
+            unconditionally would run its aggregations on every page load, for a section that
+            starts closed and may never be opened. Gating the first mount defers that work;
+            leaving `hasOpenedAnalytics` latched means re-opening is still free.
+          */}
+          {hasOpenedAnalytics ? (
+            <CustomerAnalyticsPanel
+              customerType={customerTypeFilter === "B2B_Pending" ? "B2B" : customerTypeFilter}
+            />
+          ) : null}
+        </Accordion>
+      )}
 
       <Card className="border border-border">
         <CardHeader className="border-b pb-4 flex flex-col gap-4 bg-card rounded-t-xl">

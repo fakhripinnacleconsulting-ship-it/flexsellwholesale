@@ -38,7 +38,20 @@ export async function GET(request: Request) {
       );
 
       const quotes = mgrInvoices.filter((i: any) => i.type === "quote");
-      const convertedQuotes = quotes.filter((i: any) => i.status === "converted" || i.status === "approved");
+      /**
+       * `accepted` is a quote's successful outcome; `converted` and `approved` are legacy.
+       *
+       * Quotes are standalone estimates and no longer become orders, so nothing produces
+       * `converted` any more. Omitting `accepted` here — as this did — would have pinned
+       * every manager's rate at 0% the moment the conversion flow was removed.
+       *
+       * The output field names stay `convertedQuotesCount` / `quoteConversionRate`: they are
+       * the shape of the KPI response and of the CSV export, and renaming them would break
+       * both for a label.
+       */
+      const convertedQuotes = quotes.filter(
+        (i: any) => i.status === "accepted" || i.status === "converted" || i.status === "approved"
+      );
 
       const totalOrderRevenue = mgrOrders.reduce((s: number, o: any) => s + (o.amount || 0), 0);
       const totalQuoteRevenue = convertedQuotes.reduce((s: number, q: any) => s + (q.amount || 0), 0);

@@ -59,7 +59,7 @@ export function CmsFormModal({
         className={`bg-card border border-border transition-all duration-300 flex flex-col shadow-2xl animate-fade-in text-foreground ${
           useFullScreen
             ? "w-[98vw] h-[95vh] max-w-none rounded-2xl"
-            : "w-full max-w-3xl max-h-[90vh] rounded-2xl"
+            : "w-full max-w-3xl max-h-[90dvh] rounded-2xl"
         }`}
       >
         {/* Header */}

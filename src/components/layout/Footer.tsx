@@ -18,6 +18,10 @@ interface FooterProps {
     contactEmail?: string;
     contactPhone?: string;
     timings?: string;
+    paymentBannerUrl?: string;
+    paymentImageUrl?: string;
+    paymentImage?: string;
+    [key: string]: any;
   };
 }
 
@@ -252,37 +256,49 @@ export function Footer({ data }: FooterProps) {
       <div className="mx-auto max-w-8xl px-4 md:px-6 pt-6 border-t border-border/60 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground w-full">
         <p>&copy; {new Date().getFullYear()} FlexSell Wholesale B2B Portal. All rights reserved.</p>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 md:gap-4 flex-wrap text-[10px] font-bold uppercase tracking-wider">
-            {Array.isArray(footerSettings?.paymentBadges) && footerSettings.paymentBadges.length > 0 ? (
-              footerSettings.paymentBadges.map((badge: any) => (
-                <span key={badge.id} className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
-                  {badge.iconUrl && <img src={badge.iconUrl} alt={badge.name} className="h-3.5 w-3.5 object-contain" />}
-                  {badge.name}
-                </span>
-              ))
-            ) : (
-              <>
-                <span className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
-                  <Phone className="h-3.5 w-3.5 text-blue-500" /> UPI / NetBanking
-                </span>
-                <span className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
-                  <Globe className="h-3.5 w-3.5 text-indigo-500" /> Razorpay
-                </span>
-                <span className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
-                  <CreditCard className="h-3.5 w-3.5 text-orange-500" /> Credit/Debit
-                </span>
-                <span className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
-                  <Banknote className="h-3.5 w-3.5 text-emerald-500" /> COD
-                </span>
-              </>
-            )}
-          </div>
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+          {(() => {
+            const singlePaymentBannerFromDb =
+              footerSettings?.paymentBannerUrl ||
+              footerSettings?.paymentImageUrl ||
+              footerSettings?.paymentImage ||
+              data?.paymentBannerUrl ||
+              data?.paymentImageUrl ||
+              data?.paymentImage ||
+              (Array.isArray(footerSettings?.paymentBadges) && footerSettings.paymentBadges.length === 1 && (footerSettings.paymentBadges[0].iconUrl || footerSettings.paymentBadges[0].url)
+                ? footerSettings.paymentBadges[0].iconUrl || footerSettings.paymentBadges[0].url
+                : null);
+
+            const activePaymentBanner = singlePaymentBannerFromDb || "/images/payment-methods.svg";
+
+            if (Array.isArray(footerSettings?.paymentBadges) && footerSettings.paymentBadges.length > 1) {
+              return (
+                <div className="flex items-center gap-2 md:gap-3 flex-wrap text-[10px] font-bold uppercase tracking-wider">
+                  {footerSettings.paymentBadges.map((badge: any) => (
+                    <span key={badge.id} className="flex items-center gap-1.5 bg-secondary/60 text-foreground px-2.5 py-1.5 rounded border border-border shadow-sm">
+                      {badge.iconUrl && <img src={badge.iconUrl} alt={badge.name || "Payment Badge"} className="h-5 w-auto max-h-5 object-contain" />}
+                      {badge.name}
+                    </span>
+                  ))}
+                </div>
+              );
+            }
+
+            return (
+              <div className="bg-white p-1 sm:p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-center transition-all hover:shadow-xs overflow-hidden">
+                <img
+                  src={activePaymentBanner}
+                  alt="Accepted Payment Methods: VISA, Mastercard, Google Pay, UPI, Cash on Delivery"
+                  className="h-6 sm:h-7 md:h-8 w-auto max-w-[200px] sm:max-w-[240px] md:max-w-[280px] object-contain block"
+                />
+              </div>
+            );
+          })()}
 
           <button
             type="button"
             onClick={scrollToTop}
-            className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline cursor-pointer bg-primary/10 px-3 py-1 rounded-full border border-primary/20 transition-all hover:bg-primary/20"
+            className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline cursor-pointer bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 transition-all hover:bg-primary/20 shrink-0"
           >
             Top <ArrowUp className="h-3.5 w-3.5" />
           </button>

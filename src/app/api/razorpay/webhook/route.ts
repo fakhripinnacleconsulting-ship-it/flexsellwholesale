@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyWebhookSignature, settleOrderPayment, type SettledOrderSummary } from "@/lib/razorpayPayment";
-import { settleWalletRecharge } from "@/lib/walletRecharge";
+import { settleAdvanceBalanceTopUp } from "@/lib/advanceBalanceRecharge";
 import { dispatchEventServer } from "@/lib/events/eventDispatcherServer";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/Order";
@@ -65,16 +65,30 @@ export async function POST(request: Request) {
     await dbConnect();
 
     /**
-     * Wallet recharges settle here too.
+     * Advance Balance recharges settle here too.
      *
      * Deliberately a branch inside this route rather than a second webhook endpoint: this
      * one already verifies the signature over the raw body and is already exempt from CSRF.
      * A separate endpoint would mean rebuilding both, and getting either wrong on a route
      * that credits money is not a recoverable mistake.
      */
-    if (notes.flexsellWalletTxnId) {
+    /**
+     * Both note keys, permanently.
+     *
+     * The note is attached to a Razorpay order when a top-up starts and comes back on the
+     * webhook minutes later — so it lives in **Razorpay's** records, not ours. Any top-up
+     * begun before the rename carries `flexsellWalletTxnId`; reading only the new key would
+     * mean those payments are captured by Razorpay and never credited, leaving the customer
+     * debited with no balance to show for it.
+     *
+     * This is not a transitional shim to delete later: a retried webhook can deliver an old
+     * note at any point in the future.
+     */
+    const pendingTopUpId = notes.flexsellAdvanceBalanceTxnId || notes.flexsellWalletTxnId;
+
+    if (pendingTopUpId) {
       const capturedPaise = Number(payment.amount || 0);
-      const settlement = await settleWalletRecharge({
+      const settlement = await settleAdvanceBalanceTopUp({
         razorpayOrderId,
         razorpayPaymentId,
         capturedPaise,
@@ -86,7 +100,7 @@ export async function POST(request: Request) {
       }
       if (settlement.status === "amount_mismatch") {
         // 200 so Razorpay stops retrying — retrying will not fix a mismatch. The error is
-        // logged inside settleWalletRecharge for manual review.
+        // logged inside settleAdvanceBalanceTopUp for manual review.
         return NextResponse.json({ message: "Amount mismatch; flagged for review" });
       }
       if (settlement.status === "already_settled") {

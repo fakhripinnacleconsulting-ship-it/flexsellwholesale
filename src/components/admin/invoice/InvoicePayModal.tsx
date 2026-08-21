@@ -3,27 +3,51 @@
 import * as React from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { X } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
+import { isAdvanceBalanceMethod, METHOD_TO_WALLET_TYPE } from "@/lib/advanceBalanceConstants";
+import { X, AlertCircle } from "lucide-react";
+
+/**
+ * How the money is taken.
+ *
+ * `Razorpay` is the odd one out and deliberately so: it is **not** recorded by hand. Choosing
+ * it opens Razorpay Checkout against the receipt's linked order and the payment only counts
+ * once `/api/razorpay/verify` re-computes the signature — which is also why
+ * `/api/invoices/[id]/settle` refuses the method outright. Everything else here is money
+ * already collected, which staff attest to with a reference.
+ */
+export type PayOnlineMethod = "UPI" | "Bank Transfer" | "Razorpay" | "Store Advance Balance" | "Business Advance Balance";
 
 interface InvoicePayModalProps {
   isOpen: boolean;
   onClose: () => void;
   payInvoiceId: string | null;
-  payInvoiceType: "invoice" | "receipt" | "quote";
+  /**
+   * The order this receipt was raised against, when it has one.
+   *
+   * Only the gateway needs it: Razorpay charges an order, and a standalone receipt has none.
+   */
+  linkedOrderId?: string | null;
+  /** The receipt total. The server settles against its own stored copy; this is for the UI guard. */
+  payAmount: number;
   paymentType: "cash" | "online";
   setPaymentType: (type: "cash" | "online") => void;
-  onlineMethod: "UPI" | "Razorpay" | "Bank Transfer";
-  setOnlineMethod: (method: "UPI" | "Razorpay" | "Bank Transfer") => void;
+  onlineMethod: PayOnlineMethod;
+  setOnlineMethod: (method: PayOnlineMethod) => void;
   txnId: string;
   setTxnId: (val: string) => void;
   onConfirmPay: () => void;
+  isSubmitting?: boolean;
+  storeAdvanceBalance?: number;
+  businessAdvanceBalance?: number;
 }
 
 export function InvoicePayModal({
   isOpen,
   onClose,
   payInvoiceId,
-  payInvoiceType,
+  linkedOrderId,
+  payAmount,
   paymentType,
   setPaymentType,
   onlineMethod,
@@ -31,8 +55,48 @@ export function InvoicePayModal({
   txnId,
   setTxnId,
   onConfirmPay,
+  isSubmitting = false,
+  storeAdvanceBalance = 0,
+  businessAdvanceBalance = 0,
 }: InvoicePayModalProps) {
   if (!isOpen) return null;
+
+  // Through the shared helper rather than two literals — duplicating these strings is what
+  // silently broke the balance options in the create-order form.
+  const isWallet = paymentType === "online" && isAdvanceBalanceMethod(onlineMethod);
+  const isGateway = paymentType === "online" && onlineMethod === "Razorpay";
+  const selectedBalance =
+    METHOD_TO_WALLET_TYPE[onlineMethod] === "business" ? businessAdvanceBalance : storeAdvanceBalance;
+
+  /**
+   * The Advance Balance must actually cover the receipt.
+   *
+   * The server refuses a short balance with a 409 regardless — this only stops the request
+   * being made at all. Previously the balance was fetched, rendered in the dropdown label,
+   * and then never compared against anything, so a ₹0 Advance Balance looked like a valid choice.
+   */
+  const advanceBalanceCovers = !isWallet || selectedBalance >= payAmount;
+  const shortfall = isWallet && !advanceBalanceCovers ? payAmount - selectedBalance : 0;
+
+  /**
+   * A reference is asked for only where one exists.
+   *
+   * A Advance Balance is exempt — the ledger entry *is* the reference. So is cash: a note handed over
+   * the counter has no UTR, and demanding one only moves the fabrication from the code to the
+   * person. This modal used to invent `CASH-HAND-${Date.now()}` itself; a hand-typed
+   * "CASH-1" is the same unreconcilable string with a different author. And the gateway
+   * produces its own payment id, which is why it must never be typed.
+   */
+  const needsReference = !isWallet && !isGateway && paymentType !== "cash";
+  const referenceMissing = needsReference && !txnId.trim();
+
+  /**
+   * A gateway payment charges the linked order, so a receipt with no order behind it has
+   * nothing to charge. Blocked here rather than failing after the modal opens.
+   */
+  const gatewayUnavailable = isGateway && !linkedOrderId;
+
+  const canConfirm = advanceBalanceCovers && !referenceMissing && !gatewayUnavailable && !isSubmitting;
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -45,8 +109,9 @@ export function InvoicePayModal({
         </div>
 
         <p className="text-xs text-muted-foreground mb-4">
-          Mark document <span className="font-mono font-bold text-foreground">{payInvoiceId}</span> as Paid.
-          This will convert the receipt to a Tax Invoice and sync payment details onto the linked order.
+          Collect <span className="font-bold text-foreground">{formatPrice(payAmount)}</span> against{" "}
+          <span className="font-mono font-bold text-foreground">{payInvoiceId}</span>. This issues a new Tax
+          Invoice with its own number and syncs the linked order.
         </p>
 
         <div className="space-y-4">
@@ -75,7 +140,7 @@ export function InvoicePayModal({
                 }`}
               >
                 <div className="text-sm font-bold">💳 Online / Bank</div>
-                <div className="text-[11px] opacity-80 mt-0.5">UPI, Netbank, Cards</div>
+                <div className="text-[11px] opacity-80 mt-0.5">UPI, Netbank, Advance Balance</div>
               </button>
             </div>
           </div>
@@ -85,34 +150,112 @@ export function InvoicePayModal({
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Online Gateway / Method</label>
               <select
                 value={onlineMethod}
-                onChange={(e) => setOnlineMethod(e.target.value as any)}
+                onChange={(e) => setOnlineMethod(e.target.value as PayOnlineMethod)}
                 className="bg-background text-foreground text-sm w-full px-3 py-2 border rounded-md cursor-pointer"
               >
                 <option value="UPI">UPI / VPA Scan</option>
                 <option value="Bank Transfer">Direct Bank Wire / NEFT</option>
-                <option value="Razorpay">Razorpay Gateway</option>
+                <option value="Razorpay">Razorpay Gateway — card / netbanking / UPI</option>
+                <option value="Store Advance Balance">Store Advance Balance — {formatPrice(storeAdvanceBalance)} available</option>
+                <option value="Business Advance Balance">Business Advance Balance — {formatPrice(businessAdvanceBalance)} available</option>
               </select>
             </div>
           )}
 
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1">
-              Transaction Ref / UTR / Receipt No.
-            </label>
-            <Input
-              placeholder={paymentType === "cash" ? "e.g. CASH-HAND-102" : "e.g. UTR984712034"}
-              value={txnId}
-              onChange={(e) => setTxnId(e.target.value)}
-              className="text-sm font-mono"
-            />
-          </div>
+          {isGateway && (
+            <div
+              className={`flex items-start gap-2 p-3 rounded-md border text-sm ${
+                gatewayUnavailable
+                  ? "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900"
+                  : "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900"
+              }`}
+            >
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                {gatewayUnavailable ? (
+                  <>
+                    <p className="font-semibold">This receipt has no linked order.</p>
+                    <p className="text-xs opacity-90 mt-0.5">
+                      The gateway charges an order, so there is nothing to charge here. Collect
+                      the payment another way.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold">Razorpay opens for {formatPrice(payAmount)}.</p>
+                    <p className="text-xs opacity-90 mt-0.5">
+                      Charged against order {linkedOrderId} at its own stored total. The Tax
+                      Invoice is issued once the signature verifies — no reference to type.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {isWallet && !advanceBalanceCovers && (
+            <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md border border-amber-200 dark:border-amber-900">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">{formatPrice(shortfall)} short for this receipt.</p>
+                <p className="text-xs opacity-90 mt-0.5">
+                  The {onlineMethod} holds {formatPrice(selectedBalance)} against a total of {formatPrice(payAmount)}.
+                  Add funds or choose another method.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {needsReference ? (
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                Transaction Ref / UTR <span className="text-destructive">*</span>
+              </label>
+              <Input
+                placeholder="e.g. UTR984712034"
+                value={txnId}
+                onChange={(e) => setTxnId(e.target.value)}
+                className="text-sm font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Required — this is what the payment reconciles against on the bank statement.
+              </p>
+            </div>
+          ) : paymentType === "cash" ? (
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                Cash Receipt No. <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                placeholder="e.g. receipt book no. 0142"
+                value={txnId}
+                onChange={(e) => setTxnId(e.target.value)}
+                className="text-sm font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Only if you issued a physical receipt. Cash reconciles against the cash book,
+                not a reference number — leave it blank rather than inventing one.
+              </p>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" size="sm" onClick={onClose} className="cursor-pointer">
+            <Button variant="outline" size="sm" onClick={onClose} className="cursor-pointer" disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button size="sm" onClick={onConfirmPay} className="font-semibold cursor-pointer">
-              Confirm Payment & Issue Invoice
+            <Button
+              size="sm"
+              onClick={onConfirmPay}
+              disabled={!canConfirm}
+              className="font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting
+                ? isGateway
+                  ? "Opening gateway…"
+                  : "Recording…"
+                : isGateway
+                ? "Continue to Razorpay"
+                : "Confirm Payment & Issue Invoice"}
             </Button>
           </div>
         </div>

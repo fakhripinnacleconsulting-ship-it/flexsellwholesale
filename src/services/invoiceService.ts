@@ -410,43 +410,36 @@ export const invoiceService = {
         throw new Error("Converted quotes cannot be modified.");
       }
 
-      // Convert Receipt to Invoice
-      let updatedType = match.type;
-      let updatedStatus = data.status || match.status;
-      let updatedPaymentStatus = data.paymentStatus || match.paymentStatus;
-
-      if (match.type === "receipt" && (data.status === "paid" || data.paymentStatus === "Paid")) {
-        // Safe check for duplicate order invoice
-        if (match.orderId) {
-          const duplicate = list.find(x => x.orderId === match.orderId && x.type === "invoice");
-          if (duplicate) throw new Error("An invoice has already been generated for this order.");
-        }
-        updatedType = "invoice";
-        updatedStatus = "paid";
-        updatedPaymentStatus = "Paid";
-
-        // Sync order payment status in mock mode
-        if (match.orderId) {
-          const ordersRaw = localStorage.getItem("flexsell-orders-storage");
-          if (ordersRaw) {
-            const orders = JSON.parse(ordersRaw) as Order[];
-            const ordIdx = orders.findIndex((o) => o._id === match.orderId);
-            if (ordIdx !== -1) {
-              orders[ordIdx].paymentStatus = "Paid";
-              orders[ordIdx].paymentMethod = (data.paymentMethod || match.paymentMethod) as Order["paymentMethod"];
-              orders[ordIdx].transactionId = data.transactionId || match.transactionId;
-              localStorage.setItem("flexsell-orders-storage", JSON.stringify(orders));
-            }
-          }
-        }
+      /**
+       * Settlement is not an update — mirrored from the API so mock mode cannot teach the UI
+       * a workflow the server refuses. The receipt-to-invoice conversion that used to live
+       * here flipped `type` in place and kept the `REC-` number, exactly as the server did.
+       */
+      if (data.paymentStatus !== undefined || data.paymentMethod !== undefined || data.transactionId !== undefined) {
+        throw new Error("Payment details cannot be set through an update. Use the payment action.");
+      }
+      if (match.type === "receipt" && data.status === "paid") {
+        throw new Error("A receipt is marked paid by recording a payment, not by editing its status.");
+      }
+      /**
+       * A settled receipt is frozen — mirrored from the API for the same reason as the rules
+       * above: mock mode must not teach the UI a workflow the server refuses.
+       *
+       * Settlement retains the receipt as the record of a payment that a live Tax Invoice was
+       * issued against, so voiding it would contradict a document that cannot itself be edited.
+       */
+      const isSettledReceipt =
+        match.type === "receipt" && (Boolean(match.settledByInvoiceId) || match.status === "paid");
+      if (isSettledReceipt && !(Object.keys(data).length === 1 && data.isArchived !== undefined)) {
+        throw new Error(
+          "This receipt was settled and can no longer be changed. Void the Tax Invoice instead."
+        );
       }
 
       const updatedDoc: Invoice = {
         ...match,
         ...data,
-        type: updatedType,
-        status: updatedStatus as Invoice["status"],
-        paymentStatus: updatedPaymentStatus
+        status: (data.status || match.status) as Invoice["status"],
       };
 
       list[matchIndex] = updatedDoc;
@@ -454,6 +447,34 @@ export const invoiceService = {
       return updatedDoc;
     }
     return apiClient.put<Invoice>(`/invoices/${id}`, data);
+  },
+
+  /**
+   * Records payment against a receipt and issues its Tax Invoice.
+   *
+   * The only path that may mark a document paid. `updateInvoice` cannot do it any more — the
+   * API rejects payment fields outright — because that route moved no money: a Advance Balance method
+   * was written straight onto the document with no balance check and no ledger entry.
+   *
+   * Not available in mock mode, for the same reason Advance Balance writes are not: a mocked
+   * settlement teaches the UI that money moved when nothing did.
+   *
+   * `clientRequestId` must be generated when the pay modal **opens** and kept for the life of
+   * that modal, so a double-click settles once.
+   */
+  async settleInvoice(
+    id: string,
+    input: {
+      method: string;
+      transactionId?: string;
+      clientRequestId: string;
+      notes?: string;
+    }
+  ): Promise<{ message: string; invoiceId: string; receiptId: string; transactionId: string; invoice: Invoice }> {
+    if (isMockMode) {
+      throw new Error("Recording a payment is unavailable in mock mode — it requires a real server.");
+    }
+    return apiClient.post(`/invoices/${id}/settle`, input);
   },
 
   async voidInvoice(id: string): Promise<Invoice> {
@@ -472,6 +493,10 @@ export const invoiceService = {
       if (match.type === "quote" && match.status === "converted") {
         throw new Error("Converted quotes cannot be deleted.");
       }
+      // A settled receipt is the audit record behind a live Tax Invoice — mirrored from the API.
+      if (match.type === "receipt" && (match.settledByInvoiceId || match.status === "paid")) {
+        throw new Error("This receipt was settled and is the record of that payment, so it cannot be deleted.");
+      }
 
       // Write deletion audit trail to history/console in mock
       console.log(`[AUDIT] Deleted ${match.type} ${id} by Admin.`);
@@ -483,15 +508,31 @@ export const invoiceService = {
     return apiClient.delete(`/invoices/${id}`);
   },
 
+  /**
+   * The document that represents an order — its Tax Invoice once one exists, otherwise the
+   * receipt it is still payable against.
+   *
+   * An order can now have **two** documents against it. Settlement used to flip the receipt's
+   * `type` in place, leaving exactly one; it now issues a separate `INV-` and *retains* the
+   * `REC-` receipt as the record of what was collected, so both carry the same `orderId`.
+   *
+   * Taking `[0]` of that list therefore stopped being a choice and became whatever the sort
+   * happened to put first — which would show a buyer a "pending" receipt for an order they
+   * have already paid. The type is the thing that decides, so decide on it.
+   */
   async getInvoiceByOrderId(orderId: string): Promise<Invoice | null> {
+    const pickForOrder = (docs: Invoice[]): Invoice | null => {
+      if (docs.length === 0) return null;
+      return docs.find((d) => d.type === "invoice") || docs.find((d) => d.type === "receipt") || docs[0];
+    };
+
     if (isMockMode) {
-      const match = getLocalInvoices().find(i => i.orderId === orderId);
-      return match || null;
+      return pickForOrder(getLocalInvoices().filter((i) => i.orderId === orderId));
     }
     try {
       const result = await apiClient.get<unknown>(`/invoices?orderId=${orderId}`);
       const invoices = Array.isArray(result) ? result : (result as { invoices?: Invoice[] }).invoices || [];
-      return invoices.length > 0 ? invoices[0] : null;
+      return pickForOrder(invoices);
     } catch {
       return null;
     }

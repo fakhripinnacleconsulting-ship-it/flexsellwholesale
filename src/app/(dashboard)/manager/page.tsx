@@ -80,15 +80,24 @@ export default function ManagerDashboardOverview() {
   });
 
   const myQuotes = myInvoices.filter((i) => i.type === "quote");
-  const myConvertedQuotes = myQuotes.filter((q) => q.status === "converted");
+  /**
+   * A quote's successful outcome is now `accepted`, not `converted`.
+   *
+   * Quotes are standalone estimates and no longer become orders, so nothing produces
+   * `converted` any more. Legacy rows created by the old conversion flow are folded in, or
+   * every manager's rate would read 0% for work they actually did.
+   */
+  const myAcceptedQuotes = myQuotes.filter(
+    (q) => q.status === "accepted" || q.status === "converted"
+  );
   const myDraftQuotes = myQuotes.filter((q) => q.status === "draft");
   const mySentQuotes = myQuotes.filter((q) => q.status === "sent");
   const myFinalizedQuotes = myQuotes.filter((q) => q.status === "finalized");
 
   const totalQuoteValue = myQuotes.reduce((sum, q) => sum + (q.amount || 0), 0);
-  const conversionRate =
+  const acceptanceRate =
     myQuotes.length > 0
-      ? Math.round((myConvertedQuotes.length / myQuotes.length) * 100)
+      ? Math.round((myAcceptedQuotes.length / myQuotes.length) * 100)
       : 0;
 
   const myOrders = orders.filter((o) => {
@@ -246,14 +255,14 @@ export default function ManagerDashboardOverview() {
             <div>
               <div className="flex justify-between text-xs font-semibold mb-1.5">
                 <span className="flex items-center gap-1.5 text-emerald-600">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Converted to Orders
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Accepted by Buyer
                 </span>
-                <span>{myConvertedQuotes.length} ({conversionRate}%)</span>
+                <span>{myAcceptedQuotes.length} ({acceptanceRate}%)</span>
               </div>
               <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
                 <div
                   className="bg-emerald-500 h-full transition-all duration-500"
-                  style={{ width: `${conversionRate}%` }}
+                  style={{ width: `${acceptanceRate}%` }}
                 />
               </div>
             </div>

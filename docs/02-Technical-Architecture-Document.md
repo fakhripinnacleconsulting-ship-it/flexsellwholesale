@@ -19,6 +19,7 @@
 5. [Request lifecycle](#5-request-lifecycle)
 6. [Key flows](#6-key-flows)
 7. [Money subsystem](#7-money-subsystem)
+7A. [File storage](#7a-file-storage)
 8. [Scheduled work](#8-scheduled-work)
 9. [Rendering and caching](#9-rendering-and-caching)
 10. [Error handling](#10-error-handling)
@@ -48,7 +49,7 @@
 
 | System | Purpose | If it fails |
 |---|---|---|
-| **Razorpay** | Card/UPI/netbanking, webhooks | Gateway payments unavailable; wallet and COD still work |
+| **Razorpay** | Card/UPI/netbanking, webhooks | Gateway payments unavailable; Advance and COD still work |
 | **Vercel Blob** | Product images, KYC docs, proofs | Falls back to local disk, then base64 data URI |
 | **Upstash Redis** | Sliding-window rate limiting | Limiting disabled; app continues |
 | **SMTP** | Transactional email | Logged and swallowed — never blocks a transaction |
@@ -121,7 +122,7 @@ token rotates.
 | Catalogue | `Product`, `Category`, `Collection`, `HsnRecord` |
 | Commerce | `Order`, `Invoice`, `Coupon`, `ShippingConfig`, `StockLog` |
 | Identity | `Customer`, `Manager`, `OtpVerification` |
-| Money | `Wallet`, `WalletTransaction`, `WalletExpenseCategory` |
+| Money | `Advance`, `AdvanceTransaction`, `AdvanceExpenseCategory` |
 | Engagement | `Review`, `Inquiry`, `Newsletter`, `Notification`, `NotificationPreference`, `PushSubscription` |
 | Content | `CmsContent` |
 
@@ -156,7 +157,7 @@ Product.updateOne(
 
 ### 4.4 Deliberate denormalisation
 
-`Order.createdBy` and `WalletTransaction.createdBy` store `{ userId, name, role }` **inline**.
+`Order.createdBy` and `AdvanceTransaction.createdBy` store `{ userId, name, role }` **inline**.
 
 > A manager who later leaves and is deleted would otherwise turn every one of their past
 > entries into "Unknown", and a rename would silently rewrite history. The ledger is
@@ -177,14 +178,14 @@ Indexes that are **correctness**, not performance:
 
 | Index | Guarantees |
 |---|---|
-| `WalletTransaction.paymentId` unique sparse | A replayed webhook credits once |
-| `WalletTransaction.clientRequestId` unique sparse | A double-submitted form debits once |
-| `WalletTransaction.receiptNumber` unique | No two entries share a receipt |
-| `Wallet {userId, type}` unique | One wallet of each type per customer |
+| `AdvanceTransaction.paymentId` unique sparse | A replayed webhook credits once |
+| `AdvanceTransaction.clientRequestId` unique sparse | A double-submitted form debits once |
+| `AdvanceTransaction.receiptNumber` unique | No two entries share a receipt |
+| `Advance {userId, type}` unique | One Advance of each type per customer |
 | `Order.quoteId` unique sparse | One quote converts to one order |
 | `Customer.email` unique | One account per address |
 
-Both wallet idempotency indexes are **sparse** because most entries have neither field. A
+Both Advance idempotency indexes are **sparse** because most entries have neither field. A
 non-sparse unique index would reject the second document with a null value — breaking the
 feature the moment it launched.
 
@@ -209,14 +210,14 @@ feature the moment it launched.
 | `requireAuth(role?)` | Any session, optionally role-pinned | JWT |
 | `requireAdminOrManagerAuth(p)` | Admin, or manager holding `p` | **Database** |
 | `verifyManagerOrderAccess` | By order type | Database |
-| `requireWalletSpendAccess(t)` | Admin, or manager with exactly `wallet_<t>` | **Database** |
-| `requireWalletAdmin()` | Admin only | JWT role |
-| `requireWalletRead(target?)` | Owner, or any staff | JWT role |
+| `requireAdvanceSpendAccess(t)` | Admin, or manager with exactly `Advance_<t>` | **Database** |
+| `requireAdvanceAdmin()` | Admin only | JWT role |
+| `requireAdvanceRead(target?)` | Owner, or any staff | JWT role |
 
 Guards returning `{ payload, error }` rather than throwing keeps route bodies flat:
 
 ```ts
-const auth = await requireWalletAdmin();
+const auth = await requireAdvanceAdmin();
 if (auth.error) return auth.error;
 ```
 
@@ -245,14 +246,14 @@ Browser              Server                 Razorpay        MongoDB
 If the buyer abandons, the order is released immediately; the daily reaper is the backstop for
 a closed tab.
 
-### 6.2 Checkout by wallet
+### 6.2 Checkout by Advance
 
 ```
 Browser                Server                        MongoDB
   │  place order         │                              │
   ├─────────────────────▶│  reserve stock ─────────────▶│
   │◀── orderId ──────────┤                              │
-  │  pay from wallet     │                              │
+  │  pay from Advance     │                              │
   ├─────────────────────▶│  reserve funds ─────────────▶│  available → held
   │                      │  capture ───────────────────▶│  held → debited
   │                      │  mark order paid ───────────▶│
@@ -268,7 +269,7 @@ Placed ──▶ Processing ──▶ Shipped ──▶ Delivered
    │            │            │            │
    └── Cancel ──┘            │        (locked)
         restores stock       └── edit appends, never rewinds
-        refunds wallet
+        refunds Advance
 ```
 
 Every transition appends a history event carrying **two texts** — a customer-safe note that
@@ -299,13 +300,13 @@ The most safety-critical area. Five properties hold it together.
 
 ### 7.1 One writer
 
-`lib/walletLedger.ts` is the only module that may change a balance. If a balance and its ledger
+`lib/AdvanceLedger.ts` is the only module that may change a balance. If a balance and its ledger
 ever disagree, exactly one place could have caused it.
 
 ### 7.2 Conditional atomic updates
 
 ```js
-Wallet.findOneAndUpdate(
+Advance.findOneAndUpdate(
   { _id, status: "active", availableBalance: { $gte: amountPaise } },
   { $inc: { availableBalance: -amountPaise, totalDebited: amountPaise } },
   { new: true, session }
@@ -314,7 +315,7 @@ Wallet.findOneAndUpdate(
 
 The check and the decrement are one operation. Two concurrent ₹800 debits against ₹1,000
 resolve to exactly one success. Read-then-write would let both read 1,000, both pass, and the
-wallet go negative.
+Advance go negative.
 
 ### 7.3 Two-sided idempotency
 
@@ -339,12 +340,89 @@ sweeper resolves to exactly one outcome — never both taken and returned.
 
 ### 7.5 Reconciliation reports, never repairs
 
-Nightly, per wallet: `sum(credits) − sum(debits)` must equal `availableBalance + heldBalance`.
+Nightly, per Advance: `sum(credits) − sum(debits)` must equal `availableBalance + heldBalance`.
 Drift raises an alert and changes nothing — an automatic correction would hide the bug that
 caused it, and the ledger is the record of truth.
 
 Held balance is included because it has left `availableBalance` without being debited; omitting
-it would make every wallet with a live checkout look permanently short.
+it would make every Advance with a live checkout look permanently short.
+
+---
+
+## 7A. File storage
+
+Files are the second place this system spends real money, and it went wrong the same way money
+subsystems do — by having two implementations that disagreed.
+
+### 7A.1 One writer
+
+`lib/storage/` is the only module that writes a file, mirroring §7.1's rule for balances.
+Before it there were two upload routes with different fallbacks, limits and return shapes, and
+eight components calling `fetch` directly — so a defect in one of them had eight places it
+could have been introduced and only one place it could be fixed.
+
+```
+uploadFile({ buffer, filename, contentType, kind })
+   ├── vercelBlob      primary
+   ├── cloudinary      fallback #1
+   └── supabaseStorage fallback #2
+```
+
+Providers are tried in order; the first **configured** one that succeeds wins.
+
+### 7A.2 Two asset classes
+
+| Class | Examples | `access` | Stored in Mongo | Cache |
+|---|---|---|---|---|
+| **Public** | product, category, collection and CMS imagery | `public` | the **CDN URL** | `max-age=31536000`, immutable |
+| **Private** | `kycDocuments.*`, `AdvanceTransaction.proofUrl`, dropship documents, shipping labels | `private` | the **pathname** | `no-store` |
+
+A private reference is a pathname, never a URL: a URL is either permanently public or it
+expires, and a stored reference must be neither. Reads go through
+`GET /api/documents/[...pathname]` — authenticated, ownership-checked, and answering with a
+**302 to a short-lived signed URL** so the bytes travel from the CDN to the browser without
+passing through a function.
+
+### 7A.3 Why the URL in the database matters
+
+Uploads used to store `/api/customers/document/<name>?url=<blobUrl>`. Every view was therefore
+served by a serverless function that fetched the blob and re-streamed it:
+
+```
+browser → function → blob   (egress #1)
+browser ← function ← bytes  (egress #2)   …with no Cache-Control at all
+```
+
+Two billed egresses per view, the CDN bypassed entirely, and the whole file buffered in
+function memory by `arrayBuffer()`. **255 MB of stored files produced 10 GB of transfer** —
+roughly 40× amplification — which exhausted the plan's quota and suspended the store.
+
+Storing the direct reference is the fix. `scripts/migrate-document-urls.mjs` rewrites the
+historic rows; the legacy route is retained read-only (now authenticated) until it has run
+everywhere.
+
+### 7A.4 Degradation, not failure
+
+Provider availability is decided by typed SDK errors, never by matching message text:
+
+| Error | Treated as |
+|---|---|
+| `BlobStoreSuspendedError`, `BlobServiceRateLimited`, `BlobServiceNotAvailable` | `PROVIDER_UNAVAILABLE` → try the next provider |
+| `BlobStoreNotFoundError`, `BlobAccessError` | `PROVIDER_MISCONFIGURED` → try the next, alert |
+| anything else | `UPLOAD_FAILED` → **stop** |
+
+The last row is the important one: a file the first provider *refused* must not be retried
+elsewhere, or a rejected content type gets stored by whichever provider happens to be laxer.
+
+### 7A.5 Compression and deletion
+
+Images are compressed in the browser before upload (`lib/uploadHelper.ts`, max 1 MB / 1920 px)
+— the cheapest byte is the one never stored, and no amount of caching beats not storing it.
+
+`deleteFile()` exists because `put` without `del` is a leak: the codebase previously imported
+`put` and never `del`, so every replaced document stayed in the store forever.
+`scripts/sweep-orphan-blobs.mjs` reports unreferenced objects and is **report-only by
+default** — blob deletion is the one irreversible step in this design.
 
 ---
 
@@ -355,10 +433,10 @@ Vercel Hobby allows **two cron jobs, each once per day**. Both slots are used.
 | Path | Schedule | Work |
 |---|---|---|
 | `/api/orders/reap-abandoned` | `0 0 * * *` | Cancel unpaid online orders, return stock |
-| `/api/wallet/maintenance` | `30 20 * * *` (02:00 IST) | Stuck top-ups + expired holds + reconciliation, one pass |
+| `/api/Advance/maintenance` | `30 20 * * *` (02:00 IST) | Stuck top-ups + expired holds + reconciliation, one pass |
 
 **Daily is too slow to be a customer's only route to their own money.** So stuck top-ups also
-settle **lazily on read**: opening the wallet checks that customer's own pending payments,
+settle **lazily on read**: opening the Advance checks that customer's own pending payments,
 gated behind an indexed count so the common case costs one query and never touches Razorpay.
 The person waiting triggers the work; the cron catches customers who never return.
 
@@ -375,7 +453,7 @@ a day whether or not a payment is stuck.
 | Storefront listings | ISR, revalidated on write | Mostly static |
 | Cart, checkout | Client | Per-session |
 | Dashboards | Client against `no-store` | Never cacheable |
-| **All wallet routes** | `force-dynamic` + `no-store` | One customer seeing another's balance is the worst possible bug |
+| **All Advance routes** | `force-dynamic` + `no-store` | One customer seeing another's balance is the worst possible bug |
 
 `images.unoptimized: true` is a deliberate current state: `remotePatterns` still contains a
 wildcard, and enabling optimisation before narrowing it would let arbitrary hosts through the
@@ -414,7 +492,7 @@ business outcome the caller should show, not a fault to log.
 | Email send | Logged, swallowed — never rolls back a committed transaction |
 | Push notification | Same |
 | Webhook dispatch | Fire-and-forget with a caught rejection |
-| Lazy sweep on wallet read | Caught; the page renders with a possibly stale balance rather than an error |
+| Lazy sweep on Advance read | Caught; the page renders with a possibly stale balance rather than an error |
 | Sitemap generation | Falls back to static routes |
 
 The rule: **nothing that happens after a commit may undo it.**
@@ -427,10 +505,10 @@ The rule: **nothing that happens after a commit may undo it.**
 |---|---|
 | Exceptions | Sentry (client and server configs) |
 | Analytics | Vercel Analytics |
-| Money events | `console.warn` / `console.error` with a `[Wallet]` prefix |
-| Drift | `[Wallet Reconciliation] DRIFT DETECTED` + a `SECURITY_ALERT` event to admins |
+| Money events | `console.warn` / `console.error` with a `[Advance]` prefix |
+| Drift | `[Advance Reconciliation] DRIFT DETECTED` + a `SECURITY_ALERT` event to admins |
 | Staff spend | Daily digest by category and by manager |
-| Offline credits | `/api/wallet/offline-register` — proof links, admin name, IP |
+| Offline credits | `/api/Advance/offline-register` — proof links, admin name, IP |
 | Health | `/api/health` |
 | Diagnostics | `/api/system-diagnostics` — admin-only, secrets masked |
 
@@ -445,7 +523,7 @@ attention, so a filtered production log is actionable rather than noisy.
 
 | Resource | Limit | Consequence |
 |---|---|---|
-| Vercel cron | 2 jobs, once daily | Wallet maintenance is one combined pass; sweeps run lazily |
+| Vercel cron | 2 jobs, once daily | Advance maintenance is one combined pass; sweeps run lazily |
 | Serverless timeout | 60s (`maxDuration` on uploads) | Bulk operations are chunked |
 | Mongo pool | `maxPoolSize: 10`, cached globally | Survives serverless reuse |
 | ISR writes | Billed per revalidation | Revalidation is targeted, not blanket |
@@ -477,17 +555,17 @@ does not benefit from independent deployability.
 **Because** they appear on invoices and in support calls.
 **Cost:** occasional casts around Mongoose's generics.
 
-### ADR-003 — Wallet money in paise, the rest in rupees
+### ADR-003 — Advance money in paise, the rest in rupees
 
-**Decided.** Integer paise inside the wallet only; conversion at the API edge.
-**Because** `0.1 + 0.2 !== 0.3`, and a wallet that drifts a paisa per transaction is
+**Decided.** Integer paise inside the Advance only; conversion at the API edge.
+**Because** `0.1 + 0.2 !== 0.3`, and a Advance that drifts a paisa per transaction is
 unauditable.
 **Rejected:** converting the whole app — too large a migration on live data.
 **Cost:** one boundary to police, mitigated by naming every paise variable with the suffix.
 
-### ADR-004 — One wallet model with a type discriminator
+### ADR-004 — One Advance model with a type discriminator
 
-**Decided.** `Wallet { type: "store" | "business" }`.
+**Decided.** `Advance { type: "store" | "business" }`.
 **Because** atomic updates, the append-only ledger, receipt numbering, idempotency, passbook,
 freeze/close and reconciliation are **identical** for both. Two models means every one of those
 bugs gets fixed twice, and the second fix gets forgotten.
@@ -495,7 +573,7 @@ bugs gets fixed twice, and the second fix gets forgotten.
 
 ### ADR-005 — Extend the payment webhook rather than add one
 
-**Decided.** Wallet top-ups settle in a branch of the existing Razorpay webhook.
+**Decided.** Advance top-ups settle in a branch of the existing Razorpay webhook.
 **Because** that route already verifies the signature over the raw body and is already
 CSRF-exempt. A second endpoint means rebuilding both, and getting either wrong on a route that
 credits money is not recoverable.
@@ -505,8 +583,8 @@ credits money is not recoverable.
 
 **Decided.** No spend caps, no customer approval, no per-customer scoping.
 **Because** the business requires staff to act without waiting.
-**Consequence:** any manager with a wallet permission can spend any amount from any customer's
-wallet immediately. Six detective controls make it impossible to do *quietly* — attribution, a
+**Consequence:** any manager with a Advance permission can spend any amount from any customer's
+Advance immediately. Six detective controls make it impossible to do *quietly* — attribution, a
 mandatory bill, a non-suppressible customer email, an immutable audit trail, a daily digest,
 and a query action on every row.
 **Reversible:** `awaiting_approval` already exists in the status enum, so adding caps later is a
@@ -514,7 +592,7 @@ route change, not a migration.
 
 ### ADR-007 — Lazy sweep plus a daily cron
 
-**Decided.** Stuck top-ups settle when the customer opens their wallet, with a nightly backstop.
+**Decided.** Stuck top-ups settle when the customer opens their Advance, with a nightly backstop.
 **Because** the hosting plan allows two daily jobs, and a day is too long to wait for money
 already paid.
 **Also cheaper** than a frequent cron on any plan.
@@ -531,9 +609,9 @@ field — is the record of truth.
 **Because** an edit that rewinds a Delivered order to Shipped destroys the record of what
 actually happened. Delivery additionally **locks** fulfilment, enforced server-side.
 
-### ADR-010 — Mock mode is read-only for wallets
+### ADR-010 — Mock mode is read-only for Advances
 
-**Decided.** Wallet reads may return fixtures; every wallet write throws under `isMockMode`.
+**Decided.** Advance reads may return fixtures; every Advance write throws under `isMockMode`.
 **Because** a mocked top-up that reports success teaches the interface that money moved when
 nothing did, and the same code path in the wrong environment is a phantom balance.
 **Departs** from every other service deliberately: those move data, this moves money.

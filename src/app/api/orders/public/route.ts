@@ -1,3 +1,4 @@
+import { isAdvanceBalanceMethod } from "@/lib/advanceBalanceConstants";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import InvoiceModel from "@/models/Invoice";
@@ -7,8 +8,10 @@ import Product from "@/models/Product";
 import CmsContent from "@/models/CmsContent";
 import { generateNextId } from "@/lib/idGeneratorServer";
 import { resolveVariantKeys } from "@/lib/variantMatcher";
+import { isPriceAllowed } from "@/lib/priceTierHelper";
 import { revalidateAdminDashboard, revalidateProductStock } from "@/lib/revalidate";
 import { buildHistoryEvent, SYSTEM_ACTOR } from "@/lib/orderHistory";
+import { issueTaxInvoiceForReceipt, orderPaymentMethodFor, walletTypeForMethod, type StoredReceipt } from "@/lib/orderSettlement";
 import { rateLimit } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 import { formatDateIST } from "@/lib/datetime";
@@ -76,6 +79,80 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Order must contain at least one line item" }, { status: 400 });
     }
 
+    /**
+     * Price verification — this route previously had **none at all**.
+     *
+     * It destructured `amount` and `items` from the request body and wrote them straight onto
+     * the order, so anyone could post any price. Fixing verification on `/api/orders` while
+     * leaving this open would have moved the hole rather than closed it.
+     *
+     * Entitlement here is whatever the *named customer* actually holds, not what the request
+     * claims — this page is public, so an unrecognised or absent customer is B2C and can reach
+     * no wholesale rate at all.
+     */
+    const lookupEmail = newCustomer?.email || customerEmail;
+    const buyerForPricing = customerId
+      ? await Customer.findById(customerId).select("customerTypes").lean()
+      : lookupEmail
+        ? await Customer.findOne({ email: String(lookupEmail).toLowerCase() }).select("customerTypes").lean()
+        : null;
+
+    /**
+     * A customer this order is about to create does not exist yet, so there is nothing to look
+     * up — and defaulting them to B2C would reject the dropship prices the form legitimately
+     * submitted, breaking first-time dropship signups.
+     *
+     * This route is admin/manager-only and hard-codes `resolvedCustomerType = "Dropshipping"`
+     * below, creating new accounts with exactly that type. So Dropshipping is not a permissive
+     * guess here — it is what this order is, stated before it is written rather than after.
+     */
+    const pricingTypes: string[] =
+      (buyerForPricing as { customerTypes?: string[] } | null)?.customerTypes || ["Dropshipping"];
+
+    for (const item of items) {
+      const productId = item.product?._id || item.productId || item.product || item.id;
+      if (!productId) continue;
+
+      const dbProduct = await Product.findById(productId).lean() as any;
+      if (!dbProduct) {
+        return NextResponse.json(
+          { message: `Product not found: ${item.productTitle || productId}` },
+          { status: 400 }
+        );
+      }
+
+      const { color, size, weight } = resolveVariantKeys(item.selectedVariants || item.variants || {});
+      const cv =
+        dbProduct.colorVariants?.find((c: any) => c.color?.toLowerCase() === (color || "").toLowerCase()) ||
+        dbProduct.colorVariants?.[0];
+      const sv =
+        cv?.subVariants?.find(
+          (s: any) =>
+            (!size || s.size?.toLowerCase() === size.toLowerCase()) &&
+            (!weight || s.weight?.toLowerCase() === weight.toLowerCase())
+        ) || cv?.subVariants?.[0];
+
+      if (!sv) continue;
+
+      const verdict = isPriceAllowed(
+        Number(item.pricePerUnit),
+        sv,
+        pricingTypes,
+        Number(item.quantity) || 1
+      );
+
+      if (!verdict.ok) {
+        return NextResponse.json(
+          {
+            message:
+              `Price verification failed for "${dbProduct.title}". ` +
+              `Got ₹${item.pricePerUnit}; this account may pay ${verdict.allowed.map((p) => `₹${p}`).join(" or ")}.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const resolvedCustomerType = "Dropshipping";
 
     let resolvedCustomerId = customerId;
@@ -129,6 +206,33 @@ export async function POST(request: Request) {
     const sellerInfo = await getSellerInfo();
     const invoiceId = await generateNextId("receipt");
     const orderId = await generateNextId("order");
+
+    /**
+     * A dropshipping order paid up front still gets the full paper trail: a `REC-` receipt
+     * for what was collected and a separate `INV-` Tax Invoice issued against it.
+     *
+     * Two families of method are refused as hand-recorded prepayments:
+     *   - **advanceBalances**, because a balance can only be debited by `/api/invoices/[id]/settle`,
+     *     which reads a session this public-portal flow does not carry in the buyer's name.
+     *   - **Razorpay**, because a gateway payment cannot be attested to. It either carries a
+     *     verified signature or it did not happen, and the gateway settles itself through
+     *     `/api/razorpay/verify` and the webhook.
+     *
+     * Either one falls through to a pending order, which is the honest outcome.
+     */
+    const HAND_RECORDABLE = !isAdvanceBalanceMethod(paymentMethod) && paymentMethod !== "Razorpay";
+    const isPrepaid = paymentStatus === "Paid" && HAND_RECORDABLE;
+
+    /**
+     * The status the documents are actually written with.
+     *
+     * Derived once, and never the caller's word for it: a request naming Razorpay or a Advance Balance
+     * with `paymentStatus: "Paid"` used to be written straight through, producing a paid order
+     * and a paid receipt with nothing behind either. Anything that is not hand-recordable
+     * starts Pending and is settled by the path that can prove it — the gateway callback, or
+     * the Advance Balance routes.
+     */
+    const effectivePaymentStatus = paymentStatus === "Paid" && !HAND_RECORDABLE ? "Pending" : paymentStatus;
 
     const generatedAt = formatDateIST(new Date());
 
@@ -209,14 +313,22 @@ export async function POST(request: Request) {
       },
       shippingAddress,
       paymentMethod,
-      paymentStatus,
-      transactionId: transactionId || undefined,
+      /**
+       * The receipt is always born pending, even for a prepaid dropshipping order.
+       *
+       * Writing `status: "paid"` here produced a paid receipt with no Tax Invoice behind it:
+       * the `INV-` counter never advanced and the customer had no compliant document for
+       * money they had already handed over. The payment is recorded below through the shared
+       * settlement library, which mints the `INV-` and links the two.
+       */
+      paymentStatus: isPrepaid ? "Pending" : effectivePaymentStatus,
+      transactionId: isPrepaid ? undefined : transactionId || undefined,
       sellerInfo,
       notes,
       generatedAt,
       generatedBy: "website-public",
       createdBy: resolvedCreatedBy,
-      status: paymentStatus === "Paid" ? "paid" : "pending",
+      status: "pending",
       salesperson: salesperson || undefined,
       customerType: resolvedCustomerType,
       dropshipDetails,
@@ -242,8 +354,12 @@ export async function POST(request: Request) {
         hsnSlabs: [],
       },
       shippingAddress,
-      paymentMethod: paymentMethod || "COD",
-      paymentStatus: paymentStatus || "Pending",
+      // Translated to the order enum — the document keeps its own wording. See
+      // `orderPaymentMethodFor`.
+      paymentMethod: orderPaymentMethodFor(paymentMethod) || "COD",
+      walletType: walletTypeForMethod(paymentMethod),
+      // Pending until the settlement below records the payment and issues the Tax Invoice.
+      paymentStatus: isPrepaid ? "Pending" : effectivePaymentStatus || "Pending",
       status: "Processing",
       statusClass: "bg-blue-100 text-blue-700",
       invoiceId,
@@ -262,10 +378,32 @@ export async function POST(request: Request) {
 
     revalidateAdminDashboard();
 
-    // Deduct Stock
+    /**
+     * Deduct stock — guarded, and rolled back as a unit.
+     *
+     * This loop used to `$inc` the count with no `stock: { $gte: qty }` condition, no check on
+     * `modifiedCount`, and a `catch` that only logged. The update matched whatever the stock
+     * was, so the decrement **drove the count negative** and nothing reported it: the order was
+     * confirmed, the customer was told it was placed, and the catalogue quietly claimed units
+     * that did not exist.
+     *
+     * `/api/invoices` and `/api/orders` have both guarded this for a while — read and decrement
+     * in one operation, so two concurrent orders for the last unit resolve to exactly one
+     * success — and this route had drifted from them. It now matches: any line that cannot be
+     * reserved rolls back the lines already taken, deletes the documents written above, and
+     * returns 409 rather than confirming an order nobody can fulfil.
+     */
     if (Array.isArray(items)) {
-      for (const item of items) {
-        try {
+      const stockRollbacks: Array<{
+        productId: string;
+        cvColor: string;
+        size?: string;
+        weight?: string;
+        qty: number;
+      }> = [];
+
+      try {
+        for (const item of items) {
           const pId = item.product?._id || item.productId || item.product || item.id;
           if (!pId) continue;
           const dbProduct = await Product.findById(pId);
@@ -288,12 +426,14 @@ export async function POST(request: Request) {
           const qty = Number(item.quantity || item.qty || 1);
           if (qty <= 0) continue;
 
-          await Product.updateOne(
+          const updateResult = await Product.updateOne(
             {
               _id: dbProduct._id,
               "colorVariants.color": cv.color,
               "colorVariants.subVariants": {
-                $elemMatch: { size: sv.size, weight: sv.weight }
+                // The guard makes the read and the decrement one operation, so two concurrent
+                // orders for the last unit resolve to exactly one success.
+                $elemMatch: { size: sv.size, weight: sv.weight, stock: { $gte: qty } }
               }
             },
             {
@@ -309,17 +449,82 @@ export async function POST(request: Request) {
               ]
             }
           );
-        } catch (err) {
-          console.error("Failed to deduct stock during public order creation:", err);
+
+          if (updateResult.modifiedCount === 0) {
+            throw new Error(
+              `Insufficient stock for "${dbProduct.title}" (${cv.color}${sv.size ? ` - ${sv.size}` : ""}).`
+            );
+          }
+
+          stockRollbacks.push({
+            productId: String(dbProduct._id),
+            cvColor: cv.color,
+            size: sv.size,
+            weight: sv.weight,
+            qty,
+          });
         }
+      } catch (stockErr) {
+        for (const rb of stockRollbacks) {
+          await Product.updateOne(
+            {
+              _id: rb.productId,
+              "colorVariants.color": rb.cvColor,
+              "colorVariants.subVariants": { $elemMatch: { size: rb.size, weight: rb.weight } }
+            },
+            {
+              $inc: {
+                "colorVariants.$[cv].subVariants.$[sv].stock": rb.qty,
+                totalStock: rb.qty
+              }
+            },
+            {
+              arrayFilters: [
+                { "cv.color": rb.cvColor },
+                { "sv.size": rb.size, "sv.weight": rb.weight }
+              ]
+            }
+          ).catch((rollbackErr) =>
+            console.error("Failed to roll back stock after a failed public order:", rollbackErr)
+          );
+        }
+
+        // The receipt and its order were written above, so remove them rather than leaving an
+        // order behind that claims stock nobody has.
+        await InvoiceModel.findByIdAndDelete(invoiceId).catch(() => {});
+        await Order.findByIdAndDelete(orderId).catch(() => {});
+
+        revalidateProductStock();
+        return NextResponse.json({ message: (stockErr as Error).message }, { status: 409 });
       }
+
       revalidateProductStock();
+    }
+
+    // Record the prepayment and issue the Tax Invoice, after the stock has been taken.
+    let taxInvoiceId: string | undefined;
+    if (isPrepaid) {
+      const storedReceipt = (await InvoiceModel.findById(invoiceId).lean()) as StoredReceipt | null;
+      if (storedReceipt) {
+        const settled = await issueTaxInvoiceForReceipt({
+          receipt: storedReceipt,
+          method: paymentMethod,
+          transactionId: String(transactionId || "").trim() || undefined,
+          actor: {
+            role: resolvedCreatedBy?.role,
+            name: resolvedCreatedBy?.name,
+            userId: resolvedCreatedBy?.userId,
+          },
+        });
+        taxInvoiceId = settled.invoiceId;
+      }
     }
 
     return NextResponse.json({
       message: "Dropshipping order created successfully",
       orderId: (newOrder as any)._id || orderId,
-      invoiceId,
+      invoiceId: taxInvoiceId || invoiceId,
+      receiptId: invoiceId,
       amount: (newOrder as any).amount || amount,
       status: (newOrder as any).status || "Processing",
     }, { status: 201 });

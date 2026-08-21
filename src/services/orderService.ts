@@ -100,6 +100,16 @@ export interface OrderListParams {
   orderType?: string;
   origin?: string;
   createdBy?: string;
+  /**
+   * Applied in the query, not in the browser.
+   *
+   * The order table used to filter whatever array it held — the newest 100 orders — so
+   * "Delivered" quietly meant "Delivered among the last hundred". See the note in
+   * `/api/orders`.
+   */
+  status?: string;
+  paymentStatus?: string;
+  search?: string;
 }
 
 export const orderService = {
@@ -143,6 +153,9 @@ export const orderService = {
     if (params?.orderType) queryParams.push(`orderType=${params.orderType}`);
     if (params?.origin) queryParams.push(`origin=${params.origin}`);
     if (params?.createdBy) queryParams.push(`createdBy=${encodeURIComponent(params.createdBy)}`);
+    if (params?.status) queryParams.push(`status=${encodeURIComponent(params.status)}`);
+    if (params?.paymentStatus) queryParams.push(`paymentStatus=${encodeURIComponent(params.paymentStatus)}`);
+    if (params?.search) queryParams.push(`search=${encodeURIComponent(params.search)}`);
 
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;
@@ -161,7 +174,6 @@ export const orderService = {
     },
     couponCode?: string,
     couponDiscount?: number,
-    quoteId?: string,
     salesperson?: string,
     // Must be sent explicitly: the server recomputes the order total from verified item
     // prices plus these charges, and rejects the order if the client's total disagrees.
@@ -169,14 +181,6 @@ export const orderService = {
   ): Promise<Order> {
     if (isMockMode) {
       const orders = getLocalOrders();
-
-      // Idempotency check for quoteId
-      if (quoteId) {
-        const existing = orders.find(o => o.quoteId === quoteId);
-        if (existing) {
-          return existing;
-        }
-      }
 
       const id = generateNextClientMockId("order");
       const docType = paymentDetails?.paymentStatus === "Paid" ? "invoice" : "receipt";
@@ -221,23 +225,13 @@ export const orderService = {
         salesperson
       };
 
-      let inheritedCustomerType: "B2B" | "B2C" | "Dropshipping" = "B2C";
-
-      // Mark Quote converted in local storage & read original customerType
-      if (quoteId) {
-        const matchIdx = invoices.findIndex((q: Invoice) => q._id === quoteId);
-        if (matchIdx !== -1) {
-          invoices[matchIdx].status = "converted";
-          invoices[matchIdx].orderId = id;
-          const targetQuote = invoices[matchIdx] as unknown as { customerType?: "B2B" | "B2C" | "Dropshipping" };
-          if (targetQuote.customerType) {
-            inheritedCustomerType = targetQuote.customerType;
-          }
-          localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
-        }
-      }
-
-      (newDoc as unknown as Record<string, unknown>).customerType = inheritedCustomerType;
+      /**
+       * Mirrors the server: a quote is never read here and never marked `converted`.
+       *
+       * Mock mode must not teach the UI a workflow the API refuses — `/api/orders` now
+       * rejects a `quoteId` outright.
+       */
+      (newDoc as unknown as Record<string, unknown>).customerType = "B2C";
       invoices.unshift(newDoc);
       localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
 
@@ -255,11 +249,10 @@ export const orderService = {
         paymentStatus: paymentDetails?.paymentStatus || "Pending",
         transactionId: paymentDetails?.transactionId,
         invoiceId,
-        quoteId,
         salesperson,
         couponCode,
         couponDiscount,
-        orderType: inheritedCustomerType,
+        orderType: "B2C",
         history: [
           {
             status: "Placed",
@@ -293,7 +286,6 @@ export const orderService = {
       paymentDetails,
       couponCode,
       couponDiscount,
-      quoteId,
       salesperson,
       shippingCharge: charges?.shippingCharge ?? 0,
       packagingCharge: charges?.packagingCharge ?? 0

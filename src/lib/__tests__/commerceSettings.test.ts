@@ -11,7 +11,7 @@ const lean = (value: unknown) => ({ lean: () => Promise.resolve(value) });
 
 import {
   getCommerceSettings,
-  getWalletRechargeAvailability,
+  getAdvanceBalanceTopUpAvailability,
   DEFAULT_COMMERCE_SETTINGS,
   RECHARGE_UNAVAILABLE_MESSAGE,
   RECHARGE_UNAVAILABLE_STAFF_MESSAGE,
@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 describe("getCommerceSettings", () => {
-  it("defaults wallet online top-up to on when never saved", async () => {
+  it("defaults Advance Balance online top-up to on when never saved", async () => {
     // An existing installation that upgrades must not silently lose a payment method its
     // customers were already using.
     findOne.mockReturnValue(lean(null));
@@ -87,17 +87,17 @@ describe("getCommerceSettings", () => {
   });
 });
 
-describe("getWalletRechargeAvailability", () => {
+describe("getAdvanceBalanceTopUpAvailability", () => {
   it("is available when switched on and the gateway is configured", async () => {
     findOne.mockReturnValue(lean({ value: { enableWalletOnlineRecharge: true } }));
 
-    expect(await getWalletRechargeAvailability()).toEqual({ available: true, reason: "ok" });
+    expect(await getAdvanceBalanceTopUpAvailability()).toEqual({ available: true, reason: "ok" });
   });
 
   it("reports the admin switch when it is off", async () => {
     findOne.mockReturnValue(lean({ value: { enableWalletOnlineRecharge: false } }));
 
-    expect(await getWalletRechargeAvailability()).toEqual({
+    expect(await getAdvanceBalanceTopUpAvailability()).toEqual({
       available: false,
       reason: "disabled_by_admin",
     });
@@ -109,7 +109,7 @@ describe("getWalletRechargeAvailability", () => {
     findOne.mockReturnValue(lean({ value: { enableWalletOnlineRecharge: true } }));
     delete process.env.RAZORPAY_KEY_ID;
 
-    expect(await getWalletRechargeAvailability()).toEqual({
+    expect(await getAdvanceBalanceTopUpAvailability()).toEqual({
       available: false,
       reason: "gateway_not_configured",
     });
@@ -120,7 +120,7 @@ describe("getWalletRechargeAvailability", () => {
     findOne.mockReturnValue(lean({ value: { enableWalletOnlineRecharge: false } }));
     delete process.env.RAZORPAY_KEY_SECRET;
 
-    expect((await getWalletRechargeAvailability()).reason).toBe("disabled_by_admin");
+    expect((await getAdvanceBalanceTopUpAvailability()).reason).toBe("disabled_by_admin");
   });
 });
 

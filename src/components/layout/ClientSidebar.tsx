@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, Heart, MapPin, User, Star, Ticket, Bell, LogOut, Menu, ChevronLeft, ChevronRight, ArrowUpCircle, Wallet } from "lucide-react";
+import { Package, Heart, MapPin, User, Star, Ticket, Bell, LogOut, Menu, ChevronLeft, ChevronRight, ArrowUpCircle, Wallet as AdvanceBalanceIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Drawer } from "@/components/ui/Drawer";
 import { Customer } from "@/types";
@@ -37,6 +37,16 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
   React.useEffect(() => {
     if (customerTypes.length === 1 && activeView !== customerTypes[0]) {
       setActiveView(customerTypes[0]);
+      return;
+    }
+    /**
+     * `activeView` is persisted to localStorage, so it can outlive the account type it names
+     * — a customer whose Dropshipping access was removed would keep a stale view selected,
+     * and the orders API now refuses a type the account does not hold. Fall back to the
+     * first type they actually have.
+     */
+    if (customerTypes.length > 0 && !customerTypes.includes(activeView)) {
+      setActiveView(customerTypes[0]);
     }
   }, [customerTypes, activeView, setActiveView]);
 
@@ -49,7 +59,7 @@ export function ClientSidebar({ activeCustomer }: ClientSidebarProps) {
         icon: Package 
       },
       { name: "Wishlist", href: "/client/wishlist", icon: Heart },
-      { name: "My Wallets", href: "/client/wallet", icon: Wallet },
+      { name: "My Advance Balance", href: "/client/advance-balance", icon: AdvanceBalanceIcon },
       { name: "Addresses", href: "/client/addresses", icon: MapPin },
       { name: "Profile", href: "/client/profile", icon: User },
     ];

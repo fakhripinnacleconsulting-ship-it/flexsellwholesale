@@ -91,7 +91,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
     let notifMessage = "";
     let notifType: "info" | "order" | "success" | "warning" | "security" = "info";
     let deepLink = "/";
-    let triggerEmailSend: () => Promise<any> = async () => {};
+    let triggerEmailSend: () => Promise<any> = async () => { };
 
     switch (eventType) {
       case "AUTH_OTP_REQUESTED":
@@ -108,9 +108,9 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         const emailForWelcome = customerEmail || data?.email;
         if (emailForWelcome) {
           triggerEmailSend = () =>
-            emailService.sendWelcomeEmail({ 
-              _id: customerId, 
-              email: emailForWelcome, 
+            emailService.sendWelcomeEmail({
+              _id: customerId,
+              email: emailForWelcome,
               name: customerName || data?.name || "Valued Buyer",
               customerTypes: data?.customerTypes || []
             });
@@ -203,7 +203,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
 
       case "ORDER_CANCELLED":
         notifTitle = `Order Cancelled #${entity.id}`;
-        notifMessage = `Your wholesale purchase order #${entity.id} has been cancelled.`;
+        notifMessage = `Your purchase order #${entity.id} has been cancelled.`;
         notifType = "warning";
         deepLink = `/client/orders/${entity.id}`;
         const cancelEmail = customerEmail || data?.shippingAddress?.email || data?.order?.shippingAddress?.email;
@@ -241,13 +241,13 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         notifTitle = isCancelStatus
           ? `Order Cancelled #${entity.id}`
           : isShippedStatus
-          ? `Order Shipped #${entity.id}`
-          : `Order Status Updated #${entity.id}`;
+            ? `Order Shipped #${entity.id}`
+            : `Order Status Updated #${entity.id}`;
         notifMessage = isCancelStatus
           ? `Order #${entity.id} has been cancelled.`
           : isShippedStatus
-          ? `Order #${entity.id} dispatched via ${data?.carrierName || data?.shipmentDetails?.carrierName || "Courier"}. Tracking ID: ${data?.trackingId || data?.shipmentDetails?.trackingId || "N/A"}`
-          : `Order #${entity.id} status changed to ${data?.status}`;
+            ? `Order #${entity.id} dispatched via ${data?.carrierName || data?.shipmentDetails?.carrierName || "Courier"}. Tracking ID: ${data?.trackingId || data?.shipmentDetails?.trackingId || "N/A"}`
+            : `Order #${entity.id} status changed to ${data?.status}`;
         notifType = isCancelStatus ? "warning" : isShippedStatus ? "success" : "info";
         deepLink = `/client/orders/${entity.id}`;
 
@@ -285,7 +285,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         notifType = "info";
         deepLink = "/cart";
         // Rule 4: Customer Notif = TRUE, Customer Mail = FALSE
-        triggerEmailSend = async () => {};
+        triggerEmailSend = async () => { };
         break;
 
       case "CART_ITEM_REMOVED":
@@ -294,7 +294,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         notifType = "info";
         deepLink = "/cart";
         // Rule 4: Customer Notif = TRUE, Customer Mail = FALSE
-        triggerEmailSend = async () => {};
+        triggerEmailSend = async () => { };
         break;
 
       case "COUPON_LIVE":
@@ -439,12 +439,12 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
     let adminMessage = "";
     let adminType: "info" | "order" | "success" | "warning" | "security" = "info";
     let adminLink = "/admin";
-    let triggerAdminEmailSend: () => Promise<any> = async () => {};
+    let triggerAdminEmailSend: () => Promise<any> = async () => { };
     let requiredPermission: string | null = null;
 
     // Build the actor string properly if the actor is a manager
-    const actorDisplayName = actor.role === "manager" 
-      ? `Manager ${actor.name || "Unknown"}` 
+    const actorDisplayName = actor.role === "manager"
+      ? `Manager ${actor.name || "Unknown"}`
       : (actor.name || recipient.name || "Buyer");
 
     switch (eventType) {
@@ -486,7 +486,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         if (data?.orderType === "B2B") requiredPermission = "orders_b2b";
         else if (data?.orderType === "Dropshipping") requiredPermission = "orders_dropshipping";
         else requiredPermission = "orders_b2c";
-        
+
         if (data) {
           triggerAdminEmailSend = () => emailService.sendAdminNewOrderAlert(data);
         }
@@ -505,7 +505,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
           if (orderType === "B2B") requiredPermission = "orders_b2b";
           else if (orderType === "Dropshipping") requiredPermission = "orders_dropshipping";
           else requiredPermission = "orders_b2c";
-          
+
           triggerAdminEmailSend = () => emailService.sendAdminOrderStatusUpdateAlert(data.order || data, data?.status || data?.paymentStatus || "Updated");
         }
         break;
@@ -527,7 +527,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
         adminType = "success";
         adminLink = "/admin/coupons";
         requiredPermission = "ops_coupons";
-        triggerAdminEmailSend = async () => {};
+        triggerAdminEmailSend = async () => { };
         break;
 
       case "QUOTE_ACCEPTED":
@@ -579,7 +579,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
           triggerAdminEmailSend = () => emailService.sendAdminInquiryAlert(data);
         }
         break;
-        
+
       case "INQUIRY_RESPONDED":
         adminTitle = `Inquiry Replied #${entity.id}`;
         adminMessage = `${actorDisplayName} replied to inquiry #${entity.id}.`;
@@ -617,23 +617,23 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
       if (adminPrefs.email) {
         try {
           if (actor.role === "manager" && eventType !== "SECURITY_ALERT") {
-             // Dispatch a separate activity email instead of/or along with standard email
-             await emailService.sendAdminManagerActivityAlert(actor.name || "Unknown Manager", adminMessage);
+            // Dispatch a separate activity email instead of/or along with standard email
+            await emailService.sendAdminManagerActivityAlert(actor.name || "Unknown Manager", adminMessage);
           } else {
-             await triggerAdminEmailSend();
+            await triggerAdminEmailSend();
           }
         } catch (emailErr) {
           console.error(`[ADMIN EMAIL ALERT ERROR] Failed to dispatch email for ${eventType}:`, emailErr);
         }
       }
-      
+
       // 4. Fan-Out to Managers
       if (requiredPermission && eventType !== "SECURITY_ALERT") {
         try {
           const dbConnect = (await import("../dbConnect")).default;
           const ManagerModel = (await import("@/models/Manager")).default;
           await dbConnect();
-          
+
           // Find all active managers with the required permission
           // The manager schema might store permissions as an array of strings like ["orders_b2b:read", "orders_b2b"]
           // Using regex to match either the exact root permission or any action within it.
@@ -641,7 +641,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
             status: "active",
             permissions: { $regex: new RegExp(`^${requiredPermission}(:|$)`) }
           }).lean();
-          
+
           for (const manager of managers) {
             // Send In-App Notification to Manager
             await saveInAppNotification({
@@ -654,7 +654,7 @@ export async function handleSystemEvent(event: SystemEventPayload): Promise<void
               actionType: eventType,
               entityId: entity.id,
             });
-            
+
             // Note: Manager email preferences could be checked here in the future
             // For now, we reuse the triggerAdminEmailSend but change the recipient if possible.
             // Since emailService relies on getAdminEmail() for many admin alerts, we might need a custom approach or bypass it for now.

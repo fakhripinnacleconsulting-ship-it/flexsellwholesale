@@ -15,11 +15,11 @@ export interface CommerceSettings {
   /** Razorpay at checkout. */
   enableOnlinePayment: boolean;
   /**
-   * Razorpay for **wallet top-ups**, for customers and staff alike.
+   * Razorpay for **Advance Balance top-ups**, for customers and staff alike.
    *
    * Deliberately separate from `enableOnlinePayment`: a business may want card payments at
    * checkout while keeping prepaid balance to bank transfers it can reconcile by hand — and
-   * the reverse, once the wallet is trusted and COD is being retired.
+   * the reverse, once the Advance Balance is trusted and COD is being retired.
    */
   enableWalletOnlineRecharge: boolean;
 }
@@ -27,7 +27,7 @@ export interface CommerceSettings {
 /**
  * Defaults when the setting has never been saved.
  *
- * Wallet online recharge defaults to **on**: an existing installation that upgrades should
+ * Advance Balance online recharge defaults to **on**: an existing installation that upgrades should
  * not silently lose a payment method its customers were already using.
  */
 export const DEFAULT_COMMERCE_SETTINGS: CommerceSettings = {
@@ -73,13 +73,13 @@ export async function getCommerceSettings(): Promise<CommerceSettings> {
 }
 
 /**
- * Whether online wallet top-up is available at all.
+ * Whether online Advance Balance top-up is available at all.
  *
  * Two independent conditions, and the distinction matters when explaining a disabled button:
  * an admin can fix a switch they turned off, but only a developer can fix missing gateway
  * keys.
  */
-export async function getWalletRechargeAvailability(): Promise<{
+export async function getAdvanceBalanceTopUpAvailability(): Promise<{
   available: boolean;
   reason: "ok" | "disabled_by_admin" | "gateway_not_configured";
 }> {
@@ -99,9 +99,9 @@ export async function getWalletRechargeAvailability(): Promise<{
  *
  * This file imports mongoose, so a client component importing a message from here would pull
  * the driver into the browser bundle — which fails on `async_hooks`. Server code may keep
- * importing them from either place; client code must use walletConstants.
+ * importing them from either place; client code must use advanceBalanceConstants.
  */
-export { RECHARGE_UNAVAILABLE_MESSAGE, RECHARGE_UNAVAILABLE_STAFF_MESSAGE } from "./walletConstants";
+export { RECHARGE_UNAVAILABLE_MESSAGE, RECHARGE_UNAVAILABLE_STAFF_MESSAGE } from "./advanceBalanceConstants";
 
 function boolOr(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
