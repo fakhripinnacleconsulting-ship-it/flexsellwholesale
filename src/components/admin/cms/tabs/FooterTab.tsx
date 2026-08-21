@@ -49,6 +49,7 @@ export function FooterTab({ footer, setFooter, isSaving, onSave }: FooterTabProp
             onChange={(e) => setFooter({ ...footer, contactPhone: e.target.value })}
             className="text-xs"
           />
+        </div>
         <div className="space-y-1 sm:col-span-2 border-t pt-3">
           <label className="text-xs font-bold uppercase text-muted-foreground">Payment Methods Banner Image URL (Single Image)</label>
           <Input
